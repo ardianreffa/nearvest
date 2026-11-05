@@ -1,0 +1,80 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { makeWorld } from './helpers.ts';
+
+async function call(app: ReturnType<typeof makeWorld>['app'], method: string, path: string, token?: string, body?: unknown) {
+  const res = await app.request(path, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return { status: res.status, json: (await res.json()) as any };
+}
+
+describe('HTTP API', () => {
+  it('dev login -> create garden -> check-in -> plant -> water', async () => {
+    const { app } = makeWorld();
+    const login = await call(app, 'POST', '/auth/dev', undefined, { username: 'tester' });
+    assert.equal(login.status, 200);
+    assert.equal(login.json.player, null);
+    const token = login.json.token as string;
+
+    const created = await call(app, 'POST', '/api/player', token, { name: 'Ardian' });
+    assert.equal(created.status, 201);
+    assert.equal(created.json.player.accountId, 'ardian.nearvest.testnet');
+    assert.equal(created.json.player.balance, 50);
+
+    const checkin = await call(app, 'POST', '/api/checkin', token);
+    assert.equal(checkin.status, 200);
+    assert.equal(checkin.json.state.player.balance, 55);
+
+    const seed = checkin.json.state.seeds[0];
+    const planted = await call(app, 'POST', '/api/plant', token, { plot: 0, seedId: seed.id });
+    assert.equal(planted.status, 200);
+    const watered = await call(app, 'POST', '/api/water', token, { plot: 0 });
+    assert.equal(watered.json.state.plots[0].tree.isWatered, true);
+
+    const again = await call(app, 'POST', '/api/water', token, { plot: 0 });
+    assert.equal(again.status, 400);
+    assert.match(again.json.error, /already watered/);
+  });
+
+  it('requires a session for player routes', async () => {
+    const { app } = makeWorld();
+    assert.equal((await call(app, 'GET', '/api/me')).status, 401);
+    assert.equal((await call(app, 'GET', '/api/me', 'not-a-token')).status, 401);
+  });
+
+  it('one login has one garden', async () => {
+    const { app } = makeWorld();
+    const { json } = await call(app, 'POST', '/auth/dev', undefined, { username: 'tester' });
+    await call(app, 'POST', '/api/player', json.token, { name: 'ardian' });
+    const second = await call(app, 'POST', '/api/player', json.token, { name: 'budi' });
+    assert.equal(second.status, 409);
+    const relogin = await call(app, 'POST', '/auth/dev', undefined, { username: 'tester' });
+    assert.equal(relogin.json.player.player.name, 'ardian');
+  });
+
+  it('Village Stats and Mr. Darto are public', async () => {
+    const w = makeWorld();
+    w.newPlayer('ardian');
+    await w.worker.drain();
+    const stats = await call(w.app, 'GET', '/api/stats');
+    assert.equal(stats.status, 200);
+    assert.equal(stats.json.panen.totalMinted, 50);
+    assert.equal(stats.json.panen.season, 1);
+    assert.equal(stats.json.village.players, 1);
+    const darto = await call(w.app, 'GET', '/api/darto');
+    assert.equal(darto.json.prices.length, 3);
+    assert.equal(typeof darto.json.greeting, 'string');
+  });
+
+  it('Google login rejects a bad credential', async () => {
+    const { app } = makeWorld();
+    const res = await call(app, 'POST', '/auth/google', undefined, { credential: 'bad' });
+    assert.equal(res.status, 503); // not configured in tests
+  });
+});

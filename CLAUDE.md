@@ -42,11 +42,13 @@ Tip: the Read tool cannot render this PDF without poppler. Extract text with mac
 
 | Contract | Account | Source | Owner | Minters |
 |---|---|---|---|---|
-| $PANEN (NEP-141, 18 decimals) | `panen.nearvest.testnet` | `contracts/panen` | `nearvest.testnet` | `nearvest.testnet` (temporary) |
-| Tree NFT (NEP-171/177/178/181) | `pohon.nearvest.testnet` | `contracts/pohon` | `nearvest.testnet` | `nearvest.testnet` (temporary) |
+| $PANEN (NEP-141, 18 decimals) | `panen.nearvest.testnet` | `contracts/panen` | `nearvest.testnet` | `game.nearvest.testnet` |
+| Tree NFT (NEP-171/177/178/181) | `pohon.nearvest.testnet` | `contracts/pohon` | `nearvest.testnet` | `game.nearvest.testnet` |
+| Player account factory | `nearvest.testnet` | `contracts/factory` | itself (`set_creator` only from `nearvest.testnet`) | creator: `game.nearvest.testnet` |
 
-- First deploy 2026-11-05 (near-sdk 5.30.0, Rust 1.99.1, cargo-near 0.22.0). Sub-account keys are in the macOS keychain.
-- Replace the temporary minter with the game server account when the server exists (`add_minter` / `remove_minter`).
+- First deploy 2026-11-05 (near-sdk 5.30.0, Rust 1.99.1, cargo-near 0.22.0). Keys of `nearvest`, `panen`, `pohon` are in the macOS keychain.
+- **Game server account:** `game.nearvest.testnet` (minter, relayer that pays all gas, the only allowed caller of the factory). Its key exists **only** in `server/.env` (created by `node scripts/init-env.ts`, never printed). The temporary minter `nearvest.testnet` was removed on 2026-11-05.
+- Why a factory: on NEAR only `nearvest.testnet` can create `<name>.nearvest.testnet`. The factory contract lets the server create players without holding the main account's full access key.
 - Storage for new players and trees is paid from each contract's own balance: top up from the faucet when low.
 - Build: `cd contracts/<name> && cargo near build non-reproducible-wasm`. Test: `cd contracts && cargo test`.
 
@@ -57,6 +59,18 @@ Tip: the Read tool cannot render this PDF without poppler. Extract text with mac
   - Hackathon / testnet: **2,000 / 5,000 / 10,000 PANEN** (set on-chain 2026-11-05 via `set_season_thresholds`), so judges can see halving happen.
   - Mainnet plan: **100,000 / 200,000 / 400,000 PANEN** (the contract's built-in default).
 - `burn` does not require a 1 yoctoNEAR deposit, so TaniBot (function call key) and the relayer can burn for Shop purchases. Only the caller's own tokens can be burned.
+
+## Game server (agreed with Ardian, 2026-11-05)
+
+- **Stack:** Node.js 24+ running TypeScript directly (type stripping), built-in `node:sqlite`, Hono (HTTP), near-api-js 7, jose (Google token check). Tests: `cd server && npm test` (built-in `node:test`), type check: `npm run typecheck`.
+- **Build and test on the Mac first** (`npm run dev`, port 8787, localhost only). Move to the VPS only after asking Ardian.
+- **VPS:** `ssh ubuntu@150.109.24.35` (Ubuntu, Singapore, 1.9 GB RAM, ~1 GB free). The bot **"Entropy" runs there: never stop, change or touch anything of it.** Always ask Ardian before connecting to or changing the VPS. Passwordless SSH from the Mac did not work yet (2026-11-05: `Permission denied (publickey,password)`); never ask Ardian to paste a password.
+- **Players:** the server creates `<name>.nearvest.testnet` through the factory (0.003 NEAR storage paid by the game), generates the key pair and stores the secret key **AES-256-GCM encrypted** with `MASTER_KEY` from `.env`. Losing `MASTER_KEY` = losing all player keys: back it up privately.
+- **Gas:** the game account signs everything. Burns must come from the player, so the server signs a meta transaction (NEP-366) with the player key and the game account relays it and pays gas.
+- **Chain job queue:** actions update SQLite instantly and queue the NEAR transaction; one worker sends them in order, retries network errors and reverts the local balance if a token job fails for good.
+- **Login:** Google Identity Services button on the web -> ID token -> `POST /auth/google` (verified against Google's keys; only the Client ID is needed, no secret). `POST /auth/dev` exists only when `DEV_LOGIN=true` (never on a public server). Sessions are Bearer tokens (stored hashed).
+- **HTTPS (agreed 2026-11-05, not installed yet):** Caddy on the VPS with a free `150-109-24-35.sslip.io` hostname and automatic Let's Encrypt certificates, proxying to the server on 127.0.0.1:8787. Fallback: Cloudflare Tunnel.
+- **Draft game numbers (not in the GDD; approved by Ardian 2026-11-05 as starting values, tune in testing; all in `server/src/rules.ts`):** grow days to first fruit mango 1 / rambutan 2 / durian 4; regrow 0.5 / 1 / 2 days; harvests before old 3 / 4 / 5; XP per harvest 10 / 25 / 60; titles at 0 / 50 / 200 / 600 / 1500 / 4000 XP; plot 3 unlocks at 50 XP (Farmhand); watering lasts 1 game day and is allowed once per tree per day (free for now by Ardian's choice; weather water comes with the Important features); fertilizer +50% speed for 1 day; Mr. Darto price swing ±30% minus up to 15% when many fruits were sold yesterday, bounded by [seed price, base +30%]; day-7 check-in bonus seed = Gold Mango; old tree drops 1 superior seed then becomes a Memorial Tree.
 
 ## Hard rules (never break)
 
@@ -128,9 +142,11 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - [x] Deploy to testnet and test (done early, Thu 5 Nov)
 
 **Sat 7 Nov: game server on the VPS**
-- [ ] Database, village clock (07:00 WIB), gas-paying relayer
-- [ ] Actions: plant, water, fertilize, harvest, sell, check-in
-- [ ] Simple Mr. Darto (daily price with upper and lower bounds)
+- [x] Database, village clock (07:00 WIB), gas-paying relayer (on the Mac; VPS move still to do)
+- [x] Actions: plant, water, fertilize, harvest, sell, check-in (plus Shop burn, welcome pack, demo mode, Village Stats endpoint)
+- [x] Simple Mr. Darto (daily price with upper and lower bounds)
+- [ ] Google OAuth Client ID (Ardian) and test real Google login
+- [ ] Move the server to the VPS with HTTPS (ask Ardian first)
 
 **Sun 8 Nov: web UI**
 - [ ] Pixel-art garden with 3 plots, mobile friendly, login

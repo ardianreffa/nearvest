@@ -5,6 +5,7 @@ Rust smart contracts for NEAR testnet, built with `near-sdk` 5.30.0.
 | Crate | Account (testnet) | Standard | What it does |
 |---|---|---|---|
 | `panen` | `panen.nearvest.testnet` | NEP-141, NEP-145, NEP-148 | $PANEN memecoin: minter-only minting (fair launch, no pre-mint), holder burn (Shop), Seasons halving with a 1/8 floor, Village Stats view |
+| `factory` | `nearvest.testnet` | - | Creates player accounts `<name>.nearvest.testnet`; only the game server (`game.nearvest.testnet`) may call `create_player` |
 | `pohon` | `pohon.nearvest.testnet` | NEP-171, NEP-177, NEP-178, NEP-181 | Living Tree NFT: minted on planting, updatable stage/age/harvests, lineage (`parent_id`), Memorial Trees, metadata computed live from tree data |
 
 ## Build and test
