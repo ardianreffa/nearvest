@@ -472,7 +472,7 @@ export class Game {
           throw new GameError('Your seed storage is full. The seed stays safe on the tree until you choose what to do.', 409, {
             code: 'storage_full',
             species: t.species,
-            sellPrice: Math.floor(seedSellPrice(t.species, null) / this.seasonDivisor) || 1,
+            sellPrice: this.afterSeason(seedSellPrice(t.species, null)),
           });
         }
         if (then === 'sell') {
@@ -594,6 +594,17 @@ export class Game {
       this.db.prepare('UPDATE players SET balance_micro = balance_micro + ? WHERE id = ?').run(expectedMicro, p.id);
       return { price, basePanen, expectedPanen: fromMicro(expectedMicro), seasonDivisor: this.seasonDivisor };
     });
+  }
+
+  /** PANEN actually paid for a Mr. Darto sale of `basePanen` under the current Season. */
+  afterSeason(basePanen: number): number {
+    return fromMicro(Math.floor(toMicro(basePanen) / this.seasonDivisor));
+  }
+
+  /** Current Season of $PANEN: harvest-sale rewards are divided by `divisor` (1, 2, 4, 8). */
+  seasonInfo() {
+    const divisor = this.seasonDivisor;
+    return { number: Math.round(Math.log2(divisor)) + 1, divisor, rewardPercent: 100 / divisor };
   }
 
   private ownedSeeds(p: PlayerRow, seedIds: unknown) {
@@ -754,6 +765,7 @@ export class Game {
       fruits,
       items,
       darto: this.dartoPrices(demo),
+      season: this.seasonInfo(),
       activity: this.activity(p.id),
     };
   }

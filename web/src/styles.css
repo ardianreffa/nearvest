@@ -2918,3 +2918,10 @@ input:focus-visible {
 .plot-bar > .panel-head {
   padding-top: 2px !important;
 }
+
+.qty-season {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-align: right;
+}

@@ -68,6 +68,8 @@ export interface GameState {
   fruits: { species: Species; quality: Quality; qty: number }[];
   items: { item: string; qty: number }[];
   darto: { day: number; prices: DartoPrice[]; greeting: string };
+  /** $PANEN Season: Mr. Darto's sale rewards are divided by `divisor`. */
+  season: { number: number; divisor: number; rewardPercent: number };
   activity: Activity[];
 }
 

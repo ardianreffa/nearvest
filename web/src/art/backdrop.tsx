@@ -97,7 +97,13 @@ function MiniDrone() {
   );
 }
 
-export function Backdrop({ fraction, blurFill = false }: { fraction: number; blurFill?: boolean }) {
+/**
+ * `hd` uses the 480x270 versions (laptop immersive mode, drawn at a whole
+ * number of px per pixel); phones use the 240x135 ones.
+ */
+export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction: number; blurFill?: boolean; hd?: boolean }) {
+  const daySrc = hd ? '/assets/bg/bg-day-hd.png' : '/assets/bg/bg-day.png';
+  const nightSrc = hd ? '/assets/bg/bg-night-hd.png' : '/assets/bg/bg-night.png';
   const { night, tint } = skyMix(fraction);
   const vars = { '--night': night.toFixed(3), '--tint': tint.toFixed(3) };
 
@@ -107,8 +113,8 @@ export function Backdrop({ fraction, blurFill = false }: { fraction: number; blu
       {blurFill && (
         // Full-window layout: whatever the sharp art does not cover shows a blurred copy of it.
         <div class="bg-blur">
-          <img src="/assets/bg/bg-day.png" alt="" />
-          <img class="bg-img-night" src="/assets/bg/bg-night.png" alt="" />
+          <img src={daySrc} alt="" />
+          <img class="bg-img-night" src={nightSrc} alt="" />
         </div>
       )}
       <div class="bg-stars">
@@ -118,8 +124,8 @@ export function Backdrop({ fraction, blurFill = false }: { fraction: number; blu
       </div>
 
       <div class="bg-art">
-        <img class="bg-img" src="/assets/bg/bg-day.png" alt="" />
-        <img class="bg-img bg-img-night" src="/assets/bg/bg-night.png" alt="" />
+        <img class="bg-img" src={daySrc} alt="" />
+        <img class="bg-img bg-img-night" src={nightSrc} alt="" />
 
         <div class="bg-fx">
           {SMOKE.map((s, i) => (

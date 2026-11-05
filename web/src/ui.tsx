@@ -3,7 +3,7 @@
 import type { ComponentChildren } from 'preact';
 import type { Quality, Species, Stage } from './api';
 import { useState } from 'preact/hooks';
-import { clampQty, saleTotal, stepQty } from './qty';
+import { clampQty, saleTotal, seasonPayout, stepQty } from './qty';
 import { Sprite } from './sprites';
 
 export const SPECIES_NAME: Record<Species, string> = { mango: 'Mango', rambutan: 'Rambutan', durian: 'Durian' };
@@ -90,10 +90,13 @@ export function QtyPicker({
   actionClass = 'btn-gold',
   onAction,
   secondary,
+  season,
 }: {
   max: number;
   unitPrice: number;
   multiplier?: number;
+  /** For sales to Mr. Darto: the total shown is what is really paid in this Season. */
+  season?: { number: number; divisor: number; rewardPercent: number };
   busy: boolean;
   actionLabel: string;
   actionClass?: string;
@@ -103,7 +106,8 @@ export function QtyPicker({
 }) {
   const [picked, setPicked] = useState(1);
   const qty = clampQty(picked, max);
-  const total = saleTotal(unitPrice, multiplier, qty);
+  const base = saleTotal(unitPrice, multiplier, qty);
+  const total = season ? seasonPayout(base, season.divisor) : base;
   return (
     <div class="qty">
       <div class="qty-row">
@@ -141,6 +145,12 @@ export function QtyPicker({
           {actionLabel} · <Coin /> {formatPanen(total)}
         </button>
       </div>
+      {season && season.divisor > 1 && (
+        <p class="qty-season">
+          Season {season.number}: harvest rewards {formatPanen(season.rewardPercent)}%
+          {base !== total && <> (before: {formatPanen(base)})</>}
+        </p>
+      )}
     </div>
   );
 }

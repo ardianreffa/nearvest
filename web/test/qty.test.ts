@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { clampQty, saleTotal, stepQty } from '../src/qty.ts';
+import { clampQty, saleTotal, seasonPayout, stepQty } from '../src/qty.ts';
 
 describe('quantity picker', () => {
   it('stays between 1 and the amount you have', () => {
@@ -30,5 +30,12 @@ describe('quantity picker', () => {
     assert.equal(saleTotal(10, 1, 3), 30);
     assert.equal(saleTotal(10, 5, 2), 100);
     assert.equal(saleTotal(13, 2, 0), 0);
+  });
+
+  it('the button shows what is really paid after the Season rule', () => {
+    assert.equal(seasonPayout(saleTotal(8, 2, 1), 2), 8); // Rare Mango shown 16, paid 8
+    assert.equal(seasonPayout(25, 4), 6.25);
+    assert.equal(seasonPayout(30, 1), 30);
+    assert.equal(seasonPayout(10, 0), 10);
   });
 });

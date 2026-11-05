@@ -219,3 +219,29 @@ describe('titles and demo XP', () => {
     }
   });
 });
+
+describe('Season rule shown to the player', () => {
+  it('the state says the Season and what a sale really pays', () => {
+    const w = makeWorld();
+    const p = w.newPlayer('ardian');
+    assert.deepEqual(w.game.state(p.id).season, { number: 1, divisor: 1, rewardPercent: 100 });
+    w.game.seasonDivisor = 2;
+    assert.deepEqual(w.game.state(p.id).season, { number: 2, divisor: 2, rewardPercent: 50 });
+    // A Rare Mango shown at 16 pays 8 in Season 2.
+    assert.equal(w.game.afterSeason(16), 8);
+    assert.equal(w.game.afterSeason(25), 12.5);
+    w.game.seasonDivisor = 8;
+    assert.equal(w.game.state(p.id).season.number, 4);
+  });
+
+  it('a seed sale in Season 2 pays half', () => {
+    const w = makeWorld();
+    const p = w.newPlayer('ardian');
+    w.game.seasonDivisor = 2;
+    const durian = w.game.state(p.id).seeds[0]; // Rare Durian: 16 x 2 = 32
+    const r = w.game.sellSeeds(p.id, [durian.id]);
+    assert.equal(r.basePanen, 32);
+    assert.equal(r.expectedPanen, 16);
+    assert.equal(w.game.state(p.id).player.balance, 50 + 16);
+  });
+});

@@ -16,3 +16,12 @@ export function stepQty(value: number, step: number, max: number): number {
 export function saleTotal(unitPrice: number, multiplier: number, qty: number): number {
   return Math.max(0, unitPrice * multiplier * qty);
 }
+
+/**
+ * What a Mr. Darto sale really pays under the Season rule (harvest-sale rewards
+ * are divided by 1, 2, 4 or 8). Same rounding as the server: down to 0.000001 PANEN.
+ */
+export function seasonPayout(total: number, divisor: number): number {
+  const d = divisor >= 1 ? divisor : 1;
+  return Math.floor(Math.round(total * 1_000_000) / d) / 1_000_000;
+}

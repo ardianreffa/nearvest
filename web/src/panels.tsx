@@ -51,6 +51,7 @@ export function Storage({ state, config, act, busy, goSell }: { state: GameState
                     key={g.key}
                     max={g.ids.length}
                     unitPrice={seedPrice(config, g)}
+                    season={state.season}
                     busy={busy}
                     actionLabel="Sell to Darto"
                     onAction={(qty) => void act('/api/seeds/sell', { seedIds: g.ids.slice(0, qty) }, `Sold ${qty} ${SPECIES_NAME[g.species]} seed${qty > 1 ? 's' : ''}`)}
@@ -125,11 +126,13 @@ export function Shop({ state, config, act, busy }: { state: GameState; config: S
 }
 
 /** Shows a Darto pose for a moment, then goes back to idle. */
-function useDartoPose(): [DartoPose, (pose: DartoPose) => void] {
+function useDartoPose(): [DartoPose, Species, (pose: DartoPose, fruit?: Species) => void] {
   const [pose, setPose] = useState<DartoPose>('idle');
+  const [fruit, setFruit] = useState<Species>('durian');
   const timer = useRef<number>();
-  const show = (p: DartoPose) => {
+  const show = (p: DartoPose, f?: Species) => {
     setPose(p);
+    if (f) setFruit(f);
     clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setPose('idle'), 2400);
   };
@@ -137,18 +140,18 @@ function useDartoPose(): [DartoPose, (pose: DartoPose) => void] {
     show('wave'); // he waves when the Market opens
     return () => clearTimeout(timer.current);
   }, []);
-  return [pose, show];
+  return [pose, fruit, show];
 }
 
 export function Market({ state, config, sell, act, busy }: { state: GameState; config: ServerConfig; sell: Sell; act: Act; busy: boolean }) {
   const d = state.darto;
-  const [pose, showPose] = useDartoPose();
+  const [pose, heldFruit, showPose] = useDartoPose();
   const sceneRef = useRef<HTMLDivElement>(null);
   const [thanks, setThanks] = useState(0);
   const thanksTimer = useRef<number>();
   /** Darto reacts in the scene; if the scene is scrolled out of view, a small face says thanks next to the list. */
-  const react = () => {
-    showPose('durian');
+  const react = (fruit: Species) => {
+    showPose('hold', fruit);
     const r = sceneRef.current?.getBoundingClientRect();
     if (r && (r.bottom < 40 || r.top > window.innerHeight - 40)) {
       setThanks((n) => n + 1);
@@ -162,7 +165,7 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
       <Panel title="Mr. Darto">
         <div class="market-scene" ref={sceneRef}>
           <MarketBackdrop />
-          <DartoFigure pose={pose} scale={2} />
+          <DartoFigure pose={pose} fruit={heldFruit} scale={2} />
           <HoverCart scale={2} />
           <p class="speech">"{d.greeting}"</p>
         </div>
@@ -217,10 +220,11 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
                     max={f.qty}
                     unitPrice={shown}
                     multiplier={QUALITY_MULT[f.quality]}
+                    season={state.season}
                     busy={busy}
                     actionLabel="Sell"
                     onAction={(qty) => {
-                      react();
+                      react(f.species);
                       void sell(f.species, f.quality, qty, shown);
                     }}
                   />
@@ -229,7 +233,11 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
             })}
           </ul>
         )}
-        <p class="muted small">Totals are before the Season rule; the contract pays the final amount.</p>
+        <p class="muted small">
+          {state.season.divisor > 1
+            ? `Season ${state.season.number}: harvest rewards ${formatPanen(state.season.rewardPercent)}%. The amounts on the buttons are what you receive.`
+            : 'The amounts on the buttons are what you receive.'}
+        </p>
       </Panel>
       {seedGroups.length > 0 && (
         <Panel title="Sell seeds" right={<span class="muted small">{state.seedSlots.used}/{state.seedSlots.max} slots</span>}>
@@ -249,10 +257,11 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
                   key={`${g.key}-${g.ids.length}`}
                   max={g.ids.length}
                   unitPrice={seedPrice(config, g)}
+                  season={state.season}
                   busy={busy}
                   actionLabel="Sell"
                   onAction={(qty) => {
-                    react();
+                    react(g.species);
                     void act('/api/seeds/sell', { seedIds: g.ids.slice(0, qty) }, `Sold ${qty} ${SPECIES_NAME[g.species]} seed${qty > 1 ? 's' : ''}`);
                   }}
                 />

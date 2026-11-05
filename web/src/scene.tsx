@@ -49,7 +49,10 @@ const SOIL_TOP_ROW = 104;
 const BED_ROWS = 7;
 
 export interface Immersive {
-  /** Whole CSS px per art pixel. */
+  /**
+   * CSS px per pixel of the 240x135 art grid (trees and plots use it). The
+   * laptop backdrop is the 480x270 HD image at k / 2 px per pixel, always whole.
+   */
   k: number;
   artLeft: number;
   artBottom: number;
@@ -65,9 +68,13 @@ export interface Immersive {
  * open drawer and the action bar.
  */
 export function immersiveLayout(width: number, height: number, drawerWidth: number, barHeight: number): Immersive {
-  const cover = Math.ceil(Math.max(width / ART_W, height / ART_H));
-  const fit = Math.max(1, Math.floor(Math.min(width / ART_W, height / ART_H)));
-  const k = (ART_W * cover - width) / width <= 0.2 ? cover : fit;
+  // Whole-pixel scale of the HD (480x270) backdrop.
+  const hdW = ART_W * 2;
+  const hdH = ART_H * 2;
+  const cover = Math.ceil(Math.max(width / hdW, height / hdH));
+  const fit = Math.max(1, Math.floor(Math.min(width / hdW, height / hdH)));
+  const hdScale = (hdW * cover - width) / width <= 0.2 ? cover : fit;
+  const k = hdScale * 2;
   const artW = ART_W * k;
   const artLeft = Math.round((width - artW) / 2);
   const bedBottom = (ART_H - SOIL_TOP_ROW - BED_ROWS) * k;
@@ -117,7 +124,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
       aria-label="Your garden"
       style={immersive ? { '--k': String(immersive.k), '--art-left': `${immersive.artLeft}px`, '--art-bottom': `${immersive.artBottom}px` } : undefined}
     >
-      <Backdrop fraction={fraction} blurFill={!!immersive} />
+      <Backdrop fraction={fraction} blurFill={!!immersive} hd={!!immersive} />
 
       <Stage immersive={immersive}>
       <div class="plots">

@@ -44,7 +44,9 @@ function Gallery() {
       <div class="preview-row">
         <DartoFigure pose="idle" scale={3} />
         <DartoFigure pose="wave" scale={3} />
-        <DartoFigure pose="durian" scale={3} />
+        <DartoFigure pose="hold" fruit="mango" scale={3} />
+        <DartoFigure pose="hold" fruit="rambutan" scale={3} />
+        <DartoFigure pose="hold" fruit="durian" scale={3} />
         <HoverCart scale={3} />
       </div>
       <h2>Shop</h2>

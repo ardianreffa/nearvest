@@ -3,6 +3,7 @@
 import { useRef, useState } from 'preact/hooks';
 import type { GameState, Quality, ServerConfig } from './api';
 import { floatText } from './fx';
+import { seasonPayout } from './qty';
 import { GardenScene, type ActionKind, type Immersive, type SceneFx } from './scene';
 import { Sprite } from './sprites';
 import {
@@ -235,7 +236,7 @@ function PlotPanel({
   const harvest = async () => {
     if (t.stage === 'old' && storageFull) {
       // Never stuck: the seed stays safe on the tree until the player picks one of these.
-      const price = config.seedSellPrices?.[t.species] ?? 1;
+      const price = seasonPayout(config.seedSellPrices?.[t.species] ?? 1, state.season.divisor);
       const choice = await choose(
         `Your seed storage is full (${state.seedSlots.used}/${state.seedSlots.max}). This old tree's superior ${SPECIES_NAME[t.species]} seed stays safe on the tree until you choose:`,
         [
