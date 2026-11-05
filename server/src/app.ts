@@ -28,7 +28,7 @@ export function createApp(deps: AppDeps) {
   app.use('*', cors({ origin: config.webOrigins, allowHeaders: ['Content-Type', 'Authorization'], allowMethods: ['GET', 'POST'] }));
 
   app.onError((err, c) => {
-    if (err instanceof GameError) return c.json({ error: err.message }, err.status as 400);
+    if (err instanceof GameError) return c.json({ error: err.message, ...err.details }, err.status as 400);
     console.error(err);
     return c.json({ error: 'Something went wrong on the server' }, 500);
   });
@@ -158,7 +158,8 @@ export function createApp(deps: AppDeps) {
 
   app.post('/api/sell', async (c) => {
     const b = await body(c);
-    return respond(c, game.sell(playerId(c), b.species as Species, b.quality as Quality, Number(b.qty ?? 1)));
+    const expectedPrice = typeof b.expectedPrice === 'number' ? b.expectedPrice : undefined;
+    return respond(c, game.sell(playerId(c), b.species as Species, b.quality as Quality, Number(b.qty ?? 1), expectedPrice));
   });
 
   app.post('/api/shop/buy', async (c) => {

@@ -11,6 +11,7 @@ import {
   advance,
   CHECKIN_DAY7_MULTIPLIER,
   CHECKIN_PANEN,
+  DEMO_STREAK_GRACE_DAYS,
   FERTILIZER_DAYS,
   FIRST_HARVEST_MS,
   isReady,
@@ -38,9 +39,12 @@ import {
 
 export class GameError extends Error {
   status: number;
-  constructor(message: string, status = 400) {
+  /** Extra machine-readable fields sent to the client, e.g. { code: 'price_changed' }. */
+  details?: Record<string, unknown>;
+  constructor(message: string, status = 400, details?: Record<string, unknown>) {
     super(message);
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -205,6 +209,14 @@ export class Game {
     return dayIndex(this.d.now(), p.demo === 1);
   }
 
+  /** Streak after checking in today: continues after yesterday (or within the demo grace window). */
+  private nextStreak(p: PlayerRow, today: number): number {
+    if (p.checkin_day === null) return 1;
+    const gap = today - p.checkin_day;
+    const allowed = p.demo === 1 ? DEMO_STREAK_GRACE_DAYS + 1 : 1;
+    return gap >= 1 && gap <= allowed ? p.streak + 1 : 1;
+  }
+
   private assertAccountOk(p: PlayerRow): void {
     if (p.account_status === 'failed') {
       throw new GameError('Your NEAR account could not be created. Please contact support.', 409);
@@ -335,7 +347,7 @@ export class Game {
       this.assertAccountOk(p);
       const today = this.today(p);
       if (p.checkin_day === today) throw new GameError('You already checked in today. Come back tomorrow!');
-      const streak = p.checkin_day === today - 1 ? p.streak + 1 : 1;
+      const streak = this.nextStreak(p, today);
       const calendarDay = ((streak - 1) % 7) + 1;
       const panen = calendarDay === 7 ? CHECKIN_PANEN * CHECKIN_DAY7_MULTIPLIER : CHECKIN_PANEN;
       this.db.prepare('UPDATE players SET checkin_day = ?, streak = ? WHERE id = ?').run(today, streak, p.id);
@@ -475,7 +487,12 @@ export class Game {
     return row.n;
   }
 
-  sell(playerId: number, species: Species, quality: Quality, qty: number) {
+  /**
+   * Sells fruit to Mr. Darto. `expectedPrice` is the per-fruit price the player saw;
+   * if today's price is different (the day changed), nothing is sold and the client
+   * gets the new price to confirm.
+   */
+  sell(playerId: number, species: Species, quality: Quality, qty: number, expectedPrice?: number) {
     return tx(this.db, () => {
       const p = this.getPlayer(playerId);
       this.assertAccountOk(p);
@@ -489,6 +506,13 @@ export class Game {
       const demo = p.demo === 1;
       const { day, prices } = this.dartoPrices(demo);
       const price = prices.find((x) => x.species === species)!.price;
+      if (expectedPrice !== undefined && expectedPrice !== price) {
+        throw new GameError(`Mr. Darto's price changed from ${expectedPrice} to ${price} per fruit.`, 409, {
+          code: 'price_changed',
+          oldPrice: expectedPrice,
+          price,
+        });
+      }
       const basePanen = price * QUALITY_MULTIPLIER[quality] * qty;
       const baseMicro = toMicro(basePanen);
       // Expected amount after the Season rule; the contract has the final say.
@@ -574,7 +598,7 @@ export class Game {
 
     const nextTitle = TITLES.find((t) => t.xp > p.xp) ?? null;
     const checkedInToday = p.checkin_day === today;
-    const nextStreak = checkedInToday ? p.streak : p.checkin_day === today - 1 ? p.streak + 1 : 1;
+    const nextStreak = checkedInToday ? p.streak : this.nextStreak(p, today);
     const seeds = this.db
       .prepare('SELECT id, species, quality, parent_tree_id AS parentTreeId, source FROM seeds WHERE player_id = ? ORDER BY id')
       .all(p.id) as unknown as SeedView[];
@@ -596,7 +620,7 @@ export class Game {
         title: titleFor(p.xp),
         nextTitle,
       },
-      clock: { day: today, msUntilNextDay: msUntilNextDay(now, demo), dayLengthMs: dayMs },
+      clock: { day: today, farmDay: today - dayIndex(p.created_at, demo) + 1, msUntilNextDay: msUntilNextDay(now, demo), dayLengthMs: dayMs },
       checkin: {
         available: !checkedInToday,
         streak: p.streak,

@@ -43,6 +43,11 @@ export const SHOP_ITEMS = {
 export type ShopItem = keyof typeof SHOP_ITEMS;
 
 export const CHECKIN_PANEN = 5;
+/**
+ * Demo mode only: a streak survives this many missed game days (1 day = 1 minute,
+ * so judges can see the streak grow without checking in every single minute).
+ */
+export const DEMO_STREAK_GRACE_DAYS = 10;
 export const CHECKIN_DAY7_MULTIPLIER = 2;
 export const WELCOME_PANEN = 50;
 /** Maximum welcome packs per IP address per real day (anti-cheat). */

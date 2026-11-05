@@ -64,13 +64,28 @@ Tip: the Read tool cannot render this PDF without poppler. Extract text with mac
 
 - **Stack:** Node.js 24+ running TypeScript directly (type stripping), built-in `node:sqlite`, Hono (HTTP), near-api-js 7, jose (Google token check). Tests: `cd server && npm test` (built-in `node:test`), type check: `npm run typecheck`.
 - **Build and test on the Mac first** (`npm run dev`, port 8787, localhost only). Move to the VPS only after asking Ardian.
-- **VPS:** `ssh ubuntu@150.109.24.35` (Ubuntu, Singapore, 1.9 GB RAM, ~1 GB free). The bot **"Entropy" runs there: never stop, change or touch anything of it.** Always ask Ardian before connecting to or changing the VPS. Passwordless SSH from the Mac did not work yet (2026-11-05: `Permission denied (publickey,password)`); never ask Ardian to paste a password.
+- **VPS:** `ssh ubuntu@150.109.24.35` (Ubuntu, Singapore, 1.9 GB RAM, ~1 GB free). The bot **"Entropy" runs there: never stop, change or touch anything of it.** Always ask Ardian before connecting to or changing the VPS. Passwordless SSH from the Mac works (checked 2026-11-05: Ubuntu 22.04.5 LTS, ~1 GB RAM available, 27 GB disk free). Never ask Ardian to paste a password.
 - **Players:** the server creates `<name>.nearvest.testnet` through the factory (0.003 NEAR storage paid by the game), generates the key pair and stores the secret key **AES-256-GCM encrypted** with `MASTER_KEY` from `.env`. Losing `MASTER_KEY` = losing all player keys: back it up privately.
 - **Gas:** the game account signs everything. Burns must come from the player, so the server signs a meta transaction (NEP-366) with the player key and the game account relays it and pays gas.
 - **Chain job queue:** actions update SQLite instantly and queue the NEAR transaction; one worker sends them in order, retries network errors and reverts the local balance if a token job fails for good.
 - **Login:** Google Identity Services button on the web -> ID token -> `POST /auth/google` (verified against Google's keys; only the Client ID is needed, no secret). `POST /auth/dev` exists only when `DEV_LOGIN=true` (never on a public server). Sessions are Bearer tokens (stored hashed).
 - **HTTPS (agreed 2026-11-05, not installed yet):** Caddy on the VPS with a free `150-109-24-35.sslip.io` hostname and automatic Let's Encrypt certificates, proxying to the server on 127.0.0.1:8787. Fallback: Cloudflare Tunnel.
 - **Draft game numbers (not in the GDD; approved by Ardian 2026-11-05 as starting values, tune in testing; all in `server/src/rules.ts`):** grow days to first fruit mango 1 / rambutan 2 / durian 4; regrow 0.5 / 1 / 2 days; harvests before old 3 / 4 / 5; XP per harvest 10 / 25 / 60; titles at 0 / 50 / 200 / 600 / 1500 / 4000 XP; plot 3 unlocks at 50 XP (Farmhand); watering lasts 1 game day and is allowed once per tree per day (free for now by Ardian's choice; weather water comes with the Important features); fertilizer +50% speed for 1 day; Mr. Darto price swing ±30% minus up to 15% when many fruits were sold yesterday, bounded by [seed price, base +30%]; day-7 check-in bonus seed = Gold Mango; old tree drops 1 superior seed then becomes a Memorial Tree.
+
+## Web game (2026-11-05)
+
+- **Stack:** Vite 8 + Preact 10 (10.29.8; Preact 11 skipped because the Vite plugin was not updated for it yet) + TypeScript. Static build (`npm run build` -> `web/dist`), deploys to Vercel as-is.
+- Dev: `cd web && npm run dev` -> http://localhost:5173, talks to `VITE_API_URL` (default `http://127.0.0.1:8787`).
+- Mobile first (390 px), English UI, fonts Tiny5 (text, clear digits) + Pixelify Sans (headings). Colors from the GDD as CSS variables in `web/src/styles.css`.
+- Art: original sprites in `web/src/sprites.tsx` plus CC0 files in `web/public/assets/cc0/` (see `docs/ASSETS.md`).
+- Screens: login (Google button slot + dev login), create garden (name -> `<name>.nearvest.testnet`, demo toggle), Garden (3 plots, check-in calendar), Storage, Shop, Market (Mr. Darto), Village (stats + on-chain log). A mint-green flash and toast with a tx link appear whenever a chain job lands.
+- Tab names (Ardian, 2026-11-05): "Storage" (not "Barn": sounds like "burn") and "Market" (Mr. Darto lives inside it).
+- Layout: phone = bottom tabs; `>= 1024px` = garden large on the left (pixel art at an integer 2x zoom), check-in + Storage/Shop/Market/Village panels on the right.
+- Selling sends the price the player saw (`expectedPrice`); if the day changed, the server answers 409 `price_changed` and the game asks before selling at the new price.
+- Seeds of the same kind are stacked ("Mango seed x7"); unknown quality is shown as "Revealed when planted".
+- Audio (`web/src/audio.ts`): CC0 chiptune music loop + sound effects, starts only after the first tap/click, mute button remembered in localStorage. All files listed in `docs/ASSETS.md`.
+- Demo mode streak grace: a streak survives up to 10 missed demo days (minutes); normal mode still resets after one missed day.
+- Browser test: the Claude in Chrome extension was not connected, so a headless Chrome (temporary profile) is driven over the DevTools protocol to play the full loop and take screenshots.
 
 ## Hard rules (never break)
 
@@ -149,8 +164,8 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - [ ] Move the server to the VPS with HTTPS (ask Ardian first)
 
 **Sun 8 Nov: web UI**
-- [ ] Pixel-art garden with 3 plots, mobile friendly, login
-- [ ] Plant, water, harvest, sell and Shop loop working
+- [x] Pixel-art garden with 3 plots, mobile friendly, login (dev login; Google button ready for the Client ID)
+- [x] Plant, water, harvest, sell and Shop loop working
 - [ ] Deploy to Vercel
 
 **Mon 9 Nov: TaniBot**

@@ -270,3 +270,52 @@ describe('chain worker', () => {
     assert.equal(w.game.state(p.id).activity[0].status, 'failed');
   });
 });
+
+describe('price lock', () => {
+  it('sells at the price the player saw, or refuses with the new price', async () => {
+    const w = makeWorld({ demo: true });
+    const p = w.newPlayer('ardian');
+    w.db.prepare("INSERT INTO fruits (player_id, species, quality, qty) VALUES (?, 'durian', 'common', 2)").run(p.id);
+    const seen = w.game.dartoPrices(true).prices.find((x) => x.species === 'durian')!.price;
+
+    // Same day: the shown price is honored.
+    assert.equal(w.game.sell(p.id, 'durian', 'common', 1, seen).price, seen);
+
+    // Find a later demo day where the price is different.
+    let next = seen;
+    while (next === seen) {
+      w.advance(MINUTE);
+      next = w.game.dartoPrices(true).prices.find((x) => x.species === 'durian')!.price;
+    }
+    assert.throws(
+      () => w.game.sell(p.id, 'durian', 'common', 1, seen),
+      (err: any) => err.status === 409 && err.details.code === 'price_changed' && err.details.price === next,
+    );
+    // Nothing was sold.
+    assert.equal(w.game.state(p.id).fruits.find((f) => f.species === 'durian')!.qty, 1);
+    // Confirming the new price works.
+    assert.equal(w.game.sell(p.id, 'durian', 'common', 1, next).price, next);
+  });
+});
+
+describe('demo streak grace', () => {
+  it('in demo mode a streak survives a few missed minutes', () => {
+    const w = makeWorld({ demo: true });
+    const p = w.newPlayer('judge1');
+    assert.equal(w.game.checkin(p.id).streak, 1);
+    w.advance(5 * MINUTE); // missed 4 demo days
+    assert.equal(w.game.checkin(p.id).streak, 2);
+    w.advance(11 * MINUTE); // missed 10 demo days: still allowed
+    assert.equal(w.game.checkin(p.id).streak, 3);
+    w.advance(12 * MINUTE); // missed 11: reset
+    assert.equal(w.game.checkin(p.id).streak, 1);
+  });
+
+  it('in normal mode a missed day still resets the streak', () => {
+    const w = makeWorld();
+    const p = w.newPlayer('ardian');
+    w.game.checkin(p.id);
+    w.advance(2 * DAY);
+    assert.equal(w.game.checkin(p.id).streak, 1);
+  });
+});

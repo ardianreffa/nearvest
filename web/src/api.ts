@@ -1,0 +1,166 @@
+// Client for the NEARvest game server.
+
+export const API_URL: string = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://127.0.0.1:8787';
+
+export type Species = 'mango' | 'rambutan' | 'durian';
+export type Quality = 'common' | 'rare' | 'gold';
+export type Stage = 'seed' | 'sprout' | 'tree' | 'fruiting' | 'old';
+
+export interface TreeView {
+  id: number;
+  tokenId: string | null;
+  species: Species;
+  quality: Quality;
+  stage: Stage;
+  growthPercent: number;
+  ready: boolean;
+  wateredToday: boolean;
+  isWatered: boolean;
+  isFertilized: boolean;
+  harvestCount: number;
+  maxHarvests: number;
+  msToReady: number;
+  ageDays: number;
+}
+
+export interface Activity {
+  id: number;
+  kind: string;
+  status: 'pending' | 'done' | 'failed';
+  txHash: string | null;
+  explorerUrl: string | null;
+  error: string | null;
+  createdAt: number;
+}
+
+export interface DartoPrice {
+  species: Species;
+  price: number;
+  base: number;
+  min: number;
+  max: number;
+}
+
+export interface GameState {
+  player: {
+    name: string;
+    accountId: string;
+    accountStatus: 'pending' | 'ready' | 'failed';
+    demo: boolean;
+    balance: number;
+    xp: number;
+    title: string;
+    nextTitle: { name: string; xp: number } | null;
+  };
+  clock: { day: number; farmDay: number; msUntilNextDay: number; dayLengthMs: number };
+  checkin: { available: boolean; streak: number; nextCalendarDay: number; calendar: { day: number; reward: string }[] };
+  plots: { plot: number; locked: boolean; tree: TreeView | null }[];
+  seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null; source: string }[];
+  seedSlots: { used: number; max: number };
+  fruits: { species: Species; quality: Quality; qty: number }[];
+  items: { item: string; qty: number }[];
+  darto: { day: number; prices: DartoPrice[]; greeting: string };
+  activity: Activity[];
+}
+
+export interface ServerConfig {
+  network: string;
+  googleClientId: string | null;
+  devLogin: boolean;
+  contracts: { panen: string; pohon: string };
+  shop: Record<string, { name: string; price: number }>;
+}
+
+export interface VillageStats {
+  panen: {
+    totalMinted: number;
+    totalBurned: number;
+    circulatingSupply: number;
+    season: number;
+    rewardDivisor: number;
+    nextSeasonAt: number | null;
+  };
+  treeNfts: number;
+  village: {
+    players: number;
+    treesAlive: number;
+    memorialTrees: number;
+    harvests: number;
+    fruitsSold: number;
+    pendingTransactions: number;
+  };
+}
+
+export class ApiError extends Error {
+  status: number;
+  /** Extra fields from the server, e.g. { code: 'price_changed', price: 12 }. */
+  data: Record<string, unknown>;
+  constructor(message: string, status: number, data: Record<string, unknown> = {}) {
+    super(message);
+    this.status = status;
+    this.data = data;
+  }
+}
+
+const TOKEN_KEY = 'nearvest.token';
+
+export function loadToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function saveToken(token: string | null): void {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // Storage blocked (private mode): the session lasts until the tab closes.
+  }
+}
+
+let token: string | null = loadToken();
+
+export function setToken(t: string | null): void {
+  token = t;
+  saveToken(t);
+}
+
+export function hasToken(): boolean {
+  return token !== null;
+}
+
+export async function api<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(API_URL + path, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError('Cannot reach the game server. Is it running?', 0);
+  }
+  const json = (await res.json().catch(() => ({}))) as { error?: string } & Record<string, unknown>;
+  if (!res.ok) throw new ApiError(json.error ?? `Request failed (${res.status})`, res.status, json);
+  return json as T;
+}
+
+export const ACTIVITY_LABELS: Record<string, string> = {
+  create_account: 'NEAR account created',
+  mint: 'PANEN minted',
+  mint_reward: 'Harvest sale paid',
+  burn: 'PANEN burned',
+  mint_tree: 'Tree NFT minted',
+  update_tree: 'Tree NFT updated',
+  make_memorial: 'Memorial Tree saved',
+};
+
+export function nearblocksAccount(accountId: string): string {
+  return `https://testnet.nearblocks.io/address/${accountId}`;
+}

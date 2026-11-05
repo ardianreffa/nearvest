@@ -29,10 +29,47 @@ CC0 = public domain dedication (https://creativecommons.org/publicdomain/zero/1.
 - BrawlBot robot sprite by wuhu (CC0)
 - Robot Lab Asset Pack by Murphy's Dad — https://murphysdad.itch.io/ (CC0)
 
+## Files in the repo
+
+| File | Source asset | License | Used for |
+|---|---|---|---|
+| `web/public/assets/cc0/palm-fryhet-1.png` | Palms (`palm.png`) by fryhet | CC0 | Garden background |
+| `web/public/assets/cc0/palm-fryhet-2.png` | Palms (`palm_2.png`) by fryhet | CC0 | Garden background |
+| `web/public/assets/cc0/tropical-tree-pixquare.png` | Tropical tree (`Tree sprite.png`) by Miguel Oliveira aka Pixquare | CC0 (credit requested) | Tree, fruiting and old stages |
+
+Downloaded 2026-11-05 from OpenGameArt. BrawlBot was checked but not used (painted style, not pixel art).
+
+## Audio (all CC0, checked 2026-11-05)
+
+Converted to AAC (`.m4a`, `afconvert` on macOS) so they are small and play in every browser. Files are in `web/public/assets/audio/`.
+
+| File | Source | Author | License | Source page |
+|---|---|---|---|---|
+| `music-apple-cider.m4a` (background loop) | "Apple Cider" (`apple_cider.mp3`) | Zane Little Music | CC0 | https://opengameart.org/content/apple-cider |
+| `click.m4a` | Interface Sounds `click_001.ogg` | Kenney | CC0 (bundled License.txt; credit optional) | https://opengameart.org/content/interface-sounds |
+| `plant.m4a` | Interface Sounds `select_003.ogg` | Kenney | CC0 | https://opengameart.org/content/interface-sounds |
+| `water.m4a` | Interface Sounds `drop_002.ogg` | Kenney | CC0 | https://opengameart.org/content/interface-sounds |
+| `harvest.m4a` | Interface Sounds `pluck_001.ogg` | Kenney | CC0 | https://opengameart.org/content/interface-sounds |
+| `checkin.m4a` | Interface Sounds `confirmation_001.ogg` | Kenney | CC0 | https://opengameart.org/content/interface-sounds |
+| `chain.m4a` | Interface Sounds `glass_002.ogg` | Kenney | CC0 | https://opengameart.org/content/interface-sounds |
+| `error.m4a` | Interface Sounds `error_004.ogg` | Kenney | CC0 | https://opengameart.org/content/interface-sounds |
+| `coins.m4a` (sell) | RPG Audio `handleCoins.ogg` | Kenney | CC0 (bundled license.txt) | https://opengameart.org/content/50-rpg-sound-effects |
+| `burn.m4a` (shop) | Digital SFX `lowDown.mp3` | Kenney | CC0 (OpenGameArt page) | https://opengameart.org/content/63-digital-sound-effects-lasers-phasers-space-etc |
+| `levelup.m4a` | Digital SFX `powerUp2.mp3` | Kenney | CC0 (OpenGameArt page) | https://opengameart.org/content/63-digital-sound-effects-lasers-phasers-space-etc |
+
+Credits (copy into README): music "Apple Cider" by Zane Little Music; sound effects by Kenney (www.kenney.nl).
+
+## Fonts
+
+| Font | Source | License |
+|---|---|---|
+| Tiny5 (text and numbers) | Google Fonts | SIL Open Font License 1.1 |
+| Pixelify Sans (headings) | Google Fonts | SIL Open Font License 1.1 |
+
 ## Modified and AI-generated assets
 
 No CC0 mango, rambutan, or durian tree sprites were found. These will be recolored/edited from the CC0 assets above or generated with AI. List each one here with its base asset (or the AI tool used).
 
 | File | Based on / made with | Notes |
 |---|---|---|
-| _(none yet)_ | | |
+| `web/src/sprites.tsx` (TaniBot, Mr. Darto, seed mound, sprout, mango, rambutan, durian, coin, droplet, sparkle, lock, fertilizer, seed packet, bolt, fire) | Original pixel art drawn in code for NEARvest (by Claude Code, 2026-11-05) | Part of this repo (MIT) |

@@ -78,3 +78,18 @@ describe('HTTP API', () => {
     assert.equal(res.status, 503); // not configured in tests
   });
 });
+
+describe('HTTP API price lock', () => {
+  it('returns 409 with the new price when it changed', async () => {
+    const w = makeWorld({ demo: true });
+    const login = await call(w.app, 'POST', '/auth/dev', undefined, { username: 'seller' });
+    await call(w.app, 'POST', '/api/player', login.json.token, { name: 'seller' });
+    const p = w.game.getPlayerByUser(1)!;
+    w.db.prepare("INSERT INTO fruits (player_id, species, quality, qty) VALUES (?, 'mango', 'common', 1)").run(p.id);
+    const real = w.game.dartoPrices(true).prices.find((x) => x.species === 'mango')!.price;
+    const res = await call(w.app, 'POST', '/api/sell', login.json.token, { species: 'mango', quality: 'common', qty: 1, expectedPrice: real + 1 });
+    assert.equal(res.status, 409);
+    assert.equal(res.json.code, 'price_changed');
+    assert.equal(res.json.price, real);
+  });
+});

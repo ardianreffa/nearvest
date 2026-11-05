@@ -1,0 +1,277 @@
+// Original pixel art drawn in code (no external assets needed).
+// Each sprite is a grid of characters; each character maps to a palette color.
+
+const PALETTE: Record<string, string> = {
+  g: '#2E7D4F', // leaf
+  G: '#4CAF6A', // light leaf
+  d: '#1E5A38', // dark leaf / stem
+  s: '#6B4A2F', // soil
+  S: '#4A321F', // dark soil
+  m: '#00EC97', // NEAR mint
+  c: '#22D3EE', // tech cyan
+  y: '#F5C542', // gold
+  Y: '#C9971F', // dark gold
+  p: '#8B5CF6', // purple
+  o: '#F59E0B', // mango orange
+  r: '#E5484D', // rambutan red
+  R: '#A3262A', // dark red
+  k: '#1B1B2F', // outline
+  w: '#FFFFFF',
+  e: '#9CA3AF', // grey metal
+  E: '#4B5563', // dark metal
+  l: '#E0B48A', // skin
+  L: '#B9875E', // skin shadow
+  h: '#D9B26F', // straw
+  H: '#A9813F', // dark straw
+  u: '#2563EB', // blue shirt
+};
+
+export type SpriteName = keyof typeof SPRITES;
+
+export const SPRITES = {
+  seedMound: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '.......yY.......',
+    '.....ssssss.....',
+    '....ssSsssSs....',
+    '...ssssssssss...',
+    '................',
+  ],
+  sprout: [
+    '................',
+    '................',
+    '................',
+    '................',
+    '................',
+    '....GG....GG....',
+    '...GggG..GggG...',
+    '...gggg..gggg...',
+    '....gggddggg....',
+    '.......dd.......',
+    '.......dd.......',
+    '.......dd.......',
+    '.....ssssss.....',
+    '....ssSsssSs....',
+    '...ssssssssss...',
+    '................',
+  ],
+  mango: [
+    '....g...',
+    '...gd...',
+    '..oooo..',
+    '.oyyooo.',
+    '.oyoooo.',
+    '.ooooYo.',
+    '..oooo..',
+    '........',
+  ],
+  rambutan: [
+    '..r..r..',
+    '.rrrrrr.',
+    'rRrrrrRr',
+    '.rrwrrr.',
+    'rrrrrrrr',
+    '.rRrrRr.',
+    '..rrrr..',
+    '..r..r..',
+  ],
+  durian: [
+    '...d....',
+    '..GgGg..',
+    '.GgGgGg.',
+    'GgGgGgGg',
+    'gGgGgGgG',
+    '.gGgGgG.',
+    '..gGgG..',
+    '...dd...',
+  ],
+  coin: [
+    '..yyyy..',
+    '.yYYYYy.',
+    'yYyggyYy',
+    'yYygGyYy',
+    'yYyyGyYy',
+    'yYyyyyYy',
+    '.yYYYYy.',
+    '..yyyy..',
+  ],
+  droplet: [
+    '...c....',
+    '...cc...',
+    '..cccc..',
+    '.ccwccc.',
+    '.cwcccc.',
+    '.cccccc.',
+    '..cccc..',
+    '........',
+  ],
+  sparkle: [
+    '...y...',
+    '...y...',
+    '..yyy..',
+    'yyywyyy',
+    '..yyy..',
+    '...y...',
+    '...y...',
+  ],
+  lock: [
+    '..eeee..',
+    '.e....e.',
+    '.e....e.',
+    'EEEEEEEE',
+    'EyyyyyyE',
+    'EyyEEyyE',
+    'EyyyyyyE',
+    'EEEEEEEE',
+  ],
+  fertilizer: [
+    '.hhhhhh.',
+    '..HhhH..',
+    '.hhhhhh.',
+    'hhmmmmhh',
+    'hhmGGmhh',
+    'hhmmmmhh',
+    'hhhhhhhh',
+    '.HHHHHH.',
+  ],
+  seedPacket: [
+    '........',
+    '.hhhhhh.',
+    '.HHHHHH.',
+    '.hhhhhh.',
+    '.hhyyhh.',
+    '.hyYYyh.',
+    '.hhyyhh.',
+    '.hhhhhh.',
+  ],
+  bolt: [
+    '....mm.',
+    '...mm..',
+    '..mm...',
+    '.mmmmm.',
+    '...mm..',
+    '..mm...',
+    '.mm....',
+  ],
+  fire: [
+    '...r....',
+    '..rr..r.',
+    '..rorrr.',
+    '.rooyorr',
+    '.royyyor',
+    '.roywyor',
+    '..ryyyr.',
+    '...rrr..',
+  ],
+  speaker: [
+    '...e....',
+    '..ee..w.',
+    'eewe.w..',
+    'ewwe.w.w',
+    'ewwe.w.w',
+    'eewe.w..',
+    '..ee..w.',
+    '...e....',
+  ],
+  speakerOff: [
+    '...e....',
+    '..ee....',
+    'eewe.r.r',
+    'ewwe..r.',
+    'ewwe..r.',
+    'eewe.r.r',
+    '..ee....',
+    '...e....',
+  ],
+  taniBot: [
+    '................',
+    '.......hh.......',
+    '.....hhhhhh.....',
+    '...hhhHhhHhhh...',
+    '.hhhhhhhhhhhhhh.',
+    '....eeeeeeee....',
+    '....ekkkkkke....',
+    '....ekcEEcke....',
+    '....ekkkkkke....',
+    '....eeeeeeee....',
+    '...EeeeeeeeeE...',
+    '..eEecmmmmceEe..',
+    '..e.EemmmmeE.e..',
+    '....EeeeeeeE....',
+    '....Ee....eE....',
+    '...EEE....EEE...',
+  ],
+  darto: [
+    '................',
+    '.....kkkkkk.....',
+    '....kllllllk....',
+    '...kllllllllk...',
+    '...lccccccccl...',
+    '...lcwcllcwcl...',
+    '...llllLLllll...',
+    '...llkkkkkkll...',
+    '....llkllkll....',
+    '.....llllll.....',
+    '......LLLL......',
+    '...uuuuuuuuuu...',
+    '..uuuuyuuyuuuu..',
+    '..uuuuuuuuuuuu..',
+    '..uuuuuuuuuuuu..',
+    '................',
+  ],
+} satisfies Record<string, string[]>;
+
+interface Props {
+  name: SpriteName;
+  /** Size of one pixel in CSS px. */
+  scale?: number;
+  class?: string;
+  title?: string;
+}
+
+/** Renders a sprite as a crisp SVG (merges horizontal runs into one rect). */
+export function Sprite({ name, scale = 3, class: className, title }: Props) {
+  const rows = SPRITES[name];
+  const width = Math.max(...rows.map((r) => r.length));
+  const rects = [];
+  for (let y = 0; y < rows.length; y++) {
+    const row = rows[y];
+    let x = 0;
+    while (x < row.length) {
+      const ch = row[x];
+      if (ch === '.' || !PALETTE[ch]) {
+        x++;
+        continue;
+      }
+      let end = x + 1;
+      while (end < row.length && row[end] === ch) end++;
+      rects.push(<rect key={`${x}-${y}`} x={x} y={y} width={end - x} height={1} fill={PALETTE[ch]} />);
+      x = end;
+    }
+  }
+  return (
+    <svg
+      class={className}
+      width={width * scale}
+      height={rows.length * scale}
+      viewBox={`0 0 ${width} ${rows.length}`}
+      shape-rendering="crispEdges"
+      role={title ? 'img' : undefined}
+      aria-label={title}
+      aria-hidden={title ? undefined : true}
+    >
+      {title && <title>{title}</title>}
+      {rects}
+    </svg>
+  );
+}
