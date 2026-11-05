@@ -4,9 +4,11 @@ import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type Quality, type ServerConfig, type Species } from './api';
 import { botVersion, TaniBot, TaniBotHead } from './art/tanibot';
-import { initAudio, isMuted, onMuteChange, playSound, setMuted, type SoundName } from './audio';
+import { getAudioPrefs, initAudio, onAudioPrefsChange, playSound, setAudioPrefs, type SoundName } from './audio';
+import { useFullscreen } from './fullscreen';
+import { ShareHost, shareMomentOnce } from './share';
 import { burnAt, coinsToBalance, confetti, floatText, FxLayer } from './fx';
-import { CheckinBanner, Garden } from './garden';
+import { CheckinBanner, Garden, type Choice } from './garden';
 import { Market, Shop, Storage, Village } from './panels';
 import { Sprite } from './sprites';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
@@ -23,8 +25,8 @@ interface Toast {
 
 interface Dialog {
   message: string;
-  confirmLabel: string;
-  resolve: (ok: boolean) => void;
+  choices: Choice[];
+  resolve: (value: string | null) => void;
 }
 
 /** Sound for each successful action. */
@@ -37,6 +39,8 @@ const ACTION_SOUNDS: Record<string, SoundName> = {
   '/api/sell': 'coins',
   '/api/shop/buy': 'burn',
   '/api/chop': 'click',
+  '/api/seeds/sell': 'coins',
+  '/api/seeds/discard': 'click',
 };
 
 const WIDE_QUERY = '(min-width: 1024px)';
@@ -67,12 +71,13 @@ export function App() {
   const [flash, setFlash] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const [muted, setMutedState] = useState(isMuted());
+  const [audio, setAudio] = useState(getAudioPrefs());
+  const fullscreen = useFullscreen();
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
 
-  useEffect(() => onMuteChange(setMutedState), []);
+  useEffect(() => onAudioPrefsChange(setAudio), []);
 
   const toast = useCallback((t: Omit<Toast, 'id'>) => {
     const id = Math.random();
@@ -80,9 +85,14 @@ export function App() {
     setTimeout(() => setToasts((list) => list.filter((x) => x.id !== id)), t.kind === 'chain' ? 6000 : 3500);
   }, []);
 
-  const ask = useCallback(
-    (message: string, confirmLabel: string) => new Promise<boolean>((resolve) => setDialog({ message, confirmLabel, resolve })),
+  /** Dialog with several choices; resolves to the chosen value, or null for Cancel. */
+  const choose = useCallback(
+    (message: string, choices: Choice[]) => new Promise<string | null>((resolve) => setDialog({ message, choices, resolve })),
     [],
+  );
+  const ask = useCallback(
+    async (message: string, confirmLabel: string) => (await choose(message, [{ value: 'ok', label: confirmLabel, class: 'btn-gold' }])) === 'ok',
+    [choose],
   );
 
   /** Applies new state: chain flash for landed jobs, level-up fanfare for a new title. */
@@ -106,10 +116,15 @@ export function App() {
         }
       }
       if (lastTitle.current !== null && lastTitle.current !== s.player.title) {
+        const evolved = botVersion(s.player.title) > botVersion(lastTitle.current);
         playSound('levelup');
         confetti();
         floatText(`${s.player.title}!`, 'mint', window.innerWidth / 2, window.innerHeight / 3);
-        toast({ kind: 'info', text: `New title: ${s.player.title}! TaniBot got an upgrade.` });
+        toast({ kind: 'info', text: evolved ? `New title: ${s.player.title}! TaniBot evolved.` : `New title: ${s.player.title}!` });
+        const id = s.player.accountId;
+        if (evolved) shareMomentOnce(id, { kind: 'evolved' }, 2200);
+        else if (s.player.title === 'Legend') shareMomentOnce(id, { kind: 'legend' }, 2200);
+        else shareMomentOnce(id, { kind: 'title', title: s.player.title }, 2200);
       }
       lastTitle.current = s.player.title;
       setState(s);
@@ -178,6 +193,7 @@ export function App() {
         playSound(ACTION_SOUNDS[path] ?? 'click');
         juice(path, res.result);
         applyState(res.state);
+        moments(path, res.result, res.state);
         if (success) toast({ kind: 'info', text: success });
         return res.result ?? {};
       } catch (e) {
@@ -265,34 +281,64 @@ export function App() {
   }, [balance]);
 
   const muteButton = (
-    <button class="icon-btn" onClick={() => setMuted(!muted)} aria-label={muted ? 'Unmute sound' : 'Mute sound'} title={muted ? 'Sound off' : 'Sound on'}>
-      <Sprite name={muted ? 'speakerOff' : 'speaker'} scale={3} />
-    </button>
+    <div class="icon-row">
+      <button
+        class="icon-btn"
+        onClick={() => setAudioPrefs({ music: !audio.music })}
+        aria-pressed={audio.music}
+        aria-label={audio.music ? 'Turn music off' : 'Turn music on'}
+        title={audio.music ? 'Music on' : 'Music off'}
+      >
+        <Sprite name={audio.music ? 'music' : 'musicOff'} scale={3} />
+      </button>
+      <button
+        class="icon-btn"
+        onClick={() => setAudioPrefs({ sfx: !audio.sfx })}
+        aria-pressed={audio.sfx}
+        aria-label={audio.sfx ? 'Turn sound effects off' : 'Turn sound effects on'}
+        title={audio.sfx ? 'Sound effects on' : 'Sound effects off'}
+      >
+        <Sprite name={audio.sfx ? 'speaker' : 'speakerOff'} scale={3} />
+      </button>
+      {fullscreen.supported && (
+        <button
+          class="icon-btn"
+          onClick={fullscreen.toggle}
+          aria-label={fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'}
+          title={fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'}
+        >
+          <Sprite name={fullscreen.active ? 'fullscreenExit' : 'fullscreen'} scale={3} />
+        </button>
+      )}
+    </div>
   );
 
   const dialogView = dialog && (
     <div class="dialog-backdrop" role="presentation">
       <div class="dialog panel" role="dialog" aria-modal="true" aria-labelledby="dialog-text">
         <p id="dialog-text">{dialog.message}</p>
-        <div class="dialog-actions">
+        <div class={`dialog-actions${dialog.choices.length > 1 ? ' many' : ''}`}>
           <button
             class="btn"
             onClick={() => {
-              dialog.resolve(false);
+              dialog.resolve(null);
               setDialog(null);
             }}
           >
             Cancel
           </button>
-          <button
-            class="btn btn-gold"
-            onClick={() => {
-              dialog.resolve(true);
-              setDialog(null);
-            }}
-          >
-            {dialog.confirmLabel}
-          </button>
+          {dialog.choices.map((c) => (
+            <button
+              key={c.value}
+              class={`btn ${c.class ?? 'btn-gold'}`}
+              onClick={() => {
+                dialog.resolve(c.value);
+                setDialog(null);
+              }}
+            >
+              {c.label}
+            </button>
+          ))}
         </div>
       </div>
     </div>
@@ -327,14 +373,14 @@ export function App() {
 
   const goShop = () => (wide ? setSideTab('shop') : setTab('shop'));
   const goSell = () => (wide ? setSideTab('market') : setTab('market'));
-  const garden = <Garden state={state} act={act} ask={ask} elapsed={elapsed} busy={busy} goShop={goShop} showCheckin={!wide} big={wide} />;
+  const garden = <Garden state={state} config={config} act={act} ask={ask} choose={choose} elapsed={elapsed} busy={busy} goShop={goShop} showCheckin={!wide} big={wide} />;
   const panelFor = (t: SideTab) =>
     t === 'storage' ? (
-      <Storage state={state} goSell={goSell} />
+      <Storage state={state} config={config} act={act} busy={busy} goSell={goSell} />
     ) : t === 'shop' ? (
       <Shop state={state} config={config} act={act} busy={busy} />
     ) : t === 'market' ? (
-      <Market state={state} sell={sell} busy={busy} />
+      <Market state={state} config={config} sell={sell} act={act} busy={busy} />
     ) : (
       <Village state={state} config={config} />
     );
@@ -349,7 +395,7 @@ export function App() {
   const tabLabels: Record<Tab, string> = { garden: 'Garden', storage: 'Storage', shop: 'Shop', market: 'Market', village: 'Village' };
 
   return (
-    <main class={`shell${wide ? ' wide' : ''}`}>
+    <main class={`shell${wide ? ' wide' : ''}${fullscreen.active ? ' fs' : ''}`}>
       <header class="topbar">
         <div class="who">
           <span class="head-bot">
@@ -390,7 +436,7 @@ export function App() {
         <div class="wide-grid">
           <div class="wide-left">{garden}</div>
           <div class="wide-right">
-            <CheckinBanner state={state} act={act} busy={busy} />
+            <CheckinBanner state={state} act={act} ask={ask} busy={busy} />
             <nav class="side-tabs" aria-label="Panels">
               {(['storage', 'shop', 'market', 'village'] as SideTab[]).map((t) => (
                 <TabButton key={t} tab={t} current={sideTab} set={(x) => (playSound('click'), setSideTab(x as SideTab))} icon={tabIcons[t]} label={tabLabels[t]} />
@@ -428,6 +474,7 @@ export function App() {
         ))}
       </div>
       {dialogView}
+      <ShareHost state={state} />
       <FxLayer />
     </main>
   );
@@ -443,6 +490,15 @@ function juice(path: string, result: unknown) {
     burnAt();
     floatText(`-${r.burnedPanen} PANEN`, 'burn');
   }
+}
+
+/** Opens a share card the first time a big moment happens. */
+function moments(path: string, result: unknown, s: GameState) {
+  const r = (result ?? {}) as { kind?: string; firstHarvest?: boolean; species?: Species; quality?: Quality; calendarDay?: number };
+  const id = s.player.accountId;
+  if (path === '/api/harvest' && r.kind === 'fruit' && r.firstHarvest) shareMomentOnce(id, { kind: 'first_harvest', species: r.species, quality: r.quality });
+  if (path === '/api/plant' && r.quality === 'gold') shareMomentOnce(id, { kind: 'first_gold', species: r.species, quality: 'gold' });
+  if (path === '/api/checkin' && r.calendarDay === 7) shareMomentOnce(id, { kind: 'streak7' });
 }
 
 const TITLE_XP = [0, 50, 200, 600, 1500, 4000];

@@ -233,6 +233,11 @@ export function treeRows(species: Species, stage: Stage): string[] {
   return g.map((r) => r.join(''));
 }
 
+/** Colors for a tree's rows (species leaves, faded leaves when old). */
+export function treePalette(species: Species, stage: Stage): Record<string, string> {
+  return { ...TREE_PALETTE, ...(stage === 'old' ? OLD_LEAF : LEAF[species]) };
+}
+
 const cache = new Map<string, string[]>();
 
 export function TreePixels({ species, stage, quality, scale = 2 }: { species: Species; stage: Stage; quality: Quality; scale?: number }) {
@@ -242,7 +247,7 @@ export function TreePixels({ species, stage, quality, scale = 2 }: { species: Sp
     rows = treeRows(species, stage);
     cache.set(key, rows);
   }
-  const palette = { ...TREE_PALETTE, ...(stage === 'old' ? OLD_LEAF : LEAF[species]) };
+  const palette = treePalette(species, stage);
   return (
     <div class={`tree tree-${stage} q-${quality}`}>
       <Pixels rows={rows} palette={palette} scale={scale} />

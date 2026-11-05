@@ -1,7 +1,7 @@
 // TaniBot, the farmer robot. Official design: the ChatGPT image Ardian made,
 // converted to a pixel sprite (see tanibot-sprite.ts and docs/ASSETS.md).
 // v1 (Seedling, Farmhand): the original colors.
-// v2 (Pak Tani and up): same sprite with shinier chrome, brighter LEDs, 2 drones.
+// v2 (Farmer and up): same sprite with shinier chrome, brighter LEDs, 2 drones.
 // Layers are animated separately: hover, blinking eyes, LED hat band, glowing screen.
 
 import { only, Pixels } from '../sprites';

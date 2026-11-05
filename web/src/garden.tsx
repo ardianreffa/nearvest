@@ -1,7 +1,7 @@
 // The garden: three plots, the selected plot's actions and the daily check-in.
 
 import { useRef, useState } from 'preact/hooks';
-import type { GameState } from './api';
+import type { GameState, Quality, ServerConfig } from './api';
 import { floatText } from './fx';
 import { GardenScene, type ActionKind, type SceneFx } from './scene';
 import { Sprite } from './sprites';
@@ -20,11 +20,21 @@ import {
 export type Act = (path: string, body?: unknown, success?: string) => Promise<unknown | null>;
 /** Shows an in-game confirmation dialog; resolves true when the player confirms. */
 export type Ask = (message: string, confirmLabel: string) => Promise<boolean>;
+/** One button of a multiple-choice dialog. */
+export interface Choice {
+  value: string;
+  label: string;
+  class?: string;
+}
+/** Shows a dialog with several choices (plus Cancel); resolves to the chosen value or null. */
+export type Choose = (message: string, choices: Choice[]) => Promise<string | null>;
 
 interface Props {
   state: GameState;
+  config: ServerConfig;
   act: Act;
   ask: Ask;
+  choose: Choose;
   /** Milliseconds since the state was loaded, for live countdowns. */
   elapsed: number;
   busy: boolean;
@@ -34,7 +44,7 @@ interface Props {
   big: boolean;
 }
 
-export function Garden({ state, act, ask, elapsed, busy, goShop, showCheckin, big }: Props) {
+export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, showCheckin, big }: Props) {
   const [selected, setSelected] = useState(0);
   const [fx, setFx] = useState<SceneFx | null>(null);
   const fxTimer = useRef<number>(0);
@@ -58,11 +68,11 @@ export function Garden({ state, act, ask, elapsed, busy, goShop, showCheckin, bi
 
   return (
     <div class="garden-screen">
-      {showCheckin && <CheckinBanner state={state} act={act} busy={busy} />}
+      {showCheckin && <CheckinBanner state={state} act={act} ask={ask} busy={busy} />}
 
       <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} />
 
-      <PlotPanel state={state} plotIndex={selected} act={botAct} ask={ask} busy={busy} elapsed={elapsed} goShop={goShop} key={selected} />
+      <PlotPanel state={state} config={config} plotIndex={selected} act={botAct} ask={ask} choose={choose} busy={busy} elapsed={elapsed} goShop={goShop} key={selected} />
       {!plot.tree && !plot.locked && state.seeds.length === 0 && (
         <p class="hint">No seeds? Check in daily for a free Mango seed, or visit the Shop.</p>
       )}
@@ -70,8 +80,22 @@ export function Garden({ state, act, ask, elapsed, busy, goShop, showCheckin, bi
   );
 }
 
-export function CheckinBanner({ state, act, busy }: { state: GameState; act: Act; busy: boolean }) {
+export function CheckinBanner({ state, act, ask, busy }: { state: GameState; act: Act; ask: Ask; busy: boolean }) {
   const c = state.checkin;
+  const checkin = async () => {
+    const seeds = c.nextCalendarDay === 7 ? 2 : 1;
+    const free = state.seedSlots.max - state.seedSlots.used;
+    if (free < seeds) {
+      const what = free <= 0 ? (seeds === 2 ? "today's 2 seeds (Gold Mango + Mango)" : "today's Mango seed") : 'the plain Mango seed (the Gold seed goes in first)';
+      const ok = await ask(
+        `Your seed storage is full, so ${what} will not fit. You still get the PANEN. Free a slot first in Storage, or check in anyway?`,
+        'Check in anyway',
+      );
+      if (!ok) return;
+    }
+    const r = (await act('/api/checkin', undefined, 'Checked in!')) as { skipped?: string[] } | null;
+    if (r?.skipped?.length) floatText(`Storage full: ${r.skipped.join(', ')} skipped`, 'burn');
+  };
   return (
     <div class="checkin">
       <div class="calendar" aria-label="7-day reward calendar">
@@ -85,7 +109,7 @@ export function CheckinBanner({ state, act, busy }: { state: GameState; act: Act
           );
         })}
       </div>
-      <button class="btn btn-mint" disabled={!c.available || busy} onClick={() => act('/api/checkin', undefined, 'Checked in!')}>
+      <button class="btn btn-mint" disabled={!c.available || busy} onClick={() => void checkin()}>
         {c.available ? `Check in · day ${c.nextCalendarDay}` : `Streak ${c.streak} · see you tomorrow`}
       </button>
       {state.player.demo && <p class="checkin-note">Demo mode: your streak keeps going if you miss up to 10 minutes.</p>}
@@ -93,19 +117,40 @@ export function CheckinBanner({ state, act, busy }: { state: GameState; act: Act
   );
 }
 
+function pct(n: number): string {
+  return `${Math.round(n * 100)}%`;
+}
+
+function OddsLine({ odds }: { odds: Record<Quality, number> }) {
+  const parts = (['common', 'rare', 'gold'] as Quality[]).filter((q) => odds[q] > 0);
+  return (
+    <span class="odds">
+      {parts.map((q) => (
+        <span key={q} class={`tag tag-${q}`}>
+          {pct(odds[q])} {QUALITY_NAME[q]}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function PlotPanel({
   state,
+  config,
   plotIndex,
   act,
   ask,
+  choose,
   busy,
   elapsed,
   goShop,
 }: {
   state: GameState;
+  config: ServerConfig;
   plotIndex: number;
   act: Act;
   ask: Ask;
+  choose: Choose;
   busy: boolean;
   elapsed: number;
   goShop: () => void;
@@ -153,6 +198,25 @@ function PlotPanel({
 
   const t = p.tree;
   const plot = { plot: plotIndex };
+  const storageFull = state.seedSlots.used >= state.seedSlots.max;
+  const xpGain = (config.species?.[t.species]?.xpPerHarvest ?? 0) * state.player.xpMultiplier;
+  const harvest = async () => {
+    if (t.stage === 'old' && storageFull) {
+      // Never stuck: the seed stays safe on the tree until the player picks one of these.
+      const price = config.seedSellPrices?.[t.species] ?? 1;
+      const choice = await choose(
+        `Your seed storage is full (${state.seedSlots.used}/${state.seedSlots.max}). This old tree's superior ${SPECIES_NAME[t.species]} seed stays safe on the tree until you choose:`,
+        [
+          { value: 'plant', label: 'Plant it here', class: 'btn-mint' },
+          { value: 'sell', label: `Sell to Darto · ${price}`, class: 'btn-gold' },
+        ],
+      );
+      if (choice === 'plant') await act('/api/harvest', { ...plot, then: 'plant' }, 'The superior seed is planted!');
+      else if (choice === 'sell') await act('/api/harvest', { ...plot, then: 'sell' }, `Sold the seed for ${price} PANEN`);
+      return;
+    }
+    await act('/api/harvest', plot, t.stage === 'old' ? 'Got a superior seed!' : 'Harvested!');
+  };
   return (
     <Panel
       title={`${QUALITY_NAME[t.quality]} ${SPECIES_NAME[t.species]}`}
@@ -174,9 +238,22 @@ function PlotPanel({
             ? 'This old tree is ready to drop a superior seed. After that it becomes a Memorial Tree.'
             : 'Fruit is ripe. Harvest it!'
           : t.isWatered
-            ? `Growing${t.isFertilized ? ' fast (fertilized)' : ''}. Ready in about ${formatDuration(t.msToReady - elapsed)}.`
-            : 'Thirsty: trees only grow while watered.'}
+            ? `Growing. Ready in about ${formatDuration(t.msToReady - Math.min(elapsed, t.msToReady))}.`
+            : 'Thirsty: water it, trees only grow while watered.'}
       </p>
+      {t.isFertilized && t.fertMsLeft - elapsed > 0 && (
+        <div class="fert-badge" role="status">
+          <Sprite name="fertilizer" scale={2} />
+          <span>
+            Fertilized: <b>{t.fertSpeed}x speed</b> · {formatDuration(t.fertMsLeft - elapsed)} left
+          </span>
+        </div>
+      )}
+      {t.stage !== 'old' && (
+        <p class="odds-line small">
+          Next harvest: <OddsLine odds={t.nextHarvestOdds} />
+        </p>
+      )}
       <div class="actions">
         <button class="btn btn-cyan" disabled={busy || t.wateredToday} onClick={() => act('/api/water', plot, 'Watered!')}>
           <Sprite name="droplet" scale={2} /> {t.wateredToday ? 'Watered today' : 'Water'}
@@ -187,11 +264,16 @@ function PlotPanel({
         <button
           class="btn btn-gold"
           disabled={busy || !t.ready}
-          onClick={() => act('/api/harvest', plot, t.stage === 'old' ? 'Got a superior seed!' : 'Harvested!')}
+          onClick={() => void harvest()}
         >
           <Sprite name="sparkle" scale={2} /> Harvest
         </button>
       </div>
+      <p class="muted small help">
+        {t.stage === 'old'
+          ? 'Old trees give no more fruit or XP. Harvest the seed to plant a new generation.'
+          : `XP comes from harvests: +${xpGain} XP per ${SPECIES_NAME[t.species]}${state.player.xpMultiplier > 1 ? ` (demo: ${state.player.xpMultiplier}x)` : ''}. Watering is required: trees only grow while watered (1 day per watering). Fertilizer: 1.5x speed for 1 day and better fruit odds on the next harvest.`}
+      </p>
       {fertilizer < 1 && !t.isFertilized && (
         <p class="buy-link">
           No fertilizer.{' '}

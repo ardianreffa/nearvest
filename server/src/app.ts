@@ -7,7 +7,7 @@ import type { Chain } from './chain/types.ts';
 import type { Config } from './config.ts';
 import type { DB } from './db.ts';
 import { Game, GameError } from './game.ts';
-import { SHOP_ITEMS, SPECIES, type Quality, type ShopItem, type Species } from './rules.ts';
+import { DEMO_XP_MULTIPLIER, fruitOdds, SEED_STORAGE_SLOTS, seedSellPrice, SHOP_ITEMS, SPECIES, SPECIES_LIST, TITLES, type Quality, type ShopItem, type Species } from './rules.ts';
 
 export interface AppDeps {
   db: DB;
@@ -56,6 +56,12 @@ export function createApp(deps: AppDeps) {
       contracts: { panen: config.panenContractId, pohon: config.pohonContractId },
       shop: SHOP_ITEMS,
       species: SPECIES,
+      titles: TITLES,
+      demoXpMultiplier: DEMO_XP_MULTIPLIER,
+      seedStorageSlots: SEED_STORAGE_SLOTS,
+      /** Mr. Darto's price for a seed of unknown quality (Rare x2, Gold x5 when known). */
+      seedSellPrices: Object.fromEntries(SPECIES_LIST.map((sp) => [sp, seedSellPrice(sp, null)])),
+      fertilizedOdds: { common: fruitOdds('common', true), rare: fruitOdds('rare', true), gold: fruitOdds('gold', true) },
     }),
   );
 
@@ -153,7 +159,13 @@ export function createApp(deps: AppDeps) {
 
   app.post('/api/water', async (c) => respond(c, game.water(playerId(c), plotOf(await body(c)))));
   app.post('/api/fertilize', async (c) => respond(c, game.fertilize(playerId(c), plotOf(await body(c)))));
-  app.post('/api/harvest', async (c) => respond(c, game.harvest(playerId(c), plotOf(await body(c)))));
+  app.post('/api/harvest', async (c) => {
+    const b = await body(c);
+    const then = b.then === 'plant' || b.then === 'sell' ? b.then : undefined;
+    return respond(c, game.harvest(playerId(c), plotOf(b), then));
+  });
+  app.post('/api/seeds/sell', async (c) => respond(c, game.sellSeeds(playerId(c), (await body(c)).seedIds)));
+  app.post('/api/seeds/discard', async (c) => respond(c, game.discardSeeds(playerId(c), (await body(c)).seedIds)));
   app.post('/api/chop', async (c) => respond(c, game.chop(playerId(c), plotOf(await body(c)))));
 
   app.post('/api/sell', async (c) => {

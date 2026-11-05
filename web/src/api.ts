@@ -17,6 +17,12 @@ export interface TreeView {
   wateredToday: boolean;
   isWatered: boolean;
   isFertilized: boolean;
+  /** Real ms of fertilizer boost left. */
+  fertMsLeft: number;
+  /** Growth speed right now (1.5 while fertilized). */
+  fertSpeed: number;
+  /** Chances of each fruit quality on the next harvest (fertilizer raises them). */
+  nextHarvestOdds: Record<Quality, number>;
   harvestCount: number;
   maxHarvests: number;
   msToReady: number;
@@ -51,6 +57,8 @@ export interface GameState {
     xp: number;
     title: string;
     nextTitle: { name: string; xp: number } | null;
+    /** 5 in demo mode (faster titles for judges), 1 otherwise. */
+    xpMultiplier: number;
   };
   clock: { day: number; farmDay: number; msUntilNextDay: number; dayLengthMs: number };
   checkin: { available: boolean; streak: number; nextCalendarDay: number; calendar: { day: number; reward: string }[] };
@@ -69,6 +77,12 @@ export interface ServerConfig {
   devLogin: boolean;
   contracts: { panen: string; pohon: string };
   shop: Record<string, { name: string; price: number }>;
+  species: Record<Species, { name: string; seedPrice: number; sellPrice: number; xpPerHarvest: number }>;
+  titles: { name: string; xp: number }[];
+  demoXpMultiplier: number;
+  seedStorageSlots: number;
+  seedSellPrices: Record<Species, number>;
+  fertilizedOdds: Record<Quality, Record<Quality, number>>;
 }
 
 export interface VillageStats {

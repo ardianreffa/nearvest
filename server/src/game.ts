@@ -12,15 +12,20 @@ import {
   CHECKIN_DAY7_MULTIPLIER,
   CHECKIN_PANEN,
   DEMO_STREAK_GRACE_DAYS,
+  DEMO_XP_MULTIPLIER,
+  FERTILIZER_BOOST,
   FERTILIZER_DAYS,
+  fruitOdds,
   FIRST_HARVEST_MS,
   isReady,
   msToReady,
   plotCount,
   QUALITY_LIST,
   QUALITY_MULTIPLIER,
+  rollFruitQuality,
   rollQuality,
   SEED_STORAGE_SLOTS,
+  seedSellPrice,
   SHOP_ITEMS,
   SPECIES,
   SPECIES_LIST,
@@ -99,6 +104,7 @@ interface TreeRow {
   water_until: number;
   water_day: number | null;
   fert_until: number;
+  fert_boost: number;
   harvest_count: number;
   max_harvests: number;
   regrow_days: number;
@@ -248,10 +254,17 @@ export class Game {
     return (this.db.prepare('SELECT COUNT(*) AS n FROM seeds WHERE player_id = ?').get(playerId) as { n: number }).n;
   }
 
-  private addSeed(playerId: number, species: Species, quality: Quality | null, parentTreeId: number | null, source: string): void {
-    this.db
+  private storageFree(playerId: number): number {
+    return Math.max(0, SEED_STORAGE_SLOTS - this.seedCount(playerId));
+  }
+
+  /** Adds a seed; the caller must check there is a free slot (the storage limit is never broken). */
+  private addSeed(playerId: number, species: Species, quality: Quality | null, parentTreeId: number | null, source: string): number {
+    if (this.storageFree(playerId) < 1) throw new GameError('Your seed storage is full', 409, { code: 'storage_full' });
+    const res = this.db
       .prepare('INSERT INTO seeds (player_id, species, quality, parent_tree_id, source, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(playerId, species, quality, parentTreeId, source, this.d.now());
+    return Number(res.lastInsertRowid);
   }
 
   private addFruit(playerId: number, species: Species, quality: Quality, qty: number): void {
@@ -352,20 +365,29 @@ export class Game {
       const panen = calendarDay === 7 ? CHECKIN_PANEN * CHECKIN_DAY7_MULTIPLIER : CHECKIN_PANEN;
       this.db.prepare('UPDATE players SET checkin_day = ?, streak = ? WHERE id = ?').run(today, streak, p.id);
       this.earn(p.id, p.account_id, 'checkin', panen, `Daily check-in, day ${calendarDay}`);
-      // A free mango seed every day, so nobody is ever stuck (even with full storage).
-      this.addSeed(p.id, 'mango', null, null, 'checkin');
-      const rewards = [`${panen} PANEN`, '1 Mango seed'];
-      if (calendarDay === 7) {
-        this.addSeed(p.id, 'mango', 'gold', null, 'checkin');
-        rewards.push('1 Gold Mango seed');
+      // A free mango seed every day, so nobody is ever stuck. Seeds only go in while
+      // there is a free slot (the Gold seed first); the rest is reported as skipped.
+      const rewards = [`${panen} PANEN`];
+      const skipped: string[] = [];
+      const seeds: [Quality | null, string][] = calendarDay === 7 ? [['gold', '1 Gold Mango seed'], [null, '1 Mango seed']] : [[null, '1 Mango seed']];
+      for (const [quality, label] of seeds) {
+        if (this.storageFree(p.id) > 0) {
+          this.addSeed(p.id, 'mango', quality, null, 'checkin');
+          rewards.push(label);
+        } else skipped.push(label);
       }
-      return { streak, calendarDay, rewards };
+      return { streak, calendarDay, rewards, skipped };
     });
   }
 
   plant(playerId: number, plot: number, seedId: number) {
-    return tx(this.db, () => {
-      const p = this.getPlayer(playerId);
+    return tx(this.db, () => this.plantNow(this.getPlayer(playerId), plot, seedId));
+  }
+
+  /** Plants inside the caller's transaction. */
+  private plantNow(player: PlayerRow, plot: number, seedId: number) {
+    {
+      const p = player;
       this.assertAccountOk(p);
       if (!Number.isInteger(plot) || plot < 0 || plot >= plotCount(p.xp)) throw new GameError('This plot is locked');
       if (this.treeOnPlot(p.id, plot)) throw new GameError('This plot already has a tree');
@@ -400,7 +422,7 @@ export class Game {
       this.db.prepare('UPDATE players SET first_tree_planted = 1 WHERE id = ?').run(p.id);
       enqueue(this.db, p.id, { kind: 'mint_tree', treeId, accountId: p.account_id, species: seed.species, quality }, now);
       return { treeId, species: seed.species, quality };
-    });
+    }
   }
 
   water(playerId: number, plot: number) {
@@ -423,12 +445,17 @@ export class Game {
       if (t.fert_until > now) throw new GameError('This tree is already fertilized');
       if (this.itemQty(p.id, 'fertilizer') < 1) throw new GameError('You have no fertilizer. Buy some in the Shop.');
       this.addItem(p.id, 'fertilizer', -1);
-      this.db.prepare('UPDATE trees SET fert_until = ? WHERE id = ?').run(now + FERTILIZER_DAYS * this.dayMs(p), t.id);
-      return { fertilized: true };
+      this.db.prepare('UPDATE trees SET fert_until = ?, fert_boost = 1 WHERE id = ?').run(now + FERTILIZER_DAYS * this.dayMs(p), t.id);
+      return { fertilized: true, speed: 1 + FERTILIZER_BOOST, nextHarvestOdds: fruitOdds(t.quality, true) };
     });
   }
 
-  harvest(playerId: number, plot: number) {
+  /**
+   * Harvests a ripe tree. An old tree drops its superior seed: into storage if there
+   * is room; if storage is full the seed stays on the tree (409 storage_full) unless
+   * the player chooses `then`: 'plant' (plant it right here) or 'sell' (to Mr. Darto).
+   */
+  harvest(playerId: number, plot: number, then?: 'plant' | 'sell') {
     return tx(this.db, () => {
       const p = this.getPlayer(playerId);
       this.assertAccountOk(p);
@@ -440,20 +467,58 @@ export class Game {
 
       if (t.harvest_count >= t.max_harvests) {
         // An old tree drops one superior seed, then dies and becomes a Memorial Tree.
-        if (this.seedCount(p.id) >= SEED_STORAGE_SLOTS) throw new GameError('Your seed storage is full. Plant some seeds first.');
+        const full = this.storageFree(p.id) < 1;
+        if (full && !then) {
+          throw new GameError('Your seed storage is full. The seed stays safe on the tree until you choose what to do.', 409, {
+            code: 'storage_full',
+            species: t.species,
+            sellPrice: Math.floor(seedSellPrice(t.species, null) / this.seasonDivisor) || 1,
+          });
+        }
+        if (then === 'sell') {
+          this.killTree(p, t);
+          const sale = this.payForSeeds(p, [{ species: t.species, quality: null }], `Sold the seed of an old ${t.species} tree to Mr. Darto`);
+          return { kind: 'seed' as const, species: t.species, treeDied: true, sold: sale };
+        }
+        if (then === 'plant') {
+          // Room is made by the tree itself: the seed goes straight into the freed plot.
+          this.killTree(p, t);
+          const seedId = Number(
+            this.db
+              .prepare('INSERT INTO seeds (player_id, species, quality, parent_tree_id, source, created_at) VALUES (?, ?, NULL, ?, ?, ?)')
+              .run(p.id, t.species, t.id, 'tree', now).lastInsertRowid,
+          );
+          const planted = this.plantNow(p, plot, seedId);
+          return { kind: 'seed' as const, species: t.species, treeDied: true, planted };
+        }
         this.addSeed(p.id, t.species, null, t.id, 'tree');
         this.killTree(p, t);
         return { kind: 'seed' as const, species: t.species, treeDied: true };
       }
 
-      this.addFruit(p.id, t.species, t.quality, 1);
+      const fertilized = t.fert_boost === 1;
+      const fruitQuality = rollFruitQuality(t.quality, fertilized, this.d.random());
+      const xp = rules.xpPerHarvest * (p.demo === 1 ? DEMO_XP_MULTIPLIER : 1);
+      this.addFruit(p.id, t.species, fruitQuality, 1);
       const harvestCount = t.harvest_count + 1;
       this.db
-        .prepare('UPDATE trees SET harvest_count = ?, growth = 0, target = regrow_days, last_tick = ? WHERE id = ?')
+        .prepare('UPDATE trees SET harvest_count = ?, growth = 0, target = regrow_days, last_tick = ?, fert_boost = 0 WHERE id = ?')
         .run(harvestCount, now, t.id);
-      this.db.prepare('UPDATE players SET xp = xp + ? WHERE id = ?').run(rules.xpPerHarvest, p.id);
+      this.db.prepare('UPDATE players SET xp = xp + ? WHERE id = ?').run(xp, p.id);
       enqueueTreeUpdate(this.db, p.id, t.id, now);
-      return { kind: 'fruit' as const, species: t.species, quality: t.quality, qty: 1, xp: rules.xpPerHarvest, harvestCount };
+      const titleBefore = titleFor(p.xp);
+      const titleAfter = titleFor(p.xp + xp);
+      return {
+        kind: 'fruit' as const,
+        species: t.species,
+        quality: fruitQuality,
+        qty: 1,
+        xp,
+        harvestCount,
+        fertilized,
+        firstHarvest: p.xp === 0,
+        titleUp: titleAfter !== titleBefore ? titleAfter : null,
+      };
     });
   }
 
@@ -531,6 +596,53 @@ export class Game {
     });
   }
 
+  private ownedSeeds(p: PlayerRow, seedIds: unknown) {
+    if (!Array.isArray(seedIds) || seedIds.length < 1 || seedIds.length > SEED_STORAGE_SLOTS * 2 || !seedIds.every(Number.isInteger)) {
+      throw new GameError('Choose at least one seed');
+    }
+    const ids = [...new Set(seedIds as number[])];
+    const rows = this.db
+      .prepare(`SELECT id, species, quality FROM seeds WHERE player_id = ? AND id IN (${ids.map(() => '?').join(',')})`)
+      .all(p.id, ...ids) as unknown as { id: number; species: Species; quality: Quality | null }[];
+    if (rows.length !== ids.length) throw new GameError('Seed not found');
+    return rows;
+  }
+
+  /** Pays for seeds sold to Mr. Darto (mint_reward, so the Season rule applies). */
+  private payForSeeds(p: PlayerRow, seeds: { species: Species; quality: Quality | null }[], note: string) {
+    const basePanen = seeds.reduce((sum, s) => sum + seedSellPrice(s.species, s.quality), 0);
+    const baseMicro = toMicro(basePanen);
+    const expectedMicro = Math.floor(baseMicro / this.seasonDivisor);
+    const now = this.d.now();
+    const ledgerId = this.ledger(p.id, 'sell_seed', expectedMicro, note);
+    const jobId = enqueue(this.db, p.id, { kind: 'mint_reward', accountId: p.account_id, baseMicro, memo: note, ledgerId }, now);
+    this.db.prepare('UPDATE ledger SET job_id = ? WHERE id = ?').run(jobId, ledgerId);
+    this.db.prepare('UPDATE players SET balance_micro = balance_micro + ? WHERE id = ?').run(expectedMicro, p.id);
+    return { basePanen, expectedPanen: fromMicro(expectedMicro), seasonDivisor: this.seasonDivisor };
+  }
+
+  /** Sells seeds to Mr. Darto at the small fixed seed price. */
+  sellSeeds(playerId: number, seedIds: unknown) {
+    return tx(this.db, () => {
+      const p = this.getPlayer(playerId);
+      this.assertAccountOk(p);
+      const rows = this.ownedSeeds(p, seedIds);
+      for (const r of rows) this.db.prepare('DELETE FROM seeds WHERE id = ?').run(r.id);
+      const sale = this.payForSeeds(p, rows, `Sold ${rows.length} seed${rows.length > 1 ? 's' : ''} to Mr. Darto`);
+      return { sold: rows.length, ...sale };
+    });
+  }
+
+  /** Throws seeds away (no reward) to free storage slots. */
+  discardSeeds(playerId: number, seedIds: unknown) {
+    return tx(this.db, () => {
+      const p = this.getPlayer(playerId);
+      const rows = this.ownedSeeds(p, seedIds);
+      for (const r of rows) this.db.prepare('DELETE FROM seeds WHERE id = ?').run(r.id);
+      return { discarded: rows.length };
+    });
+  }
+
   buy(playerId: number, item: ShopItem, qty = 1) {
     return tx(this.db, () => {
       const p = this.getPlayer(playerId);
@@ -587,6 +699,9 @@ export class Game {
           wateredToday: t.water_day === today,
           isWatered: t.water_until > now,
           isFertilized: t.fert_until > now,
+          fertMsLeft: Math.max(0, t.fert_until - now),
+          fertSpeed: t.fert_until > now ? 1 + FERTILIZER_BOOST : 1,
+          nextHarvestOdds: fruitOdds(t.quality, t.fert_boost === 1),
           harvestCount: t.harvest_count,
           maxHarvests: t.max_harvests,
           msToReady: ready ? 0 : msToReady(g, dayMs),
@@ -619,6 +734,7 @@ export class Game {
         xp: p.xp,
         title: titleFor(p.xp),
         nextTitle,
+        xpMultiplier: demo ? DEMO_XP_MULTIPLIER : 1,
       },
       clock: { day: today, farmDay: today - dayIndex(p.created_at, demo) + 1, msUntilNextDay: msUntilNextDay(now, demo), dayLengthMs: dayMs },
       checkin: {

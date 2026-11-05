@@ -64,3 +64,9 @@ export function HoverCart({ scale = 2 }: { scale?: number }) {
     </div>
   );
 }
+
+/** Mr. Darto's head (top rows of the idle pose), for small reactions. */
+const FACE_ROWS = DARTO_IDLE.slice(0, 30);
+export function DartoFace({ scale = 1 }: { scale?: number }) {
+  return <Pixels rows={FACE_ROWS} palette={DARTO_PALETTE} scale={scale} title="Mr. Darto" />;
+}

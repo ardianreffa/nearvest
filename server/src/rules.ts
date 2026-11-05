@@ -66,12 +66,50 @@ export const WATER_DAYS = 1;
 export const FERTILIZER_DAYS = 1;
 export const FERTILIZER_BOOST = 0.5;
 
+/** Demo mode only: XP per harvest is multiplied so judges can see titles go up. */
+export const DEMO_XP_MULTIPLIER = 5;
+
+/**
+ * Mr. Darto also buys seeds, cheaply (40% of the shop price, rounded down), so a
+ * full storage never blocks a player. Known Rare/Gold seeds use the quality multiplier.
+ */
+export const SEED_SELL_FRACTION = 0.4;
+export function seedSellPrice(species: Species, quality: Quality | null): number {
+  return Math.max(1, Math.floor(SPECIES[species].seedPrice * SEED_SELL_FRACTION)) * (quality ? QUALITY_MULTIPLIER[quality] : 1);
+}
+
+/**
+ * Fertilizer also raises the chance of better fruit on the next harvest (GDD:
+ * quality chances rise when a tree is well cared for). Draft numbers: one quality
+ * step up 20% (Common -> Rare, Rare -> Gold), two steps 5% (Common -> Gold).
+ * Without fertilizer a tree gives fruit of its own quality.
+ */
+export const FERT_STEP1 = 0.2;
+export const FERT_STEP2 = 0.05;
+
+/** Chances of each fruit quality on the next harvest. */
+export function fruitOdds(treeQuality: Quality, fertilized: boolean): Record<Quality, number> {
+  if (!fertilized || treeQuality === 'gold') {
+    return { common: treeQuality === 'common' ? 1 : 0, rare: treeQuality === 'rare' ? 1 : 0, gold: treeQuality === 'gold' ? 1 : 0 };
+  }
+  if (treeQuality === 'rare') return { common: 0, rare: 1 - FERT_STEP1, gold: FERT_STEP1 };
+  return { common: 1 - FERT_STEP1 - FERT_STEP2, rare: FERT_STEP1, gold: FERT_STEP2 };
+}
+
+/** Fruit quality of a harvest. `roll` is in [0, 1). */
+export function rollFruitQuality(treeQuality: Quality, fertilized: boolean, roll: number): Quality {
+  const odds = fruitOdds(treeQuality, fertilized);
+  if (roll < odds.gold) return 'gold';
+  if (roll < odds.gold + odds.rare) return 'rare';
+  return 'common';
+}
+
 export const TITLES: { name: string; xp: number }[] = [
   { name: 'Seedling', xp: 0 },
   { name: 'Farmhand', xp: 50 },
-  { name: 'Pak Tani', xp: 200 },
-  { name: 'Juragan', xp: 600 },
-  { name: 'Durian Sultan', xp: 1500 },
+  { name: 'Farmer', xp: 200 },
+  { name: 'Orchard Master', xp: 600 },
+  { name: 'Durian King', xp: 1500 },
   { name: 'Legend', xp: 4000 },
 ];
 
@@ -144,7 +182,11 @@ export function stageOf(t: TreeGrowth): Stage {
   return 'tree';
 }
 
-/** Watered game days still needed, converted to real milliseconds (ignores fertilizer). */
+/** Real milliseconds until ready if the tree stays watered (counts the fertilizer boost). */
 export function msToReady(t: TreeGrowth, dayMs: number): number {
-  return Math.max(0, (t.target - t.growth) * dayMs);
+  const needMs = Math.max(0, (t.target - t.growth) * dayMs);
+  const fertMs = Math.max(0, t.fertUntilMs - t.lastTickMs);
+  const boosted = 1 + FERTILIZER_BOOST;
+  if (needMs <= fertMs * boosted) return needMs / boosted;
+  return fertMs + (needMs - fertMs * boosted);
 }

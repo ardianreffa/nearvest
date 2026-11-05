@@ -2,6 +2,8 @@
 
 import type { ComponentChildren } from 'preact';
 import type { Quality, Species, Stage } from './api';
+import { useState } from 'preact/hooks';
+import { clampQty, saleTotal, stepQty } from './qty';
 import { Sprite } from './sprites';
 
 export const SPECIES_NAME: Record<Species, string> = { mango: 'Mango', rambutan: 'Rambutan', durian: 'Durian' };
@@ -73,4 +75,72 @@ export function Panel({ title, children, right }: { title: string; children: Com
 
 export function Coin({ scale = 2 }: { scale?: number }) {
   return <Sprite name="coin" scale={scale} title="PANEN" />;
+}
+
+/**
+ * Quantity picker: - / + buttons, a slider and Max, with the total that follows.
+ * The action button gets the chosen amount.
+ */
+export function QtyPicker({
+  max,
+  unitPrice,
+  multiplier = 1,
+  busy,
+  actionLabel,
+  actionClass = 'btn-gold',
+  onAction,
+  secondary,
+}: {
+  max: number;
+  unitPrice: number;
+  multiplier?: number;
+  busy: boolean;
+  actionLabel: string;
+  actionClass?: string;
+  onAction: (qty: number) => void;
+  /** Optional second action with the same amount (e.g. Discard). */
+  secondary?: { label: string; onAction: (qty: number) => void };
+}) {
+  const [picked, setPicked] = useState(1);
+  const qty = clampQty(picked, max);
+  const total = saleTotal(unitPrice, multiplier, qty);
+  return (
+    <div class="qty">
+      <div class="qty-row">
+        <button class="btn btn-small qty-step" aria-label="One less" disabled={busy || qty <= 1} onClick={() => setPicked(stepQty(qty, -1, max))}>
+          -
+        </button>
+        <input
+          class="qty-slider"
+          type="range"
+          min={1}
+          max={Math.max(1, max)}
+          step={1}
+          value={qty}
+          disabled={busy || max <= 1}
+          aria-label="Amount"
+          onInput={(e) => setPicked(Number((e.target as HTMLInputElement).value))}
+        />
+        <button class="btn btn-small qty-step" aria-label="One more" disabled={busy || qty >= max} onClick={() => setPicked(stepQty(qty, 1, max))}>
+          +
+        </button>
+        <button class="btn btn-small qty-max" disabled={busy || qty >= max} onClick={() => setPicked(max)}>
+          Max
+        </button>
+      </div>
+      <div class="qty-row">
+        <span class="qty-count">
+          x<b>{qty}</b>
+        </span>
+        {secondary && (
+          <button class="btn btn-small" disabled={busy || qty < 1} onClick={() => secondary.onAction(qty)}>
+            {secondary.label}
+          </button>
+        )}
+        <button class={`btn btn-small ${actionClass} qty-go`} disabled={busy || qty < 1} onClick={() => onAction(qty)}>
+          {actionLabel} · <Coin /> {formatPanen(total)}
+        </button>
+      </div>
+    </div>
+  );
 }

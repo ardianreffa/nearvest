@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS trees (
   water_until INTEGER NOT NULL DEFAULT 0,
   water_day INTEGER,               -- game day of the last watering
   fert_until INTEGER NOT NULL DEFAULT 0,
+  fert_boost INTEGER NOT NULL DEFAULT 0, -- fertilized since the last harvest (better fruit odds)
   harvest_count INTEGER NOT NULL DEFAULT 0,
   max_harvests INTEGER NOT NULL,
   regrow_days REAL NOT NULL,
@@ -134,7 +135,15 @@ export function openDb(path: string): DB {
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
+}
+
+/** Adds columns that were introduced after a database was created. */
+function migrate(db: DB): void {
+  const has = (table: string, column: string) =>
+    (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === column);
+  if (!has('trees', 'fert_boost')) db.exec('ALTER TABLE trees ADD COLUMN fert_boost INTEGER NOT NULL DEFAULT 0');
 }
 
 /** Runs `fn` inside a transaction; rolls back if it throws. */

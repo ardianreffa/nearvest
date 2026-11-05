@@ -1,6 +1,7 @@
 // Music and sound effects (all CC0, see docs/ASSETS.md).
 // Browsers block audio until the player interacts, so nothing plays before the
-// first tap/click. Mute is remembered in localStorage.
+// first tap/click. Music and sound effects are switched on/off separately and
+// each choice is remembered in localStorage.
 
 export type SoundName =
   | 'click'
@@ -29,21 +30,34 @@ const SOUND_FILES: Record<SoundName, string> = {
 const MUSIC_FILE = '/assets/audio/music-apple-cider.m4a';
 const MUSIC_VOLUME = 0.3;
 const SFX_VOLUME = 0.6;
-const MUTE_KEY = 'nearvest.muted';
+const MUSIC_KEY = 'nearvest.music';
+const SFX_KEY = 'nearvest.sfx';
+/** Older builds had one switch for both. */
+const OLD_MUTE_KEY = 'nearvest.muted';
+
+export interface AudioPrefs {
+  music: boolean;
+  sfx: boolean;
+}
 
 let ctx: AudioContext | null = null;
 let sfxGain: GainNode | null = null;
 const buffers = new Map<SoundName, AudioBuffer>();
 let music: HTMLAudioElement | null = null;
 let unlocked = false;
-let muted = readMuted();
-const listeners = new Set<(muted: boolean) => void>();
+let prefs: AudioPrefs = readPrefs();
+const listeners = new Set<(p: AudioPrefs) => void>();
 
-function readMuted(): boolean {
+function readPrefs(): AudioPrefs {
   try {
-    return localStorage.getItem(MUTE_KEY) === '1';
+    const old = localStorage.getItem(OLD_MUTE_KEY) === '1';
+    const read = (key: string) => {
+      const v = localStorage.getItem(key);
+      return v === null ? !old : v === '1';
+    };
+    return { music: read(MUSIC_KEY), sfx: read(SFX_KEY) };
   } catch {
-    return false;
+    return { music: true, sfx: true };
   }
 }
 
@@ -62,7 +76,7 @@ async function loadBuffers(): Promise<void> {
 }
 
 function startMusic(): void {
-  if (muted) return;
+  if (!prefs.music) return;
   if (!music) {
     music = new Audio(MUSIC_FILE);
     music.loop = true;
@@ -95,12 +109,12 @@ export function initAudio(): void {
   document.addEventListener('visibilitychange', () => {
     if (!music) return;
     if (document.hidden) music.pause();
-    else if (!muted && unlocked) void music.play().catch(() => undefined);
+    else if (prefs.music && unlocked) void music.play().catch(() => undefined);
   });
 }
 
 export function playSound(name: SoundName): void {
-  if (muted || !ctx || !sfxGain) return;
+  if (!prefs.sfx || !ctx || !sfxGain) return;
   const buffer = buffers.get(name);
   if (!buffer) return;
   if (ctx.state === 'suspended') void ctx.resume();
@@ -110,23 +124,26 @@ export function playSound(name: SoundName): void {
   src.start();
 }
 
-export function isMuted(): boolean {
-  return muted;
+export function getAudioPrefs(): AudioPrefs {
+  return prefs;
 }
 
-export function setMuted(value: boolean): void {
-  muted = value;
+/** Turns music and/or sound effects on or off and remembers the choice. */
+export function setAudioPrefs(change: Partial<AudioPrefs>): void {
+  prefs = { ...prefs, ...change };
   try {
-    localStorage.setItem(MUTE_KEY, value ? '1' : '0');
+    localStorage.setItem(MUSIC_KEY, prefs.music ? '1' : '0');
+    localStorage.setItem(SFX_KEY, prefs.sfx ? '1' : '0');
+    localStorage.removeItem(OLD_MUTE_KEY);
   } catch {
     // Storage blocked: the choice lasts for this visit only.
   }
-  if (value) music?.pause();
+  if (!prefs.music) music?.pause();
   else if (unlocked) startMusic();
-  for (const l of listeners) l(muted);
+  for (const l of listeners) l(prefs);
 }
 
-export function onMuteChange(fn: (muted: boolean) => void): () => void {
+export function onAudioPrefsChange(fn: (p: AudioPrefs) => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }

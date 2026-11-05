@@ -74,13 +74,20 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big }: Pro
               onClick={() => onSelect(p.plot)}
               aria-label={`Plot ${p.plot + 1}${p.tree ? `: ${p.tree.species}, ${p.tree.stage}` : p.locked ? ': locked' : ': empty'}`}
             >
-              <div class="plot-art">
+              <div class={`plot-art${p.tree?.isFertilized && p.tree.fertMsLeft - elapsed > 0 ? ' fertilized' : ''}`}>
                 {p.locked ? (
                   <Sprite name="lock" scale={px * 2} title="Locked" />
                 ) : p.tree ? (
                   <TreePixels species={p.tree.species} stage={p.tree.stage} quality={p.tree.quality} scale={px} />
                 ) : (
                   <span class="empty-hint">Plant</span>
+                )}
+                {p.tree?.isFertilized && p.tree.fertMsLeft - elapsed > 0 && (
+                  <span class="fert-glow" aria-hidden="true">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <i key={i} style={{ left: `${15 + i * 17}%`, animationDelay: `${i * 0.35}s` }} />
+                    ))}
+                  </span>
                 )}
                 {st && (
                   <span class={`badge ${st.cls}`}>

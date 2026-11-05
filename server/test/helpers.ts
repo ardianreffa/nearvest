@@ -15,12 +15,14 @@ export function makeWorld(opts: { random?: number; demo?: boolean } = {}) {
   const db = openDb(':memory:');
   const chain = new FakeChain();
   const clock = { t: START };
+  /** Value returned by the game's random(); tests may change it between actions. */
+  const rng = { value: opts.random ?? 0.5 };
   const now = () => clock.t;
   const masterKey = randomBytes(32).toString('base64');
   const game = new Game({
     db,
     now,
-    random: () => opts.random ?? 0.5,
+    random: () => rng.value,
     masterKey,
     accountSuffix: 'nearvest.testnet',
     explorerTxUrl: 'https://testnet.nearblocks.io/txns/',
@@ -59,7 +61,7 @@ export function makeWorld(opts: { random?: number; demo?: boolean } = {}) {
     );
     return game.createPlayer(userId, name, ip);
   };
-  return { db, chain, game, worker, app, clock, now, advance, masterKey, newPlayer };
+  return { db, chain, game, worker, app, clock, now, advance, masterKey, newPlayer, rng };
 }
 
 export const UNIT = 10n ** 18n;
