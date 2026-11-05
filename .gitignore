@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+id_rsa*
+credentials.json
+**/near-credentials/
+.near-credentials/
+*-key.json
+*_key.json
+*.private.json
+
+# Rust / NEAR contract build output
+target/
+*.wasm
+neardev/
+
+# Build output
+dist/
+build/
+.next/
+.vercel/
+out/
+coverage/
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+
+# Local databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Hackathon submission payload (contains personal data)
+submission*.json
