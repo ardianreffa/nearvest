@@ -1,7 +1,7 @@
 // Shared UI pieces: tree and fruit art, labels, formatting.
 
 import type { ComponentChildren } from 'preact';
-import type { Quality, Species, Stage, TreeView } from './api';
+import type { Quality, Species, Stage } from './api';
 import { Sprite } from './sprites';
 
 export const SPECIES_NAME: Record<Species, string> = { mango: 'Mango', rambutan: 'Rambutan', durian: 'Durian' };
@@ -21,43 +21,6 @@ export function FruitIcon({ species, scale = 3 }: { species: Species; scale?: nu
 export function QualityTag({ quality }: { quality: Quality | null }) {
   if (!quality) return <span class="tag tag-unknown">Revealed when planted</span>;
   return <span class={`tag tag-${quality}`}>{QUALITY_NAME[quality]}</span>;
-}
-
-/** Tree art for a plot: own sprites for seed and sprout, the CC0 tropical tree for later stages. */
-export function TreeArt({ tree }: { tree: TreeView }) {
-  const aura = tree.quality === 'common' ? '' : ` aura-${tree.quality}`;
-  if (tree.stage === 'seed') {
-    return (
-      <div class={`tree-art small${aura}`}>
-        <Sprite name="seedMound" scale={4} />
-      </div>
-    );
-  }
-  if (tree.stage === 'sprout') {
-    return (
-      <div class={`tree-art small${aura}`}>
-        <Sprite name="sprout" scale={4} />
-      </div>
-    );
-  }
-  return (
-    <div class={`tree-art${aura}${tree.stage === 'old' ? ' old' : ''}`}>
-      <img src="/assets/cc0/tropical-tree-pixquare.png" width={64} height={96} alt="" draggable={false} />
-      {tree.stage === 'fruiting' && (
-        <div class="fruits">
-          <span style="left:14px;top:22px">
-            <FruitIcon species={tree.species} scale={2} />
-          </span>
-          <span style="left:36px;top:14px">
-            <FruitIcon species={tree.species} scale={2} />
-          </span>
-          <span style="left:42px;top:34px">
-            <FruitIcon species={tree.species} scale={2} />
-          </span>
-        </div>
-      )}
-    </div>
-  );
 }
 
 export interface SeedGroup {

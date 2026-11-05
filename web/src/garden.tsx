@@ -1,7 +1,9 @@
 // The garden: three plots, the selected plot's actions and the daily check-in.
 
-import { useState } from 'preact/hooks';
-import type { GameState, TreeView } from './api';
+import { useRef, useState } from 'preact/hooks';
+import type { GameState } from './api';
+import { floatText } from './fx';
+import { GardenScene, type ActionKind, type SceneFx } from './scene';
 import { Sprite } from './sprites';
 import {
   formatDuration,
@@ -12,10 +14,10 @@ import {
   QUALITY_NAME,
   SPECIES_NAME,
   STAGE_NAME,
-  TreeArt,
 } from './ui';
 
-export type Act = (path: string, body?: unknown, success?: string) => Promise<void>;
+/** Runs a game action; resolves to the server result, or null if it failed. */
+export type Act = (path: string, body?: unknown, success?: string) => Promise<unknown | null>;
 /** Shows an in-game confirmation dialog; resolves true when the player confirms. */
 export type Ask = (message: string, confirmLabel: string) => Promise<boolean>;
 
@@ -28,59 +30,39 @@ interface Props {
   busy: boolean;
   goShop: () => void;
   showCheckin: boolean;
+  /** Wide screens draw the scene art at 4 px per pixel. */
+  big: boolean;
 }
 
-function status(tree: TreeView, elapsed: number) {
-  if (tree.ready) return { text: tree.stage === 'old' ? 'Seed ready' : 'Ready!', cls: 'ready' };
-  if (!tree.isWatered) return { text: 'Thirsty', cls: 'thirsty' };
-  return { text: formatDuration(tree.msToReady - elapsed), cls: 'growing' };
-}
-
-export function Garden({ state, act, ask, elapsed, busy, goShop, showCheckin }: Props) {
+export function Garden({ state, act, ask, elapsed, busy, goShop, showCheckin, big }: Props) {
   const [selected, setSelected] = useState(0);
+  const [fx, setFx] = useState<SceneFx | null>(null);
+  const fxTimer = useRef<number>(0);
   const plot = state.plots[selected];
+
+  /** Runs an action and plays TaniBot's animation for it when it succeeds. */
+  const botAct: Act = async (path, body, success) => {
+    const kind = (path.split('/').pop() ?? '') as ActionKind;
+    const plotIndex = (body as { plot?: number } | undefined)?.plot ?? selected;
+    const before = state.plots[plotIndex]?.tree ?? null;
+    const result = await act(path, body, success);
+    if (result !== null && ['plant', 'water', 'harvest', 'fertilize', 'chop'].includes(kind)) {
+      window.clearTimeout(fxTimer.current);
+      setFx({ id: Date.now(), kind, plot: plotIndex, tree: before });
+      fxTimer.current = window.setTimeout(() => setFx(null), 1700);
+      const xp = (result as { xp?: number }).xp;
+      if (kind === 'harvest' && xp) floatText(`+${xp} XP`, 'xp');
+    }
+    return result;
+  };
 
   return (
     <div class="garden-screen">
       {showCheckin && <CheckinBanner state={state} act={act} busy={busy} />}
 
-      <div class="scene" role="group" aria-label="Your garden">
-        <img class="palm palm-left" src="/assets/cc0/palm-fryhet-1.png" alt="" />
-        <img class="palm palm-right" src="/assets/cc0/palm-fryhet-2.png" alt="" />
-        <div class="plots">
-          {state.plots.map((p) => {
-            const st = p.tree ? status(p.tree, elapsed) : null;
-            return (
-              <button
-                key={p.plot}
-                class={`plot${p.plot === selected ? ' selected' : ''}${p.locked ? ' locked' : ''}`}
-                onClick={() => setSelected(p.plot)}
-                aria-label={`Plot ${p.plot + 1}`}
-              >
-                <div class="plot-art">
-                  {p.locked ? (
-                    <Sprite name="lock" scale={4} title="Locked" />
-                  ) : p.tree ? (
-                    <TreeArt tree={p.tree} />
-                  ) : (
-                    <span class="empty-hint">Plant</span>
-                  )}
-                </div>
-                <div class="soil" />
-                {st && (
-                  <span class={`badge ${st.cls}`}>
-                    {st.cls === 'thirsty' && <Sprite name="droplet" scale={2} />}
-                    {st.cls === 'ready' && <Sprite name="sparkle" scale={2} />}
-                    {st.text}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} />
 
-      <PlotPanel state={state} plotIndex={selected} act={act} ask={ask} busy={busy} elapsed={elapsed} goShop={goShop} key={selected} />
+      <PlotPanel state={state} plotIndex={selected} act={botAct} ask={ask} busy={busy} elapsed={elapsed} goShop={goShop} key={selected} />
       {!plot.tree && !plot.locked && state.seeds.length === 0 && (
         <p class="hint">No seeds? Check in daily for a free Mango seed, or visit the Shop.</p>
       )}

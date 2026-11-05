@@ -231,17 +231,22 @@ export const SPRITES = {
   ],
 } satisfies Record<string, string[]>;
 
-interface Props {
-  name: SpriteName;
+export const BASE_PALETTE = PALETTE;
+
+interface PixelsProps {
+  rows: string[];
+  /** Overrides or extends the base palette. */
+  palette?: Record<string, string>;
   /** Size of one pixel in CSS px. */
   scale?: number;
   class?: string;
   title?: string;
+  style?: string | Record<string, string | number>;
 }
 
-/** Renders a sprite as a crisp SVG (merges horizontal runs into one rect). */
-export function Sprite({ name, scale = 3, class: className, title }: Props) {
-  const rows = SPRITES[name];
+/** Renders any character grid as a crisp SVG (merges horizontal runs into one rect). */
+export function Pixels({ rows, palette, scale = 3, class: className, title, style }: PixelsProps) {
+  const colors = palette ? { ...PALETTE, ...palette } : PALETTE;
   const width = Math.max(...rows.map((r) => r.length));
   const rects = [];
   for (let y = 0; y < rows.length; y++) {
@@ -249,19 +254,20 @@ export function Sprite({ name, scale = 3, class: className, title }: Props) {
     let x = 0;
     while (x < row.length) {
       const ch = row[x];
-      if (ch === '.' || !PALETTE[ch]) {
+      if (ch === '.' || !colors[ch]) {
         x++;
         continue;
       }
       let end = x + 1;
       while (end < row.length && row[end] === ch) end++;
-      rects.push(<rect key={`${x}-${y}`} x={x} y={y} width={end - x} height={1} fill={PALETTE[ch]} />);
+      rects.push(<rect key={`${x}-${y}`} x={x} y={y} width={end - x} height={1} fill={colors[ch]} />);
       x = end;
     }
   }
   return (
     <svg
       class={className}
+      style={style}
       width={width * scale}
       height={rows.length * scale}
       viewBox={`0 0 ${width} ${rows.length}`}
@@ -274,4 +280,20 @@ export function Sprite({ name, scale = 3, class: className, title }: Props) {
       {rects}
     </svg>
   );
+}
+
+/** Keeps only the given characters of a grid (for animated overlay layers). */
+export function only(rows: string[], chars: string): string[] {
+  return rows.map((r) => [...r].map((c) => (chars.includes(c) ? c : '.')).join(''));
+}
+
+interface Props {
+  name: SpriteName;
+  scale?: number;
+  class?: string;
+  title?: string;
+}
+
+export function Sprite({ name, scale = 3, class: className, title }: Props) {
+  return <Pixels rows={SPRITES[name]} scale={scale} class={className} title={title} />;
 }

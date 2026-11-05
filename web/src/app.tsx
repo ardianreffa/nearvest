@@ -3,7 +3,9 @@
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type Quality, type ServerConfig, type Species } from './api';
+import { botVersion, TaniBotHead } from './art/tanibot';
 import { initAudio, isMuted, onMuteChange, playSound, setMuted, type SoundName } from './audio';
+import { burnAt, coinsToBalance, confetti, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden } from './garden';
 import { Market, Shop, Storage, Village } from './panels';
 import { Sprite } from './sprites';
@@ -105,7 +107,9 @@ export function App() {
       }
       if (lastTitle.current !== null && lastTitle.current !== s.player.title) {
         playSound('levelup');
-        toast({ kind: 'info', text: `New title: ${s.player.title}!` });
+        confetti();
+        floatText(`${s.player.title}!`, 'mint', window.innerWidth / 2, window.innerHeight / 3);
+        toast({ kind: 'info', text: `New title: ${s.player.title}! TaniBot got an upgrade.` });
       }
       lastTitle.current = s.player.title;
       setState(s);
@@ -167,16 +171,19 @@ export function App() {
   }, []);
 
   const act = useCallback(
-    async (path: string, body?: unknown, success?: string) => {
+    async (path: string, body?: unknown, success?: string): Promise<unknown | null> => {
       setBusy(true);
       try {
-        const res = await api<{ state: GameState }>('POST', path, body ?? {});
+        const res = await api<{ state: GameState; result: unknown }>('POST', path, body ?? {});
         playSound(ACTION_SOUNDS[path] ?? 'click');
+        juice(path, res.result);
         applyState(res.state);
         if (success) toast({ kind: 'info', text: success });
+        return res.result ?? {};
       } catch (e) {
         playSound('error');
         toast({ kind: 'error', text: e instanceof Error ? e.message : String(e) });
+        return null;
       } finally {
         setBusy(false);
       }
@@ -195,8 +202,11 @@ export function App() {
         try {
           const res = await api<{ state: GameState }>('POST', '/api/sell', { species, quality, qty, expectedPrice: price });
           playSound('coins');
+          const earned = (res as { result?: { expectedPanen?: number } }).result?.expectedPanen ?? price * mult * qty;
+          floatText(`+${formatPanen(earned)} PANEN`, 'gold');
+          coinsToBalance(Math.min(10, 3 + qty * 2));
           applyState(res.state);
-          toast({ kind: 'info', text: `Sold ${label} for ${price * mult * qty} PANEN` });
+          toast({ kind: 'info', text: `Sold ${label} for ${formatPanen(earned)} PANEN` });
           return;
         } catch (e) {
           if (e instanceof ApiError && e.data.code === 'price_changed' && typeof e.data.price === 'number') {
@@ -240,6 +250,19 @@ export function App() {
     resetSession();
     setPhase('login');
   };
+
+  // Bump the balance when it changes.
+  const balance = state?.player.balance;
+  const lastBalance = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const el = document.querySelector('.balance');
+    if (el && lastBalance.current !== undefined && balance !== lastBalance.current) {
+      el.classList.remove('bump');
+      void (el as HTMLElement).offsetWidth;
+      el.classList.add('bump');
+    }
+    lastBalance.current = balance;
+  }, [balance]);
 
   const muteButton = (
     <button class="icon-btn" onClick={() => setMuted(!muted)} aria-label={muted ? 'Unmute sound' : 'Mute sound'} title={muted ? 'Sound off' : 'Sound on'}>
@@ -304,7 +327,7 @@ export function App() {
 
   const goShop = () => (wide ? setSideTab('shop') : setTab('shop'));
   const goSell = () => (wide ? setSideTab('market') : setTab('market'));
-  const garden = <Garden state={state} act={act} ask={ask} elapsed={elapsed} busy={busy} goShop={goShop} showCheckin={!wide} />;
+  const garden = <Garden state={state} act={act} ask={ask} elapsed={elapsed} busy={busy} goShop={goShop} showCheckin={!wide} big={wide} />;
   const panelFor = (t: SideTab) =>
     t === 'storage' ? (
       <Storage state={state} goSell={goSell} />
@@ -329,7 +352,9 @@ export function App() {
     <main class={`shell${wide ? ' wide' : ''}`}>
       <header class="topbar">
         <div class="who">
-          <Sprite name="taniBot" scale={wide ? 3 : 2} />
+          <span class="head-bot">
+            <TaniBotHead version={botVersion(p.title)} scale={wide ? 3 : 2} />
+          </span>
           <div>
             <div class="name">{p.name}</div>
             <div class="title-line">
@@ -403,8 +428,21 @@ export function App() {
         ))}
       </div>
       {dialogView}
+      <FxLayer />
     </main>
   );
+}
+
+/** Floating numbers, coins and flames for actions with a PANEN effect. */
+function juice(path: string, result: unknown) {
+  const r = (result ?? {}) as { rewards?: string[]; burnedPanen?: number };
+  if (path === '/api/checkin' && r.rewards?.[0]) {
+    floatText(`+${r.rewards[0]}`, 'gold');
+    coinsToBalance(4);
+  } else if (path === '/api/shop/buy' && r.burnedPanen) {
+    burnAt();
+    floatText(`-${r.burnedPanen} PANEN`, 'burn');
+  }
 }
 
 const TITLE_XP = [0, 50, 200, 600, 1500, 4000];

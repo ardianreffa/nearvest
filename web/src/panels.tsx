@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { ACTIVITY_LABELS, api, nearblocksAccount, type GameState, type Quality, type ServerConfig, type Species, type VillageStats } from './api';
 import type { Act } from './garden';
+import { DartoFigure, HoverCart } from './art/darto';
 import { Sprite } from './sprites';
 import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QualityTag, QUALITY_NAME, SPECIES_NAME } from './ui';
 
@@ -92,8 +93,9 @@ export function Market({ state, sell, busy }: { state: GameState; sell: Sell; bu
   return (
     <>
       <Panel title="Mr. Darto">
-        <div class="darto">
-          <Sprite name="darto" scale={5} title="Mr. Darto" />
+        <div class="market-scene">
+          <DartoFigure scale={4} />
+          <HoverCart scale={3} />
           <p class="speech">"{d.greeting}"</p>
         </div>
         <ul class="list prices">

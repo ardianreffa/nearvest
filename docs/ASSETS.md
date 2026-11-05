@@ -35,9 +35,8 @@ CC0 = public domain dedication (https://creativecommons.org/publicdomain/zero/1.
 |---|---|---|---|
 | `web/public/assets/cc0/palm-fryhet-1.png` | Palms (`palm.png`) by fryhet | CC0 | Garden background |
 | `web/public/assets/cc0/palm-fryhet-2.png` | Palms (`palm_2.png`) by fryhet | CC0 | Garden background |
-| `web/public/assets/cc0/tropical-tree-pixquare.png` | Tropical tree (`Tree sprite.png`) by Miguel Oliveira aka Pixquare | CC0 (credit requested) | Tree, fruiting and old stages |
 
-Downloaded 2026-11-05 from OpenGameArt. BrawlBot was checked but not used (painted style, not pixel art).
+Downloaded 2026-11-05 from OpenGameArt. BrawlBot was checked but not used (painted style, not pixel art). The Tropical tree by Pixquare was used in the first UI version and removed on 2026-11-05 when species-specific trees were drawn (keep the credit only if it comes back).
 
 ## Audio (all CC0, checked 2026-11-05)
 
@@ -72,4 +71,8 @@ No CC0 mango, rambutan, or durian tree sprites were found. These will be recolor
 
 | File | Based on / made with | Notes |
 |---|---|---|
-| `web/src/sprites.tsx` (TaniBot, Mr. Darto, seed mound, sprout, mango, rambutan, durian, coin, droplet, sparkle, lock, fertilizer, seed packet, bolt, fire) | Original pixel art drawn in code for NEARvest (by Claude Code, 2026-11-05) | Part of this repo (MIT) |
+| `web/src/sprites.tsx` (icons: seed mound, sprout, fruits, coin, droplet, sparkle, lock, fertilizer, seed packet, bolt, fire, speaker) | Original pixel art drawn in code for NEARvest (by Claude Code, 2026-11-05) | Part of this repo (MIT) |
+| `web/src/art/trees.tsx` (mango, rambutan, durian x seed/sprout/tree/fruiting/old, generated procedurally) | Original, generated in code | Part of this repo (MIT) |
+| `web/src/art/tanibot.tsx` (TaniBot v1 rusty/bamboo hat, v2 chrome/LED hat, drones, basket, plasma hoe) | Original pixel art drawn in code | Part of this repo (MIT) |
+| `web/src/art/darto.tsx` (Mr. Darto full figure with hologram glasses, hover cart) | Original pixel art drawn in code | Part of this repo (MIT) |
+| `web/src/art/backdrop.tsx` (sky phases, stars, sun/moon, clouds, volcanoes, joglo houses with solar panels, windmill, bamboo greenhouse, lanterns, rice terraces) | Original vector pixel art drawn in code | Part of this repo (MIT) |

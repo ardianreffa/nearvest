@@ -1,6 +1,12 @@
 /* NEARvest: Solarpunk Nusantara pixel theme. Colors from the GDD. */
 
 :root {
+  --mint-dim: rgba(0, 236, 151, 0.35);
+  --wood: #6b4a2f;
+  --wood-dark: #3f2a19;
+  --wood-light: #8a6342;
+  --bamboo-a: #c9a24a;
+  --bamboo-b: #9a7a2e;
   --leaf: #2e7d4f;
   --leaf-light: #4caf6a;
   --leaf-dark: #1e5a38;
@@ -425,52 +431,22 @@ button {
 
 .scene {
   position: relative;
-  height: 230px;
+  height: 270px;
   overflow: hidden;
   border: var(--px) solid #000;
-  background:
-    linear-gradient(to bottom, #8fd8f0 0%, #c9f2e6 55%, transparent 55%),
-    linear-gradient(to bottom, var(--leaf-light) 55%, var(--leaf) 100%);
-}
-
-.scene::before {
-  /* distant hills */
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 40%;
-  height: 22%;
-  background:
-    radial-gradient(ellipse 40% 100% at 20% 100%, #3d9a64 98%, transparent 100%),
-    radial-gradient(ellipse 45% 90% at 75% 100%, #358a59 98%, transparent 100%);
-}
-
-.palm {
-  position: absolute;
-  bottom: 96px;
-  width: 75px;
-  height: auto;
-  opacity: 0.95;
-}
-
-.palm-left {
-  left: -14px;
-}
-
-.palm-right {
-  right: -14px;
-  transform: scaleX(-1);
+  box-shadow: 0 0 0 2px var(--mint-dim), 0 0 18px rgba(0, 236, 151, 0.18);
+  isolation: isolate;
 }
 
 .plots {
   position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 8px;
+  left: 4%;
+  right: 4%;
+  bottom: 10px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  z-index: 3;
 }
 
 .plot {
@@ -492,25 +468,23 @@ button {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  height: 108px;
-  margin-bottom: -10px;
+  margin-bottom: -8px;
 }
 
 .soil {
+  position: relative;
   width: 100%;
-  height: 34px;
+  height: 30px;
   background:
-    repeating-linear-gradient(90deg, transparent 0 9px, rgba(0, 0, 0, 0.18) 9px 12px),
-    var(--soil);
+    repeating-linear-gradient(90deg, transparent 0 9px, rgba(0, 0, 0, 0.2) 9px 12px),
+    linear-gradient(#7d5636, var(--soil));
   border: var(--px) solid var(--soil-dark);
-  box-shadow: inset 0 var(--px) 0 #8a6342;
+  box-shadow: inset 0 var(--px) 0 #9a7049, inset 0 calc(var(--px) * -1) 0 rgba(0, 236, 151, 0.25);
 }
 
 .plot.selected .soil {
-  border-color: var(--gold);
-  box-shadow:
-    inset 0 var(--px) 0 #8a6342,
-    0 0 0 var(--px) #000;
+  border-color: var(--mint);
+  box-shadow: inset 0 var(--px) 0 #9a7049, 0 0 10px var(--mint);
 }
 
 .plot.locked .soil {
@@ -519,30 +493,29 @@ button {
 }
 
 .plot.locked .plot-art {
-  align-items: center;
+  margin-bottom: 30px;
 }
 
 .empty-hint {
   color: #fff;
-  font-weight: 700;
   font-size: 13px;
-  background: rgba(15, 42, 30, 0.75);
+  background: rgba(15, 42, 30, 0.8);
+  border: 1px solid var(--mint);
   padding: 2px 6px;
   margin-bottom: 18px;
 }
 
 .badge {
   position: absolute;
-  top: 0;
+  top: -6px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 2;
+  z-index: 4;
   display: inline-flex;
   align-items: center;
   gap: 3px;
   padding: 1px 6px;
   font-size: 12px;
-  font-weight: 700;
   border: 2px solid #000;
   white-space: nowrap;
 }
@@ -558,36 +531,476 @@ button {
 }
 
 .badge.growing {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.88);
 }
 
-.tree-art {
-  position: relative;
-}
-
-.tree-art img {
-  display: block;
-}
-
-.tree-art.small {
-  margin-bottom: 4px;
-}
-
-.tree-art.old img {
-  filter: saturate(0.35) sepia(0.45) brightness(0.95);
-}
-
-.tree-art.aura-rare {
-  filter: drop-shadow(0 0 4px var(--purple));
-}
-
-.tree-art.aura-gold {
-  filter: drop-shadow(0 0 5px var(--gold));
-}
-
-.fruits span {
+.soil-glow {
   position: absolute;
+  inset: -4px;
+  background: radial-gradient(ellipse at center, rgba(0, 236, 151, 0.9), rgba(0, 236, 151, 0) 70%);
+  animation: soil-glow 1.1s ease-out forwards;
+  pointer-events: none;
+}
+
+/* ---------- Backdrop layers ---------- */
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  --pan: 0;
+  --wall: #e9dcc0;
+  --door: #6b4a2f;
+  --roof: #8a4b2a;
+  --roof-dark: #5e3119;
+  --pole: #4a3a2a;
+  --cloud: rgba(255, 255, 255, 0.85);
+  --mountain: #6aa79a;
+  --snow: #dff2ee;
+  --ridge: #4f9a63;
+  --glass: rgba(170, 240, 210, 0.75);
+  --bamboo: #b08a3e;
+  --blade: #f4fff9;
+  --terrace-a: #5db36b;
+  --terrace-b: #4aa35c;
+  --terrace-edge: #9be38f;
+  --rice: #d8f59a;
+}
+
+.backdrop .sky,
+.backdrop .layer,
+.backdrop .ground {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.sky {
+  transition: opacity 2.5s ease;
+}
+
+.sky-day {
+  background: linear-gradient(#7fd3f2 0%, #bfeee6 55%, #e6f7d8 70%);
+}
+
+.sky-dusk {
+  background: linear-gradient(#3b2a6b 0%, #c9568a 35%, #f6a35b 62%, #ffd38a 72%);
+  opacity: 0;
+}
+
+.sky-night {
+  background: linear-gradient(#060b24 0%, #0f1f4a 55%, #1d3a5a 72%);
+  opacity: 0;
+}
+
+.phase-dawn .sky-dusk,
+.phase-dusk .sky-dusk {
+  opacity: 1;
+}
+
+.phase-night .sky-night {
+  opacity: 1;
+}
+
+.layer {
+  transition: transform 0.4s ease-out;
+}
+
+.layer-stars rect {
+  opacity: 0;
+  transition: opacity 2s;
+}
+
+.phase-night .layer-stars rect {
+  opacity: 1;
+  animation: twinkle 2.4s steps(2) infinite;
+}
+
+.layer-sun .sun,
+.layer-sun .moon {
+  transition: opacity 2s;
+}
+
+.layer-sun .moon,
+.phase-night .layer-sun .sun {
+  opacity: 0;
+}
+
+.phase-night .layer-sun .moon {
+  opacity: 1;
+}
+
+.phase-dusk .layer-sun .sun,
+.phase-dawn .layer-sun .sun {
+  transform: translateY(14px);
+  opacity: 0.85;
+}
+
+.layer-clouds {
+  animation: drift 60s linear infinite alternate;
+}
+
+.layer-mountains {
+  transform: translateX(calc(var(--pan) * -3px));
+}
+
+.layer-village {
+  transform: translateX(calc(var(--pan) * -6px));
+}
+
+.layer-terraces {
+  transform: translateX(calc(var(--pan) * -10px));
+}
+
+.smoke {
+  fill: rgba(255, 255, 255, 0.6);
+  animation: smoke 3s steps(3) infinite;
+}
+
+.blades {
+  transform-origin: 44px 42px;
+  transform-box: view-box;
+  animation: spin 6s linear infinite;
+}
+
+.window {
+  fill: #5b4a35;
+  transition: fill 2s;
+}
+
+.lantern {
+  fill: #2f7a5b;
+  transition: fill 2s;
+}
+
+.panel-shine {
+  fill: #7fd3f2;
+  opacity: 0.6;
+  animation: shine 4s steps(4) infinite;
+}
+
+.water {
+  fill: #c9f4ff;
+  opacity: 0.8;
+}
+
+.ground {
+  top: auto !important;
+  height: 20% !important;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 7px),
+    linear-gradient(#4fae5f, #2f7d48);
+  border-top: 2px solid #6fcf73;
+}
+
+.backdrop .palm {
+  position: absolute;
+  bottom: 18%;
+  width: 70px;
+  height: auto;
+  image-rendering: pixelated;
+  transition: transform 0.4s ease-out;
+}
+
+.backdrop .palm-left {
+  left: -16px;
+  transform: translateX(calc(var(--pan) * -14px));
+}
+
+.backdrop .palm-right {
+  right: -16px;
+  transform: translateX(calc(var(--pan) * -14px)) scaleX(-1);
+}
+
+/* Dusk and night recolor the village and make the neon glow. */
+.backdrop.phase-dusk,
+.backdrop.phase-dawn {
+  --mountain: #7b5a8f;
+  --ridge: #3f7a55;
+  --terrace-a: #4c8f58;
+  --terrace-b: #3e7d4c;
+  --cloud: rgba(255, 214, 170, 0.8);
+}
+
+.backdrop.phase-night {
+  --wall: #4a4a66;
+  --roof: #3b2a3a;
+  --roof-dark: #2a1d2a;
+  --mountain: #1f3550;
+  --snow: #5d7690;
+  --ridge: #1d3b37;
+  --glass: rgba(0, 236, 151, 0.35);
+  --bamboo: #6d5a35;
+  --blade: #9fb3c8;
+  --terrace-a: #1e4a3a;
+  --terrace-b: #183d31;
+  --terrace-edge: #2f8a5f;
+  --rice: #00ec97;
+  --cloud: rgba(120, 140, 190, 0.35);
+}
+
+.phase-night .ground {
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 236, 151, 0.05) 0 2px, transparent 2px 7px),
+    linear-gradient(#1f5a3f, #123a29);
+  border-top-color: #2f8a5f;
+}
+
+.phase-night .window {
+  fill: #ffd76a;
+}
+
+.phase-night .lantern,
+.phase-dusk .lantern {
+  fill: var(--mint);
+  filter: drop-shadow(0 0 2px var(--mint));
+}
+
+.phase-night .water {
+  fill: var(--cyan);
+}
+
+.phase-night .backdrop .palm {
+  filter: brightness(0.45) saturate(0.7);
+}
+
+.phase-night .tree {
+  filter: drop-shadow(0 0 3px rgba(0, 236, 151, 0.9));
+}
+
+.phase-night .soil {
+  box-shadow: inset 0 var(--px) 0 #6b4f33, inset 0 calc(var(--px) * -1) 0 rgba(0, 236, 151, 0.6), 0 0 8px rgba(0, 236, 151, 0.35);
+}
+
+/* ---------- Trees ---------- */
+
+.tree {
+  position: relative;
+  line-height: 0;
+}
+
+.tree.q-rare {
+  filter: drop-shadow(0 0 3px var(--purple)) drop-shadow(0 0 1px #c4b5fd);
+}
+
+.tree.q-gold {
+  filter: drop-shadow(0 0 3px var(--gold)) drop-shadow(0 0 1px #fff3b0);
+}
+
+.twinkles i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: #fff;
+  box-shadow: 0 0 4px #fff;
+  animation: twinkle 1.8s steps(3) infinite;
+}
+
+.q-rare .twinkles i {
+  background: #ddd6fe;
+  box-shadow: 0 0 6px var(--purple);
+}
+
+.q-gold .twinkles i {
+  background: #fff3b0;
+  box-shadow: 0 0 6px var(--gold);
+}
+
+/* ---------- TaniBot ---------- */
+
+.bot-spot {
+  position: absolute;
+  bottom: 30px;
+  z-index: 5;
+  transform: translateX(-50%);
+  transition: left 0.7s cubic-bezier(0.5, 0, 0.3, 1.2);
+  pointer-events: none;
+}
+
+.tanibot {
+  position: relative;
+  animation: hover 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.25));
+}
+
+.tanibot > svg {
+  position: absolute;
+  inset: 0;
+}
+
+.bot-eyes {
+  animation: blink 4s steps(1) infinite;
+}
+
+.bot-leds {
+  filter: drop-shadow(0 0 2px var(--mint)) drop-shadow(0 0 4px var(--mint));
+  animation: led 1.6s steps(2) infinite;
+}
+
+.bot-screen {
+  animation: screen 0.9s steps(3) infinite;
+}
+
+.bot-thruster {
+  filter: drop-shadow(0 0 3px var(--cyan));
+  animation: flicker 0.25s steps(2) infinite;
+}
+
+.tanibot.working {
+  animation: work 0.35s steps(2) infinite;
+}
+
+.tanibot.working .bot-screen {
+  animation-duration: 0.3s;
+}
+
+.phase-night .bot-eyes,
+.phase-night .bot-screen {
+  filter: drop-shadow(0 0 3px var(--cyan));
+}
+
+.bot-drones {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 0;
+  height: 0;
+}
+
+.idle-drone {
+  position: absolute;
+  animation: drone-idle 3s ease-in-out infinite;
+}
+
+.idle-drone.d1 {
+  left: -34px;
+  bottom: -6px;
+}
+
+.idle-drone.d2 {
+  left: 14px;
+  bottom: 2px;
+  animation-delay: -1.4s;
+}
+
+.drone svg {
   display: block;
+}
+
+.basket {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  animation: pop-in 0.25s steps(2);
+}
+
+/* ---------- TaniBot actions ---------- */
+
+.act {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.act-water .fly-drone {
+  position: absolute;
+  bottom: 46%;
+  margin-left: -11px;
+  animation: drone-fly 1.6s ease-in-out forwards;
+}
+
+.act-water .drop {
+  position: absolute;
+  bottom: 42%;
+  width: 3px;
+  height: 5px;
+  background: var(--cyan);
+  box-shadow: 0 0 5px var(--cyan);
+  opacity: 0;
+  animation: drop-fall 0.6s ease-in forwards;
+}
+
+.act-plant .hoe {
+  position: absolute;
+  bottom: 18%;
+  transform-origin: 80% 90%;
+  animation: hoe 0.9s steps(3) forwards;
+  filter: drop-shadow(0 0 4px var(--mint));
+}
+
+.act-harvest .laser,
+.act-fertilize .spray {
+  position: absolute;
+  bottom: 40%;
+  height: 3px;
+  background: linear-gradient(90deg, var(--cyan), #fff, var(--cyan));
+  box-shadow: 0 0 8px var(--cyan);
+  animation: laser 0.6s steps(3) forwards;
+}
+
+.act-fertilize .spray {
+  height: 10px;
+  bottom: 36%;
+  background: repeating-linear-gradient(90deg, rgba(0, 236, 151, 0.8) 0 3px, transparent 3px 7px);
+  box-shadow: 0 0 10px var(--mint);
+}
+
+.act-harvest .jump-fruit {
+  position: absolute;
+  left: var(--to);
+  bottom: 42%;
+  animation: fruit-jump 0.8s ease-in forwards;
+  opacity: 0;
+}
+
+.act-fertilize .nano {
+  position: absolute;
+  bottom: 30%;
+  width: 3px;
+  height: 3px;
+  opacity: 0;
+  animation: rise 1s ease-out forwards;
+}
+
+.nano.mint {
+  background: var(--mint);
+  box-shadow: 0 0 5px var(--mint);
+}
+
+.nano.gold {
+  background: var(--gold);
+  box-shadow: 0 0 5px var(--gold);
+}
+
+.act-chop .ghost-tree {
+  position: absolute;
+  bottom: 30px;
+  transform: translateX(-50%);
+  animation: dissolve 1.2s steps(6) forwards;
+}
+
+.act-chop .saw {
+  position: absolute;
+  bottom: 22%;
+  width: 68px;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, #ff4d6d 0 4px, #fff 4px 6px);
+  box-shadow: 0 0 8px #ff4d6d;
+  animation: saw 0.6s steps(4) forwards;
+}
+
+.act-chop .mote {
+  position: absolute;
+  bottom: 30%;
+  width: 3px;
+  height: 3px;
+  background: var(--mint);
+  box-shadow: 0 0 6px var(--mint);
+  opacity: 0;
+  animation: rise 1.1s ease-out forwards;
 }
 
 /* ---------- Plot panel ---------- */
@@ -1137,14 +1550,14 @@ input:focus-visible {
   font-size: 13px;
 }
 
-/* Pixel art at an integer scale (2x) so it stays sharp. */
+/* Pixel art is drawn at 4 px per pixel on wide screens (an integer scale), so it stays sharp. */
 .wide .scene {
-  height: 420px;
+  height: 440px;
 }
 
 .wide .plots {
-  left: 24px;
-  right: 24px;
+  left: 4%;
+  right: 4%;
   bottom: 16px;
   gap: 20px;
 }
@@ -1153,22 +1566,25 @@ input:focus-visible {
   height: 290px;
 }
 
-.wide .plot-art,
-.wide .palm,
-.wide .badge {
-  zoom: 2;
-}
-
-.wide .plot-art {
-  margin-bottom: -6px;
-}
-
 .wide .soil {
-  height: 56px;
+  height: 52px;
 }
 
-.wide .palm {
-  bottom: 90px;
+.wide .bot-spot {
+  bottom: 48px;
+}
+
+.wide .backdrop .palm {
+  width: 140px;
+}
+
+.wide .badge {
+  font-size: 15px;
+  padding: 3px 10px;
+}
+
+.wide .act-chop .ghost-tree {
+  bottom: 52px;
 }
 
 .wide .toasts {
@@ -1181,4 +1597,461 @@ input:focus-visible {
 
 .wide .topbar {
   padding: 12px 16px;
+}
+
+/* ---------- Dev art preview page ---------- */
+.preview { padding: 16px; color: #e8f5ec; }
+.preview-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
+.preview-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.preview-scene { width: 390px; margin-bottom: 12px; }
+
+
+/* ==========================================================================
+   Theme polish: bamboo and wood frames with mint neon accents
+   ========================================================================== */
+
+.panel {
+  position: relative;
+  background:
+    repeating-linear-gradient(0deg, rgba(107, 74, 47, 0.04) 0 2px, transparent 2px 6px),
+    linear-gradient(#fbf4df, #f1e6c6);
+  border: 6px solid transparent;
+  border-image: repeating-linear-gradient(90deg, var(--bamboo-a) 0 22px, var(--bamboo-b) 22px 25px, #e0c271 25px 27px) 6;
+  box-shadow: 0 0 0 2px #000, 0 0 0 4px var(--mint-dim), 4px 6px 0 4px rgba(0, 0, 0, 0.35);
+  padding: 0 12px 12px;
+}
+
+.panel-head {
+  margin: 0 -12px 10px;
+  padding: 8px 12px;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 5px),
+    linear-gradient(var(--wood-light), var(--wood));
+  border-bottom: 2px solid var(--mint);
+  box-shadow: 0 2px 8px rgba(0, 236, 151, 0.35);
+}
+
+.panel-head h2 {
+  color: #fff7e0;
+  text-shadow: 2px 2px 0 var(--wood-dark);
+}
+
+.panel-head .muted,
+.panel-head .small,
+.panel-head .balance-chip {
+  color: #f6e7c2;
+}
+
+.panel-head .link-btn {
+  color: var(--mint);
+}
+
+/* rivets in the corners */
+.panel::before,
+.panel::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  width: 6px;
+  height: 6px;
+  background: var(--mint);
+  box-shadow: 0 0 6px var(--mint);
+  z-index: 1;
+}
+
+.panel::before {
+  left: 6px;
+}
+
+.panel::after {
+  right: 6px;
+}
+
+.list li,
+.stat,
+.seed-btn {
+  background: #fffaf0;
+  border: 2px solid #d8c79c;
+  box-shadow: inset 0 -2px 0 #eadcb4;
+}
+
+.topbar {
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.15) 0 1px, transparent 1px 6px),
+    linear-gradient(#24563d, #143826);
+  border: 3px solid #000;
+  box-shadow: 0 0 0 2px var(--mint-dim), inset 0 -3px 0 rgba(0, 236, 151, 0.35);
+}
+
+.checkin {
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 5px),
+    linear-gradient(var(--wood-light), var(--wood));
+  border: 3px solid #000;
+  box-shadow: 0 0 0 2px var(--mint-dim);
+}
+
+.cal-day {
+  background: #2a1c10;
+  border-color: #5b4128;
+  color: #e9d7ae;
+}
+
+.tabs,
+.side-tabs {
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.15) 0 1px, transparent 1px 6px),
+    linear-gradient(var(--wood), var(--wood-dark));
+  border-top: 3px solid #000;
+  box-shadow: 0 -2px 10px rgba(0, 236, 151, 0.25);
+}
+
+.side-tabs {
+  border: 3px solid #000;
+}
+
+.tab {
+  color: #e9d7ae;
+}
+
+.tab.active {
+  color: var(--mint);
+  background: rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 3px 0 var(--mint), 0 0 12px rgba(0, 236, 151, 0.3);
+  text-shadow: 0 0 6px var(--mint);
+}
+
+/* Buttons feel pressed */
+.btn {
+  border-radius: 0;
+  box-shadow: 0 4px 0 #000, inset 0 -3px 0 rgba(0, 0, 0, 0.18), inset 0 2px 0 rgba(255, 255, 255, 0.5);
+  transition: transform 50ms, box-shadow 50ms, filter 120ms;
+}
+
+.btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(4px) scale(0.98);
+  box-shadow: 0 0 0 #000, inset 0 3px 0 rgba(0, 0, 0, 0.25);
+}
+
+.btn-mint {
+  box-shadow: 0 4px 0 #000, 0 0 12px rgba(0, 236, 151, 0.45), inset 0 -3px 0 rgba(0, 0, 0, 0.18), inset 0 2px 0 rgba(255, 255, 255, 0.5);
+}
+
+.balance {
+  transition: transform 0.15s;
+}
+
+.balance.bump {
+  animation: bump 0.4s steps(2);
+}
+
+/* ---------- Market scene (Mr. Darto + hover cart) ---------- */
+
+.market-scene {
+  position: relative;
+  height: 170px;
+  margin: 0 -12px 10px;
+  overflow: hidden;
+  background:
+    linear-gradient(#bfeee6 0 58%, transparent 58%),
+    linear-gradient(#4fae5f, #2f7d48);
+  border-bottom: 2px solid #000;
+}
+
+.market-scene .darto-figure {
+  position: absolute;
+  left: 14px;
+  bottom: 10px;
+}
+
+.market-scene .hover-cart {
+  position: absolute;
+  right: 12px;
+  bottom: 22px;
+  animation: hover 2.2s ease-in-out infinite;
+}
+
+.darto-figure,
+.hover-cart {
+  position: relative;
+}
+
+.darto-figure > svg,
+.hover-cart > svg {
+  position: absolute;
+  inset: 0;
+}
+
+.holo {
+  filter: drop-shadow(0 0 3px var(--cyan));
+  animation: holo 2.2s steps(2) infinite;
+}
+
+.cart-jets {
+  filter: drop-shadow(0 0 4px var(--cyan));
+  animation: flicker 0.2s steps(2) infinite;
+}
+
+.market-scene .speech {
+  position: absolute;
+  left: 112px;
+  right: 12px;
+  top: 10px;
+  font-size: 13px;
+  box-shadow: 3px 3px 0 #000;
+}
+
+.market-scene .speech::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 14px;
+  border: 5px solid transparent;
+  border-right-color: var(--line);
+}
+
+/* ---------- Juice effects ---------- */
+
+.fx-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  overflow: hidden;
+}
+
+.fx-text {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: 'Pixelify Sans', monospace;
+  font-weight: 700;
+  font-size: 22px;
+  white-space: nowrap;
+  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  animation: float-up 1.4s ease-out forwards;
+}
+
+.tone-gold {
+  color: var(--gold);
+}
+
+.tone-mint {
+  color: var(--mint);
+}
+
+.tone-burn {
+  color: #ff7a45;
+}
+
+.tone-xp {
+  color: #c4b5fd;
+}
+
+.fx-coin {
+  position: absolute;
+  margin: -8px 0 0 -8px;
+  animation: coin-fly 1.1s cubic-bezier(0.55, 0, 0.6, 1) forwards;
+  opacity: 0;
+}
+
+.fx-fire {
+  position: absolute;
+  margin: -32px 0 0 -16px;
+  animation: burn 1s steps(5) forwards;
+}
+
+.fx-leaf {
+  position: absolute;
+  width: 5px;
+  height: 4px;
+  background: var(--leaf-light);
+  box-shadow: 1px 1px 0 var(--leaf-dark);
+  animation: leaf 1.1s ease-out forwards;
+  opacity: 0;
+}
+
+.fx-confetti {
+  position: absolute;
+  top: -12px;
+  width: 6px;
+  height: 9px;
+  animation: confetti 2.4s linear forwards;
+  opacity: 0;
+}
+
+/* ---------- Keyframes ---------- */
+
+@keyframes hover {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes work {
+  0% { transform: translateY(-2px) rotate(-4deg); }
+  100% { transform: translateY(1px) rotate(4deg); }
+}
+
+@keyframes blink {
+  0%, 92%, 100% { opacity: 1; }
+  94%, 97% { opacity: 0; }
+}
+
+@keyframes led {
+  50% { opacity: 0.5; }
+}
+
+@keyframes screen {
+  0% { opacity: 1; }
+  50% { opacity: 0.55; }
+  100% { opacity: 0.85; }
+}
+
+@keyframes flicker {
+  50% { opacity: 0.4; }
+}
+
+@keyframes drone-idle {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(4px, -6px); }
+}
+
+@keyframes drone-fly {
+  0% { left: var(--from); transform: translateY(0); }
+  25% { left: var(--to); transform: translateY(-14px); }
+  75% { left: var(--to); transform: translateY(-14px); }
+  100% { left: var(--from); transform: translateY(0); }
+}
+
+@keyframes drop-fall {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(52px); }
+}
+
+@keyframes hoe {
+  0% { transform: rotate(-40deg); }
+  33% { transform: rotate(10deg); }
+  66% { transform: rotate(-30deg); }
+  100% { transform: rotate(10deg); opacity: 0; }
+}
+
+@keyframes soil-glow {
+  0% { opacity: 0; }
+  30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes laser {
+  0% { opacity: 0; }
+  20%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes fruit-jump {
+  0% { opacity: 1; left: var(--to); transform: translateY(0); }
+  45% { transform: translateY(-34px); }
+  100% { opacity: 1; left: var(--from); transform: translateY(46px); }
+}
+
+@keyframes rise {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-60px); }
+}
+
+@keyframes dissolve {
+  0% { opacity: 1; filter: brightness(1); }
+  40% { opacity: 1; filter: brightness(2.2) drop-shadow(0 0 6px var(--mint)); }
+  100% { opacity: 0; filter: brightness(3) drop-shadow(0 0 10px var(--mint)); transform: translateX(-50%) scaleY(0.6); }
+}
+
+@keyframes saw {
+  0% { opacity: 0; transform: translateX(-20px); }
+  30%, 80% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(20px); }
+}
+
+@keyframes pop-in {
+  from { transform: translateX(-50%) scale(0.2); }
+}
+
+@keyframes twinkle {
+  50% { opacity: 0.2; }
+}
+
+@keyframes drift {
+  from { transform: translateX(-10px); }
+  to { transform: translateX(14px); }
+}
+
+@keyframes smoke {
+  0% { transform: translateY(0); opacity: 0.6; }
+  100% { transform: translateY(-5px); opacity: 0; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shine {
+  50% { opacity: 0.2; }
+}
+
+@keyframes holo {
+  50% { opacity: 0.6; }
+}
+
+@keyframes float-up {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.6); }
+  15% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -220%) scale(1); }
+}
+
+@keyframes coin-fly {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  30% { transform: translate(calc(var(--dx) * 0.1), -40px) scale(1.3); }
+  100% { opacity: 0.9; transform: translate(var(--dx), var(--dy)) scale(0.7); }
+}
+
+@keyframes burn {
+  0% { transform: scale(0.4); opacity: 1; }
+  40% { transform: scale(1.2) translateY(-6px); }
+  100% { transform: scale(0.8) translateY(-30px); opacity: 0; }
+}
+
+@keyframes leaf {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  60% { opacity: 1; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); }
+  100% { opacity: 0; transform: translate(calc(var(--dx) * 1.2), calc(var(--dy) + 50px)) rotate(var(--rot)); }
+}
+
+@keyframes confetti {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  100% { opacity: 1; transform: translate(var(--dx), 110vh) rotate(var(--rot)); }
+}
+
+@keyframes bump {
+  50% { transform: scale(1.18); }
+}
+
+.wide .idle-drone.d1 {
+  left: -68px;
+  bottom: -12px;
+}
+
+.wide .idle-drone.d2 {
+  left: 28px;
+  bottom: 4px;
+}
+
+.wide .act-chop .saw {
+  width: 136px;
+  margin-left: -34px;
+}
+
+.head-bot {
+  display: inline-flex;
+  animation: hover 2.4s ease-in-out infinite;
 }
