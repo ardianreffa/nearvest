@@ -121,3 +121,19 @@ describe('key encryption', () => {
     assert.throws(() => decryptSecret(parts.join(':'), key));
   });
 });
+
+describe('dev login safety', async () => {
+  const { devLoginAllowed, isLocalOnly } = await import('../src/config.ts');
+  it('works only with DEV_LOGIN=true on a local-only server', () => {
+    assert.equal(devLoginAllowed(true, ['http://localhost:5173']), true);
+    assert.equal(devLoginAllowed(true, ['http://127.0.0.1:5173', 'http://localhost:4173']), true);
+    assert.equal(devLoginAllowed(false, ['http://localhost:5173']), false);
+  });
+
+  it('is switched off automatically as soon as a public site is allowed', () => {
+    assert.equal(devLoginAllowed(true, ['http://localhost:5173', 'https://nearvest.vercel.app']), false);
+    assert.equal(devLoginAllowed(true, ['https://150-109-24-35.sslip.io']), false);
+    assert.equal(isLocalOnly([]), false);
+    assert.equal(isLocalOnly(['http://localhost.evil.com']), false);
+  });
+});

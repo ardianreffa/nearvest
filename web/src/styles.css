@@ -2925,3 +2925,192 @@ input:focus-visible {
   color: var(--ink-soft);
   text-align: right;
 }
+
+/* ---------- Login page: daytime village behind a dark veil ---------- */
+
+.login-page {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+.login-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(rgba(6, 18, 12, 0.72), rgba(6, 18, 12, 0.62) 45%, rgba(6, 18, 12, 0.85)),
+    url('/assets/bg/bg-day-hd.png') center bottom / cover no-repeat,
+    var(--bg);
+  image-rendering: pixelated;
+}
+
+.login-page .login {
+  color: #f4ead2;
+  max-width: 520px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
+}
+
+.login-lead {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: #fff;
+}
+
+.login-points {
+  margin: 0 0 14px;
+  padding: 10px 14px 10px 30px;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.5;
+  background: rgba(10, 29, 20, 0.72);
+  border: 2px solid rgba(0, 236, 151, 0.45);
+}
+
+.login-points li + li {
+  margin-top: 4px;
+}
+
+.how-btn {
+  margin-bottom: 14px;
+}
+
+.login-foot {
+  color: #d8e8dd;
+}
+
+.login-page .dev-login label {
+  color: #f4ead2;
+}
+
+/* ---------- "How to play" and the PANEN info window ---------- */
+
+.info-dialog {
+  max-width: 600px;
+  max-height: calc(100dvh - 32px);
+  display: flex;
+  flex-direction: column;
+}
+
+.info-dialog .panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-close {
+  width: 34px;
+  height: 30px;
+  color: #fff;
+}
+
+.info-body {
+  overflow-y: auto;
+  min-height: 0;
+  font-size: 14px;
+}
+
+.info-body h3 {
+  margin: 12px 0 4px;
+  font-family: 'Pixelify Sans', sans-serif;
+  font-size: 16px;
+  color: var(--leaf-dark);
+}
+
+.info-body p {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.info-lead {
+  font-size: 15px !important;
+}
+
+.steps {
+  list-style: none;
+  margin: 8px 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.steps li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  background: #fffaf0;
+  border: 2px solid #d8cfb1;
+}
+
+.step-icon {
+  flex: 0 0 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #0f2a1e;
+  border: 2px solid #000;
+}
+
+.step-text {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.info-box {
+  margin: 6px 0;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: #eefbf3;
+  border: 2px solid var(--mint-dim);
+}
+
+.info-box.soon {
+  background: #e9f9fd;
+  border-color: var(--cyan);
+}
+
+.info-box.warn {
+  background: #fff1e6;
+  border-color: #e8a06a;
+  font-weight: bold;
+}
+
+.bullets {
+  margin: 0 0 6px;
+  padding-left: 20px;
+}
+
+.panen-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.info-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.help-btn {
+  font-size: 18px;
+  font-weight: bold;
+  color: #fff;
+}
+
+button.balance {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button.balance:hover,
+button.balance:focus-visible {
+  box-shadow: 0 0 0 2px var(--mint);
+}

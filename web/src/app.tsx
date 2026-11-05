@@ -6,6 +6,7 @@ import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type
 import { botVersion, TaniBot, TaniBotHead } from './art/tanibot';
 import { getAudioPrefs, initAudio, onAudioPrefsChange, playSound, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
+import { HowToPlay, PanenInfo } from './help';
 import { ShareHost, shareMomentOnce } from './share';
 import { burnAt, coinsToBalance, confetti, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
@@ -98,6 +99,7 @@ export function App() {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [audio, setAudio] = useState(getAudioPrefs());
   const fullscreen = useFullscreen();
+  const [info, setInfo] = useState<'help' | 'panen' | null>(null);
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
@@ -317,6 +319,9 @@ export function App() {
 
   const muteButton = (
     <div class="icon-row">
+      <button class="icon-btn help-btn" onClick={() => (playSound('click'), setInfo('help'))} aria-label="How to play" title="How to play">
+        ?
+      </button>
       <button
         class="icon-btn"
         onClick={() => setAudioPrefs({ music: !audio.music })}
@@ -397,7 +402,20 @@ export function App() {
       </main>
     );
   }
-  if (phase === 'login') return <Login config={config} onLoggedIn={onLoggedIn} />;
+  const infoView =
+    info === 'help' ? (
+      <HowToPlay onClose={() => setInfo(null)} />
+    ) : info === 'panen' ? (
+      <PanenInfo state={state} config={config} onClose={() => setInfo(null)} />
+    ) : null;
+  if (phase === 'login') {
+    return (
+      <>
+        <Login config={config} onLoggedIn={onLoggedIn} onHelp={() => setInfo('help')} />
+        {infoView}
+      </>
+    );
+  }
   if (phase === 'create') return <CreateGarden onCreated={(s) => (applyState(s), setPhase('play'))} onLogout={logout} />;
   if (!state) return null;
 
@@ -465,10 +483,10 @@ export function App() {
     </div>
   );
   const balanceView = (
-    <div class="balance" title="Your PANEN balance">
+    <button class="balance" title="Your PANEN balance: what is PANEN?" onClick={() => (playSound('click'), setInfo('panen'))} aria-label={`${formatPanen(p.balance)} PANEN. What is PANEN?`}>
       <Coin scale={3} />
       <span>{formatPanen(p.balance)}</span>
-    </div>
+    </button>
   );
   const dayInfo = (
     <span>
@@ -581,6 +599,7 @@ export function App() {
         ))}
       </div>
       {dialogView}
+      {infoView}
       <ShareHost state={state} />
       <FxLayer />
     </main>
@@ -624,7 +643,7 @@ function TabButton({ tab, current, set, icon, label }: { tab: Tab; current: Tab;
   );
 }
 
-function Login({ config, onLoggedIn }: { config: ServerConfig; onLoggedIn: (token: string, s: GameState | null) => void }) {
+function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedIn: (token: string, s: GameState | null) => void; onHelp: () => void }) {
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -644,11 +663,21 @@ function Login({ config, onLoggedIn }: { config: ServerConfig; onLoggedIn: (toke
   };
 
   return (
+    <div class="login-page">
+      <div class="login-bg" aria-hidden="true" />
     <main class="shell center login">
       <TaniBot version={1} scale={3} />
       <h1 class="logo">NEARvest</h1>
       <p class="tagline">Grow. Harvest. Own.</p>
-      <p class="muted">A pixel farming game where your tree is a living NFT and an AI farmer tends it while you sleep.</p>
+      <p class="login-lead">A pixel farming game where your tree is a living NFT and an AI farmer tends it while you sleep.</p>
+      <ul class="login-points">
+        <li>Plant a seed and a Tree NFT is born on NEAR. It grows and changes as you water it.</li>
+        <li>Harvest fruit, sell it to Mr. Darto and earn $PANEN. Spend it in the Shop (it is burned).</li>
+        <li>Goal: build the best orchard in Tandur and rise from Seedling to Legend.</li>
+      </ul>
+      <button class="btn how-btn" onClick={onHelp}>
+        How to play
+      </button>
 
       <GoogleButton clientId={config.googleClientId} onLoggedIn={onLoggedIn} onError={setError} />
 
@@ -664,8 +693,9 @@ function Login({ config, onLoggedIn }: { config: ServerConfig; onLoggedIn: (toke
         </form>
       )}
       {error && <p class="error-text">{error}</p>}
-      <p class="muted small">Runs on NEAR {config.network}. No wallet, no gas fees.</p>
+      <p class="login-foot small">Runs on NEAR {config.network}. No wallet, no gas fees. Testnet tokens have no real value.</p>
     </main>
+    </div>
   );
 }
 
