@@ -2,6 +2,7 @@
 import { render } from 'preact';
 import { Backdrop } from './art/backdrop';
 import { DartoFigure, HoverCart } from './art/darto';
+import { ShopStall } from './art/shop';
 import { Drone, TaniBot } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import type { Quality, Species, Stage } from './api';
@@ -41,8 +42,14 @@ function Gallery() {
       </div>
       <h2>Mr. Darto</h2>
       <div class="preview-row">
-        <DartoFigure scale={5} />
-        <HoverCart scale={4} />
+        <DartoFigure pose="idle" scale={3} />
+        <DartoFigure pose="wave" scale={3} />
+        <DartoFigure pose="durian" scale={3} />
+        <HoverCart scale={3} />
+      </div>
+      <h2>Shop</h2>
+      <div class="preview-row">
+        <ShopStall scale={3} />
       </div>
       <h2>Backdrop</h2>
       {PHASES.map((p) => (

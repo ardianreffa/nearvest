@@ -1,99 +1,66 @@
-// Mr. Darto, the village fruit buyer of the future: hologram glasses, batik
-// shirt, digital scale and a hovering cart. Original pixel art drawn in code.
+// Mr. Darto, the village fruit buyer of the future, and his hover cart.
+// Official design from Ardian's ChatGPT image (see darto-sprite.ts and docs/ASSETS.md).
+// Poses: idle (default), wave (when the Market opens), durian (when the player sells).
+// The sparkle lines of the original image are a small code-drawn animation here.
 
-import { only, Pixels } from '../sprites';
+import { Pixels } from '../sprites';
+import { CART, CART_CORE, CART_JETS, DARTO_ANCHOR, DARTO_DURIAN, DARTO_IDLE, DARTO_PALETTE, DARTO_WAVE } from './darto-sprite';
 
-export const DARTO = [
-  '......kkkkkk......',
-  '.....kllllllk.....',
-  '....kllllllllk....',
-  '....lccccccccl....',
-  '....lcwcllcwcl....',
-  '....llllLLllll....',
-  '....llkkkkkkll....',
-  '.....llkllkll.....',
-  '......llllll......',
-  '.......LLLL.......',
-  '....uuuuuuuuuu....',
-  '...uuyuuuuuuyuu...',
-  '..luuuuyuuyuuuul..',
-  '..luuyuuuuuuyuul..',
-  '..luuuuyuuyuuuul..',
-  '..ll.uuuuuuuu.ll..',
-  '.....uuyuuyuu.....',
-  '.....nnnnnnnn.....',
-  '.....nnn..nnn.....',
-  '.....nnn..nnn.....',
-  '.....nnn..nnn.....',
-  '....kkkk..kkkk....',
-];
+export type DartoPose = 'idle' | 'wave' | 'durian';
 
-const DARTO_PALETTE = {
-  l: '#E0B48A',
-  L: '#B9875E',
-  k: '#1B1B2F',
-  c: '#22D3EE',
-  w: '#E0FBFF',
-  u: '#1E40AF',
-  y: '#F5C542',
-  n: '#3A3A4A',
+const POSES = { idle: DARTO_IDLE, wave: DARTO_WAVE, durian: DARTO_DURIAN };
+const BOX_W = DARTO_IDLE[0].length;
+const BOX_H = Math.max(DARTO_IDLE.length, DARTO_WAVE.length, DARTO_DURIAN.length);
+
+// Where the sparkle lines go (art pixels, relative to the pose sprite).
+const SPARKLE: Partial<Record<DartoPose, { x: number; y: number; flip?: boolean }>> = {
+  wave: { x: -2, y: 12 },
+  durian: { x: 38, y: 2, flip: true },
 };
 
-export const CART = [
-  '..AwAwAwAwAwAwAwAwAwAwAw..',
-  '..AwAwAwAwAwAwAwAwAwAwAw..',
-  '...k...................k..',
-  '...k..oO.rR.qQ.oO.rR...k..',
-  '...k.oOOrRRqQQoOOrRR...k..',
-  '.bbbbbbbbbbbbbbbbbbbbbbbbb',
-  '.bBBBBBBBBBBBBBBBBBBBBBBBb',
-  '.bBsssssBBBByyyyBBBBBBBBBb',
-  '.bBsgggsBBBByYYyBBBBBBBBBb',
-  '.bBsssssBBBByyyyBBBBBBBBBb',
-  '.bbbbbbbbbbbbbbbbbbbbbbbbb',
-  '...kkkk..........kkkk.....',
-  '...cccc..........cccc.....',
-  '....cc............cc......',
-];
-
-const CART_PALETTE = {
-  A: '#00EC97',
-  w: '#F4FFF9',
-  k: '#1B1B2F',
-  o: '#FFD84A',
-  O: '#F59E0B',
-  r: '#EF4444',
-  R: '#991B1B',
-  q: '#A3C94A',
-  Q: '#6B8E23',
-  b: '#6B4A2F',
-  B: '#8A6342',
-  s: '#13221B',
-  g: '#00EC97',
-  y: '#F5C542',
-  Y: '#C9971F',
-  c: '#22D3EE',
-};
-
-export function DartoFigure({ scale = 4 }: { scale?: number }) {
+function Sparkle({ x, y, flip, scale }: { x: number; y: number; flip?: boolean; scale: number }) {
   return (
-    <div class="darto-figure" style={{ width: 18 * scale, height: 22 * scale }}>
-      <Pixels rows={DARTO} palette={DARTO_PALETTE} scale={scale} title="Mr. Darto" />
-      <Pixels rows={only(DARTO, 'cw')} palette={DARTO_PALETTE} scale={scale} class="holo" />
+    <svg
+      class="darto-sparkle"
+      viewBox="0 0 8 8"
+      width={8 * scale}
+      height={8 * scale}
+      shape-rendering="crispEdges"
+      style={{ left: x * scale, top: y * scale, transform: flip ? 'scaleX(-1)' : undefined }}
+      aria-hidden="true"
+    >
+      <g fill="#F5C542">
+        <rect x={3} y={0} width={1} height={3} />
+        <rect x={0} y={2} width={1} height={1} />
+        <rect x={1} y={3} width={1} height={1} />
+        <rect x={5} y={4} width={3} height={1} />
+        <rect x={6} y={1} width={1} height={1} />
+        <rect x={5} y={2} width={1} height={1} />
+      </g>
+    </svg>
+  );
+}
+
+export function DartoFigure({ pose = 'idle', scale = 2 }: { pose?: DartoPose; scale?: number }) {
+  const rows = POSES[pose];
+  const left = Math.round(DARTO_ANCHOR.idle - DARTO_ANCHOR[pose]);
+  const sparkle = SPARKLE[pose];
+  return (
+    <div class={`darto-figure pose-${pose}`} style={{ width: BOX_W * scale, height: BOX_H * scale }}>
+      <div class="darto-pose" key={pose} style={{ left: left * scale, bottom: 0, width: rows[0].length * scale, height: rows.length * scale }}>
+        <Pixels rows={rows} palette={DARTO_PALETTE} scale={scale} title="Mr. Darto" />
+        {sparkle && <Sparkle {...sparkle} scale={scale} />}
+      </div>
     </div>
   );
 }
 
-export function HoverCart({ scale = 3 }: { scale?: number }) {
+export function HoverCart({ scale = 2 }: { scale?: number }) {
   return (
-    <div class="hover-cart" style={{ width: 26 * scale, height: 14 * scale }}>
-      <Pixels rows={CART} palette={CART_PALETTE} scale={scale} />
-      <Pixels rows={only(CART, 'c')} palette={CART_PALETTE} scale={scale} class="cart-jets" />
+    <div class="hover-cart" style={{ width: CART[0].length * scale, height: CART.length * scale }}>
+      <Pixels rows={CART} palette={DARTO_PALETTE} scale={scale} title="Mr. Darto's hover cart" />
+      <Pixels rows={CART_CORE} palette={DARTO_PALETTE} scale={scale} class="cart-core" />
+      <Pixels rows={CART_JETS} palette={DARTO_PALETTE} scale={scale} class="cart-jets" />
     </div>
   );
-}
-
-export const DARTO_FACE = DARTO.slice(0, 10);
-export function DartoFace({ scale = 2 }: { scale?: number }) {
-  return <Pixels rows={DARTO_FACE} palette={DARTO_PALETTE} scale={scale} title="Mr. Darto" />;
 }

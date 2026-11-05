@@ -1701,44 +1701,56 @@ input:focus-visible {
 
 /* ---------- Market scene (Mr. Darto + hover cart) ---------- */
 
-.market-scene {
+.market-scene,
+.shop-scene {
   position: relative;
-  height: 170px;
   margin: 0 -12px 10px;
   overflow: hidden;
   background:
-    linear-gradient(#bfeee6 0 58%, transparent 58%),
+    linear-gradient(#bfeee6 0 62%, transparent 62%),
     linear-gradient(#4fae5f, #2f7d48);
   border-bottom: 2px solid #000;
 }
 
+.market-scene {
+  height: 196px;
+}
+
 .market-scene .darto-figure {
   position: absolute;
-  left: 14px;
-  bottom: 10px;
+  left: 18px;
+  bottom: 8px;
 }
 
 .market-scene .hover-cart {
   position: absolute;
-  right: 12px;
-  bottom: 22px;
+  right: 10px;
+  bottom: 18px;
   animation: hover 2.2s ease-in-out infinite;
 }
 
 .darto-figure,
-.hover-cart {
+.hover-cart,
+.shop-stall {
   position: relative;
 }
 
-.darto-figure > svg,
-.hover-cart > svg {
+.darto-pose {
   position: absolute;
-  inset: 0;
+  animation: pose-in 0.25s steps(2);
 }
 
-.holo {
-  filter: drop-shadow(0 0 3px var(--cyan));
-  animation: holo 2.2s steps(2) infinite;
+.darto-figure svg,
+.hover-cart > svg,
+.shop-stall > svg,
+.shop-robot > svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.darto-figure .darto-sparkle {
+  animation: sparkle 0.6s steps(2) infinite;
 }
 
 .cart-jets {
@@ -1746,13 +1758,19 @@ input:focus-visible {
   animation: flicker 0.2s steps(2) infinite;
 }
 
+.cart-core {
+  filter: drop-shadow(0 0 3px var(--mint));
+  animation: led 1.6s steps(2) infinite;
+}
+
 .market-scene .speech {
   position: absolute;
-  left: 112px;
+  left: 104px;
   right: 12px;
-  top: 10px;
+  top: 8px;
   font-size: 13px;
   box-shadow: 3px 3px 0 #000;
+  z-index: 1;
 }
 
 .market-scene .speech::after {
@@ -1762,6 +1780,25 @@ input:focus-visible {
   top: 14px;
   border: 5px solid transparent;
   border-right-color: var(--line);
+}
+
+/* Village Shop stall: centered on the grass, the guard robot floats and blinks. */
+.shop-scene {
+  height: 246px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  padding-bottom: 6px;
+}
+
+.shop-robot {
+  position: absolute;
+  animation: robot-float 2.4s steps(2) infinite;
+}
+
+.shop-robot-eyes {
+  filter: drop-shadow(0 0 2px var(--cyan));
+  animation: blink 3.6s steps(1) infinite;
 }
 
 /* ---------- Juice effects ---------- */
@@ -2094,4 +2131,16 @@ input:focus-visible {
 
 @keyframes flyby-bob {
   50% { transform: translateY(-40%); }
+}
+
+@keyframes pose-in {
+  from { transform: translateY(2px); }
+}
+
+@keyframes sparkle {
+  50% { opacity: 0.2; }
+}
+
+@keyframes robot-float {
+  50% { transform: translateY(calc(var(--s) * -1)); }
 }

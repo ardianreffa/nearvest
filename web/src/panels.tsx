@@ -1,9 +1,10 @@
 // Storage, Shop, Market (Mr. Darto) and Village Stats screens.
 
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIVITY_LABELS, api, nearblocksAccount, type GameState, type Quality, type ServerConfig, type Species, type VillageStats } from './api';
 import type { Act } from './garden';
-import { DartoFigure, HoverCart } from './art/darto';
+import { DartoFigure, HoverCart, type DartoPose } from './art/darto';
+import { ShopStall } from './art/shop';
 import { Sprite } from './sprites';
 import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QualityTag, QUALITY_NAME, SPECIES_NAME } from './ui';
 
@@ -66,6 +67,9 @@ export function Storage({ state, goSell }: { state: GameState; goSell: () => voi
 export function Shop({ state, config, act, busy }: { state: GameState; config: ServerConfig; act: Act; busy: boolean }) {
   return (
     <Panel title="Village Shop" right={<span class="balance-chip"><Coin /> {formatPanen(state.player.balance)}</span>}>
+      <div class="shop-scene">
+        <ShopStall scale={2} />
+      </div>
       <p class="burn-note">
         <Sprite name="fire" scale={2} /> Every PANEN you spend here is burned forever.
       </p>
@@ -88,14 +92,31 @@ export function Shop({ state, config, act, busy }: { state: GameState; config: S
   );
 }
 
+/** Shows a Darto pose for a moment, then goes back to idle. */
+function useDartoPose(): [DartoPose, (pose: DartoPose) => void] {
+  const [pose, setPose] = useState<DartoPose>('idle');
+  const timer = useRef<number>();
+  const show = (p: DartoPose) => {
+    setPose(p);
+    clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setPose('idle'), 2400);
+  };
+  useEffect(() => {
+    show('wave'); // he waves when the Market opens
+    return () => clearTimeout(timer.current);
+  }, []);
+  return [pose, show];
+}
+
 export function Market({ state, sell, busy }: { state: GameState; sell: Sell; busy: boolean }) {
   const d = state.darto;
+  const [pose, showPose] = useDartoPose();
   return (
     <>
       <Panel title="Mr. Darto">
         <div class="market-scene">
-          <DartoFigure scale={4} />
-          <HoverCart scale={3} />
+          <DartoFigure pose={pose} scale={2} />
+          <HoverCart scale={2} />
           <p class="speech">"{d.greeting}"</p>
         </div>
         <ul class="list prices">
@@ -137,7 +158,10 @@ export function Market({ state, sell, busy }: { state: GameState; sell: Sell; bu
                   <button
                     class="btn btn-small btn-gold"
                     disabled={busy}
-                    onClick={() => sell(f.species, f.quality, 1, shown)}
+                    onClick={() => {
+                      showPose('durian');
+                      void sell(f.species, f.quality, 1, shown);
+                    }}
                   >
                     Sell 1 · {price}
                   </button>
@@ -145,7 +169,10 @@ export function Market({ state, sell, busy }: { state: GameState; sell: Sell; bu
                     <button
                       class="btn btn-small"
                       disabled={busy}
-                      onClick={() => sell(f.species, f.quality, f.qty, shown)}
+                      onClick={() => {
+                        showPose('durian');
+                        void sell(f.species, f.quality, f.qty, shown);
+                      }}
                     >
                       All
                     </button>
