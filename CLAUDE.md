@@ -38,6 +38,26 @@ Tip: the Read tool cannot render this PDF without poppler. Extract text with mac
 - **Smart contracts:** Rust with `near-sdk-rs` (NEAR's only official contract SDK; standard NEP-141/NEP-171 implementations available).
 - **Assets:** only assets listed in `docs/ASSETS.md`. Check the license on the source page before adding any asset, and record it there with any requested attribution.
 
+## Deployed contracts (testnet)
+
+| Contract | Account | Source | Owner | Minters |
+|---|---|---|---|---|
+| $PANEN (NEP-141, 18 decimals) | `panen.nearvest.testnet` | `contracts/panen` | `nearvest.testnet` | `nearvest.testnet` (temporary) |
+| Tree NFT (NEP-171/177/178/181) | `pohon.nearvest.testnet` | `contracts/pohon` | `nearvest.testnet` | `nearvest.testnet` (temporary) |
+
+- First deploy 2026-11-05 (near-sdk 5.30.0, Rust 1.99.1, cargo-near 0.22.0). Sub-account keys are in the macOS keychain.
+- Replace the temporary minter with the game server account when the server exists (`add_minter` / `remove_minter`).
+- Storage for new players and trees is paid from each contract's own balance: top up from the faucet when low.
+- Build: `cd contracts/<name> && cargo near build non-reproducible-wasm`. Test: `cd contracts && cargo test`.
+
+## $PANEN rules (agreed with Ardian, 2026-11-05)
+
+- **Halving applies only to harvest sales** (`mint_reward`). Daily check-in (5) and the welcome pack (50) use exact `mint` and stay the same in every season.
+- **Season thresholds** (total ever minted; burning never rewinds a season):
+  - Hackathon / testnet: **2,000 / 5,000 / 10,000 PANEN** (set on-chain 2026-11-05 via `set_season_thresholds`), so judges can see halving happen.
+  - Mainnet plan: **100,000 / 200,000 / 400,000 PANEN** (the contract's built-in default).
+- `burn` does not require a 1 yoctoNEAR deposit, so TaniBot (function call key) and the relayer can burn for Shop purchases. Only the caller's own tokens can be burned.
+
 ## Hard rules (never break)
 
 1. **Never commit keys or secrets.** Secrets go in `.env` (git-ignored). Keep `.env.example` with variable names only, no values. Check `git diff --cached` for secrets before every commit.
@@ -103,9 +123,9 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - [ ] Test Google login on NEAR; if too complicated, use wallet login (decided: Google login to our server, see Decisions; still to be tested)
 
 **Fri 6 Nov: core contracts**
-- [ ] $PANEN contract (NEP-141): mint when earned, burn when spent, Seasons
-- [ ] Tree NFT contract (NEP-171) with updatable data
-- [ ] Deploy to testnet and test
+- [x] $PANEN contract (NEP-141): mint when earned, burn when spent, Seasons
+- [x] Tree NFT contract (NEP-171) with updatable data
+- [x] Deploy to testnet and test (done early, Thu 5 Nov)
 
 **Sat 7 Nov: game server on the VPS**
 - [ ] Database, village clock (07:00 WIB), gas-paying relayer
