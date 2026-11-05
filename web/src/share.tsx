@@ -9,6 +9,7 @@ import { DARTO_IDLE, DARTO_PALETTE } from './art/darto-sprite';
 import { TANIBOT_ROWS, TANIBOT_V1, TANIBOT_V2 } from './art/tanibot-sprite';
 import { treePalette, treeRows } from './art/trees';
 import { BASE_PALETTE, SPRITES } from './sprites';
+import { withArticle } from './text';
 import { formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
 export type MomentKind = 'first_harvest' | 'first_gold' | 'evolved' | 'streak7' | 'title' | 'legend' | 'profile';
@@ -31,6 +32,7 @@ export const MOMENT_LABELS: Record<MomentKind, string> = {
 };
 
 const TAGS = '@NEARProtocol #NEARHackathon';
+
 
 // ---------- Opening the share dialog ----------
 
@@ -71,7 +73,7 @@ function texts(m: Moment, s: GameState): { headline: string; sub: string; post: 
     case 'first_harvest':
       return {
         headline: 'First harvest!',
-        sub: `${p.name} picked a ${m.quality && m.quality !== 'common' ? QUALITY_NAME[m.quality] + ' ' : ''}${fruit}`,
+        sub: `${p.name} picked ${withArticle(`${m.quality && m.quality !== 'common' ? QUALITY_NAME[m.quality] + ' ' : ''}${fruit}`)}`,
         post: `I just harvested my first ${fruit} in NEARvest, a pixel farming game where every tree is a living NFT. ${TAGS}`,
       };
     case 'first_gold':
@@ -83,7 +85,7 @@ function texts(m: Moment, s: GameState): { headline: string; sub: string; post: 
     case 'evolved':
       return {
         headline: 'TaniBot evolved!',
-        sub: `${p.name} is now a ${p.title}: TaniBot v2 with LED hat and 2 drones`,
+        sub: `${p.name} is now ${withArticle(p.title)}: TaniBot v2 with LED hat and 2 drones`,
         post: `My AI farmer TaniBot just evolved in NEARvest: shiny chrome, an LED hat and two drones. ${TAGS}`,
       };
     case 'streak7':
@@ -102,7 +104,7 @@ function texts(m: Moment, s: GameState): { headline: string; sub: string; post: 
       return {
         headline: `New title: ${m.title ?? p.title}`,
         sub: `${p.name} has ${p.xp} XP from harvests`,
-        post: `I am now a ${m.title ?? p.title} in NEARvest, a pixel farming game on NEAR. ${TAGS}`,
+        post: `I am now ${withArticle(m.title ?? p.title)} in NEARvest, a pixel farming game on NEAR. ${TAGS}`,
       };
     case 'profile': {
       const trees = s.plots.filter((x) => x.tree).length;

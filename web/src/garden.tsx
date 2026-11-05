@@ -3,7 +3,7 @@
 import { useRef, useState } from 'preact/hooks';
 import type { GameState, Quality, ServerConfig } from './api';
 import { floatText } from './fx';
-import { GardenScene, type ActionKind, type SceneFx } from './scene';
+import { GardenScene, type ActionKind, type Immersive, type SceneFx } from './scene';
 import { Sprite } from './sprites';
 import {
   formatDuration,
@@ -40,11 +40,13 @@ interface Props {
   busy: boolean;
   goShop: () => void;
   showCheckin: boolean;
-  /** Wide screens draw the scene art at 4 px per pixel. */
+  /** Wide screens draw the scene art at 3 px per pixel. */
   big: boolean;
+  /** Laptop / PC: full-window garden with the selected plot in a bottom action bar. */
+  immersive?: Immersive;
 }
 
-export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, showCheckin, big }: Props) {
+export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, showCheckin, big, immersive }: Props) {
   const [selected, setSelected] = useState(0);
   const [fx, setFx] = useState<SceneFx | null>(null);
   const fxTimer = useRef<number>(0);
@@ -66,13 +68,40 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
     return result;
   };
 
+  const panel = (
+    <PlotPanel
+      state={state}
+      config={config}
+      plotIndex={selected}
+      act={botAct}
+      ask={ask}
+      choose={choose}
+      busy={busy}
+      elapsed={elapsed}
+      goShop={goShop}
+      bar={!!immersive}
+      key={selected}
+    />
+  );
+
+  if (immersive) {
+    return (
+      <>
+        <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} immersive={immersive} />
+        <div class="hud-bar" role="region" aria-label="Selected plot">
+          {panel}
+        </div>
+      </>
+    );
+  }
+
   return (
     <div class="garden-screen">
       {showCheckin && <CheckinBanner state={state} act={act} ask={ask} busy={busy} />}
 
       <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} />
 
-      <PlotPanel state={state} config={config} plotIndex={selected} act={botAct} ask={ask} choose={choose} busy={busy} elapsed={elapsed} goShop={goShop} key={selected} />
+      {panel}
       {!plot.tree && !plot.locked && state.seeds.length === 0 && (
         <p class="hint">No seeds? Check in daily for a free Mango seed, or visit the Shop.</p>
       )}
@@ -144,10 +173,13 @@ function PlotPanel({
   busy,
   elapsed,
   goShop,
+  bar = false,
 }: {
   state: GameState;
   config: ServerConfig;
   plotIndex: number;
+  /** Compact action-bar layout (immersive mode). */
+  bar?: boolean;
   act: Act;
   ask: Ask;
   choose: Choose;
@@ -160,7 +192,7 @@ function PlotPanel({
 
   if (p.locked) {
     return (
-      <Panel title={`Plot ${plotIndex + 1}`}>
+      <Panel title={`Plot ${plotIndex + 1}`} class={bar ? 'plot-bar' : undefined}>
         <p class="muted">Locked. Reach 50 XP (Farmhand) to unlock this plot. You have {state.player.xp} XP.</p>
       </Panel>
     );
@@ -169,7 +201,7 @@ function PlotPanel({
   if (!p.tree) {
     const groups = groupSeeds(state.seeds);
     return (
-      <Panel title={`Plot ${plotIndex + 1} · empty`}>
+      <Panel title={`Plot ${plotIndex + 1} · empty`} class={bar ? 'plot-bar' : undefined}>
         {groups.length === 0 ? (
           <p class="muted">You have no seeds.</p>
         ) : (
@@ -219,6 +251,7 @@ function PlotPanel({
   };
   return (
     <Panel
+      class={bar ? 'plot-bar' : undefined}
       title={`${QUALITY_NAME[t.quality]} ${SPECIES_NAME[t.species]}`}
       right={<span class="muted small">{t.tokenId ? `NFT #${t.tokenId}` : 'minting NFT...'}</span>}
     >

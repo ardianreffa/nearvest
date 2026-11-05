@@ -61,9 +61,9 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
 
-export function Panel({ title, children, right }: { title: string; children: ComponentChildren; right?: ComponentChildren }) {
+export function Panel({ title, children, right, class: cls }: { title: string; children: ComponentChildren; right?: ComponentChildren; class?: string }) {
   return (
-    <section class="panel">
+    <section class={`panel${cls ? ` ${cls}` : ''}`}>
       <header class="panel-head">
         <h2>{title}</h2>
         {right}

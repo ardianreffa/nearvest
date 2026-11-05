@@ -9,6 +9,7 @@ import { useFullscreen } from './fullscreen';
 import { ShareHost, shareMomentOnce } from './share';
 import { burnAt, coinsToBalance, confetti, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
+import { immersiveLayout } from './scene';
 import { Market, Shop, Storage, Village } from './panels';
 import { Sprite } from './sprites';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
@@ -56,6 +57,30 @@ function useWide(): boolean {
   return wide;
 }
 
+function useWindowSize(): { width: number; height: number } {
+  const [size, setSize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  useEffect(() => {
+    const on = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return size;
+}
+
+const DRAWER_KEY = 'nearvest.drawer';
+/** Width of the right drawer (open) and of the icon rail (closed), and the action bar height. */
+const DRAWER_W = 400;
+const RAIL_W = 64;
+const BAR_H = 128;
+
+function readDrawer(): boolean {
+  try {
+    return localStorage.getItem(DRAWER_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
 initAudio();
 
 export function App() {
@@ -76,6 +101,16 @@ export function App() {
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
+  const win = useWindowSize();
+  const [drawerOpen, setDrawerOpenState] = useState(readDrawer);
+  const setDrawerOpen = (open: boolean) => {
+    setDrawerOpenState(open);
+    try {
+      localStorage.setItem(DRAWER_KEY, open ? '1' : '0');
+    } catch {
+      // Storage blocked: remembered for this visit only.
+    }
+  };
 
   useEffect(() => onAudioPrefsChange(setAudio), []);
 
@@ -300,7 +335,7 @@ export function App() {
       >
         <Sprite name={audio.sfx ? 'speaker' : 'speakerOff'} scale={3} />
       </button>
-      {fullscreen.supported && (
+      {fullscreen.supported && wide && (
         <button
           class="icon-btn"
           onClick={fullscreen.toggle}
@@ -371,9 +406,28 @@ export function App() {
   const xpFrom = p.nextTitle ? xpFloor(p.xp) : p.xp;
   const xpPct = p.nextTitle ? Math.round(((p.xp - xpFrom) / (p.nextTitle.xp - xpFrom)) * 100) : 100;
 
-  const goShop = () => (wide ? setSideTab('shop') : setTab('shop'));
-  const goSell = () => (wide ? setSideTab('market') : setTab('market'));
-  const garden = <Garden state={state} config={config} act={act} ask={ask} choose={choose} elapsed={elapsed} busy={busy} goShop={goShop} showCheckin={!wide} big={wide} />;
+  const openSide = (t: SideTab) => {
+    setSideTab(t);
+    setDrawerOpen(true);
+  };
+  const goShop = () => (wide ? openSide('shop') : setTab('shop'));
+  const goSell = () => (wide ? openSide('market') : setTab('market'));
+  const immersive = wide ? immersiveLayout(win.width, win.height, drawerOpen ? DRAWER_W : RAIL_W, BAR_H) : undefined;
+  const garden = (
+    <Garden
+      state={state}
+      config={config}
+      act={act}
+      ask={ask}
+      choose={choose}
+      elapsed={elapsed}
+      busy={busy}
+      goShop={goShop}
+      showCheckin={!wide}
+      big={wide}
+      immersive={immersive}
+    />
+  );
   const panelFor = (t: SideTab) =>
     t === 'storage' ? (
       <Storage state={state} config={config} act={act} busy={busy} goSell={goSell} />
@@ -394,59 +448,112 @@ export function App() {
   };
   const tabLabels: Record<Tab, string> = { garden: 'Garden', storage: 'Storage', shop: 'Shop', market: 'Market', village: 'Village' };
 
-  return (
-    <main class={`shell${wide ? ' wide' : ''}${fullscreen.active ? ' fs' : ''}`}>
-      <header class="topbar">
-        <div class="who">
-          <span class="head-bot">
-            <TaniBotHead version={botVersion(p.title)} scale={wide ? 2 : 1} />
-          </span>
-          <div>
-            <div class="name">{p.name}</div>
-            <div class="title-line">
-              {p.title} · {p.xp} XP
-            </div>
-            <div class="xp" aria-label="XP to next title">
-              <div style={{ width: `${xpPct}%` }} />
-            </div>
-          </div>
+  const who = (
+    <div class="who">
+      <span class="head-bot">
+        <TaniBotHead version={botVersion(p.title)} scale={wide ? 2 : 1} />
+      </span>
+      <div>
+        <div class="name">{p.name}</div>
+        <div class="title-line">
+          {p.title} · {p.xp} XP
         </div>
-        <div class="topbar-right">
-          {muteButton}
-          <div class="balance" title="Your PANEN balance">
-            <Coin scale={3} />
-            <span>{formatPanen(p.balance)}</span>
-          </div>
+        <div class="xp" aria-label="XP to next title">
+          <div style={{ width: `${xpPct}%` }} />
         </div>
-      </header>
-
-      <div class="subbar">
-        <span>
-          Farm day {state.clock.farmDay} · next day in {formatDuration(state.clock.msUntilNextDay - elapsed)}
-          {p.demo && <span class="tag tag-demo">Demo: 1 day = 1 min</span>}
-        </span>
-        <button class="link-btn" onClick={logout}>
-          Sign out
-        </button>
       </div>
+    </div>
+  );
+  const balanceView = (
+    <div class="balance" title="Your PANEN balance">
+      <Coin scale={3} />
+      <span>{formatPanen(p.balance)}</span>
+    </div>
+  );
+  const dayInfo = (
+    <span>
+      Farm day {state.clock.farmDay} · next day in {formatDuration(state.clock.msUntilNextDay - elapsed)}
+      {p.demo && <span class="tag tag-demo">Demo: 1 day = 1 min</span>}
+    </span>
+  );
+  const signOut = (
+    <button class="link-btn" onClick={logout}>
+      Sign out
+    </button>
+  );
+  const notices = (
+    <>
       {p.accountStatus === 'pending' && <p class="notice">Creating your NEAR account {p.accountId}...</p>}
       {p.accountStatus === 'failed' && <p class="notice error-text">Your NEAR account could not be created.</p>}
+    </>
+  );
 
+  return (
+    <main class={`shell${wide ? ' wide immersive' : ''}${wide && drawerOpen ? ' drawer-open' : ''}`}>
       {wide ? (
-        <div class="wide-grid">
-          <div class="wide-left">{garden}</div>
-          <div class="wide-right">
-            <CheckinBanner state={state} act={act} ask={ask} busy={busy} />
-            <nav class="side-tabs" aria-label="Panels">
+        <>
+          {garden}
+          <header class="hud hud-top">
+            {who}
+            <div class="hud-day">
+              {dayInfo}
+              {notices}
+            </div>
+            <div class="topbar-right">
+              {muteButton}
+              {balanceView}
+            </div>
+            {signOut}
+          </header>
+
+          <aside class="hud hud-drawer" aria-label="Menu" aria-hidden={!drawerOpen} inert={!drawerOpen}>
+            <div class="drawer-head">
+              <span>Menu</span>
+              <button class="icon-btn drawer-close" onClick={() => (playSound('click'), setDrawerOpen(false))} aria-label="Close the menu" title="Close the menu (enjoy the garden)">
+                {'>'}
+              </button>
+            </div>
+            <div class="drawer-scroll">
+              <CheckinBanner state={state} act={act} ask={ask} busy={busy} />
+              <nav class="side-tabs" aria-label="Panels">
+                {(['storage', 'shop', 'market', 'village'] as SideTab[]).map((t) => (
+                  <TabButton key={t} tab={t} current={sideTab} set={(x) => (playSound('click'), setSideTab(x as SideTab))} icon={tabIcons[t]} label={tabLabels[t]} />
+                ))}
+              </nav>
+              <div class="content">{panelFor(sideTab)}</div>
+            </div>
+          </aside>
+          {!drawerOpen && (
+            <nav class="hud hud-rail" aria-label="Open the menu">
+              {state.checkin.available && (
+                <button class="rail-btn rail-checkin" onClick={() => (playSound('click'), setDrawerOpen(true))} title="Daily check-in is ready">
+                  <Sprite name="seedPacket" scale={3} />
+                  <span>Check in</span>
+                </button>
+              )}
               {(['storage', 'shop', 'market', 'village'] as SideTab[]).map((t) => (
-                <TabButton key={t} tab={t} current={sideTab} set={(x) => (playSound('click'), setSideTab(x as SideTab))} icon={tabIcons[t]} label={tabLabels[t]} />
+                <button key={t} class="rail-btn" onClick={() => (playSound('click'), openSide(t))} title={tabLabels[t]}>
+                  {tabIcons[t]}
+                  <span>{tabLabels[t]}</span>
+                </button>
               ))}
             </nav>
-            <div class="content">{panelFor(sideTab)}</div>
-          </div>
-        </div>
+          )}
+        </>
       ) : (
         <>
+          <header class="topbar">
+            {who}
+            <div class="topbar-right">
+              {muteButton}
+              {balanceView}
+            </div>
+          </header>
+          <div class="subbar">
+            {dayInfo}
+            {signOut}
+          </div>
+          {notices}
           <div class="content">{tab === 'garden' ? garden : panelFor(tab)}</div>
           <nav class="tabs">
             {(['garden', 'storage', 'shop', 'market', 'village'] as Tab[]).map((t) => (

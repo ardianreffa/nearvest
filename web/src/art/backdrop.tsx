@@ -97,13 +97,20 @@ function MiniDrone() {
   );
 }
 
-export function Backdrop({ fraction }: { fraction: number }) {
+export function Backdrop({ fraction, blurFill = false }: { fraction: number; blurFill?: boolean }) {
   const { night, tint } = skyMix(fraction);
   const vars = { '--night': night.toFixed(3), '--tint': tint.toFixed(3) };
 
   return (
     <div class="backdrop" style={vars} aria-hidden="true">
       <div class="bg-fill bg-fill-night" />
+      {blurFill && (
+        // Full-window layout: whatever the sharp art does not cover shows a blurred copy of it.
+        <div class="bg-blur">
+          <img src="/assets/bg/bg-day.png" alt="" />
+          <img class="bg-img-night" src="/assets/bg/bg-night.png" alt="" />
+        </div>
+      )}
       <div class="bg-stars">
         {STARS.map((s, i) => (
           <i key={i} style={{ left: `${s.x}%`, top: `${s.y}%`, animationDelay: `${s.d}s` }} />
@@ -143,6 +150,7 @@ export function Backdrop({ fraction }: { fraction: number }) {
         </div>
         <div class="bg-night-shade" />
       </div>
+      {blurFill && <div class="bg-soil-ext" />}
 
       <div class="bg-tint" />
     </div>

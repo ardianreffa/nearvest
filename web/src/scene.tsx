@@ -21,17 +21,62 @@ export interface SceneFx {
 
 // Plots sit on the brown ground at the bottom of the backdrop, a little toward
 // the middle so the houses on both sides stay visible (keep in sync with .plots).
-const PLOTS_LEFT = 11;
-const PLOTS_WIDTH = 78;
+// In the immersive layout the plots fill their own "stage" box instead.
+interface Lane {
+  left: number;
+  width: number;
+  botOffset: number;
+}
+const LANE_NORMAL: Lane = { left: 11, width: 78, botOffset: 14 };
+const LANE_STAGE: Lane = { left: 0, width: 100, botOffset: 18 };
 
-/** Horizontal center of a plot in % of the scene width. */
-export function plotCenter(plot: number): number {
-  return PLOTS_LEFT + (PLOTS_WIDTH / 3) * (plot + 0.5);
+/** Horizontal center of a plot in % of the scene (or stage) width. */
+function plotCenter(plot: number, lane: Lane): number {
+  return lane.left + (lane.width / 3) * (plot + 0.5);
 }
 
 /** TaniBot stands to the right of plots 1-2 and to the left of plot 3. */
-function botX(plot: number): number {
-  return plot < 2 ? plotCenter(plot) + 14 : plotCenter(plot) - 14;
+function botX(plot: number, lane: Lane): number {
+  return plot < 2 ? plotCenter(plot, lane) + lane.botOffset : plotCenter(plot, lane) - lane.botOffset;
+}
+
+// ---------- Immersive layout (laptop / PC) ----------
+
+export const ART_W = 240;
+export const ART_H = 135;
+/** Art rows: grass ends at 103, the beds sit on rows 104-110. */
+const SOIL_TOP_ROW = 104;
+const BED_ROWS = 7;
+
+export interface Immersive {
+  /** Whole CSS px per art pixel. */
+  k: number;
+  artLeft: number;
+  artBottom: number;
+  stageLeft: number;
+  stageRight: number;
+  stageBottom: number;
+}
+
+/**
+ * Picks a whole-number pixel scale for a full-window garden: cover the window
+ * when that crops at most 20% of the width, otherwise fit it (the rest is filled
+ * with a blurred copy of the backdrop). The plots get a stage that avoids the
+ * open drawer and the action bar.
+ */
+export function immersiveLayout(width: number, height: number, drawerWidth: number, barHeight: number): Immersive {
+  const cover = Math.ceil(Math.max(width / ART_W, height / ART_H));
+  const fit = Math.max(1, Math.floor(Math.min(width / ART_W, height / ART_H)));
+  const k = (ART_W * cover - width) / width <= 0.2 ? cover : fit;
+  const artW = ART_W * k;
+  const artLeft = Math.round((width - artW) / 2);
+  const bedBottom = (ART_H - SOIL_TOP_ROW - BED_ROWS) * k;
+  // Lift the art if the action bar would cover the beds (the soil continues below).
+  const artBottom = Math.max(0, barHeight + 16 - bedBottom);
+  const margin = Math.round(artW * 0.11);
+  const stageLeft = Math.max(24, artLeft + margin);
+  const stageRight = Math.max(drawerWidth > 0 ? drawerWidth + 36 : 24, width - (artLeft + artW) + margin);
+  return { k, artLeft, artBottom, stageLeft, stageRight, stageBottom: artBottom + bedBottom };
 }
 
 function status(tree: TreeView, elapsed: number) {
@@ -49,21 +94,32 @@ interface Props {
   elapsed: number;
   fx: SceneFx | null;
   big: boolean;
+  /** Full-window garden with whole-pixel scale (laptop / PC). */
+  immersive?: Immersive;
 }
 
-export function GardenScene({ state, selected, onSelect, elapsed, fx, big }: Props) {
-  // Wide screens draw the backdrop at exactly 3 px per art pixel, so the trees use 3 too.
-  const px = big ? 3 : 2;
+export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive }: Props) {
+  // Trees use the same pixel size as the backdrop: 2 on phones, 3 on the wide
+  // layout, k in the immersive layout.
+  const px = immersive ? immersive.k : big ? 3 : 2;
+  const botScale = immersive ? Math.max(1, Math.round(immersive.k / 2)) : big ? 2 : 1;
+  const lane = immersive ? LANE_STAGE : LANE_NORMAL;
   const fraction = 1 - Math.max(0, state.clock.msUntilNextDay - elapsed) / state.clock.dayLengthMs;
   const phase = phaseOf(fraction);
   const version = botVersion(state.player.title);
-  const bx = botX(selected);
+  const bx = botX(selected, lane);
   const working = fx !== null;
 
   return (
-    <div class={`scene phase-${phase}`} role="group" aria-label="Your garden">
-      <Backdrop fraction={fraction} />
+    <div
+      class={`scene phase-${phase}${immersive ? ' immersive-scene' : ''}`}
+      role="group"
+      aria-label="Your garden"
+      style={immersive ? { '--k': String(immersive.k), '--art-left': `${immersive.artLeft}px`, '--art-bottom': `${immersive.artBottom}px` } : undefined}
+    >
+      <Backdrop fraction={fraction} blurFill={!!immersive} />
 
+      <Stage immersive={immersive}>
       <div class="plots">
         {state.plots.map((p) => {
           const st = p.tree ? status(p.tree, elapsed) : null;
@@ -110,7 +166,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big }: Pro
           <Drone version={version} scale={px} class="idle-drone d1" />
           {version === 2 && <Drone version={version} scale={px} class="idle-drone d2" />}
         </div>
-        <TaniBot version={version} scale={big ? 2 : 1} working={working} />
+        <TaniBot version={version} scale={botScale} working={working} />
         {fx?.kind === 'harvest' && (
           <div class="basket" key={fx.id}>
             <Pixels rows={BASKET} palette={{ H: '#9A7438', h: '#C9A35A' }} scale={px} />
@@ -118,7 +174,18 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big }: Pro
         )}
       </div>
 
-      {fx && <ActionEffect fx={fx} from={botX(fx.plot)} to={plotCenter(fx.plot)} version={version} px={px} key={fx.id} />}
+      {fx && <ActionEffect fx={fx} from={botX(fx.plot, lane)} to={plotCenter(fx.plot, lane)} version={version} px={px} key={fx.id} />}
+      </Stage>
+    </div>
+  );
+}
+
+/** In the immersive layout the plots, TaniBot and effects live in a box above the action bar. */
+function Stage({ immersive, children }: { immersive?: Immersive; children: preact.ComponentChildren }) {
+  if (!immersive) return <>{children}</>;
+  return (
+    <div class="stage" style={{ left: immersive.stageLeft, right: immersive.stageRight, bottom: immersive.stageBottom }}>
+      {children}
     </div>
   );
 }
