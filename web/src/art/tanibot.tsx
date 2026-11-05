@@ -1,66 +1,14 @@
-// TaniBot: the futuristic farmer robot with a caping (conical hat), a chest
-// status screen and helper drones. Original pixel art drawn in code.
-// v1 (Seedling, Farmhand): a bit rusty, bamboo hat, 1 drone.
-// v2 (Pak Tani and up): shiny chrome, LED-lit hat, 2 drones.
+// TaniBot, the farmer robot. Official design: the ChatGPT image Ardian made,
+// converted to a pixel sprite (see tanibot-sprite.ts and docs/ASSETS.md).
+// v1 (Seedling, Farmhand): the original colors.
+// v2 (Pak Tani and up): same sprite with shinier chrome, brighter LEDs, 2 drones.
+// Layers are animated separately: hover, blinking eyes, LED hat band, glowing screen.
 
 import { only, Pixels } from '../sprites';
+import { TANIBOT_ROWS, TANIBOT_V1, TANIBOT_V2 } from './tanibot-sprite';
 
-// Characters: H/h hat, L hat LED, k outline, m/M/x metal, v visor, e eyes,
-// s screen, g screen glow, j thruster, a arm joint.
-export const TANIBOT = [
-  '..........HH..........',
-  '........HhhhhH........',
-  '......HhhLhhLhhH......',
-  '....HhhhhhhhhhhhhH....',
-  '..HhLhhhhLhhhhLhhhhH..',
-  'HHHHHHHHHHHHHHHHHHHHHH',
-  '......kmmmmmmmmmk.....',
-  '......kvvvvvvvvvk.....',
-  '......kvveevveevk.....',
-  '......kvvvvvvvvvk.....',
-  '......kmmmxmmmmmk.....',
-  '.......kMMMMMMMk......',
-  '....kkmmmmmmmmmmmkk...',
-  '...kmmkssssssssskmmk..',
-  '...kmxksgsggsgsskmxk..',
-  '...kmmksggsggsgskmmk..',
-  '..kaak.ksssssssk.kaak.',
-  '..kmmk.kmmmmmmmk.kmmk.',
-  '..kxmk.kmMmmmMmk.kmxk.',
-  '..kkkk..kmmmmmk..kkkk.',
-  '.........kMMMk........',
-  '.........kjjjk........',
-  '..........jjj.........',
-  '...........j..........',
-];
-
-const V1: Record<string, string> = {
-  H: '#9A7438',
-  h: '#C9A35A',
-  L: '#C9A35A', // plain bamboo, no LEDs yet
-  k: '#1B1B2F',
-  m: '#8C8F94',
-  M: '#5C5F66',
-  x: '#A45A2A', // rust
-  v: '#1F2633',
-  e: '#22D3EE',
-  s: '#13221B',
-  g: '#2E8B57',
-  j: '#22D3EE',
-  a: '#6B6E74',
-};
-
-const V2: Record<string, string> = {
-  ...V1,
-  H: '#2C3A44',
-  h: '#E8EEF2',
-  L: '#00EC97', // LED strip on the hat
-  m: '#D7DEE5',
-  M: '#8E9AA6',
-  x: '#FFFFFF', // chrome shine
-  g: '#00EC97',
-  a: '#22D3EE',
-};
+export const TANIBOT_W = 58;
+export const TANIBOT_H = 64;
 
 export type BotVersion = 1 | 2;
 
@@ -68,19 +16,47 @@ export function botVersion(title: string): BotVersion {
   return title === 'Seedling' || title === 'Farmhand' ? 1 : 2;
 }
 
-/** TaniBot with separately animated layers: blinking eyes, LED hat, screen, thruster. */
-export function TaniBot({ version, scale = 3, working = false }: { version: BotVersion; scale?: number; working?: boolean }) {
-  const palette = version === 1 ? V1 : V2;
+function palette(version: BotVersion) {
+  return version === 1 ? TANIBOT_V1 : TANIBOT_V2;
+}
+
+/** The base layer draws the eyes as dark visor, so hiding the eye layer makes TaniBot blink. */
+function basePalette(version: BotVersion) {
+  const p = palette(version);
+  return { ...p, e: p.v, E: p.v };
+}
+
+const EYES = only(TANIBOT_ROWS, 'eE');
+const LEDS = only(TANIBOT_ROWS, 'Ll');
+const SCREEN = only(TANIBOT_ROWS, 'gG');
+
+export function TaniBot({ version, scale = 1, working = false }: { version: BotVersion; scale?: number; working?: boolean }) {
+  const p = palette(version);
   return (
-    <div class={`tanibot v${version}${working ? ' working' : ''}`} style={{ width: 22 * scale, height: 24 * scale }}>
-      <Pixels rows={TANIBOT} palette={palette} scale={scale} class="bot-body" />
-      <Pixels rows={only(TANIBOT, 'g')} palette={palette} scale={scale} class="bot-screen" />
-      <Pixels rows={only(TANIBOT, 'e')} palette={palette} scale={scale} class="bot-eyes" />
-      {version === 2 && <Pixels rows={only(TANIBOT, 'L')} palette={palette} scale={scale} class="bot-leds" />}
-      <Pixels rows={only(TANIBOT, 'j')} palette={palette} scale={scale} class="bot-thruster" />
+    <div class={`tanibot v${version}${working ? ' working' : ''}`} style={{ width: TANIBOT_W * scale, height: TANIBOT_H * scale }}>
+      <Pixels rows={TANIBOT_ROWS} palette={basePalette(version)} scale={scale} class="bot-body" title="TaniBot" />
+      <Pixels rows={SCREEN} palette={p} scale={scale} class="bot-screen" />
+      <Pixels rows={LEDS} palette={p} scale={scale} class="bot-leds" />
+      <Pixels rows={EYES} palette={p} scale={scale} class="bot-eyes" />
     </div>
   );
 }
+
+/** Head and hat only, for the top bar. */
+const HEAD_ROWS = 33;
+export function TaniBotHead({ version, scale = 1 }: { version: BotVersion; scale?: number }) {
+  const p = palette(version);
+  const rows = TANIBOT_ROWS.slice(0, HEAD_ROWS);
+  return (
+    <div class={`tanibot-head v${version}`} style={{ width: TANIBOT_W * scale, height: HEAD_ROWS * scale }}>
+      <Pixels rows={rows} palette={basePalette(version)} scale={scale} title="TaniBot" />
+      <Pixels rows={LEDS.slice(0, HEAD_ROWS)} palette={p} scale={scale} class="bot-leds" />
+      <Pixels rows={EYES.slice(0, HEAD_ROWS)} palette={p} scale={scale} class="bot-eyes" />
+    </div>
+  );
+}
+
+// ---------- Drones and tools (original pixel art drawn in code) ----------
 
 export const DRONE = [
   'kk.......kk',
@@ -91,20 +67,17 @@ export const DRONE = [
   '....kjk....',
 ];
 
+const DRONE_PALETTE: Record<BotVersion, Record<string, string>> = {
+  1: { k: '#1B1B2F', c: '#9CA3AF', m: '#9CA3AF', e: '#22D3EE', j: '#00EC97' },
+  2: { k: '#1B1B2F', c: '#D1D5DB', m: '#C7D2DC', e: '#22D3EE', j: '#5CFFC2' },
+};
+
 export function Drone({ version, scale = 2, class: className = '' }: { version: BotVersion; scale?: number; class?: string }) {
-  const palette = { ...(version === 1 ? V1 : V2), c: '#9CA3AF' };
   return (
     <div class={`drone ${className}`}>
-      <Pixels rows={DRONE} palette={palette} scale={scale} />
+      <Pixels rows={DRONE} palette={DRONE_PALETTE[version]} scale={scale} />
     </div>
   );
-}
-
-/** Small head-only TaniBot for the top bar. */
-export const TANIBOT_HEAD = TANIBOT.slice(0, 12);
-
-export function TaniBotHead({ version, scale = 2 }: { version: BotVersion; scale?: number }) {
-  return <Pixels rows={TANIBOT_HEAD} palette={version === 1 ? V1 : V2} scale={scale} title="TaniBot" />;
 }
 
 export const BASKET = ['k.......k', 'kHhHhHhHk', 'kHhHhHhHk', '.kHhHhHk.', '..kkkkk..'];

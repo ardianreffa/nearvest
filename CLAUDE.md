@@ -80,6 +80,8 @@ Tip: the Read tool cannot render this PDF without poppler. Extract text with mac
 - Art: original pixel art drawn in code (`web/src/sprites.tsx` icons, `web/src/art/` trees, TaniBot, Mr. Darto, backdrop) plus CC0 palms in `web/public/assets/cc0/` (see `docs/ASSETS.md`). Dev-only gallery: http://localhost:5173/preview.html (not in the production build).
 - Visual polish (2026-11-05): TaniBot stands next to the selected plot (v1 rusty + bamboo hat for Seedling/Farmhand, v2 chrome + LED hat + 2 drones from Pak Tani) with idle hover, blinking eyes, LED and screen animations, and action animations (plasma hoe, watering drone, harvest laser + fruit to basket, nano spray, laser saw + light motes). Layered Solarpunk backdrop with dawn/day/dusk/night from the village clock and mouse parallax. Juice in `web/src/fx.tsx` (floating numbers, coins to balance, burn flame, leaves, level-up confetti). Bamboo/wood panels with mint neon. Mr. Darto full figure + hover cart in Market.
 - Wide screens draw scene art at 4 px per pixel (phones 2 px): integer scales keep pixels sharp.
+- **TaniBot official design (2026-11-05):** Ardian's ChatGPT image (`docs/art-source/tanibot-ai.png`) converted to a 58x64 sprite (`web/src/art/tanibot-sprite.ts`, PNG exports in `web/public/assets/tanibot/`). Used in the garden (1x phone, 2x wide), top bar (head crop), login and loading screens. v2 = recolor (chrome + brighter LEDs). Animated layers: eyes (blink), hat LED band, mint screen/joints; drones are still code-drawn. Use this design for the tutorial too.
+- Fonts: Pixelify Sans only for the logo and h1 (its 2 and 5 look like 8 and S); everything with digits uses Tiny5.
 - Screens: login (Google button slot + dev login), create garden (name -> `<name>.nearvest.testnet`, demo toggle), Garden (3 plots, check-in calendar), Storage, Shop, Market (Mr. Darto), Village (stats + on-chain log). A mint-green flash and toast with a tx link appear whenever a chain job lands.
 - Tab names (Ardian, 2026-11-05): "Storage" (not "Barn": sounds like "burn") and "Market" (Mr. Darto lives inside it).
 - Layout: phone = bottom tabs; `>= 1024px` = garden large on the left (pixel art at an integer 2x zoom), check-in + Storage/Shop/Market/Village panels on the right.
@@ -205,6 +207,15 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - $PANEN stays 0% team; development funded by a small share of Market fees and cosmetic sales (TaniBot skins, decorations) in NEAR.
 - $PANEN/NEAR pair on a NEAR DEX such as Rhea.
 - Get legal advice before any mainnet token launch.
+
+## Status and next steps (2026-11-05 evening)
+
+- Done ahead of plan: contracts (Fri), game server on the Mac (Sat), web UI + visual polish + official TaniBot (Sun). All pushed to the private repo.
+- **Waiting on Ardian:** Google OAuth Client ID; NEAR AI Cloud API key (needed Mon for TaniBot's brain); AI images from ChatGPT: village background (day + night, bottom 35% plain grass), Mr. Darto, Shop.
+- **How to bring in an AI image:** keep the original in `docs/art-source/`, convert with `python3 -I tools/pixelize/pixelize.py <image.png> <rows> <out_dir>` (add `--keep-bg` for full backgrounds), check `out_dir/preview-x8.png`, then generate a sprite module like `web/src/art/tanibot-sprite.ts` or PNGs in `web/public/assets/`, and record it in `docs/ASSETS.md` as AI-generated at Ardian's request.
+- **Browser test:** with server and web running, `node tools/ui-test.mjs <outDir> <name> 390 844` (phone) and `... 1280 800` (laptop); then look at the screenshots.
+- Server and web are not deployed yet (VPS + Caddy/sslip.io and Vercel need Ardian's OK).
+- Next by plan: Mon 9 Nov TaniBot (sub-account, function call key, budget + spending limit in a contract, NEAR AI brain 3x/day with rule fallback, Log with tx links); Tue 10 Nov tutorial, Try as Judge, Village Stats polish, full re-test.
 
 ## Open questions to verify while building
 

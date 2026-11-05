@@ -97,7 +97,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big }: Pro
           <Drone version={version} scale={px} class="idle-drone d1" />
           {version === 2 && <Drone version={version} scale={px} class="idle-drone d2" />}
         </div>
-        <TaniBot version={version} scale={px} working={working} />
+        <TaniBot version={version} scale={px / 2} working={working} />
         {fx?.kind === 'harvest' && (
           <div class="basket" key={fx.id}>
             <Pixels rows={BASKET} palette={{ H: '#9A7438', h: '#C9A35A' }} scale={px} />

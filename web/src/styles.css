@@ -68,8 +68,13 @@ h1,
 h2,
 .name {
   margin: 0;
-  font-family: 'Pixelify Sans', ui-monospace, monospace;
   font-weight: 700;
+}
+
+/* Pixelify Sans only where there are no digits (its 2 and 5 look like 8 and S). */
+h1,
+.logo {
+  font-family: 'Pixelify Sans', ui-monospace, monospace;
 }
 
 /* Dark outline so small icons stay visible on colored buttons and badges. */
@@ -1827,7 +1832,7 @@ input:focus-visible {
 .fx-text {
   position: absolute;
   transform: translate(-50%, -50%);
-  font-family: 'Pixelify Sans', monospace;
+  font-family: 'Tiny5', monospace;
   font-weight: 700;
   font-size: 22px;
   white-space: nowrap;
@@ -2054,4 +2059,48 @@ input:focus-visible {
 .head-bot {
   display: inline-flex;
   animation: hover 2.4s ease-in-out infinite;
+}
+
+/* ---------- Official TaniBot sprite ---------- */
+
+.tanibot-head {
+  position: relative;
+}
+
+.tanibot-head > svg {
+  position: absolute;
+  inset: 0;
+}
+
+.bot-spot::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 56%;
+  height: 6px;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 50%;
+  z-index: -1;
+  animation: bot-shadow 2.4s ease-in-out infinite;
+}
+
+.v2 .bot-leds {
+  filter: drop-shadow(0 0 2px #5cffc2) drop-shadow(0 0 5px #5cffc2) drop-shadow(0 0 9px rgba(92, 255, 194, 0.6));
+}
+
+.v2 .bot-body {
+  filter: saturate(1.05) brightness(1.04);
+}
+
+.login .tanibot {
+  filter: drop-shadow(0 10px 0 rgba(0, 0, 0, 0.35)) drop-shadow(0 0 18px rgba(0, 236, 151, 0.25));
+}
+
+@keyframes bot-shadow {
+  50% {
+    transform: translateX(-50%) scale(0.75);
+    opacity: 0.6;
+  }
 }

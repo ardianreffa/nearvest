@@ -33,8 +33,8 @@ function Gallery() {
       </div>
       <h2>TaniBot v1 / v2, drones</h2>
       <div class="preview-row">
-        <TaniBot version={1} scale={4} />
-        <TaniBot version={2} scale={4} />
+        <TaniBot version={1} scale={2} />
+        <TaniBot version={2} scale={2} />
         <Drone version={1} scale={4} />
         <Drone version={2} scale={4} />
       </div>

@@ -3,7 +3,7 @@
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type Quality, type ServerConfig, type Species } from './api';
-import { botVersion, TaniBotHead } from './art/tanibot';
+import { botVersion, TaniBot, TaniBotHead } from './art/tanibot';
 import { initAudio, isMuted, onMuteChange, playSound, setMuted, type SoundName } from './audio';
 import { burnAt, coinsToBalance, confetti, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden } from './garden';
@@ -301,7 +301,7 @@ export function App() {
   if (fatal) {
     return (
       <main class="shell center">
-        <Sprite name="taniBot" scale={5} />
+        <TaniBot version={1} scale={2} />
         <h1>NEARvest</h1>
         <p class="error-text">{fatal}</p>
         <p class="muted small">Start the server with "npm run dev" in the server folder, then reload.</p>
@@ -311,7 +311,7 @@ export function App() {
   if (phase === 'loading' || !config) {
     return (
       <main class="shell center">
-        <Sprite name="taniBot" scale={5} />
+        <TaniBot version={1} scale={2} />
         <p class="muted">Waking up the village...</p>
       </main>
     );
@@ -353,7 +353,7 @@ export function App() {
       <header class="topbar">
         <div class="who">
           <span class="head-bot">
-            <TaniBotHead version={botVersion(p.title)} scale={wide ? 3 : 2} />
+            <TaniBotHead version={botVersion(p.title)} scale={wide ? 2 : 1} />
           </span>
           <div>
             <div class="name">{p.name}</div>
@@ -482,7 +482,7 @@ function Login({ config, onLoggedIn }: { config: ServerConfig; onLoggedIn: (toke
 
   return (
     <main class="shell center login">
-      <Sprite name="taniBot" scale={6} />
+      <TaniBot version={1} scale={3} />
       <h1 class="logo">NEARvest</h1>
       <p class="tagline">Grow. Harvest. Own.</p>
       <p class="muted">A pixel farming game where your tree is a living NFT and an AI farmer tends it while you sleep.</p>
@@ -578,7 +578,7 @@ function CreateGarden({ onCreated, onLogout }: { onCreated: (s: GameState) => vo
 
   return (
     <main class="shell center">
-      <Sprite name="taniBot" scale={5} />
+      <TaniBot version={1} scale={2} />
       <h1>Welcome to Tandur!</h1>
       <p class="muted">Choose your farmer name. It becomes your NEAR account and how friends find you.</p>
       <form class="create" onSubmit={submit}>
