@@ -89,23 +89,72 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - **Important (Penting):** P2P Market + TaniBot trading, weather and wilting, seed quality and lineage, Village Granary and Harvest Festival, titles, TaniBot v2, Farmer Card SBT, share to X (moments, profile, referral), buy plots, Memorial Trees, browser notifications.
 - **Bonus:** pests, friends and garden visits, agent-to-agent negotiation, TaniBot v3 and v4, badges, family tree view, leaderboard, extra fruit types.
 
-## 9-day plan (DRAFT — not in the GDD; proposed by Claude, confirm with Ardian)
+## 9-day work plan (from the GDD, "Rencana kerja 9 hari")
 
-| Day | Date (2026) | Goal |
-|---|---|---|
-| 1 | Fri 6 Nov | Tooling check, Google login decision, $PANEN contract (NEP-141 + Seasons + burn) on testnet |
-| 2 | Sat 7 Nov | Tree NFT (dynamic NEP-171) + Garden contract (plots, plant/water/harvest, TaniBot spending limit) |
-| 3 | Sun 8 Nov | Server: login, sub-account creation, relayer, database, village clock, demo mode |
-| 4 | Mon 9 Nov | Web: pixel garden UI, core loop, Shop, check-in |
-| 5 | Tue 10 Nov | Mr. Darto + TaniBot (NEAR AI Cloud + rule fallback, budget, Log with tx links) |
-| 6 | Wed 11 Nov | Tutorial, Try as Judge, Village Stats, full end-to-end test — **all Must features done** |
-| 7 | Thu 12 Nov | Important features (weather/wilting, quality/lineage, Granary/Festival, P2P Market, SBT) |
-| 8 | Fri 13 Nov | Remaining Important features, Vercel deploy, README, bug fixing |
-| 9 | Sat 14 Nov | Feature freeze, demo video + X post (Ardian), repo public + submit (with Ardian's OK) |
+- **Checkpoint:** all Must features done by **Tue 10 Nov**. If not reached, cut Important features first.
+- **Feature freeze:** Thu 12 Nov evening.
+- **Submit:** Sat 14 Nov evening. Sun 15 Nov 06:59 WIB (= 14 Nov 23:59 UTC) is the last-resort backup deadline.
+
+**Thu 5 Nov (afternoon-evening): preparation**
+- [x] Create testnet account nearvest.testnet and fund it from the faucet
+- [ ] Claim NEAR AI Cloud credits via NEAR Builders, create an API key
+- [x] Create the GitHub repo nearvest (private for now), store the GDD in docs/
+- [x] Find CC0 pixel-art assets (garden, fruit, robot) and record their licenses (`docs/ASSETS.md`)
+- [ ] Test Google login on NEAR; if too complicated, use wallet login (decided: Google login to our server, see Decisions; still to be tested)
+
+**Fri 6 Nov: core contracts**
+- [ ] $PANEN contract (NEP-141): mint when earned, burn when spent, Seasons
+- [ ] Tree NFT contract (NEP-171) with updatable data
+- [ ] Deploy to testnet and test
+
+**Sat 7 Nov: game server on the VPS**
+- [ ] Database, village clock (07:00 WIB), gas-paying relayer
+- [ ] Actions: plant, water, fertilize, harvest, sell, check-in
+- [ ] Simple Mr. Darto (daily price with upper and lower bounds)
+
+**Sun 8 Nov: web UI**
+- [ ] Pixel-art garden with 3 plots, mobile friendly, login
+- [ ] Plant, water, harvest, sell and Shop loop working
+- [ ] Deploy to Vercel
+
+**Mon 9 Nov: TaniBot**
+- [ ] TaniBot sub-account and function call key
+- [ ] Budget and spending limit in the contract
+- [ ] NEAR AI Cloud brain, 3x/day schedule, simple-rules fallback, Log with transaction links
+
+**Tue 10 Nov: finish Must features (checkpoint)**
+- [ ] Tutorial, Try as Judge, demo mode
+- [ ] Check-in and streak, Village Stats
+- [ ] Re-test the whole loop from a new account
+
+**Wed 11 Nov: Important features part 1**
+- [ ] Weather and wilting, seed quality and lineage
+- [ ] Village Granary and Harvest Festival
+- [ ] Titles and Farmer Card (SBT)
+
+**Thu 12 Nov: Important features part 2 (feature freeze tonight)**
+- [ ] P2P Market and TaniBot trading
+- [ ] TaniBot v2, buy plots, Memorial Trees
+- [ ] Share to X, browser notifications
+
+**Fri 13 Nov: test and polish**
+- [ ] Full testing, bug fixes, mobile UI polish
+- [ ] README (do X, see Y), MIT LICENSE, list of assets and libraries
+- [ ] Record the demo video
+
+**Sat 14 Nov: release and submit**
+- [ ] Repo public, Vercel demo live (only with Ardian's explicit OK)
+- [ ] X post with video, tag @NEARProtocol and #NEARHackathon (Ardian posts it)
+- [ ] Re-check everything, then submit the form (once only, with Ardian's explicit OK)
+
+## Mainnet plan (write in README only, do not build)
+
+- $PANEN stays 0% team; development funded by a small share of Market fees and cosmetic sales (TaniBot skins, decorations) in NEAR.
+- $PANEN/NEAR pair on a NEAR DEX such as Rhea.
+- Get legal advice before any mainnet token launch.
 
 ## Open questions to verify while building
 
-- Replace the draft 9-day plan above with the "Rencana kerja 9 hari" section once the updated GDD is in `docs/`.
 - SBT standard (NEP-393) and wallet support.
 - How the relayer pays gas for new players.
 - NEAR AI Cloud credit claim and model choice.
