@@ -2,9 +2,12 @@
 # - removes the background with a flood fill from the edges (inner whites stay)
 # - downsamples to ROWS rows using the dominant color of each cell
 # - snaps colors to the game palette (GDD colors + metal/straw/skin tones)
-# Usage: python3 -I tools/pixelize/pixelize.py input.png ROWS out_dir [--keep-bg]
+# Usage: python3 -I tools/pixelize/pixelize.py input.png ROWS out_dir [--keep-bg [--colors N]]
 # Writes out_dir/sprite.json (rows + palette) and out_dir/preview-x8.png.
-# Used for the official TaniBot (docs/ASSETS.md). Standard library only.
+# --keep-bg is for full backgrounds: no background removal, an adaptive palette
+# (median cut, N colors, default 48) whose colors close to the GDD colors are
+# snapped to them exactly, and out_dir/bg.png at 1 pixel per cell.
+# Used for the official TaniBot and the garden backdrop (docs/ASSETS.md). Standard library only.
 import sys, os, json, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from png import read_png, write_png
@@ -30,7 +33,10 @@ def dist(a, b):
 def nearest(c): return min(PAL, key=lambda k: dist(c, PAL[k]))
 
 if keep_bg:
-    x0, y0, x1, y1 = 0, 0, w - 1, h - 1
+    from background import pixelize_background
+    n = int(sys.argv[sys.argv.index('--colors') + 1]) if '--colors' in sys.argv else 48
+    pixelize_background(w, h, px, ROWS, n, out)
+    sys.exit(0)
 else:
     xs = [x for y in range(0, h, 3) for x in range(0, w, 3) if not white(px[y][x])]
     ys = [y for y in range(0, h, 3) for x in range(0, w, 3) if not white(px[y][x])]

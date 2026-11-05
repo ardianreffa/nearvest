@@ -436,7 +436,7 @@ button {
 
 .scene {
   position: relative;
-  height: 270px;
+  height: 250px;
   overflow: hidden;
   border: var(--px) solid #000;
   box-shadow: 0 0 0 2px var(--mint-dim), 0 0 18px rgba(0, 236, 151, 0.18);
@@ -445,8 +445,8 @@ button {
 
 .plots {
   position: absolute;
-  left: 4%;
-  right: 4%;
+  left: 11%; /* keep in sync with PLOTS_LEFT / PLOTS_WIDTH in scene.tsx */
+  right: 11%;
   bottom: 10px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -547,227 +547,170 @@ button {
   pointer-events: none;
 }
 
-/* ---------- Backdrop layers ---------- */
+/* ---------- Backdrop (AI village image, day/night cross-fade) ---------- */
 
 .backdrop {
   position: absolute;
   inset: 0;
   z-index: 0;
-  --pan: 0;
-  --wall: #e9dcc0;
-  --door: #6b4a2f;
-  --roof: #8a4b2a;
-  --roof-dark: #5e3119;
-  --pole: #4a3a2a;
-  --cloud: rgba(255, 255, 255, 0.85);
-  --mountain: #6aa79a;
-  --snow: #dff2ee;
-  --ridge: #4f9a63;
-  --glass: rgba(170, 240, 210, 0.75);
-  --bamboo: #b08a3e;
-  --blade: #f4fff9;
-  --terrace-a: #5db36b;
-  --terrace-b: #4aa35c;
-  --terrace-edge: #9be38f;
-  --rice: #d8f59a;
+  --night: 0;
+  --tint: 0;
+  background: #27c5fd; /* top row of the day image, fills the sky above it on phones */
+  overflow: hidden;
 }
 
-.backdrop .sky,
-.backdrop .layer,
-.backdrop .ground {
+.bg-fill {
+  position: absolute;
+  inset: 0;
+}
+
+.bg-fill-night {
+  background: #001941; /* top row of the night image */
+  opacity: var(--night);
+  transition: opacity 1s linear;
+}
+
+.bg-stars i {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #e8f7ff;
+  opacity: var(--night);
+  animation: twinkle 2.4s steps(2) infinite;
+}
+
+/* The art keeps the image's 16:9 shape and sits on the bottom edge. Phones show
+   (almost) the whole width; wide screens use exactly 3 px per art pixel. */
+.bg-art {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 104%;
+  aspect-ratio: 240 / 135;
+  transform: translateX(-50%);
+}
+
+.bg-img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-}
-
-.sky {
-  transition: opacity 2.5s ease;
-}
-
-.sky-day {
-  background: linear-gradient(#7fd3f2 0%, #bfeee6 55%, #e6f7d8 70%);
-}
-
-.sky-dusk {
-  background: linear-gradient(#3b2a6b 0%, #c9568a 35%, #f6a35b 62%, #ffd38a 72%);
-  opacity: 0;
-}
-
-.sky-night {
-  background: linear-gradient(#060b24 0%, #0f1f4a 55%, #1d3a5a 72%);
-  opacity: 0;
-}
-
-.phase-dawn .sky-dusk,
-.phase-dusk .sky-dusk {
-  opacity: 1;
-}
-
-.phase-night .sky-night {
-  opacity: 1;
-}
-
-.layer {
-  transition: transform 0.4s ease-out;
-}
-
-.layer-stars rect {
-  opacity: 0;
-  transition: opacity 2s;
-}
-
-.phase-night .layer-stars rect {
-  opacity: 1;
-  animation: twinkle 2.4s steps(2) infinite;
-}
-
-.layer-sun .sun,
-.layer-sun .moon {
-  transition: opacity 2s;
-}
-
-.layer-sun .moon,
-.phase-night .layer-sun .sun {
-  opacity: 0;
-}
-
-.phase-night .layer-sun .moon {
-  opacity: 1;
-}
-
-.phase-dusk .layer-sun .sun,
-.phase-dawn .layer-sun .sun {
-  transform: translateY(14px);
-  opacity: 0.85;
-}
-
-.layer-clouds {
-  animation: drift 60s linear infinite alternate;
-}
-
-.layer-mountains {
-  transform: translateX(calc(var(--pan) * -3px));
-}
-
-.layer-village {
-  transform: translateX(calc(var(--pan) * -6px));
-}
-
-.layer-terraces {
-  transform: translateX(calc(var(--pan) * -10px));
-}
-
-.smoke {
-  fill: rgba(255, 255, 255, 0.6);
-  animation: smoke 3s steps(3) infinite;
-}
-
-.blades {
-  transform-origin: 44px 42px;
-  transform-box: view-box;
-  animation: spin 6s linear infinite;
-}
-
-.window {
-  fill: #5b4a35;
-  transition: fill 2s;
-}
-
-.lantern {
-  fill: #2f7a5b;
-  transition: fill 2s;
-}
-
-.panel-shine {
-  fill: #7fd3f2;
-  opacity: 0.6;
-  animation: shine 4s steps(4) infinite;
-}
-
-.water {
-  fill: #c9f4ff;
-  opacity: 0.8;
-}
-
-.ground {
-  top: auto !important;
-  height: 20% !important;
-  background:
-    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 7px),
-    linear-gradient(#4fae5f, #2f7d48);
-  border-top: 2px solid #6fcf73;
-}
-
-.backdrop .palm {
-  position: absolute;
-  bottom: 18%;
-  width: 70px;
-  height: auto;
   image-rendering: pixelated;
-  transition: transform 0.4s ease-out;
+  user-select: none;
+  pointer-events: none;
 }
 
-.backdrop .palm-left {
-  left: -16px;
-  transform: translateX(calc(var(--pan) * -14px));
+.bg-img-night {
+  opacity: var(--night);
+  transition: opacity 1s linear;
 }
 
-.backdrop .palm-right {
-  right: -16px;
-  transform: translateX(calc(var(--pan) * -14px)) scaleX(-1);
+.bg-fx,
+.bg-fx > * {
+  position: absolute;
 }
 
-/* Dusk and night recolor the village and make the neon glow. */
-.backdrop.phase-dusk,
-.backdrop.phase-dawn {
-  --mountain: #7b5a8f;
-  --ridge: #3f7a55;
-  --terrace-a: #4c8f58;
-  --terrace-b: #3e7d4c;
-  --cloud: rgba(255, 214, 170, 0.8);
+.bg-fx {
+  inset: 0;
 }
 
-.backdrop.phase-night {
-  --wall: #4a4a66;
-  --roof: #3b2a3a;
-  --roof-dark: #2a1d2a;
-  --mountain: #1f3550;
-  --snow: #5d7690;
-  --ridge: #1d3b37;
-  --glass: rgba(0, 236, 151, 0.35);
-  --bamboo: #6d5a35;
-  --blade: #9fb3c8;
-  --terrace-a: #1e4a3a;
-  --terrace-b: #183d31;
-  --terrace-edge: #2f8a5f;
-  --rice: #00ec97;
-  --cloud: rgba(120, 140, 190, 0.35);
+/* Volcano and chimney smoke: pixel puffs that rise, grow and fade. */
+.puff {
+  /* white by day, grey at night */
+  background: color-mix(in srgb, rgb(120, 130, 150) calc(var(--night) * 100%), rgb(240, 244, 248));
+  animation: puff 5.2s steps(10) infinite;
+  opacity: 0;
 }
 
-.phase-night .ground {
-  background:
-    repeating-linear-gradient(90deg, rgba(0, 236, 151, 0.05) 0 2px, transparent 2px 7px),
-    linear-gradient(#1f5a3f, #123a29);
-  border-top-color: #2f8a5f;
+.puff.small {
+  animation-duration: 3.6s;
 }
 
-.phase-night .window {
-  fill: #ffd76a;
+/* Waterfalls in the rice terraces: light bands sliding down. */
+.fall {
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0 18%, transparent 18% 50%);
+  background-size: 100% 200%;
+  mix-blend-mode: screen;
+  opacity: 0.55;
+  animation: fall 0.9s steps(4) infinite;
 }
 
-.phase-night .lantern,
-.phase-dusk .lantern {
-  fill: var(--mint);
-  filter: drop-shadow(0 0 2px var(--mint));
+/* Holograms: flicker plus a scanline; brighter at night. */
+.holo {
+  background: linear-gradient(180deg, transparent 0 45%, rgba(165, 243, 252, 0.9) 45% 55%, transparent 55%);
+  background-size: 100% 300%;
+  mix-blend-mode: screen;
+  opacity: calc(0.45 + 0.4 * var(--night));
+  animation: holo-scan 2.4s steps(8) infinite, holo-flicker 5s steps(1) infinite;
 }
 
-.phase-night .water {
-  fill: var(--cyan);
+/* Lanterns: a soft mint glow that breathes, much stronger at night. */
+.lamp {
+  background: radial-gradient(circle, rgba(0, 236, 151, 0.75) 0 30%, rgba(0, 236, 151, 0) 70%);
+  mix-blend-mode: screen;
+  opacity: calc(0.25 + 0.75 * var(--night));
+  animation: lamp 2.6s steps(3) infinite;
 }
 
-.phase-night .backdrop .palm {
-  filter: brightness(0.45) saturate(0.7);
+/* Blinking LEDs on the drones painted in the sky. */
+.led {
+  background: var(--mint);
+  box-shadow: 0 0 3px var(--mint);
+  animation: led-blink 1.4s steps(1) infinite;
+}
+
+/* Small delivery drones that fly across the sky now and then. */
+.flyby {
+  inset: 0;
+  pointer-events: none;
+}
+
+.flyby > span {
+  position: absolute;
+  animation: flyby-bob 1.2s steps(2) infinite;
+}
+
+.flyby svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.flyby.f1 {
+  animation: flyby 22s linear infinite;
+}
+
+.flyby.f2 {
+  animation: flyby-back 31s linear infinite;
+  animation-delay: -12s;
+}
+
+.mini-led {
+  fill: #00ec97;
+  animation: led-blink 0.8s steps(1) infinite;
+}
+
+/* Night: the ground is darker; dawn and dusk get a warm tint over everything. */
+.bg-night-shade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30%;
+  background: linear-gradient(rgba(4, 14, 38, 0), rgba(4, 14, 38, 0.45) 25%);
+  opacity: var(--night);
+  transition: opacity 1s linear;
+  pointer-events: none;
+}
+
+.bg-tint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgba(110, 50, 150, 0.75), rgba(255, 110, 70, 0.7) 50%, rgba(255, 170, 90, 0.45));
+  mix-blend-mode: overlay;
+  opacity: var(--tint);
+  transition: opacity 1s linear;
+  pointer-events: none;
 }
 
 .phase-night .tree {
@@ -1557,30 +1500,32 @@ input:focus-visible {
 
 /* Pixel art is drawn at 4 px per pixel on wide screens (an integer scale), so it stays sharp. */
 .wide .scene {
-  height: 440px;
+  height: calc(405px + 2 * var(--px)); /* backdrop 135 art rows x 3 px */
+}
+
+.wide .bg-art {
+  width: 720px; /* 240 art columns x 3 px */
+  left: round(down, calc(50% - 360px), 1px); /* whole pixels keep the art sharp */
+  transform: none;
 }
 
 .wide .plots {
-  left: 4%;
-  right: 4%;
+  left: 11%;
+  right: 11%;
   bottom: 16px;
   gap: 20px;
 }
 
 .wide .plot {
-  height: 290px;
+  height: 230px;
 }
 
 .wide .soil {
-  height: 52px;
+  height: 42px;
 }
 
 .wide .bot-spot {
-  bottom: 48px;
-}
-
-.wide .backdrop .palm {
-  width: 140px;
+  bottom: 40px;
 }
 
 .wide .badge {
@@ -2103,4 +2048,50 @@ input:focus-visible {
     transform: translateX(-50%) scale(0.75);
     opacity: 0.6;
   }
+}
+
+@keyframes puff {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  15% { opacity: 0.9; }
+  100% { opacity: 0; transform: translate(60%, -420%) scale(1.8); }
+}
+
+@keyframes fall {
+  from { background-position: 0 0; }
+  to { background-position: 0 100%; }
+}
+
+@keyframes holo-scan {
+  from { background-position: 0 100%; }
+  to { background-position: 0 0; }
+}
+
+@keyframes holo-flicker {
+  0%, 100% { filter: none; }
+  46% { filter: brightness(0.3); }
+  48% { filter: none; }
+  80% { filter: brightness(0.5); }
+  81% { filter: none; }
+}
+
+@keyframes lamp {
+  50% { transform: scale(1.25); }
+}
+
+@keyframes led-blink {
+  50% { opacity: 0.15; }
+}
+
+@keyframes flyby {
+  from { transform: translateX(-6%); }
+  to { transform: translateX(104%); }
+}
+
+@keyframes flyby-back {
+  from { transform: translateX(104%); }
+  to { transform: translateX(-6%); }
+}
+
+@keyframes flyby-bob {
+  50% { transform: translateY(-40%); }
 }

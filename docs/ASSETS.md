@@ -33,8 +33,8 @@ CC0 = public domain dedication (https://creativecommons.org/publicdomain/zero/1.
 
 | File | Source asset | License | Used for |
 |---|---|---|---|
-| `web/public/assets/cc0/palm-fryhet-1.png` | Palms (`palm.png`) by fryhet | CC0 | Garden background |
-| `web/public/assets/cc0/palm-fryhet-2.png` | Palms (`palm_2.png`) by fryhet | CC0 | Garden background |
+| `web/public/assets/cc0/palm-fryhet-1.png` | Palms (`palm.png`) by fryhet | CC0 | Garden background (not used since the AI backdrop, 2026-11-05) |
+| `web/public/assets/cc0/palm-fryhet-2.png` | Palms (`palm_2.png`) by fryhet | CC0 | Garden background (not used since the AI backdrop, 2026-11-05) |
 
 Downloaded 2026-11-05 from OpenGameArt. BrawlBot was checked but not used (painted style, not pixel art). The Tropical tree by Pixquare was used in the first UI version and removed on 2026-11-05 when species-specific trees were drawn (keep the credit only if it comes back).
 
@@ -76,4 +76,5 @@ No CC0 mango, rambutan, or durian tree sprites were found. These will be recolor
 | **TaniBot (official design)**: `web/src/art/tanibot-sprite.ts` (58x64 sprite, v1 and v2 palettes), `web/public/assets/tanibot/tanibot-v1.png`, `tanibot-v2.png`, `tanibot-v1-large.png`, `tanibot-v2-large.png` (8x, for login / profile card / README) | **Made with ChatGPT (AI image generator) at Ardian's request** (source: `docs/art-source/tanibot-ai.png`, 1254x1254, white background). Converted by Claude Code on 2026-11-05: white background removed (flood fill from the edges), downsampled to 58x64 by the dominant color per cell, palette snapped to the GDD colors (mint #00EC97, cyan #22D3EE, gold #F5C542, soil #6B4A2F) plus metal and straw tones. v2 = same sprite recolored (shinier chrome, brighter LEDs). | AI-generated, used in NEARvest by its creator |
 | `web/src/art/tanibot.tsx` (animation layers for the sprite above, drones, basket, plasma hoe) | Drones, basket and hoe: original pixel art drawn in code | Part of this repo (MIT) |
 | `web/src/art/darto.tsx` (Mr. Darto full figure with hologram glasses, hover cart) | Original pixel art drawn in code | Part of this repo (MIT) |
-| `web/src/art/backdrop.tsx` (sky phases, stars, sun/moon, clouds, volcanoes, joglo houses with solar panels, windmill, bamboo greenhouse, lanterns, rice terraces) | Original vector pixel art drawn in code | Part of this repo (MIT) |
+| **Garden backdrop (village of Tandur, day and night)**: `web/public/assets/bg/bg-day.png`, `bg-night.png` (240x135 each) | **Made with ChatGPT (AI image generator) at Ardian's request** (sources: `docs/art-source/bg-day-ai.png`, `bg-night-ai.png`, 1672x941, same composition). Converted by Claude Code on 2026-11-05 with `tools/pixelize` (`--keep-bg --colors 64`): dominant color per 6.97 px cell, a 64-color median-cut palette with the closest colors snapped exactly to the GDD colors (leaf, soil, mint, cyan, gold). | AI-generated, used in NEARvest by its creator |
+| `web/src/art/backdrop.tsx` (day/night cross-fade, dawn/dusk tint, passing drones, drone LEDs, lantern and hologram glow, waterfall shimmer, volcano smoke) | Animation overlays: original pixel art drawn in code | Part of this repo (MIT). The earlier code-drawn village backdrop was replaced on 2026-11-05 (see git history). |

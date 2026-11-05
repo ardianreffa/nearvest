@@ -19,9 +19,14 @@ export interface SceneFx {
   tree: TreeView | null;
 }
 
+// Plots sit on the brown ground at the bottom of the backdrop, a little toward
+// the middle so the houses on both sides stay visible (keep in sync with .plots).
+const PLOTS_LEFT = 11;
+const PLOTS_WIDTH = 78;
+
 /** Horizontal center of a plot in % of the scene width. */
 export function plotCenter(plot: number): number {
-  return 4 + (92 / 3) * (plot + 0.5);
+  return PLOTS_LEFT + (PLOTS_WIDTH / 3) * (plot + 0.5);
 }
 
 /** TaniBot stands to the right of plots 1-2 and to the left of plot 3. */
@@ -47,7 +52,8 @@ interface Props {
 }
 
 export function GardenScene({ state, selected, onSelect, elapsed, fx, big }: Props) {
-  const px = big ? 4 : 2;
+  // Wide screens draw the backdrop at exactly 3 px per art pixel, so the trees use 3 too.
+  const px = big ? 3 : 2;
   const fraction = 1 - Math.max(0, state.clock.msUntilNextDay - elapsed) / state.clock.dayLengthMs;
   const phase = phaseOf(fraction);
   const version = botVersion(state.player.title);
@@ -56,7 +62,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big }: Pro
 
   return (
     <div class={`scene phase-${phase}`} role="group" aria-label="Your garden">
-      <Backdrop phase={phase} />
+      <Backdrop fraction={fraction} />
 
       <div class="plots">
         {state.plots.map((p) => {
@@ -97,7 +103,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big }: Pro
           <Drone version={version} scale={px} class="idle-drone d1" />
           {version === 2 && <Drone version={version} scale={px} class="idle-drone d2" />}
         </div>
-        <TaniBot version={version} scale={px / 2} working={working} />
+        <TaniBot version={version} scale={big ? 2 : 1} working={working} />
         {fx?.kind === 'harvest' && (
           <div class="basket" key={fx.id}>
             <Pixels rows={BASKET} palette={{ H: '#9A7438', h: '#C9A35A' }} scale={px} />

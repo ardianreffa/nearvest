@@ -1,6 +1,6 @@
 // Dev-only art gallery (http://localhost:5173/preview.html). Not part of the production build.
 import { render } from 'preact';
-import { Backdrop, type Phase } from './art/backdrop';
+import { Backdrop } from './art/backdrop';
 import { DartoFigure, HoverCart } from './art/darto';
 import { Drone, TaniBot } from './art/tanibot';
 import { TreePixels } from './art/trees';
@@ -9,7 +9,8 @@ import './styles.css';
 
 const SPECIES: Species[] = ['mango', 'rambutan', 'durian'];
 const STAGES: Stage[] = ['seed', 'sprout', 'tree', 'fruiting', 'old'];
-const PHASES: Phase[] = ['day', 'dusk', 'night'];
+// Fractions of the village day: 13:00, 17:40 (dusk), 18:20 (dusk), 01:00.
+const PHASES = [6 / 24, 10.67 / 24, 11.33 / 24, 18 / 24];
 
 function Gallery() {
   return (
@@ -46,7 +47,7 @@ function Gallery() {
       <h2>Backdrop</h2>
       {PHASES.map((p) => (
         <div key={p} class="scene preview-scene">
-          <Backdrop phase={p} />
+          <Backdrop fraction={p} />
         </div>
       ))}
     </main>
