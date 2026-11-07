@@ -2,7 +2,7 @@
 # - removes the background with a flood fill from the edges (inner whites stay)
 # - downsamples to ROWS rows using the dominant color of each cell
 # - snaps colors to the game palette (GDD colors + metal/straw/skin tones)
-# Usage: python3 -I tools/pixelize/pixelize.py input.png ROWS out_dir [--keep-bg [--colors N]]
+# Usage: python3 -I tools/pixelize/pixelize.py input.png ROWS out_dir [--keep-bg [--colors N] [--key RRGGBB]]
 # Writes out_dir/sprite.json (rows + palette) and out_dir/preview-x8.png.
 # --keep-bg is for full backgrounds: no background removal, an adaptive palette
 # (median cut, N colors, default 48) whose colors close to the GDD colors are
@@ -35,7 +35,8 @@ def nearest(c): return min(PAL, key=lambda k: dist(c, PAL[k]))
 if keep_bg:
     from background import pixelize_background
     n = int(sys.argv[sys.argv.index('--colors') + 1]) if '--colors' in sys.argv else 48
-    pixelize_background(w, h, px, ROWS, n, out)
+    key = sys.argv[sys.argv.index('--key') + 1] if '--key' in sys.argv else None
+    pixelize_background(w, h, px, ROWS, n, out, tuple(int(key[i:i + 2], 16) for i in (0, 2, 4)) if key else None)
     sys.exit(0)
 else:
     xs = [x for y in range(0, h, 3) for x in range(0, w, 3) if not white(px[y][x])]

@@ -4,6 +4,9 @@
 # 2. A median-cut palette of N colors is built from the cell colors.
 # 3. For each GDD color, the closest palette color (if close) is snapped to it exactly.
 # 4. Writes out_dir/bg.png (1 px per cell), out_dir/preview-x4.png and palette.json.
+# With a key colour (--key FF00FF, a magenta sky to cut out): key pixels and the magenta
+# fringe that the AI paints on the edges of trees and roofs are left out of every cell;
+# a cell that is mostly key becomes transparent, the others take the dominant non-key colour.
 import collections, json
 from png import write_png
 
@@ -19,13 +22,28 @@ def dist(a, b):
     return 2 * dr * dr + 4 * dg * dg + 3 * db * db
 
 
-def dominant(px, x0, y0, x1, y1):
+def keyish(p, key):
+    """The key colour or its fringe: magenta-like (red and blue high, green far below both)."""
+    if key is None:
+        return False
+    r, g, b = p[0], p[1], p[2]
+    return dist(p, key) < 9000 or (r > 120 and b > 110 and g < 0.6 * min(r, b) and abs(r - b) < 110)
+
+
+def dominant(px, x0, y0, x1, y1, key=None, mask=None):
     bins = collections.defaultdict(list)
+    keyed = total = 0
     for y in range(y0, y1):
         row = px[y]
         for x in range(x0, x1):
             p = row[x]
+            total += 1
+            if keyish(p, key) or (mask is not None and mask[y][x]):
+                keyed += 1
+                continue
             bins[(p[0] >> 4, p[1] >> 4, p[2] >> 4)].append(p)
+    if (key is not None or mask is not None) and (keyed * 2 >= total or not bins):
+        return None
     best = max(bins.values(), key=len)
     n = len(best)
     return tuple(sum(p[i] for p in best) // n for i in range(3))
@@ -49,21 +67,25 @@ def median_cut(colors, n):
     return [tuple(sum(c[i] for c in b) // len(b) for i in range(3)) for b in boxes if b]
 
 
-def pixelize_background(w, h, px, rows, ncolors, out):
+def pixelize_background(w, h, px, rows, ncolors, out, key=None, mask=None, crop=None, cols=None):
+    """`mask[y][x]` = True for background pixels (cut out); `crop` = (x0, y0, x1, y1) source box."""
+    ox, oy = (crop[0], crop[1]) if crop else (0, 0)
+    if crop:
+        w, h = crop[2] - crop[0], crop[3] - crop[1]
     cell = h / rows
-    cols = int(round(w / cell))
+    cols = cols or int(round(w / cell))
     cellw = w / cols
     cells = []
     for r in range(rows):
         line = []
         for q in range(cols):
-            x0, y0 = q * cellw, r * cell
+            x0, y0 = ox + q * cellw, oy + r * cell
             line.append(dominant(px, int(x0 + cellw * 0.2), int(y0 + cell * 0.2),
                                  max(int(x0 + cellw * 0.8), int(x0 + cellw * 0.2) + 1),
-                                 max(int(y0 + cell * 0.8), int(y0 + cell * 0.2) + 1)))
+                                 max(int(y0 + cell * 0.8), int(y0 + cell * 0.2) + 1), key, mask))
         cells.append(line)
 
-    pal = median_cut([c for line in cells for c in line], ncolors)
+    pal = median_cut([c for line in cells for c in line if c is not None], ncolors)
     # Snap only the single closest palette color to each GDD color, so shades
     # (sky gradient, foliage) are kept and the GDD colors appear exactly.
     snapped = {}
@@ -80,7 +102,7 @@ def pixelize_background(w, h, px, rows, ncolors, out):
             cache[c] = min(pal, key=lambda p: dist(c, p))
         return cache[c]
 
-    img = [[near(c) + (255,) for c in line] for line in cells]
+    img = [[(0, 0, 0, 0) if c is None else near(c) + (255,) for c in line] for line in cells]
     write_png(f'{out}/bg.png', cols, rows, img)
     Z = 4
     big = []

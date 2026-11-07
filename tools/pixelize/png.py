@@ -1,7 +1,8 @@
 # Minimal PNG reader/writer (8-bit RGB/RGBA, non-interlaced) using only the standard library.
 import struct, zlib
 
-def read_png(path):
+def read_png(path, alpha=False):
+    """Pixels as (r, g, b) tuples, or (r, g, b, a) with alpha=True (a = 255 for RGB files)."""
     data = open(path, 'rb').read()
     assert data[:8] == b'\x89PNG\r\n\x1a\n'
     pos, idat, w = 8, b'', None
@@ -34,7 +35,10 @@ def read_png(path):
                 p = a + b - c; pa, pb, pc = abs(p-a), abs(p-b), abs(p-c)
                 line[x] = (line[x] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
         out[y*stride:(y+1)*stride] = line; prev = line
-    px = [[tuple(out[y*stride + x*bpp: y*stride + x*bpp + 3]) for x in range(w)] for y in range(h)]
+    n = 4 if alpha and bpp == 4 else 3
+    px = [[tuple(out[y*stride + x*bpp: y*stride + x*bpp + n]) for x in range(w)] for y in range(h)]
+    if alpha and bpp == 3:
+        px = [[p + (255,) for p in row] for row in px]
     return w, h, px
 
 def write_png(path, w, h, rgba_rows):
