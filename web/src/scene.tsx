@@ -1,7 +1,7 @@
 // The garden scene: backdrop, three plots, TaniBot standing next to the
 // selected plot, and TaniBot's action animations.
 
-import type { GameState, TreeView } from './api';
+import { loadToken, type GameState, type TreeView } from './api';
 import { Backdrop, phaseOf } from './art/backdrop';
 import { BASKET, botVersion, Drone, HOE, TaniBot } from './art/tanibot';
 import { TreePixels } from './art/trees';
@@ -124,6 +124,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const asleep = !on;
   const askOn = !tb || tb.status === 'failed' || (tb.status === 'ready' && !tb.enabled);
   const flash = useActionBubble(on, tb?.last ?? null);
+  const nudge = useTurnOnNudge(askOn, state);
 
   return (
     <div
@@ -182,9 +183,16 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           {version === 2 && <Drone version={version} scale={px} class="idle-drone d2" />}
         </div>
         {askOn ? (
-          <button class="bot-hint" onClick={onBot}>
-            Turn me on! I'll water, harvest and sell for you automatically.
-          </button>
+          nudge.text && (
+            <div class="bot-hint bot-nudge" role="status" key={nudge.key}>
+              <button class="bot-nudge-text" onClick={onBot}>
+                {nudge.text}
+              </button>
+              <button class="bot-nudge-later" onClick={nudge.notNow}>
+                Not now
+              </button>
+            </div>
+          )
         ) : (
           flash && (
             <button class="bot-hint bot-hint-flash" onClick={onBot} key={flash.id}>
@@ -327,4 +335,110 @@ function useActionBubble(on: boolean, last: { id: number; text: string; at: numb
     return () => clearTimeout(t);
   }, [on, last?.id]);
   return on ? bubble : null;
+}
+
+/** How long the "turn me on" bubble stays, the idle time before it appears, and its minimum spacing. */
+const NUDGE_SHOW_MS = 8_000;
+const NUDGE_IDLE_MS = 20_000;
+const NUDGE_GAP_MS = 3 * 60_000;
+
+/** A short, stable id of the current login (a new login = a new session). */
+function sessionId(): string {
+  const t = loadToken() ?? '';
+  let h = 0;
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0;
+  return String(h >>> 0);
+}
+
+function storage(kind: 'local' | 'session') {
+  try {
+    return kind === 'local' ? localStorage : sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+const SPECIES_LABEL: Record<string, string> = { mango: 'mango', rambutan: 'rambutan', durian: 'durian' };
+
+/**
+ * The friendly "turn me on" bubble while TaniBot is off, without nagging:
+ * once per session after login, and when a tree is thirsty or ripe while the
+ * player has been idle for ~20 s. At most every 3 minutes, gone after ~8 s.
+ * "Not now" hides it until the next login (remembered per account).
+ */
+function useTurnOnNudge(askOn: boolean, state: GameState): { text: string | null; key: number; notNow: () => void } {
+  const account = state.player.accountId;
+  const offKey = `nearvest.botNudgeOff.${account}`;
+  const greetKey = `nearvest.botNudgeGreeted.${account}`;
+  const [shown, setShown] = useState<{ text: string; key: number } | null>(null);
+  const lastShownAt = useRef(0);
+  const lastActivity = useRef(Date.now());
+  const plots = useRef(state.plots);
+  plots.current = state.plots;
+
+  const muted = () => storage('local')?.getItem(offKey) === sessionId();
+
+  // Remember when the player last did something.
+  useEffect(() => {
+    const touch = () => (lastActivity.current = Date.now());
+    const events = ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const;
+    for (const e of events) window.addEventListener(e, touch, { passive: true });
+    return () => {
+      for (const e of events) window.removeEventListener(e, touch);
+    };
+  }, []);
+
+  const show = (text: string) => {
+    lastShownAt.current = Date.now();
+    setShown({ text, key: Date.now() });
+  };
+
+  useEffect(() => {
+    if (!askOn) {
+      setShown(null);
+      return;
+    }
+    const pick = <T,>(list: T[]) => list[Math.floor(Math.random() * list.length)];
+    const check = () => {
+      if (muted()) return;
+      const now = Date.now();
+      if (now - lastShownAt.current < NUDGE_GAP_MS) return;
+      // (a) Once per session after login.
+      const session = storage('session');
+      if (session && session.getItem(greetKey) !== sessionId()) {
+        session.setItem(greetKey, sessionId());
+        show(
+          pick([
+            "Zzz... need a hand? Tap me and I'll water your trees.",
+            "Psst! Switch me on and I'll look after your garden while you're away.",
+            "Hi farmer! I can water, harvest and sell for you. Just tap me.",
+          ]),
+        );
+        return;
+      }
+      // (b) A tree needs care and the player has been idle for a while.
+      if (now - lastActivity.current < NUDGE_IDLE_MS) return;
+      const trees = plots.current.map((p) => p.tree).filter((t): t is TreeView => !!t);
+      const ripe = trees.find((t) => t.ready);
+      const thirsty = trees.find((t) => !t.wateredToday && !t.ready);
+      if (ripe) show(pick(['Ripe fruit! I can harvest and sell it for you.', `Your ${SPECIES_LABEL[ripe.species]} is ripe. Want me to take care of it?`]));
+      else if (thirsty) show(pick([`Your ${SPECIES_LABEL[thirsty.species]} looks thirsty. Want me to help?`, 'Some trees need water. Tap me and I can do it for you.']));
+    };
+    check();
+    const id = setInterval(check, 2000);
+    return () => clearInterval(id);
+  }, [askOn, account]);
+
+  // Gone by itself after ~8 seconds.
+  useEffect(() => {
+    if (!shown) return;
+    const t = setTimeout(() => setShown(null), NUDGE_SHOW_MS);
+    return () => clearTimeout(t);
+  }, [shown?.key]);
+
+  const notNow = () => {
+    storage('local')?.setItem(offKey, sessionId());
+    setShown(null);
+  };
+  return { text: askOn && shown ? shown.text : null, key: shown?.key ?? 0, notNow };
 }

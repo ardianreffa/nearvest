@@ -4085,3 +4085,39 @@ button.balance:focus-visible {
   width: 100% !important;
   height: 100% !important;
 }
+
+/* "Turn me on" bubble: a text button plus a small "Not now"; fades out after ~8 s. */
+.bot-nudge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
+  animation: bot-hint-in 0.5s ease-out forwards, bot-hint-out 0.6s ease-in 7.4s forwards;
+}
+
+.bot-nudge-text {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: center;
+}
+
+.bot-nudge-later {
+  font: inherit;
+  font-size: 10px;
+  color: var(--ink-soft);
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.bot-nudge-later:hover,
+.bot-nudge-later:focus-visible {
+  color: var(--ink);
+}

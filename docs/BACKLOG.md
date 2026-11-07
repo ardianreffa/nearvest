@@ -30,6 +30,8 @@ Draft numbers live in `server/src/rules.ts` and are tuned in testing. Sounds and
 **8. How to play + tutorial**
 - 4 short pages with Back / Next / Skip and page dots; bigger text on laptop.
 - Build it together with the interactive tutorial (same TaniBot design).
+- Tutorial: introduce TaniBot right AFTER the player's first manual harvest (the player learns the loop by hand first, then meets the helper).
+- Try as Judge: the sample garden starts with TaniBot already ON (budget and Log visible right away).
 
 ## Important
 

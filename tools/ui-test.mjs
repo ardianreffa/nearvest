@@ -93,6 +93,16 @@ try {
       console.log('asleep bubble:', await evaluate(`document.querySelector('.bot-hint')?.innerText`), '| chip:', await evaluate(`document.querySelector('.bot-status')?.innerText`), '| zzz:', await evaluate(`!!document.querySelector('.bot-zzz')`));
       console.log('TaniBot shortcut:', await evaluate(`!!document.querySelector('.rail-bot, .tab-bot, .drawer-bot')`), '| dot:', await evaluate(`document.querySelector('.bot-dot')?.className`));
       console.log('seed cards:', await evaluate(`[...document.querySelectorAll('.seed-card')].map(c => c.innerText.replace(/\\n/g, ' / ')).join(' || ')`));
+      // "Not now": the bubble goes away and does not come back after a reload in the same session.
+      await clickText('Not now');
+      await sleep(300);
+      const goneNow = await evaluate(`!document.querySelector('.bot-nudge')`);
+      await send('Page.reload');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden after reload');
+      await sleep(4500);
+      console.log('Not now: hidden', goneNow, '| still hidden after reload:', await evaluate(`!document.querySelector('.bot-nudge')`));
+      await evaluate(`document.querySelectorAll('.plot')[0].click()`);
+      await sleep(400);
       await clickText('Durian', '.seed-card');
       await waitFor(`!!document.querySelector('.plot .tree')`, 'planted');
       await clickText('Water');
