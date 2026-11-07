@@ -608,12 +608,6 @@ button {
   inset: 0;
 }
 
-.bg-fill-dusk {
-  background: #ce617c; /* top row of the dusk image */
-  opacity: var(--dusk);
-  transition: opacity 1s linear;
-}
-
 .bg-fill-night {
   background: #001941; /* top row of the night image */
   opacity: var(--night);
@@ -679,6 +673,8 @@ button {
 
 .puff.small {
   animation-duration: 3.6s;
+  /* Steam from the geothermal station: soft round wisps. */
+  background: radial-gradient(circle, rgba(245, 248, 252, 0.95) 0 45%, rgba(245, 248, 252, 0) 72%);
 }
 
 /* Waterfalls in the rice terraces: light bands sliding down. */
@@ -7009,5 +7005,256 @@ button.chip:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .journey-step .tanibot {
     animation: none;
+  }
+}
+
+
+/* =====================================================================
+   Layered backdrop (art/backdrop.tsx): code sky behind the village, train,
+   rotors, Arena ring, hotspots (art/hotspots.tsx)
+   ===================================================================== */
+
+/* Phones: the sky above the art is the top band of the code sky. */
+.bg-sky-fill {
+  position: absolute;
+  inset: 0;
+}
+
+.sky-bands {
+  position: absolute;
+  inset: 0;
+}
+
+.bg-blur .sky-bands {
+  filter: blur(6px);
+}
+
+.sky-back,
+.sky-front {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sky-sun .sun-low {
+  position: absolute;
+  inset: 0;
+}
+
+.sky-moon {
+  filter: drop-shadow(0 0 3px rgba(244, 241, 208, 0.8));
+}
+
+/* Clouds: white by day, warm at dusk, dim at night. */
+.cloud {
+  filter: sepia(calc(var(--dusk) * 0.7)) brightness(calc(1 - 0.55 * var(--night)));
+}
+
+/* The farm-tower village sits on a transparent sky now: smoke and steam stay crisp pixels. */
+.bg-img {
+  image-rendering: pixelated;
+}
+
+/* Wind turbine rotors turning on their poles (in steps, like pixel animation). */
+.rotor {
+  position: absolute;
+  animation: rotor-turn 7s steps(36) infinite;
+  pointer-events: none;
+}
+
+.rotor img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+@keyframes rotor-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The monorail train: shows only on its rail; one run about every 2 minutes. */
+.train-clip {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.train {
+  position: absolute;
+  left: -40%;
+  top: 0;
+  transform-origin: 50% 100%;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-delay: 20s;
+  animation-fill-mode: backwards;
+}
+
+.train img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.train .train-night {
+  opacity: var(--night);
+  transition: opacity 1s linear;
+}
+
+/* The Arena's mint ring glows, stronger after dark. */
+.arena-ring {
+  border-radius: 50%;
+  box-shadow: 0 0 4px 1px rgba(0, 236, 151, 0.7), inset 0 0 3px rgba(0, 236, 151, 0.6);
+  opacity: calc(0.35 + 0.5 * var(--night));
+  animation: arena-pulse 3s ease-in-out infinite;
+}
+
+@keyframes arena-pulse {
+  50% {
+    opacity: calc(0.6 + 0.4 * var(--night));
+  }
+}
+
+/* Hotspots: under the plots and TaniBot. On laptops the stage lets clicks through except on plots. */
+.stage {
+  pointer-events: none;
+}
+
+/* A plot is a tall button, but only its bed and its tree (with the labels) take the click:
+   the empty space above lets the village hotspots be clicked. */
+.plots,
+.plot {
+  pointer-events: none;
+}
+
+.plot-art,
+.plot .soil {
+  pointer-events: auto;
+}
+
+.hotspots {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hs-cart {
+  position: absolute;
+  pointer-events: none;
+  animation: cart-park 3.2s ease-in-out infinite;
+}
+
+.hs-cart .hover-cart {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative;
+}
+
+.hs-cart svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes cart-park {
+  50% {
+    transform: translateY(-4%);
+  }
+}
+
+.hotspot {
+  position: absolute;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.hs-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #fff;
+  background: rgba(10, 29, 20, 0.88);
+  border: 1px solid var(--mint);
+  border-radius: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.hs-village .hs-label {
+  bottom: auto;
+  top: calc(100% + 4px);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hotspot:hover,
+  .hotspot:focus-visible {
+    outline: 1px solid rgba(165, 255, 220, 0.95);
+    box-shadow: 0 0 6px 1px rgba(0, 236, 151, 0.75), inset 0 0 8px rgba(0, 236, 151, 0.35);
+  }
+
+  .hotspot:hover .hs-label,
+  .hotspot:focus-visible .hs-label {
+    opacity: 1;
+  }
+}
+
+.hotspot.active {
+  outline: 1px solid rgba(165, 255, 220, 0.95);
+  box-shadow: 0 0 6px 1px rgba(0, 236, 151, 0.75);
+}
+
+/* Phones: a bubble with the name and an Open button. */
+.hs-bubble {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 140px;
+  max-width: 200px;
+  padding: 8px 10px;
+  color: #1b1b2f;
+  font-size: 12px;
+  text-align: center;
+  background: #fffaf0;
+  border: 2px solid #000;
+  box-shadow: 0 0 0 2px var(--mint), 3px 3px 0 rgba(0, 0, 0, 0.35);
+  border-radius: var(--r-panel);
+  corner-shape: var(--corner);
+  transform: translate(-50%, calc(-100% - 6px));
+  pointer-events: auto;
+  animation: coach-in 160ms ease-out;
+}
+
+.hs-bubble.below {
+  transform: translate(-50%, 6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotor,
+  .hs-cart,
+  .arena-ring {
+    animation: none;
+  }
+
+  .train-clip {
+    display: none;
   }
 }

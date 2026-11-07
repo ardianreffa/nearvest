@@ -3,6 +3,7 @@
 
 import { loadToken, type GameState, type TreeView } from './api';
 import { Backdrop, lockedFraction, phaseOf } from './art/backdrop';
+import type { Place } from './art/hotspots';
 import { BASKET, Drone, droneCount, HOE, TaniBot, TANIBOT_H, TANIBOT_W, tierOf, tierRank, type Tier } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import { leafBurst } from './fx';
@@ -67,9 +68,11 @@ interface Props {
   /** Full-window garden with whole-pixel scale (laptop / PC). */
   immersive?: Immersive;
   onBot?: () => void;
+  /** Hotspots in the village: open the Shop, the Market or the Village panel. */
+  onPlace?: (p: Place) => void;
 }
 
-export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive, onBot }: Props) {
+export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive, onBot, onPlace }: Props) {
   // Trees use the same pixel size as the backdrop: 2 on phones, 3 on the wide
   // layout, k in the immersive layout.
   const px = immersive ? immersive.k : big ? 3 : 2;
@@ -102,7 +105,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
       aria-label="Your garden"
       style={immersive ? { '--k': String(immersive.k), '--art-left': `${immersive.artLeft}px`, '--art-bottom': `${immersive.artBottom}px` } : undefined}
     >
-      <Backdrop fraction={fraction} blurFill={!!immersive} hd={!!immersive} />
+      <Backdrop fraction={fraction} blurFill={!!immersive} hd={!!immersive} onPlace={onPlace} />
 
       <Stage immersive={immersive}>
       <div class="plots">

@@ -527,6 +527,7 @@ export function App() {
       big={wide}
       immersive={immersive}
       onBot={openBot}
+      onPlace={(p) => (playSound('click'), wide ? openSide(p) : setTab(p))}
     />
   );
   const panelFor = (t: SideTab) =>

@@ -1,6 +1,7 @@
 // The garden: three plots, the selected plot's actions and the daily check-in.
 
 import { useRef, useState } from 'preact/hooks';
+import type { Place } from './art/hotspots';
 import type { GameState, Quality, ServerConfig } from './api';
 import { floatText } from './fx';
 import { seasonPayout } from './qty';
@@ -48,9 +49,10 @@ interface Props {
   immersive?: Immersive;
   /** Opens the TaniBot window (click on TaniBot). */
   onBot?: () => void;
+  onPlace?: (p: Place) => void;
 }
 
-export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, big, immersive, onBot }: Props) {
+export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, big, immersive, onBot, onPlace }: Props) {
   const [selected, setSelected] = useState(0);
   const [fx, setFx] = useState<SceneFx | null>(null);
   const fxTimer = useRef<number>(0);
@@ -91,7 +93,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
   if (immersive) {
     return (
       <>
-        <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} immersive={immersive} onBot={onBot} />
+        <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} immersive={immersive} onBot={onBot} onPlace={onPlace} />
         <div class="hud-bar" role="region" aria-label="Selected plot">
           {panel}
         </div>
@@ -102,7 +104,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
   return (
     <div class="garden-screen">
 
-      <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} onBot={onBot} />
+      <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} onBot={onBot} onPlace={onPlace} />
 
       {panel}
       {!plot.tree && !plot.locked && state.seeds.length === 0 && (

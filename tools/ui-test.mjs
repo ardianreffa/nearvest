@@ -8,6 +8,7 @@
 // Market rows (needs an EXISTING dev garden with fruit; fake-chain server): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --market=<devUser> [width] [height]
 // Fullscreen layout at several screen sizes (EXISTING dev garden): node tools/ui-test.mjs <outDir> --fullscreen=<devUser>
 // TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> NEXT_XP=<xp> to raise its XP live; UI_URL=...?record=1 checks that no share card opens): node tools/ui-test.mjs <outDir> --tiers=<devUser>
+// Village train frames, hotspot hit test and hover (EXISTING dev garden, no changes): node tools/ui-test.mjs <outDir> --train=<devUser> [w] [h]
 // Garden scene of an EXISTING dev garden (no changes): UI_URL='http://localhost:5173/?time=dusk' node tools/ui-test.mjs <outDir> --scene=<devUser> [w] [h]
 // Tutorial on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tutorial=<newDevUser> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
@@ -327,6 +328,38 @@ try {
       console.log('card image size:', await evaluate(`(() => { const i = document.querySelector('.share-card img'); return i.naturalWidth + 'x' + i.naturalHeight + ' shown ' + Math.round(i.getBoundingClientRect().width) + 'px'; })()`), '| buttons:', await evaluate(`[...document.querySelectorAll('.share-dialog button, .share-dialog a.btn, [aria-label^="Share"] button')].map(b => b.innerText).join(' / ')`));
     });
     throw Object.assign(new Error('cards done'), { done: true });
+  }
+  if (name.startsWith('--train=')) {
+    await step('village: train frames, rotors, hotspots (EXISTING dev garden, no changes)', async () => {
+      await typeInto('#dev-user', name.slice('--train='.length));
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      await evaluate(`document.querySelector('.drawer-close')?.click()`);
+      await sleep(800);
+      // Train frames: jump the 120 s cycle to points of the 16 s run.
+      for (const t of [2, 5, 8, 11, 14]) {
+        await evaluate(`(() => { const tr = document.querySelector('.train'); tr.style.animationDelay = '-${t}s'; tr.style.animationPlayState = 'paused'; })()`);
+        await sleep(250);
+        console.log(`train at ${t}s:`, await evaluate(`(() => { const r = document.querySelector('.train').getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); })()`));
+        await screenshot(`train-${t}s`);
+      }
+      await evaluate(`(() => { const tr = document.querySelector('.train'); tr.style.animationDelay = ''; tr.style.animationPlayState = ''; })()`);
+      // Hotspots: what is on top at each hotspot's centre (must be the hotspot), and at each plot (must be the plot).
+      console.log('hit test:', await evaluate(`[...document.querySelectorAll('.hotspot')].map(h => { const r = h.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return h.className.split(' ')[1] + '=' + (e === h ? 'ok' : (e?.className || e?.tagName)); }).join(' | ')`));
+      console.log('plots still win:', await evaluate(`[...document.querySelectorAll('.plot')].map(p => { const r = p.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.bottom - 6); return p.contains(e) ? 'ok' : (e?.className || e?.tagName); }).join(' | ')`));
+      const hs = await evaluate(`(() => { const h = document.querySelector('.hs-shop'); const r = h.getBoundingClientRect(); for (let y = r.top + 4; y < r.bottom; y += 6) for (let x = r.left + 4; x < r.right; x += 6) if (document.elementFromPoint(x, y) === h) return [x, y]; return [r.left + 4, r.top + 4]; })()`);
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hs[0], y: hs[1] });
+      await sleep(300); await screenshot('hover-shop');
+      await evaluate(`document.querySelector('.hs-arena').click()`);
+      await sleep(300); await screenshot('arena-bubble');
+      console.log('arena bubble:', await evaluate(`document.querySelector('.hs-bubble')?.innerText.replace(/\\n/g, ' ') ?? 'none'`));
+      await evaluate(`document.querySelector('.hs-market').click()`);
+      await sleep(500);
+      console.log('after market click:', await evaluate(`document.querySelector('.hs-bubble')?.innerText.replace(/\\n/g, ' ') ?? 'no bubble'`), '| market open:', await evaluate(`!!document.querySelector('.market-rows')`));
+      await screenshot('after-market');
+    });
+    throw Object.assign(new Error('train done'), { done: true });
   }
   if (name.startsWith('--scene=')) {
     await step('garden scene (EXISTING dev garden; add ?time=day|dusk|night to UI_URL)', async () => {

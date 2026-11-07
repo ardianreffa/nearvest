@@ -1,20 +1,23 @@
-// Garden backdrop: the Solarpunk village of Tandur from three AI images (ChatGPT,
-// made at Ardian's request, see docs/ASSETS.md), pixelized to 240x135 with
-// tools/pixelize. Day, dusk and night (the same village, aligned) are stacked and
-// cross-faded from the village clock (dawn gets a warm tint); the living sky
-// (sun, clouds, birds, stars, meteors, a rare UFO, fireflies) is in sky.tsx. Small code-drawn
-// animations sit on top: passing drones, blinking drone LEDs, lanterns and
-// holograms, shimmering waterfalls and moving volcano smoke.
-// All overlay coordinates are in art pixels (the 240x135 image).
+// Garden backdrop, in layers (back to front):
+//   1. the sky, drawn in code (sky.tsx): pixel colour bands, sun, moon, clouds, birds, stars...
+//   2. the village of Tandur: three AI images (ChatGPT, made at Ardian's request, see
+//      docs/ASSETS.md) with the sky cut out: day, dusk and night, the same drawing, cross-faded
+//      from the village clock;
+//   3. moving parts: the monorail train along its rail, the two wind turbine rotors;
+//   4. code effects: volcano smoke, geothermal steam, waterfalls, lanterns, holograms, the
+//      Arena's mint ring, passing delivery drones, fireflies;
+//   5. hotspots (hotspots.tsx): Shop stall, Mr. Darto's cart, the farm tower, a friend's house,
+//      the Arena.
+// All coordinates are art pixels of the 240x135 phone image (the laptop image is 480x270).
 
-import { Sky } from './sky';
 import { Drone } from './tanibot';
+import { Hotspots, type Place } from './hotspots';
+import { at, SkyBack, SkyBands, SkyFront } from './sky';
+import { skyBands } from './sky-colors';
+
 export type Phase = 'dawn' | 'day' | 'dusk' | 'night';
 
-const ART_W = 240;
-const ART_H = 135;
-
-function hourOf(fractionOfDay: number): number {
+export function hourOf(fractionOfDay: number): number {
   return (7 + fractionOfDay * 24) % 24;
 }
 
@@ -29,20 +32,15 @@ export function phaseOf(fractionOfDay: number): Phase {
 }
 
 /**
- * How much of the dusk and night images show (0..1) and the warm dawn tint.
- * Day -> dusk 16:00-17:00, dusk until 18:30, dusk -> night 18:30-19:30, night -> day 05:00-07:00.
+ * How much of the dusk and night villages show (0..1, stacked: day, dusk, night) and the warm tint.
+ * Day -> dusk 16:00-17:00, dusk -> night 18:30-19:30; at dawn night -> dusk 05:00-06:00 and
+ * dusk -> day 06:00-07:00 (the warm village is the sunrise too).
  */
 export function skyMix(fractionOfDay: number): { night: number; dusk: number; tint: number } {
   const hour = hourOf(fractionOfDay);
   const ramp = (from: number, to: number) => Math.min(1, Math.max(0, (hour - from) / (to - from)));
-  if (hour >= 5 && hour < 7) {
-    const t = ramp(5, 7);
-    return { night: 1 - t, dusk: 0, tint: Math.sin(Math.PI * t) };
-  }
-  if (hour >= 16 && hour < 19.5) {
-    const dusk = ramp(16, 17);
-    return { night: ramp(18.5, 19.5), dusk, tint: 0.35 * Math.sin(Math.PI * dusk) };
-  }
+  if (hour >= 5 && hour < 7) return { night: 1 - ramp(5, 6), dusk: 1 - ramp(6, 7), tint: 0 };
+  if (hour >= 16 && hour < 19.5) return { night: ramp(18.5, 19.5), dusk: ramp(16, 17), tint: 0 };
   return { night: hour >= 7 && hour < 16 ? 0 : 1, dusk: 0, tint: 0 };
 }
 
@@ -59,94 +57,153 @@ export function lockedFraction(search: string): number | null {
   if (!t) return null;
   if (t in TIME_LOCK) return TIME_LOCK[t];
   const hour = Number(t);
-  return Number.isFinite(hour) && hour >= 0 && hour < 24 ? (((hour - 7 + 24) % 24) / 24) : null;
+  return Number.isFinite(hour) && hour >= 0 && hour < 24 ? ((hour - 7 + 24) % 24) / 24 : null;
 }
 
-/** Absolute position of a box given in art pixels. */
-function at(x: number, y: number, w: number, h: number) {
-  return {
-    left: `${(x / ART_W) * 100}%`,
-    top: `${(y / ART_H) * 100}%`,
-    width: `${(w / ART_W) * 100}%`,
-    height: `${(h / ART_H) * 100}%`,
-  };
-}
-
-// Drone LEDs, lanterns, holograms and waterfalls as they sit in the image.
-const DRONE_LEDS = [
-  [81, 17],
-  [134, 15],
-  [149, 11],
-  [183, 11],
-];
+// Effects as they sit in the new village image.
 const LANTERNS = [
-  [18, 56, 5, 6],
-  [84, 75, 4, 5],
-  [183, 69, 5, 5],
+  [19, 56, 5, 6],
+  [83, 77, 4, 5],
+  [184, 69, 5, 6],
 ];
 const HOLOGRAMS = [
-  [21, 65, 9, 19],
-  [171, 65, 9, 14],
-  [220, 73, 16, 15],
+  [20, 71, 9, 13],
+  [172, 67, 8, 13],
+  [223, 74, 11, 14],
 ];
 const FALLS = [
   [115, 91, 5, 6],
-  [138, 80, 6, 8],
-  [157, 86, 7, 12],
-  [207, 92, 8, 6],
+  [142, 82, 4, 5],
+  [158, 88, 5, 9],
+  [209, 94, 6, 3],
 ];
+/** Volcano smoke (big puffs) and the geothermal station's steam (small). */
 const SMOKE = [
-  { x: 108, y: 14, d: 0 },
-  { x: 111, y: 14, d: 1.3 },
-  { x: 106, y: 14, d: 2.6 },
-  { x: 110, y: 14, d: 3.9 },
-  { x: 119, y: 23, d: 0.6, small: true },
-  { x: 124, y: 27, d: 2.1, small: true },
+  { x: 108, y: 13, d: 0 },
+  { x: 111, y: 13, d: 1.3 },
+  { x: 106, y: 13, d: 2.6 },
+  { x: 110, y: 13, d: 3.9 },
+  { x: 117, y: 31, d: 0.6, small: true },
+  { x: 117, y: 31, d: 2.4, small: true },
+  { x: 124, y: 33, d: 1.5, small: true },
+  { x: 124, y: 33, d: 3.3, small: true },
 ];
-// A few stars for the extra sky above the image on phones.
-const STARS = Array.from({ length: 14 }, (_, i) => ({ x: (i * 41 + 7) % 100, y: (i * 29) % 90, d: (i % 4) * 0.6 }));
 
+// The monorail: top of the rail (where the train runs) from its left end to behind the palm.
+const RAIL: [number, number][] = [
+  [123.5, 63.5],
+  [145, 58.5],
+  [165, 55],
+  [185, 51.5],
+  [200, 49],
+  [215, 47.5],
+  [228, 46.8],
+];
+/** The train shows only on the rail: from its left end to the palm on the right. */
+const TRAIN_CLIP = { x: 122, y: 28, w: 103, h: 40 };
+const TRAIN_W = { sd: 49, hd: 53.5 };
+const TRAIN_H = { sd: 5, hd: 5.5 };
+
+function railY(x: number): { y: number; angle: number } {
+  const pts = RAIL;
+  let i = 0;
+  if (x <= pts[0][0]) i = 0;
+  else if (x >= pts[pts.length - 1][0]) i = pts.length - 2;
+  else while (pts[i + 1][0] < x) i++;
+  const [x0, y0] = pts[i];
+  const [x1, y1] = pts[i + 1];
+  const slope = (y1 - y0) / (x1 - x0);
+  return { y: y0 + slope * (x - x0), angle: (Math.atan(slope) * 180) / Math.PI };
+}
 
 /**
- * `hd` uses the 480x270 versions (laptop immersive mode, drawn at a whole or
- * half number of px per pixel); phones use the 240x135 ones.
+ * Keyframes of one train run every TRAIN_CYCLE seconds: the train's bottom centre follows the
+ * rail from out of sight at the left end to out of sight behind the palm, tilting with the curve.
  */
-export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction: number; blurFill?: boolean; hd?: boolean }) {
-  const daySrc = hd ? '/assets/bg/bg-day-hd.png' : '/assets/bg/bg-day.png';
-  const nightSrc = hd ? '/assets/bg/bg-night-hd.png' : '/assets/bg/bg-night.png';
-  const duskSrc = hd ? '/assets/bg/bg-dusk-hd.png' : '/assets/bg/bg-dusk.png';
+const TRAIN_CYCLE = 120;
+const TRAIN_RUN = 16;
+function trainKeyframes(w: number): string {
+  const start = TRAIN_CLIP.x - w / 2 - 1;
+  const end = TRAIN_CLIP.x + TRAIN_CLIP.w + w / 2 + 1;
+  const run = (TRAIN_RUN / TRAIN_CYCLE) * 100;
+  const steps = 14;
+  const frames: string[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const x = start + ((end - start) * i) / steps;
+    const { y, angle } = railY(x);
+    const left = ((x - TRAIN_CLIP.x) / TRAIN_CLIP.w) * 100;
+    const top = ((y - TRAIN_CLIP.y) / TRAIN_CLIP.h) * 100;
+    frames.push(`${((run * i) / steps).toFixed(3)}% { left: ${left.toFixed(2)}%; top: ${top.toFixed(2)}%; transform: translate(-50%, -100%) rotate(${angle.toFixed(2)}deg); }`);
+  }
+  const last = frames[frames.length - 1].replace(/^[\d.]+%/, '100%');
+  return frames.join('\n') + '\n' + last;
+}
+const TRAIN_CSS = `@keyframes train-run-sd {\n${trainKeyframes(TRAIN_W.sd)}\n}\n@keyframes train-run-hd {\n${trainKeyframes(TRAIN_W.hd)}\n}`;
+
+/** Wind turbine rotors on the two poles on the right (hub positions), turning at their own pace. */
+const ROTORS = [
+  { x: 207.5, y: 25, size: 15, speed: 7 },
+  { x: 228, y: 33, size: 13, speed: 9.5 },
+];
+
+/**
+ * `hd` uses the 480x270 versions (laptop immersive mode, drawn at a whole or half number of
+ * px per pixel); phones use the 240x135 ones. `onPlace` opens a panel from a hotspot.
+ */
+export function Backdrop({ fraction, blurFill = false, hd = false, onPlace }: { fraction: number; blurFill?: boolean; hd?: boolean; onPlace?: (p: Place) => void }) {
+  const suf = hd ? '-hd' : '';
+  const src = (v: string) => `/assets/bg/village-${v}${suf}.png`;
+  const hour = hourOf(fraction);
   const { night, dusk, tint } = skyMix(fraction);
   const vars = {
     '--night': night.toFixed(3),
     '--dusk': dusk.toFixed(3),
-    '--day': Math.max(0, 1 - night - dusk).toFixed(3),
+    '--day': ((1 - dusk) * (1 - night)).toFixed(3),
     '--tint': tint.toFixed(3),
   };
+  const g = hd ? 'hd' : 'sd';
 
   return (
-    <div class="backdrop" style={vars} aria-hidden="true">
-      <div class="bg-fill bg-fill-dusk" />
-      <div class="bg-fill bg-fill-night" />
+    <div class="backdrop" style={vars} aria-hidden={onPlace ? undefined : 'true'}>
+      <style>{TRAIN_CSS}</style>
       {blurFill && (
         // Full-window layout: whatever the sharp art does not cover shows a blurred copy of it.
         <div class="bg-blur">
-          <img src={daySrc} alt="" />
-          <img class="bg-img-dusk" src={duskSrc} alt="" />
-          <img class="bg-img-night" src={nightSrc} alt="" />
+          <SkyBands hour={hour} />
+          <img src={src('day')} alt="" />
+          <img class="bg-img-dusk" src={src('dusk')} alt="" />
+          <img class="bg-img-night" src={src('night')} alt="" />
         </div>
       )}
-      <div class="bg-stars">
-        {STARS.map((s, i) => (
-          <i key={i} style={{ left: `${s.x}%`, top: `${s.y}%`, animationDelay: `${s.d}s` }} />
-        ))}
-      </div>
+      {/* Above the art on phones: the top band of the sky. */}
+      <div class="bg-sky-fill" style={{ background: skyBands(hour)[0] }} />
 
       <div class="bg-art">
-        <img class="bg-img" src={daySrc} alt="" />
-        <img class="bg-img bg-img-dusk" src={duskSrc} alt="" />
-        <img class="bg-img bg-img-night" src={nightSrc} alt="" />
+        <SkyBack hour={hour} />
+        <img class="bg-img" src={src('day')} alt="" />
+        <img class="bg-img bg-img-dusk" src={src('dusk')} alt="" />
+        <img class="bg-img bg-img-night" src={src('night')} alt="" />
 
         <div class="bg-fx">
+          {ROTORS.map((r, i) => (
+            <span key={i} class="rotor" style={{ ...at(r.x - r.size / 2, r.y - r.size / 2, r.size, r.size), animationDuration: `${r.speed}s` }}>
+              <img src={`/assets/bg/rotor${suf}.png`} alt="" />
+            </span>
+          ))}
+          <div class="train-clip" style={at(TRAIN_CLIP.x, TRAIN_CLIP.y, TRAIN_CLIP.w, TRAIN_CLIP.h)}>
+            <span
+              class="train"
+              style={{
+                width: `${(TRAIN_W[g] / TRAIN_CLIP.w) * 100}%`,
+                height: `${(TRAIN_H[g] / TRAIN_CLIP.h) * 100}%`,
+                animationName: `train-run-${g}`,
+                animationDuration: `${TRAIN_CYCLE}s`,
+              }}
+            >
+              <img src={`/assets/bg/train-day${suf}.png`} alt="" />
+              <img class="train-night" src={`/assets/bg/train-night${suf}.png`} alt="" />
+            </span>
+          </div>
           {SMOKE.map((s, i) => (
             <i key={i} class={`puff${s.small ? ' small' : ''}`} style={{ ...at(s.x, s.y, s.small ? 2 : 4, s.small ? 2 : 4), animationDelay: `${s.d}s` }} />
           ))}
@@ -159,12 +216,7 @@ export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction:
           {LANTERNS.map(([x, y, w, h], i) => (
             <i key={i} class="lamp" style={{ ...at(x - 2, y - 2, w + 4, h + 4), animationDelay: `${i * 0.7}s` }} />
           ))}
-          {DRONE_LEDS.map(([x, y], i) => (
-            <i key={i} class="led" style={{ ...at(x, y, 1, 1), animationDelay: `${i * 0.4}s` }} />
-          ))}
-        </div>
-        <Sky />
-        <div class="bg-fx">
+          <i class="arena-ring" style={at(100, 54, 33, 6)} />
           {/* Quadcopters crossing the sky, each with a small shadow sliding over the fields. */}
           <div class="flyby f1">
             <span style={at(0, 30, 10, 5)}>
@@ -179,7 +231,9 @@ export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction:
             <i class="flyby-shadow" style={at(2, 99, 6, 1.5)} />
           </div>
         </div>
+        <SkyFront />
         <div class="bg-night-shade" />
+        {onPlace && <Hotspots onPlace={onPlace} />}
       </div>
       {blurFill && <div class="bg-soil-ext" />}
 
