@@ -598,7 +598,6 @@ button {
   --night: 0;
   --dusk: 0;
   --day: 1;
-  --village: 1;
   --tint: 0;
   background: #27c5fd; /* top row of the day image, fills the sky above it on phones */
   overflow: hidden;
@@ -610,7 +609,7 @@ button {
 }
 
 .bg-fill-dusk {
-  background: #ba7b4e; /* top row of the dusk image */
+  background: #ce617c; /* top row of the dusk image */
   opacity: var(--dusk);
   transition: opacity 1s linear;
 }
@@ -658,12 +657,6 @@ button {
 
 .bg-img-dusk {
   opacity: var(--dusk);
-  transition: opacity 1s linear;
-}
-
-/* Lanterns, holograms, waterfalls and smoke belong to the day/night drawing. */
-.bg-fx-village {
-  opacity: var(--village);
   transition: opacity 1s linear;
 }
 

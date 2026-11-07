@@ -1,6 +1,6 @@
 // Garden backdrop: the Solarpunk village of Tandur from three AI images (ChatGPT,
 // made at Ardian's request, see docs/ASSETS.md), pixelized to 240x135 with
-// tools/pixelize. Day, dusk (the market square at sunset) and night are stacked and
+// tools/pixelize. Day, dusk and night (the same village, aligned) are stacked and
 // cross-faded from the village clock (dawn gets a warm tint); the living sky
 // (sun, clouds, birds, stars, meteors, a rare UFO, fireflies) is in sky.tsx. Small code-drawn
 // animations sit on top: passing drones, blinking drone LEDs, lanterns and
@@ -53,9 +53,13 @@ export const TIME_LOCK: Record<string, number> = {
   night: (23 - 7) / 24,
 };
 
+/** ?time=day / dusk / night, or a village hour such as ?time=16.5 (mid fade from day to dusk). */
 export function lockedFraction(search: string): number | null {
   const t = new URLSearchParams(search).get('time');
-  return t && t in TIME_LOCK ? TIME_LOCK[t] : null;
+  if (!t) return null;
+  if (t in TIME_LOCK) return TIME_LOCK[t];
+  const hour = Number(t);
+  return Number.isFinite(hour) && hour >= 0 && hour < 24 ? (((hour - 7 + 24) % 24) / 24) : null;
 }
 
 /** Absolute position of a box given in art pixels. */
@@ -116,8 +120,6 @@ export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction:
     '--night': night.toFixed(3),
     '--dusk': dusk.toFixed(3),
     '--day': Math.max(0, 1 - night - dusk).toFixed(3),
-    // The village effects below sit on the day/night drawing: hidden while the dusk image shows.
-    '--village': (1 - dusk * (1 - night)).toFixed(3),
     '--tint': tint.toFixed(3),
   };
 
@@ -144,7 +146,7 @@ export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction:
         <img class="bg-img bg-img-dusk" src={duskSrc} alt="" />
         <img class="bg-img bg-img-night" src={nightSrc} alt="" />
 
-        <div class="bg-fx bg-fx-village">
+        <div class="bg-fx">
           {SMOKE.map((s, i) => (
             <i key={i} class={`puff${s.small ? ' small' : ''}`} style={{ ...at(s.x, s.y, s.small ? 2 : 4, s.small ? 2 : 4), animationDelay: `${s.d}s` }} />
           ))}

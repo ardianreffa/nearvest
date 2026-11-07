@@ -2,7 +2,7 @@
 // code as crisp pixel art and animated with CSS only (light on phones, stops with
 // prefers-reduced-motion):
 //   day   - a sun, clouds drifting by, and now and then a flock of birds;
-//   dusk  - a glow on the setting sun of the dusk image, birds flying home to the big tree;
+//   dusk  - a glow on the setting sun of the dusk image, birds flying home to the trees;
 //   night - twinkling stars, a meteor now and then, a very rare UFO, fireflies over the fields.
 // Each layer fades with the village clock (--day / --dusk / --night set by the backdrop).
 
@@ -73,7 +73,15 @@ export function Sky() {
     <div class="sky" aria-hidden="true">
       {/* Day */}
       <div class="sky-day">
-        <span class="sky-sun" style={at(137, 9, 13, 13)}>
+        {/* The sun sinks towards the setting sun of the dusk image as dusk comes (--dusk 0..1). */}
+        <span
+          class="sky-sun"
+          style={{
+            ...at(137, 9, 13, 13),
+            left: `calc(${(137 / ART_W) * 100}% - ${(69 / ART_W) * 100}% * var(--dusk))`,
+            top: `calc(${(9 / ART_H) * 100}% + ${(26 / ART_H) * 100}% * var(--dusk))`,
+          }}
+        >
           <Pixels rows={SUN} palette={SUN_PAL} scale={1} />
         </span>
         <span class="cloud c1" style={at(0, 6, 18, 5)}>
@@ -90,9 +98,9 @@ export function Sky() {
         </div>
       </div>
 
-      {/* Dusk: glow on the image's setting sun, birds flying home to the big tree */}
+      {/* Dusk: glow on the image's setting sun, birds flying home */}
       <div class="sky-dusk">
-        <span class="sun-glow" style={at(180, 15, 29, 29)} />
+        <span class="sun-glow" style={at(62, 22, 26, 26)} />
         <div class="flock-lane" style={at(0, 22, 30, 8)}>
           <Flock cls="home-flock" n={5} pal="#3B1F2B" />
         </div>
