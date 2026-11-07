@@ -7342,3 +7342,17 @@ button.chip:focus-visible {
     max-height: 20px;
   }
 }
+
+
+/* TaniBot window: Auto-plant choice. */
+.bot-autoplant {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.bot-autoplant > .small.muted {
+  flex-basis: 100%;
+}

@@ -76,6 +76,8 @@ export class JudgeService {
     const player = this.game.createPlayer(userId, this.freeName(), ip, true);
     this.game.prefillJudgeGarden(player.id);
     this.tanibot.setup(player.id, { dailyLimit: JUDGE_BOT_LIMIT, budget: JUDGE_BOT_BUDGET, afterAccount: true, holdMs: JUDGE_BOT_HOLD_MS });
+    // Judges see TaniBot replant empty plots (Common / unknown seeds only, never Rare or Gold).
+    this.tanibot.settings(player.id, { autoPlant: 'common' });
     return { token, playerId: player.id, kind: 'new' };
   }
 

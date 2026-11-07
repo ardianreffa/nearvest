@@ -36,11 +36,16 @@ export interface BrainInput {
   trees: BrainTree[];
   fruits: { species: string; quality: string; qty: number }[];
   darto: { species: string; price: number; normal: number }[];
-  shop: { fertilizer: number };
+  shop: { fertilizer: number; mangoSeed: number };
+  /** Auto-plant is on: TaniBot may plant Common / unknown seeds in empty plots. */
+  autoPlant: boolean;
+  emptyPlots: number[];
+  /** Seeds TaniBot may plant (Common or unknown quality, not superior seeds). */
+  plantableSeeds: number;
 }
 
 export type BrainAction =
-  | { action: 'harvest' | 'water' | 'fertilize'; plot: number; reason: string }
+  | { action: 'harvest' | 'water' | 'fertilize' | 'plant'; plot: number; reason: string }
   | { action: 'buy'; item: string; qty: number; reason: string }
   | { action: 'sell'; species: string; quality: string; qty: number; reason: string };
 
@@ -71,10 +76,11 @@ Checklist, in this order:
 2. Water every tree with "watered": false. Never skip this.
 3. Fertilize according to the style. If "fertilizerInStorage" is 0, add {"action":"buy","item":"fertilizer","qty":1} BEFORE the fertilize. Buy at most 1 per round, only if "budgetLeftToday" and "budget" are both at least the shop price.
 4. Sell Common fruit when Mr. Darto's price is at least the normal price (turbo: sell right away). Never sell Rare or Gold fruit: that is the player's decision.
+5. Only if "autoPlant" is true: plant each plot in "emptyPlots" with {"action":"plant","plot":N}. The game picks a Common or unknown seed (never Rare or Gold). If "plantableSeeds" is 0, balanced and turbo may first add {"action":"buy","item":"seed_mango","qty":1}; thrifty plants only seeds already in storage.
 Styles: thrifty = never buy, never fertilize; balanced = fertilize only slow trees (rambutan, durian); turbo = fertilize every growing tree.
 Allowed actions:
-{"action":"harvest","plot":N} {"action":"water","plot":N} {"action":"fertilize","plot":N}
-{"action":"buy","item":"fertilizer","qty":1} {"action":"sell","species":"mango|rambutan|durian","quality":"common","qty":N}
+{"action":"harvest","plot":N} {"action":"water","plot":N} {"action":"fertilize","plot":N} {"action":"plant","plot":N}
+{"action":"buy","item":"fertilizer","qty":1} {"action":"buy","item":"seed_mango","qty":1} {"action":"sell","species":"mango|rambutan|durian","quality":"common","qty":N}
 Every action has "reason": a short English reason for the player, at most 15 words, friendly.
 Use ONLY the data given: "ripe": true means harvest it now; "watered": true means it needs no water. Do not add actions that are not needed.
 Answer ONLY with JSON: {"actions":[...],"summary":"one short English sentence about what you did"}`;
@@ -93,7 +99,7 @@ export function parseDecision(text: string): BrainDecision {
   let malformed = 0;
   for (const a of data.actions.slice(0, 20) as Record<string, unknown>[]) {
     const reason = clean(a?.reason) || 'No reason given.';
-    if (a && (a.action === 'harvest' || a.action === 'water' || a.action === 'fertilize') && Number.isInteger(a.plot)) {
+    if (a && (a.action === 'harvest' || a.action === 'water' || a.action === 'fertilize' || a.action === 'plant') && Number.isInteger(a.plot)) {
       actions.push({ action: a.action, plot: a.plot as number, reason });
     } else if (a && a.action === 'buy' && typeof a.item === 'string' && Number.isInteger(a.qty ?? 1)) {
       actions.push({ action: 'buy', item: a.item, qty: (a.qty as number | undefined) ?? 1, reason });

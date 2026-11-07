@@ -184,7 +184,7 @@ export function TaniBotWindow({
     return linked;
   };
 
-  const settings = (body: { enabled?: boolean; style?: BotStyle }) => run(() => api<TaniBotResponse>('POST', '/api/tanibot/settings', body));
+  const settings = (body: { enabled?: boolean; style?: BotStyle; autoPlant?: 'off' | 'common' }) => run(() => api<TaniBotResponse>('POST', '/api/tanibot/settings', body));
 
   const addBudget = () =>
     run(async () => {
@@ -330,6 +330,22 @@ export function TaniBotWindow({
                   <span>{s.text}</span>
                 </button>
               ))}
+            </div>
+            <div class="bot-autoplant" role="radiogroup" aria-label="Auto-plant">
+              <span class="small">
+                <b>Auto-plant</b>
+              </span>
+              {(
+                [
+                  ['off', 'Off'],
+                  ['common', 'Common seeds only'],
+                ] as const
+              ).map(([v, l]) => (
+                <button key={v} role="radio" aria-checked={bot.autoPlant === v} class={`btn btn-small${bot.autoPlant === v ? ' btn-mint' : ''}`} disabled={busy} onClick={() => settings({ autoPlant: v })}>
+                  {l}
+                </button>
+              ))}
+              <span class="small muted">TaniBot plants Common or unknown seeds in empty plots (a new Tree NFT each). Rare, Gold and superior seeds are always yours to plant.</span>
             </div>
           </Panel>
 

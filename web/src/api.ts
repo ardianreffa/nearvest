@@ -122,6 +122,8 @@ export interface TaniBotView {
   spentToday: number;
   remainingToday: number;
   nextRunAt: number | null;
+  /** Plant empty plots: 'off' or 'common' (Common / unknown seeds only, never Rare or Gold). */
+  autoPlant: 'off' | 'common';
   log: TaniBotLogEntry[];
 }
 

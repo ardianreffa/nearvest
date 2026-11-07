@@ -224,6 +224,8 @@ function migrate(db: DB): void {
   // Tutorial step (game.ts TUTORIAL_STEPS); gardens made before the tutorial existed count as done.
   if (!has('players', 'tutorial_step')) db.exec(`ALTER TABLE players ADD COLUMN tutorial_step INTEGER NOT NULL DEFAULT ${TUTORIAL_DONE}`);
   // Judge gardens: TaniBot waits for the judge's first harvest (at most until this time).
+  // TaniBot auto-plant: 'off' | 'common' (only Common or unknown seeds, never Rare or Gold).
+  if (!has('bots', 'auto_plant')) db.exec("ALTER TABLE bots ADD COLUMN auto_plant TEXT NOT NULL DEFAULT 'off'");
   if (!has('bots', 'hold_until')) db.exec('ALTER TABLE bots ADD COLUMN hold_until INTEGER NOT NULL DEFAULT 0');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS players_google_sub ON players (google_sub)');
   // One wallet = one garden.

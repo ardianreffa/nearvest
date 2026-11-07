@@ -60,6 +60,7 @@ interface BotRow {
   next_run_at: number;
   empty_notice_day: number | null;
   last_ai_at: number;
+  auto_plant: 'off' | 'common';
   created_at: number;
 }
 
@@ -291,8 +292,21 @@ export class TaniBotService {
   }
 
   /** On/off and working style. Off = no runs (the budget stays in the bot's wallet). */
-  settings(playerId: number, s: { enabled?: unknown; style?: unknown }) {
+  settings(playerId: number, s: { enabled?: unknown; style?: unknown; autoPlant?: unknown }) {
     const b = this.mustRow(playerId);
+    if (s.autoPlant !== undefined) {
+      if (s.autoPlant !== 'off' && s.autoPlant !== 'common') throw new GameError('autoPlant must be off or common');
+      if (s.autoPlant !== b.auto_plant) {
+        this.db.prepare('UPDATE bots SET auto_plant = ? WHERE player_id = ?').run(s.autoPlant, playerId);
+        this.log(
+          playerId,
+          'switch',
+          s.autoPlant === 'common'
+            ? 'Auto-plant on: I plant Common or unknown seeds in empty plots. Rare, Gold and superior seeds are always yours to plant.'
+            : 'Auto-plant off: I leave empty plots for you.',
+        );
+      }
+    }
     if (s.enabled !== undefined) {
       if (typeof s.enabled !== 'boolean') throw new GameError('enabled must be true or false');
       this.db.prepare('UPDATE bots SET enabled = ?, next_run_at = ? WHERE player_id = ?').run(s.enabled ? 1 : 0, s.enabled ? 0 : b.next_run_at, playerId);
@@ -352,6 +366,7 @@ export class TaniBotService {
       spentToday: fromMicro(spent),
       remainingToday: fromMicro(Math.max(0, b.daily_limit_micro - spent)),
       nextRunAt: b.enabled === 1 && b.status === 'ready' ? b.next_run_at : null,
+      autoPlant: b.auto_plant,
       log: log.map((l) => ({
         id: l.id,
         action: l.action,
@@ -468,7 +483,10 @@ export class TaniBotService {
         })),
       fruits: st.fruits.filter((f) => f.qty > 0).map((f) => ({ species: f.species, quality: f.quality, qty: f.qty })),
       darto: st.darto.prices.map((p) => ({ species: p.species, price: p.price, normal: p.base })),
-      shop: { fertilizer: SHOP_ITEMS.fertilizer.price },
+      shop: { fertilizer: SHOP_ITEMS.fertilizer.price, mangoSeed: SHOP_ITEMS.seed_mango.price },
+      autoPlant: b.auto_plant === 'common',
+      emptyPlots: st.plots.filter((x) => !x.tree && !x.locked).map((x) => x.plot + 1),
+      plantableSeeds: this.plantableSeeds(playerId).length,
     };
   }
 
@@ -537,7 +555,36 @@ export class TaniBotService {
       return bought;
     };
 
+    let boughtSeed = false;
     for (const a of actions) {
+      if (a.action === 'plant') {
+        const plot = plotOf(a.plot);
+        if (b.auto_plant !== 'common') {
+          ignored.push('plant (auto-plant is off)');
+          continue;
+        }
+        if (!plot || plot.tree) {
+          ignored.push(`plant on plot ${a.plot} (not an empty plot)`);
+          continue;
+        }
+        if (this.plantableSeeds(playerId).length === 0) {
+          if (b.style === 'thrifty' || boughtSeed) {
+            ignored.push(`plant on plot ${a.plot} (no Common seed${b.style === 'thrifty' ? '; Thrifty never buys' : ''})`);
+            continue;
+          }
+          boughtSeed = doIt({ action: 'buy', item: 'seed_mango', qty: 1, reason: a.reason }, () => {
+            const r = game.botBuy(playerId, 'seed_mango', 1, this.limitDay());
+            return [`Bought 1 Mango seed for ${r.costPanen} PANEN from my budget (burned on chain).`, 'Bought a Mango seed!'];
+          });
+          if (!boughtSeed) continue;
+        }
+        doIt(a, () => this.plantOne(playerId, plot.plot));
+        continue;
+      }
+      if (a.action === 'buy' && a.item === 'seed_mango') {
+        // A seed is bought together with the plant action that needs it.
+        continue;
+      }
       if (a.action === 'harvest' || a.action === 'water' || a.action === 'fertilize') {
         const plot = plotOf(a.plot);
         const t = plot?.tree;
@@ -607,6 +654,33 @@ export class TaniBotService {
     return done;
   }
 
+  // ---------- Auto-plant (Common / unknown seeds only) ----------
+
+  /**
+   * Seeds TaniBot may plant: Common or unknown quality, bought or from check-ins. Never Rare or
+   * Gold seeds, and never superior seeds from old trees (their lineage is the player's call).
+   * Mango first (fast and always profitable).
+   */
+  plantableSeeds(playerId: number) {
+    const order: Record<Species, number> = { mango: 0, rambutan: 1, durian: 2 };
+    return this.d.game
+      .state(playerId)
+      .seeds.filter((x) => (x.quality === null || x.quality === 'common') && x.parentTreeId === null)
+      .sort((a, b) => order[a.species] - order[b.species] || a.id - b.id);
+  }
+
+  /** Plants one plantable seed in the plot; returns the Log text, or throws GameError. */
+  private plantOne(playerId: number, plot: number): [string, string] {
+    const seed = this.plantableSeeds(playerId)[0];
+    if (!seed) throw new GameError('no Common or unknown seed in storage');
+    const r = this.d.game.plant(playerId, plot, seed.id);
+    const kind = seed.quality === 'common' ? 'Common' : 'unknown-quality';
+    return [
+      `Plot ${plot + 1} was empty, so I planted a ${kind} ${label(r.species)} seed: a new Tree NFT was minted to you (it turned out ${qualityName[r.quality]}). I never plant Rare, Gold or superior seeds.`,
+      `Planted a ${label(r.species)}!`,
+    ];
+  }
+
   // ---------- Brain: simple rules (fallback when the AI is off or fails) ----------
 
   /**
@@ -647,6 +721,27 @@ export class TaniBotService {
           if (r.kind === 'fruit') return [`${label(r.species)} on plot ${plot.plot + 1} was ripe: harvested 1 ${qualityName[r.quality]} fruit (+${r.xp} XP).`, `Harvested 1 ${label(r.species)}!`];
           return [`The old ${label(r.species)} tree on plot ${plot.plot + 1} gave its superior seed and became a Memorial Tree.`, `Got a superior ${label(r.species)} seed!`];
         });
+      }
+    }
+
+    // 1b. Auto-plant empty plots with Common / unknown seeds (buying a Mango seed only in full
+    //     rounds, never in Thrifty style; the purchase stays within the contract's daily limit).
+    if (b.auto_plant === 'common' && mode !== 'safety') {
+      let boughtSeed = false;
+      for (const plot of game.state(playerId).plots.filter((x) => !x.tree && !x.locked)) {
+        if (this.plantableSeeds(playerId).length === 0) {
+          if (quick || b.style === 'thrifty' || boughtSeed) break;
+          act('buy', () => {
+            const r = game.botBuy(playerId, 'seed_mango', 1, this.limitDay());
+            boughtSeed = true;
+            return [`Plot ${plot.plot + 1} is empty and there is no Common seed left, so I bought 1 Mango seed for ${r.costPanen} PANEN from my budget (burned on chain).`, 'Bought a Mango seed!'];
+          });
+          if (!boughtSeed) {
+            this.noticeOnce(playerId, SHOP_ITEMS.seed_mango.price);
+            break;
+          }
+        }
+        act('plant', () => this.plantOne(playerId, plot.plot));
       }
     }
 
