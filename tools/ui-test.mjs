@@ -2,6 +2,7 @@
 // Needs the server (npm run dev in server/, DEV_LOGIN=true) and the web dev server running.
 // Usage: node tools/ui-test.mjs <outDir> <playerName> [width=390] [height=844]
 // Login page only (no account is created): node tools/ui-test.mjs <outDir> --login-only [width] [height]
+// Profile window of an EXISTING dev garden (no account is created): node tools/ui-test.mjs <outDir> --profile=<devUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
 import { spawn } from 'node:child_process';
@@ -74,6 +75,27 @@ try {
     await sleep(800); await screenshot('login');
     await realClick(5, 5); // a real pointer event unlocks audio
   });
+  if (name.startsWith('--profile=')) {
+    await step('profile of an existing dev garden', async () => {
+      await typeInto('#dev-user', name.slice('--profile='.length));
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.who-btn')`, 'garden');
+      await sleep(800);
+      console.log('sign out in top bar:', await evaluate(bodyHas('Sign out')));
+      await evaluate(`document.querySelector('.who-btn').click()`);
+      await waitFor(`!!document.querySelector('[aria-label="Profile"]')`, 'profile window');
+      await sleep(400); await screenshot('profile');
+      console.log('profile:', await evaluate(`document.querySelector('[aria-label="Profile"]').innerText.replace(/\\n+/g, ' | ')`));
+      await evaluate(`document.querySelector('[aria-label="Profile"] .info-body').scrollTop = 9999`);
+      await sleep(300); await screenshot('profile-bottom');
+      await clickText('Close');
+      if (MOBILE) await clickText('Village', '.tab'); else await evaluate(`[...document.querySelectorAll('.rail-btn, .side-tabs button')].find(b => b.textContent.includes('Village'))?.click()`);
+      await sleep(800);
+      console.log('wallet section still in Village:', await evaluate(bodyHas('Connect NEAR Wallet')));
+      await screenshot('village');
+    });
+    throw Object.assign(new Error('profile done'), { done: true });
+  }
   if (name === '--login-only') {
     await step('NEAR wallet picker', async () => {
       if (!(await clickText('Connect NEAR Wallet'))) throw new Error('no Connect NEAR Wallet button');

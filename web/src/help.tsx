@@ -10,7 +10,7 @@ import { TreePixels } from './art/trees';
 import { Sprite } from './sprites';
 import { Coin, formatPanen } from './ui';
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ComponentChildren }) {
+export function Modal({ title, onClose, children, closeLabel = 'Got it' }: { title: string; onClose: () => void; children: ComponentChildren; closeLabel?: string }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -28,7 +28,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
         <div class="info-body">{children}</div>
         <div class="dialog-actions info-actions">
           <button class="btn btn-mint" onClick={onClose}>
-            Got it
+            {closeLabel}
           </button>
         </div>
       </div>
@@ -46,7 +46,7 @@ const STEPS: Step[] = [
   {
     icon: <TaniBotHead version={1} scale={1} />,
     title: 'Log in',
-    text: 'Sign in with Google. The game creates your own NEAR testnet account (name.nearvest.testnet) and pays all fees. No wallet, no popups.',
+    text: 'Sign in with Google or with your NEAR wallet. Google: no wallet needed, the game creates your NEAR testnet account (name.nearvest.testnet) and pays all fees. NEAR wallet: your garden lives in your own account; the game pays the fees too, only the one-time Shop setup is paid by your wallet (a tiny testnet fee).',
   },
   {
     icon: <Sprite name="seedPacket" scale={3} />,

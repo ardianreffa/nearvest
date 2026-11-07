@@ -56,6 +56,8 @@ export interface GameState {
     custody: 'server' | 'wallet';
     /** NEAR wallet that can sign in to this garden (own account or linked), if any. */
     walletAccountId: string | null;
+    /** How the owner signs in: Google, NEAR wallet (wallet garden) or local dev login. */
+    signIn: 'google' | 'near' | 'dev';
     demo: boolean;
     balance: number;
     xp: number;

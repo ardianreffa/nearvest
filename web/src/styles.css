@@ -3125,3 +3125,64 @@ button.balance:hover,
 button.balance:focus-visible {
   box-shadow: 0 0 0 2px var(--mint);
 }
+
+/* ---------- Profile ---------- */
+
+.who-btn {
+  background: none;
+  border: 0;
+  padding: 2px 6px 2px 2px;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.who-btn:hover,
+.who-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.profile-name {
+  font-size: 22px;
+}
+
+.profile-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+}
+
+.profile-facts dt {
+  color: var(--leaf-dark);
+  font-weight: 700;
+}
+
+.profile-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.farmer-card-slot {
+  border: 2px dashed var(--leaf);
+  border-radius: 8px;
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--leaf-dark);
+  font-size: 14px;
+}
+
+.profile-signout {
+  display: block;
+  margin: 12px auto 0;
+}

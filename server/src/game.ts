@@ -879,6 +879,8 @@ export class Game {
         accountStatus: p.account_status,
         custody: p.custody,
         walletAccountId: p.wallet_account_id,
+        /** How the garden's owner signs in: 'google', 'near' (wallet garden) or 'dev'. */
+        signIn: (this.db.prepare('SELECT provider FROM users WHERE id = ?').get(p.user_id) as { provider: string } | undefined)?.provider ?? 'dev',
         demo,
         balance: fromMicro(p.balance_micro),
         xp: p.xp,

@@ -14,6 +14,7 @@ import { immersiveLayout } from './scene';
 import { Market, Shop, Storage, Village } from './panels';
 import { Sprite } from './sprites';
 import { signShopBurn, walletProof } from './wallet';
+import { Profile } from './profile';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
 type Tab = 'garden' | 'storage' | 'shop' | 'market' | 'village';
@@ -102,7 +103,7 @@ export function App() {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [audio, setAudio] = useState(getAudioPrefs());
   const fullscreen = useFullscreen();
-  const [info, setInfo] = useState<'help' | 'panen' | null>(null);
+  const [info, setInfo] = useState<'help' | 'panen' | 'profile' | null>(null);
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
@@ -418,6 +419,8 @@ export function App() {
       <HowToPlay onClose={() => setInfo(null)} />
     ) : info === 'panen' ? (
       <PanenInfo state={state} config={config} onClose={() => setInfo(null)} />
+    ) : info === 'profile' && state ? (
+      <Profile state={state} config={config} onState={applyState} onSignOut={() => (setInfo(null), void logout())} onClose={() => setInfo(null)} />
     ) : null;
   if (phase === 'login') {
     return (
@@ -465,7 +468,7 @@ export function App() {
     ) : t === 'market' ? (
       <Market state={state} config={config} sell={sell} act={act} busy={busy} />
     ) : (
-      <Village state={state} config={config} onState={applyState} />
+      <Village state={state} config={config} />
     );
 
   const tabIcons: Record<Tab, ComponentChildren> = {
@@ -478,7 +481,7 @@ export function App() {
   const tabLabels: Record<Tab, string> = { garden: 'Garden', storage: 'Storage', shop: 'Shop', market: 'Market', village: 'Village' };
 
   const who = (
-    <div class="who">
+    <button class="who who-btn" onClick={() => (playSound('click'), setInfo('profile'))} title="Your profile" aria-label={`${p.name}: open your profile`}>
       <span class="head-bot">
         <TaniBotHead version={botVersion(p.title)} scale={wide ? 2 : 1} />
       </span>
@@ -491,7 +494,7 @@ export function App() {
           <div style={{ width: `${xpPct}%` }} />
         </div>
       </div>
-    </div>
+    </button>
   );
   const balanceView = (
     <button class="balance" title="Your PANEN balance: what is PANEN?" onClick={() => (playSound('click'), setInfo('panen'))} aria-label={`${formatPanen(p.balance)} PANEN. What is PANEN?`}>
@@ -504,11 +507,6 @@ export function App() {
       Farm day {state.clock.farmDay} · next day in {formatDuration(state.clock.msUntilNextDay - elapsed)}
       {p.demo && <span class="tag tag-demo">Demo: 1 day = 1 min</span>}
     </span>
-  );
-  const signOut = (
-    <button class="link-btn" onClick={logout}>
-      Sign out
-    </button>
   );
   const notices = (
     <>
@@ -532,7 +530,6 @@ export function App() {
               {muteButton}
               {balanceView}
             </div>
-            {signOut}
           </header>
 
           <aside class="hud hud-drawer" aria-label="Menu" aria-hidden={!drawerOpen} inert={!drawerOpen}>
@@ -580,7 +577,6 @@ export function App() {
           </header>
           <div class="subbar">
             {dayInfo}
-            {signOut}
           </div>
           {notices}
           <div class="content">{tab === 'garden' ? garden : panelFor(tab)}</div>
@@ -709,7 +705,8 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
         Connect NEAR Wallet
       </button>
 
-      {config.devLogin && (
+      {/* Dev login: local `npm run dev` only, never in a production build. */}
+      {import.meta.env.DEV && config.devLogin && (
         <form class="dev-login" onSubmit={devLogin}>
           <label for="dev-user">Dev login (local testing)</label>
           <div class="row">
@@ -721,7 +718,9 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
         </form>
       )}
       {error && <p class="error-text">{error}</p>}
-      <p class="login-foot small">Runs on NEAR {config.network}. No wallet, no gas fees. Testnet tokens have no real value.</p>
+      <p class="login-foot small">
+        Runs on NEAR {config.network}. Sign in with Google (no wallet needed, the game pays all fees) or with your NEAR wallet. Testnet tokens have no real value.
+      </p>
     </main>
     </div>
   );
