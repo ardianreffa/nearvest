@@ -6,8 +6,8 @@
 //   3. moving parts: the monorail train along its rail, the two wind turbine rotors;
 //   4. code effects: volcano smoke, geothermal steam, waterfalls, lanterns, holograms, the
 //      Arena's mint ring, passing delivery drones, fireflies;
-//   5. hotspots (hotspots.tsx): Shop stall, Mr. Darto's cart, the farm tower, a friend's house,
-//      the Arena.
+//   5. hotspots with always-visible pins (hotspots.tsx): Shop stall, Market (the small house in
+//      the middle), the farm tower, a friend's house, the Arena.
 // All coordinates are art pixels of the 240x135 phone image (the laptop image is 480x270).
 
 import { Drone } from './tanibot';
@@ -100,7 +100,7 @@ const ROTORS = [
  * `hd` uses the 480x270 versions (laptop immersive mode, drawn at a whole or half number of
  * px per pixel); phones use the 240x135 ones. `onPlace` opens a panel from a hotspot.
  */
-export function Backdrop({ fraction, blurFill = false, hd = false, onPlace }: { fraction: number; blurFill?: boolean; hd?: boolean; onPlace?: (p: Place) => void }) {
+export function Backdrop({ fraction, blurFill = false, hd = false, onPlace, account }: { fraction: number; blurFill?: boolean; hd?: boolean; onPlace?: (p: Place) => void; account?: string }) {
   const suf = hd ? '-hd' : '';
   const src = (v: string) => `/assets/bg/village-${v}${suf}.png`;
   const hour = hourOf(fraction);
@@ -170,7 +170,7 @@ export function Backdrop({ fraction, blurFill = false, hd = false, onPlace }: { 
         </div>
         <SkyFront />
         <div class="bg-night-shade" />
-        {onPlace && <Hotspots onPlace={onPlace} />}
+        {onPlace && <Hotspots onPlace={onPlace} account={account} />}
       </div>
       {blurFill && <div class="bg-soil-ext" />}
 

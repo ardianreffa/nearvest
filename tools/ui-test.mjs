@@ -354,6 +354,9 @@ try {
       await evaluate(`document.querySelector('.hs-arena').click()`);
       await sleep(300); await screenshot('arena-bubble');
       console.log('arena bubble:', await evaluate(`document.querySelector('.hs-bubble')?.innerText.replace(/\\n/g, ' ') ?? 'none'`));
+      // Pins: always visible, inside the visible scene, not under the HUD / TaniBot / plots.
+      console.log('pins:', await evaluate(`(() => { const obs = [...document.querySelectorAll('.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .bot-spot .tanibot, .bot-hint, .badge, .plot-art, .soil')].map(e => e.getBoundingClientRect()).filter(r => r.width); return [...document.querySelectorAll('.place-pin')].map(p => { const r = p.getBoundingClientRect(); const cover = obs.some(o => r.left < o.right && o.left < r.right && r.top < o.bottom && o.top < r.bottom); const off = r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight; return p.innerText.replace(/\\n/g, ' ') + (cover ? ' COVERS' : '') + (off ? ' OFFSCREEN' : ''); }).join(' | '); })()`));
+      await screenshot('pins');
       await evaluate(`document.querySelector('.hs-market').click()`);
       await sleep(500);
       console.log('after market click:', await evaluate(`document.querySelector('.hs-bubble')?.innerText.replace(/\\n/g, ' ') ?? 'no bubble'`), '| market open:', await evaluate(`!!document.querySelector('.market-rows')`));

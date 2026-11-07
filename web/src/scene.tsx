@@ -105,7 +105,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
       aria-label="Your garden"
       style={immersive ? { '--k': String(immersive.k), '--art-left': `${immersive.artLeft}px`, '--art-bottom': `${immersive.artBottom}px` } : undefined}
     >
-      <Backdrop fraction={fraction} blurFill={!!immersive} hd={!!immersive} onPlace={onPlace} />
+      <Backdrop fraction={fraction} blurFill={!!immersive} hd={!!immersive} onPlace={onPlace} account={state.player.accountId} />
 
       <Stage immersive={immersive}>
       <div class="plots">
