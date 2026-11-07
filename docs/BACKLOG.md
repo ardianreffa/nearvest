@@ -36,6 +36,7 @@ Draft numbers live in `server/src/rules.ts` and are tuned in testing. Sounds and
 ## Important
 
 **3. Weather and wilting (GDD)**
+- Atmosphere art ready: `docs/art-source/bg-dusk.png` (ChatGPT, dusk village) for the evening phase of the backdrop (convert with tools/pixelize like bg-day / bg-night).
 - Rain = free water. Drought = water twice. 2 days without water = the tree goes back one stage.
 
 **1. Ambient sound layer**

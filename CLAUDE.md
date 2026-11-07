@@ -232,15 +232,28 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - $PANEN/NEAR pair on a NEAR DEX such as Rhea.
 - Get legal advice before any mainnet token launch.
 
-## Status and next steps (2026-11-05 evening)
+## Status and next steps (2026-11-07 evening)
 
-- Done ahead of plan: contracts (Fri), game server on the Mac (Sat), web UI + visual polish + official TaniBot (Sun). All pushed to the private repo.
-- **2026-11-07:** Google login + NEAR wallet login (Meteor) done and tested manually by Ardian; backlog of Ardian's decisions with priorities and days in `docs/BACKLOG.md`.
-- **Waiting on Ardian:** NEAR AI Cloud API key (needed Mon for TaniBot's brain); (ChatGPT images for village background, Mr. Darto and Shop all done 2026-11-05).
-- **How to bring in an AI image:** keep the original in `docs/art-source/`, convert with `python3 -I tools/pixelize/pixelize.py <image.png> <rows> <out_dir>` (add `--keep-bg [--colors N]` for full backgrounds: writes `bg.png` + `preview-x4.png`), check the preview, then generate a sprite module like `web/src/art/tanibot-sprite.ts` or PNGs in `web/public/assets/`, and record it in `docs/ASSETS.md` as AI-generated at Ardian's request.
-- **Browser test:** with server and web running, `node tools/ui-test.mjs <outDir> <name> 390 844` (phone) and `... 1280 800` (laptop); then look at the screenshots.
-- Server and web are not deployed yet (VPS + Caddy/sslip.io and Vercel need Ardian's OK).
-- Next by plan: Mon 9 Nov TaniBot (sub-account, function call key, budget + spending limit in a contract, NEAR AI brain 3x/day with rule fallback, Log with tx links); Tue 10 Nov tutorial, Try as Judge, Village Stats polish, full re-test.
+**Done (all tested; pushed to the private repo):**
+- **Login:** Google (jose check, 1 Google account = 1 garden) and NEAR wallet (near-connect on testnet, NEP-413 proof); linking both ways: "Connect NEAR Wallet" for Google gardens, "Link Google account" for wallet gardens. Details in Game server -> Login.
+- **Profile** (avatar/name top left): account, sign-in methods, NEAR wallet, Google link, Farmer Card placeholder, Sign out; 8 pixel avatars + 6 TaniBot head avatars unlocked by title (server checks, 403 `avatar_locked`).
+- **$PANEN contract with TaniBot budgets** deployed 2026-11-07 (bot_set / bot_accept / bot_withdraw / bot_info, contract-enforced daily limit, bots cannot transfer); sandbox upgrade test; rollback steps and wasm backup: see Deployed contracts.
+- **TaniBot:** own NEAR account (`bot.<player>` or `<name>-bot`) with one function call key; budget + daily limit on chain; rules brain; quick reactions in demo; Log with tx links; ON/OFF, styles Thrifty / Balanced / Turbo; status chip, bubbles ("Not now"), goodbye bubble.
+- **TaniBot AI brain** on NEAR AI Cloud (`Qwen/Qwen3-VL-30B-A3B-Instruct`), every suggestion checked by the game rules, fallback to rules, safety net; usage meter (`ai_usage` table, server log) with daily call limit and dollar brake. **`TANIBOT_AI=off` by default** (turn on only for tests / the deployed demo). Used so far: 4 calls, about US$0.0004.
+- **TaniBot 6 tiers** (Seedling .. Legend) from Ardian's ChatGPT images with per-tier animations, real quadcopter drones, evolution moment and share card (docs/BACKLOG.md).
+- **UI:** new HUD (status group top left with PANEN / Check-in / Day chips, quiet system capsule top right, rail = navigation only, chamfered shape tokens, 8px grid); Market one row per fruit; seed cards; fullscreen fix (half-step backdrop scale); check-in window from the chip.
+
+**Next, in this order:**
+1. Test B TaniBot for wallet gardens with Meteor (set_bot signed in the wallet, budget add / take back).
+2. **Try as Judge** (MUST): pre-filled sample garden, TaniBot already ON.
+3. **Tutorial + How to play in 4 pages** (MUST; TaniBot is introduced after the first manual harvest).
+4. Deploy: VPS (server + Caddy/sslip.io) and Vercel (web) - **only with Ardian's OK**. At deploy: raise `TANIBOT_AI_MAX_CALLS_PER_DAY` from 30 (development) to **1500**, keep `TANIBOT_AI_BUDGET_USD=8`; add the Vercel URL to Google's Authorized JavaScript origins and to `WEB_ORIGINS`; top up `nearvest.testnet` and `game.nearvest.testnet` from the faucet.
+5. Then the Wednesday / Thursday packages from docs/BACKLOG.md (weather + ambient sound + dusk backdrop, share popup, referral, ...).
+
+**How-tos:**
+- **AI image:** keep the original in `docs/art-source/`, convert with `python3 -I tools/pixelize/pixelize.py <image.png> <rows> <out_dir>` (`--keep-bg [--colors N]` for backgrounds); TaniBot looks with `tools/pixelize/evolve.py`; record it in `docs/ASSETS.md` as AI-generated at Ardian's request.
+- **Browser tests** (`tools/ui-test.mjs`, headless Chrome): `--login-only`, `--profile=<devUser>`, and on a fake-chain server (`CHAIN_MODE=fake PORT=8788 ... ` + `vite --port 5174` with `VITE_API_URL`, then `UI_URL=http://localhost:5174`): `--layout`, `--tanibot`, `--motion`, `--market`, `--fullscreen`, `--tiers`. The full loop (`<name>`) creates real testnet accounts.
+- Server and web are not deployed yet.
 
 ## Open questions to verify while building
 
