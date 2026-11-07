@@ -104,9 +104,11 @@ interface Props {
   /** Full-window garden with whole-pixel scale (laptop / PC). */
   immersive?: Immersive;
   onBot?: () => void;
+  /** Shows "Tap me!" above TaniBot until the player opens its window once. */
+  botHint?: boolean;
 }
 
-export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive, onBot }: Props) {
+export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive, onBot, botHint }: Props) {
   // Trees use the same pixel size as the backdrop: 2 on phones, 3 on the wide
   // layout, k in the immersive layout.
   const px = immersive ? immersive.k : big ? 3 : 2;
@@ -174,6 +176,11 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           <Drone version={version} scale={px} class="idle-drone d1" />
           {version === 2 && <Drone version={version} scale={px} class="idle-drone d2" />}
         </div>
+        {botHint && (
+          <button class="bot-hint" onClick={onBot}>
+            Tap me! I can water, harvest and sell for you.
+          </button>
+        )}
         <button class="bot-click" onClick={onBot} aria-label="TaniBot: open its log and settings" title="TaniBot: log and settings">
           <TaniBot version={version} scale={botScale} working={working} />
         </button>

@@ -68,14 +68,15 @@ const tanibot = new TaniBotService({
 });
 
 worker.start();
-// TaniBot: check every 15 seconds which bots are due (3x/day; demo every 2 minutes).
+// TaniBot: every 5 seconds, run the bots that are due (3x/day; demo every 2 minutes)
+// and, in demo gardens, react to newly ripe or dry trees within about 10 seconds.
 setInterval(() => {
   try {
     tanibot.tick();
   } catch (err) {
     console.warn('TaniBot tick failed:', err instanceof Error ? err.message : err);
   }
-}, 15_000);
+}, 5_000);
 // Sync tree stages to the NFTs every 20 seconds.
 setInterval(() => game.syncStages(), 20_000);
 

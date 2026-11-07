@@ -31,6 +31,13 @@ export const MAX_BOT_DAILY_LIMIT = 200;
 export const BOT_RUN_HOURS_UTC = [1, 6, 13];
 /** Demo gardens (1 game day = 1 minute): one run every 2 minutes, not every game day. */
 export const DEMO_BOT_INTERVAL_MS = 2 * 60_000;
+/**
+ * Demo gardens also react between rounds: a tree that just got ripe or dry is
+ * handled within about this time (rules only, never the AI).
+ */
+export const QUICK_REACTION_MS = 10_000;
+/** An identical Log line (without a transaction) is not repeated within this time. */
+const SAME_LOG_WINDOW_MS: Record<string, number> = { water: 3 * 60_000, default: 10 * 60_000 };
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -105,7 +112,18 @@ export class TaniBotService {
     return dayIndex(this.d.now(), false);
   }
 
+  /** Last quick reaction per player: when, and what it saw (to skip repeats). */
+  private quick = new Map<number, { at: number; sig: string; acted: boolean }>();
+
   log(playerId: number, action: string, reason: string, jobId: number | null = null): void {
+    if (jobId === null) {
+      // No spam: skip a line identical to a recent one (water 3 minutes, notices 10 minutes).
+      const window = SAME_LOG_WINDOW_MS[action] ?? SAME_LOG_WINDOW_MS.default;
+      const same = this.db
+        .prepare('SELECT 1 FROM bot_log WHERE player_id = ? AND action = ? AND reason = ? AND created_at > ? LIMIT 1')
+        .get(playerId, action, reason, this.d.now() - window);
+      if (same) return;
+    }
     this.db
       .prepare('INSERT INTO bot_log (player_id, action, reason, job_id, brain, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(playerId, action, reason, jobId, 'rules', this.d.now());
@@ -339,13 +357,56 @@ export class TaniBotService {
       const p = this.d.game.getPlayer(player_id);
       this.db.prepare('UPDATE bots SET next_run_at = ? WHERE player_id = ?').run(nextRunAt(now, p.demo === 1), player_id);
     }
-    return due.length;
+    return due.length + this.quickReactions(now, new Set(due.map((d) => d.player_id)));
+  }
+
+  /**
+   * Demo gardens only: between rounds, react to a tree that is ripe or dry.
+   * Rules only (no AI): harvest, water and sell; no shopping.
+   */
+  private quickReactions(now: number, justRan: Set<number>): number {
+    const bots = this.db
+      .prepare(
+        `SELECT b.player_id FROM bots b JOIN players p ON p.id = b.player_id
+         WHERE b.status = 'ready' AND b.enabled = 1 AND p.demo = 1`,
+      )
+      .all() as { player_id: number }[];
+    let n = 0;
+    for (const { player_id } of bots) {
+      if (justRan.has(player_id)) {
+        this.quick.set(player_id, { at: now, sig: '', acted: true });
+        continue;
+      }
+      const last = this.quick.get(player_id);
+      if (last && now - last.at < QUICK_REACTION_MS) continue;
+      const plots = this.d.game.state(player_id).plots;
+      const sig = plots
+        .filter((x) => x.tree && (x.tree.ready || !x.tree.wateredToday))
+        .map((x) => `${x.plot}:${x.tree!.ready ? 'ripe' : 'dry'}`)
+        .join(',');
+      if (!sig) continue;
+      // Nothing changed since a round that could not help (e.g. storage full): wait for a change.
+      if (last && last.sig === sig && !last.acted) continue;
+      let acted = false;
+      try {
+        acted = this.run(player_id, true) > 0;
+      } catch (err) {
+        this.log(player_id, 'notice', `Something went wrong, I will try again later. (${err instanceof Error ? err.message : err})`);
+      }
+      this.quick.set(player_id, { at: now, sig, acted });
+      n++;
+    }
+    return n;
   }
 
   // ---------- Brain: simple rules (fallback when the AI is off or fails) ----------
 
-  /** One round of work. Returns the number of actions taken. */
-  run(playerId: number): number {
+  /**
+   * One round of work. Returns the number of actions taken.
+   * `quick` (demo reactions between rounds): harvest, water and sell only, no
+   * shopping and no "nothing to do" line.
+   */
+  run(playerId: number, quick = false): number {
     const b = this.mustRow(playerId);
     const game = this.d.game;
     let done = 0;
@@ -376,19 +437,26 @@ export class TaniBotService {
       }
     }
 
-    // 2. Water every thirsty tree.
+    // 2. Water every thirsty tree (one Log line for all of them).
+    const watered: string[] = [];
     for (const plot of game.state(playerId).plots) {
       const t = plot.tree;
       if (t && !t.wateredToday) {
-        act('water', () => {
+        try {
           game.water(playerId, plot.plot);
-          return `${label(t.species)} on plot ${plot.plot + 1} was dry: watered it (watering is free and happens off-chain).`;
-        });
+          watered.push(`${label(t.species)} (plot ${plot.plot + 1})`);
+        } catch (err) {
+          if (!(err instanceof GameError)) throw err;
+        }
       }
+    }
+    if (watered.length > 0) {
+      this.log(playerId, 'water', `Watered ${watered.length === 1 ? 'a dry tree' : `${watered.length} dry trees`}: ${watered.join(', ')}. Watering is free and happens off-chain.`);
+      done += watered.length;
     }
 
     // 3. Fertilize (Balanced: slow trees only; Turbo: every growing tree). Buy fertilizer from my budget if needed.
-    if (b.style !== 'thrifty') {
+    if (b.style !== 'thrifty' && !quick) {
       const wants = game
         .state(playerId)
         .plots.filter((x) => x.tree && !x.tree.ready && !x.tree.isFertilized && x.tree.stage !== 'old')
@@ -435,7 +503,7 @@ export class TaniBotService {
       this.log(playerId, 'keep', `I kept your ${keep.map((f) => `${f.qty} ${qualityName[f.quality]} ${label(f.species)}`).join(', ')}: special fruit is your decision.`);
     }
 
-    if (done === 0) this.log(playerId, 'check', 'Checked the garden: every tree is watered and nothing is ripe yet.');
+    if (done === 0 && !quick) this.log(playerId, 'check', 'Checked the garden: every tree is watered and nothing is ripe yet.');
     return done;
   }
 

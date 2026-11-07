@@ -2930,6 +2930,49 @@ input:focus-visible {
   padding-top: 2px !important;
 }
 
+/* ---------- Plot action bar (laptop): title on its own row, info below, buttons never cut ---------- */
+
+.hud-bar > .panel.plot-bar {
+  max-height: none;
+  overflow: visible;
+  padding: 10px 14px 10px;
+  row-gap: 4px;
+}
+
+/* No corner rivets in the bar: they sat on top of the title. */
+.hud-bar > .panel.plot-bar::before,
+.hud-bar > .panel.plot-bar::after {
+  display: none;
+}
+
+.plot-bar > .panel-head {
+  margin-bottom: 2px !important;
+  align-items: center;
+}
+
+.plot-bar > .panel-head h2 {
+  line-height: 1.2;
+}
+
+.plot-bar .tree-info {
+  line-height: 1.4;
+  padding-top: 2px;
+}
+
+.plot-bar .progress {
+  margin: 2px 0 !important;
+}
+
+.plot-bar > .muted,
+.plot-bar > .odds-line,
+.plot-bar > .buy-link {
+  line-height: 1.35;
+}
+
+.plot-bar > .actions {
+  align-self: center;
+}
+
 .qty-season {
   margin: 0;
   font-size: 11px;
@@ -3427,5 +3470,221 @@ button.balance:focus-visible {
 @media (max-width: 480px) {
   .bot-styles {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Top bar: two floating capsules (laptop and phone) ---------- */
+
+.hud-capsule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: #f4ead2;
+  padding: 5px 14px 5px 6px;
+  border-radius: 999px;
+  background: rgba(40, 26, 14, 0.62);
+  border: 2px solid rgba(42, 25, 12, 0.9);
+  box-shadow:
+    inset 0 0 0 2px rgba(201, 152, 84, 0.45),
+    0 0 0 2px rgba(0, 236, 151, 0.3),
+    0 6px 16px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+}
+
+.hud-capsule-right {
+  padding: 5px 6px 5px 6px;
+  gap: 8px;
+}
+
+.hud-capsule .name {
+  color: #fff;
+}
+
+.hud-capsule .avatar {
+  border-radius: 50%;
+}
+
+.hud-capsule .balance {
+  border-radius: 999px;
+  padding: 3px 12px 3px 6px;
+}
+
+.hud-capsule .icon-btn {
+  border-radius: 50%;
+}
+
+/* Laptop: the header is only a positioning box; it has no background of its own. */
+.shell.immersive .hud-top {
+  position: fixed;
+  z-index: 10;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.shell.immersive .hud-top > .hud-capsule {
+  pointer-events: auto;
+}
+
+.shell.immersive .hud-capsule-left .hud-day {
+  flex: 0 1 auto;
+  max-width: 330px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(201, 152, 84, 0.45);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Phone: same capsules over the page, no full-width bar. */
+.topbar {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  gap: 8px;
+}
+
+.topbar > .hud-capsule {
+  background: rgba(20, 56, 38, 0.92);
+}
+
+.topbar > .hud-capsule-left {
+  flex: 1 1 auto;
+  padding-right: 12px;
+}
+
+.topbar > .hud-capsule-left .xp {
+  width: 100%;
+  max-width: 120px;
+}
+
+.topbar > .hud-capsule-right {
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.topbar .hud-capsule .balance {
+  font-size: 18px;
+}
+
+/* "Tap me!" bubble above TaniBot (until its window was opened once). */
+.bot-hint {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  width: max-content;
+  max-width: 190px;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  color: var(--ink);
+  background: #fffaf0;
+  border: 2px solid #1b1b2f;
+  border-radius: 8px;
+  padding: 6px 9px;
+  box-shadow: 0 0 0 2px var(--mint), 0 4px 10px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  animation: bot-hint-in 0.5s ease-out 0.8s forwards, bot-hint-bob 2.4s ease-in-out 1.3s infinite;
+}
+
+.bot-hint::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -6px;
+  border: 6px solid transparent;
+  border-top-color: #1b1b2f;
+}
+
+.wide .bot-hint,
+.immersive-scene .bot-hint {
+  font-size: 14px;
+  max-width: 240px;
+}
+
+@keyframes bot-hint-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes bot-hint-bob {
+  0%,
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bot-hint {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* Phones: the right capsule is one row (coin, then small round buttons). */
+@media (max-width: 1023px) {
+  .topbar > .hud-capsule-right {
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .topbar .hud-capsule .icon-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .topbar .hud-capsule .icon-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .topbar .hud-capsule .balance {
+    font-size: 16px;
+    padding: 2px 10px 2px 4px;
+  }
+
+  .topbar > .hud-capsule-left {
+    padding: 4px 12px 4px 4px;
+  }
+}
+
+/* The hint sits above TaniBot's drones and, on phones, above the plot timers too. */
+.bot-hint {
+  z-index: 3;
+}
+
+@media (max-width: 1023px) {
+  .bot-hint {
+    bottom: calc(100% + 34px);
+    max-width: 170px;
+    font-size: 11px;
   }
 }

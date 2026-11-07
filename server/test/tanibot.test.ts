@@ -290,3 +290,40 @@ describe('TaniBot HTTP API', () => {
     assert.equal((await call('GET', '/api/tanibot', token)).json.brain, 'rules');
   });
 });
+
+describe('TaniBot quick reactions (demo gardens)', () => {
+  it('reacts to a dry tree within about 10 seconds between rounds, without spamming the Log', async () => {
+    const w = makeWorld({ demo: true });
+    const p = await readyBot(w);
+    w.game.plant(p.id, 0, seedOf(w, p.id, 'durian'));
+    w.tanibot.settings(p.id, { style: 'thrifty' });
+    assert.equal(w.tanibot.tick(), 1, 'first round');
+    assert.equal(w.game.state(p.id).plots[0].tree!.wateredToday, true);
+
+    // A new demo day (1 minute): the tree is dry again; the next round is still 1 minute away.
+    w.advance(MINUTE);
+    assert.equal(w.game.state(p.id).plots[0].tree!.wateredToday, false);
+    w.advance(5_000);
+    w.tanibot.tick();
+    assert.equal(w.game.state(p.id).plots[0].tree!.wateredToday, true, 'watered by a quick reaction');
+
+    // Quick reactions never shop or write "nothing to do" lines.
+    const log = w.tanibot.view(p.id)!.log;
+    assert.equal(log.filter((l) => l.action === 'check').length, 0);
+    assert.equal(log.filter((l) => l.action === 'buy').length, 0);
+    // The identical water line within 3 minutes is written only once.
+    assert.equal(log.filter((l) => l.action === 'water').length, 1);
+  });
+
+  it('does not react between rounds in normal gardens', async () => {
+    const w = makeWorld();
+    const p = await readyBot(w);
+    w.game.plant(p.id, 0, seedOf(w, p.id, 'durian'));
+    w.tanibot.tick();
+    // Same day, between rounds: make the tree dry.
+    w.db.prepare('UPDATE trees SET water_day = NULL WHERE player_id = ?').run(p.id);
+    w.advance(10_000);
+    assert.equal(w.tanibot.tick(), 0);
+    assert.equal(w.game.state(p.id).plots[0].tree!.wateredToday, false);
+  });
+});

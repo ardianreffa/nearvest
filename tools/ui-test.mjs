@@ -3,6 +3,7 @@
 // Usage: node tools/ui-test.mjs <outDir> <playerName> [width=390] [height=844]
 // Login page only (no account is created): node tools/ui-test.mjs <outDir> --login-only [width] [height]
 // Profile window of an EXISTING dev garden (no account is created): node tools/ui-test.mjs <outDir> --profile=<devUsername> [width] [height]
+// Garden layout (top bar, plot panel with a Rare Durian, TaniBot hint) on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --layout=<newDevUsername> [width] [height]
 // TaniBot window on a NEW dev garden (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
@@ -77,6 +78,48 @@ try {
     await sleep(800); await screenshot('login');
     await realClick(5, 5); // a real pointer event unlocks audio
   });
+  if (name.startsWith('--layout=')) {
+    await step('garden layout on a new dev garden', async () => {
+      const user = name.slice('--layout='.length);
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(bodyHas('Welcome to Tandur'), 'create screen');
+      await typeInto('.create input:not([type=checkbox])', user);
+      await clickText('Start farming');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await waitFor(`!document.body.innerText.includes('Creating your NEAR account')`, 'account', 60000);
+      await sleep(800); await screenshot('garden-hint');
+      console.log('hint shown:', await evaluate(`!!document.querySelector('.bot-hint')`));
+      await evaluate(`document.querySelectorAll('.plot')[0].click()`);
+      await sleep(300);
+      await clickText('Durian', '.seed-btn');
+      await waitFor(`!!document.querySelector('.plot .tree')`, 'planted');
+      await clickText('Water');
+      await waitFor(bodyHas('Watered today'), 'watered');
+      await sleep(1500); await screenshot('plot-panel');
+      const overlap = await evaluate(`(() => {
+        const bar = document.querySelector('.hud-bar .panel') || document.querySelector('.garden-screen .panel');
+        if (!bar) return 'no panel';
+        const els = [...bar.querySelectorAll('h2, .tree-info, .odds-line, .progress, .fert-badge, .actions, .btn, p')].filter(e => e.offsetParent);
+        const r = els.map(e => [e.className || e.tagName, e.getBoundingClientRect()]);
+        const hits = [];
+        for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) {
+          const [a, A] = r[i], [b, B] = r[j];
+          if (A.width && B.width && A.left < B.right - 1 && B.left < A.right - 1 && A.top < B.bottom - 1 && B.top < A.bottom - 1 && !els[i].contains(els[j]) && !els[j].contains(els[i])) hits.push(a + ' x ' + b);
+        }
+        const pr = bar.getBoundingClientRect();
+        const cut = els.filter(e => { const x = e.getBoundingClientRect(); return x.bottom > pr.bottom + 1 || x.right > pr.right + 1; }).map(e => e.className || e.tagName);
+        return JSON.stringify({ overlaps: hits, cutOff: cut, scroll: bar.scrollHeight > bar.clientHeight + 1 });
+      })()`);
+      console.log('plot panel:', overlap);
+      await evaluate(`document.querySelector('.bot-click').click()`);
+      await waitFor(`!!document.querySelector('[aria-label="TaniBot"]')`, 'TaniBot window');
+      await clickText('Close');
+      await sleep(400);
+      console.log('hint after opening TaniBot:', await evaluate(`!!document.querySelector('.bot-hint')`));
+    });
+    throw Object.assign(new Error('layout done'), { done: true });
+  }
   if (name.startsWith('--tanibot=')) {
     await step('TaniBot window on a new dev garden', async () => {
       const user = name.slice('--tanibot='.length);

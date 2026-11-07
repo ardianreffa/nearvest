@@ -440,6 +440,25 @@ export function App() {
 
   const elapsed = now - loadedAt;
   const p = state.player;
+  /** "Tap me!" above TaniBot until this player opens its window once (remembered per account in this browser). */
+  const hintKey = `nearvest.tanibotHintSeen.${p.accountId}`;
+  const botHint = (() => {
+    try {
+      return localStorage.getItem(hintKey) !== '1';
+    } catch {
+      return false;
+    }
+  })();
+  const openBot = () => {
+    playSound('click');
+    try {
+      localStorage.setItem(hintKey, '1');
+    } catch {
+      // Storage blocked: the hint simply shows again next time.
+    }
+    setInfo('tanibot');
+  };
+
   const xpFrom = p.nextTitle ? xpFloor(p.xp) : p.xp;
   const xpPct = p.nextTitle ? Math.round(((p.xp - xpFrom) / (p.nextTitle.xp - xpFrom)) * 100) : 100;
 
@@ -463,7 +482,8 @@ export function App() {
       showCheckin={!wide}
       big={wide}
       immersive={immersive}
-      onBot={() => (playSound('click'), setInfo('tanibot'))}
+      onBot={openBot}
+      botHint={botHint}
     />
   );
   const panelFor = (t: SideTab) =>
@@ -474,7 +494,7 @@ export function App() {
     ) : t === 'market' ? (
       <Market state={state} config={config} sell={sell} act={act} busy={busy} />
     ) : (
-      <Village state={state} config={config} onBot={() => (playSound('click'), setInfo('tanibot'))} />
+      <Village state={state} config={config} onBot={openBot} />
     );
 
   const tabIcons: Record<Tab, ComponentChildren> = {
@@ -524,15 +544,18 @@ export function App() {
       {wide ? (
         <>
           {garden}
-          <header class="hud hud-top">
-            {who}
-            <div class="hud-day">
-              {dayInfo}
-              {notices}
+          {/* Two floating capsules; the middle stays open so the village shows through. */}
+          <header class="hud-top">
+            <div class="hud-capsule hud-capsule-left">
+              {who}
+              <div class="hud-day">
+                {dayInfo}
+                {notices}
+              </div>
             </div>
-            <div class="topbar-right">
-              {muteButton}
+            <div class="hud-capsule hud-capsule-right">
               {balanceView}
+              {muteButton}
             </div>
           </header>
 
@@ -573,10 +596,10 @@ export function App() {
       ) : (
         <>
           <header class="topbar">
-            {who}
-            <div class="topbar-right">
-              {muteButton}
+            <div class="hud-capsule hud-capsule-left">{who}</div>
+            <div class="hud-capsule hud-capsule-right topbar-right">
               {balanceView}
+              {muteButton}
             </div>
           </header>
           <div class="subbar">
