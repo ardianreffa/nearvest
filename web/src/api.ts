@@ -57,7 +57,7 @@ export interface GameState {
     /** NEAR wallet that can sign in to this garden (own account or linked), if any. */
     walletAccountId: string | null;
     /** How the owner signs in: Google, NEAR wallet (wallet garden) or local dev login. */
-    signIn: 'google' | 'near' | 'dev';
+    signIn: 'google' | 'near' | 'dev' | 'judge';
     /** Wallet gardens: a Google account is linked (Google sign-in opens this garden too). */
     googleLinked: boolean;
     /** Profile avatar id (web/src/art/avatars.tsx). */
@@ -88,7 +88,11 @@ export interface GameState {
   /** $PANEN Season: Mr. Darto's sale rewards are divided by `divisor`. */
   season: { number: number; divisor: number; rewardPercent: number };
   activity: Activity[];
+  /** Try as Judge gardens only: the 5-step tour (null for everyone else). */
+  judgeTour: { step: JudgeStep; done: boolean; txStatus: 'pending' | 'done' | 'failed' | null; txUrl: string | null }[] | null;
 }
+
+export type JudgeStep = 'harvest' | 'sell' | 'shop' | 'tanibot' | 'village';
 
 export type BotStyle = 'thrifty' | 'balanced' | 'turbo';
 
@@ -235,6 +239,13 @@ export const ACTIVITY_LABELS: Record<string, string> = {
   mint_tree: 'Tree NFT minted',
   update_tree: 'Tree NFT updated',
   make_memorial: 'Memorial Tree saved',
+  burn_wallet: 'PANEN burned',
+  create_bot: "TaniBot's wallet created",
+  bot_link: 'TaniBot linked with its daily limit',
+  bot_limit: "TaniBot's daily limit changed",
+  bot_fund: 'PANEN moved to TaniBot',
+  bot_withdraw: 'PANEN taken back from TaniBot',
+  bot_burn: 'TaniBot bought (PANEN burned)',
 };
 
 export function nearblocksAccount(accountId: string): string {

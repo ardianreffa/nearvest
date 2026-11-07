@@ -14,7 +14,7 @@ export const GOOGLE_JWKS: JWTVerifyGetKey = createRemoteJWKSet(new URL('https://
 const SESSION_DAYS = 30;
 
 export interface Identity {
-  provider: 'google' | 'near' | 'dev';
+  provider: 'google' | 'near' | 'dev' | 'judge';
   subject: string;
   email: string | null;
 }

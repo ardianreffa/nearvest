@@ -8,7 +8,8 @@ import { DEFAULT_BOT_BUDGET, DEFAULT_BOT_DAILY_LIMIT, MAX_BOT_DAILY_LIMIT, type 
 import type { Chain } from './chain/types.ts';
 import type { Config } from './config.ts';
 import type { DB } from './db.ts';
-import { Game, GameError, type SignedBurn } from './game.ts';
+import { Game, GameError, type JudgeStep, type SignedBurn } from './game.ts';
+import type { JudgeService } from './judge.ts';
 import {
   BURN_GAS,
   BURN_TTL_BLOCKS,
@@ -29,6 +30,7 @@ export interface AppDeps {
   config: Pick<Config, 'devLogin' | 'googleClientId' | 'webOrigins' | 'panenContractId' | 'pohonContractId' | 'networkId' | 'factoryAccountId' | 'explorerTxUrl'>;
   now: () => number;
   tanibot: TaniBotService;
+  judge: JudgeService;
   /** Google's signing keys; tests pass a fake key set. Default: Google's live keys. */
   googleKeys?: JWTVerifyGetKey;
 }
@@ -40,7 +42,7 @@ const STATS_CACHE_MS = 15_000;
 const WALLET_SYNC_MS = 30_000;
 
 export function createApp(deps: AppDeps) {
-  const { db, game, chain, config, now, tanibot } = deps;
+  const { db, game, chain, config, now, tanibot, judge } = deps;
   const app = new Hono<Env>();
 
   app.use('*', cors({ origin: config.webOrigins, allowHeaders: ['Content-Type', 'Authorization'], allowMethods: ['GET', 'POST'] }));
@@ -137,6 +139,12 @@ export function createApp(deps: AppDeps) {
     const { token, userId } = login(db, devIdentity(username), now());
     const p = game.getPlayerByUser(userId);
     return c.json({ token, player: p ? game.state(p.id) : null });
+  });
+
+  // Try as Judge: one click, a new filled garden for this device (see judge.ts).
+  app.post('/auth/judge', async (c) => {
+    const r = judge.enter((await body(c)).deviceId, clientIp(c));
+    return c.json({ token: r.token, kind: r.kind, player: game.state(r.playerId) });
   });
 
   // NEAR wallet login (NEP-413). Step 1: a one-time nonce for the wallet to sign.
@@ -317,6 +325,19 @@ export function createApp(deps: AppDeps) {
     return b.plot;
   };
   const respond = (c: Context<Env>, result: unknown) => c.json({ result, state: game.state(playerId(c)) });
+  /** Judge gardens: marks a tour step done (with the chain job the action just queued). */
+  const judgeStep = (c: Context<Env>, step: JudgeStep) => {
+    const id = playerId(c);
+    if (game.isJudge(id)) game.judgeStep(id, step);
+  };
+
+  // The viewing steps of the Judge tour (TaniBot Log, Village Stats) are reported by the web.
+  app.post('/api/judge/step', async (c) => {
+    const step = (await body(c)).step;
+    if (step !== 'tanibot' && step !== 'village') throw new GameError('Unknown tour step');
+    judgeStep(c, step);
+    return c.json({ state: game.state(playerId(c)) });
+  });
 
   app.post('/api/checkin', (c) => respond(c, game.checkin(playerId(c))));
 
@@ -331,7 +352,11 @@ export function createApp(deps: AppDeps) {
   app.post('/api/harvest', async (c) => {
     const b = await body(c);
     const then = b.then === 'plant' || b.then === 'sell' ? b.then : undefined;
-    return respond(c, game.harvest(playerId(c), plotOf(b), then));
+    const result = game.harvest(playerId(c), plotOf(b), then);
+    judgeStep(c, 'harvest');
+    // A TaniBot waiting for the player's first harvest starts working now.
+    tanibot.release(playerId(c));
+    return respond(c, result);
   });
   app.post('/api/seeds/sell', async (c) => respond(c, game.sellSeeds(playerId(c), (await body(c)).seedIds)));
   app.post('/api/seeds/discard', async (c) => respond(c, game.discardSeeds(playerId(c), (await body(c)).seedIds)));
@@ -340,7 +365,9 @@ export function createApp(deps: AppDeps) {
   app.post('/api/sell', async (c) => {
     const b = await body(c);
     const expectedPrice = typeof b.expectedPrice === 'number' ? b.expectedPrice : undefined;
-    return respond(c, game.sell(playerId(c), b.species as Species, b.quality as Quality, Number(b.qty ?? 1), expectedPrice));
+    const result = game.sell(playerId(c), b.species as Species, b.quality as Quality, Number(b.qty ?? 1), expectedPrice);
+    judgeStep(c, 'sell');
+    return respond(c, result);
   });
 
   app.post('/api/shop/buy', async (c) => {
@@ -350,7 +377,9 @@ export function createApp(deps: AppDeps) {
       sb && typeof sb === 'object' && ['publicKey', 'nonce', 'maxBlockHeight', 'signature'].every((k) => typeof sb[k] === 'string')
         ? (sb as unknown as SignedBurn)
         : undefined;
-    return respond(c, game.buy(playerId(c), b.item as ShopItem, Number(b.qty ?? 1), signed));
+    const result = game.buy(playerId(c), b.item as ShopItem, Number(b.qty ?? 1), signed);
+    judgeStep(c, 'shop');
+    return respond(c, result);
   });
 
   return app;

@@ -155,9 +155,14 @@ export class TaniBotService {
    * the game (player key held by the server). Wallet gardens: returns the
    * `set_bot` call the player's wallet must sign; then call `walletLinked`.
    */
-  setup(playerId: number, opts: { dailyLimit?: number; budget?: number }) {
+  /**
+   * `afterAccount`: the player's account is still being created; the bot's jobs simply queue
+   * after it (Try as Judge). `holdMs`: the bot waits for the player's first harvest, at most this long.
+   */
+  setup(playerId: number, opts: { dailyLimit?: number; budget?: number; afterAccount?: boolean; holdMs?: number }) {
     const p = this.d.game.getPlayer(playerId);
-    if (p.account_status !== 'ready') throw new GameError('Your NEAR account is still being created. Try again in a moment.', 409);
+    const accountOk = p.account_status === 'ready' || (opts.afterAccount && p.account_status === 'pending');
+    if (!accountOk) throw new GameError('Your NEAR account is still being created. Try again in a moment.', 409);
     const dailyLimit = opts.dailyLimit ?? DEFAULT_BOT_DAILY_LIMIT;
     if (!Number.isInteger(dailyLimit) || dailyLimit < 0 || dailyLimit > MAX_BOT_DAILY_LIMIT) {
       throw new GameError(`Daily limit must be 0-${MAX_BOT_DAILY_LIMIT} PANEN`);
@@ -206,6 +211,10 @@ export class TaniBotService {
         this.log(p.id, 'limit', `Daily spending limit set to ${dailyLimit} PANEN. The PANEN contract enforces it, not me.`, linkJob);
         if (budget > 0) this.moveBudget(p.id, p.account_id, botId, toMicro(budget));
       }
+      if (opts.holdMs) {
+        this.db.prepare('UPDATE bots SET hold_until = ? WHERE player_id = ?').run(now + opts.holdMs, p.id);
+        this.log(p.id, 'notice', 'Your first harvest is yours: I will start working after you harvest a tree (or in a few minutes).');
+      }
     });
     return {
       bot: this.view(playerId),
@@ -214,6 +223,11 @@ export class TaniBotService {
         ? [{ receiverId: this.d.panenContractId, method: 'set_bot', args: { bot_id: botId, daily_limit: units(limitMicro) }, deposit: '1' }]
         : null,
     };
+  }
+
+  /** The player harvested: a bot that was waiting for that starts working now. */
+  release(playerId: number): void {
+    this.db.prepare('UPDATE bots SET hold_until = 0, next_run_at = MIN(next_run_at, ?) WHERE player_id = ? AND hold_until > 0').run(this.d.now() + 5000, playerId);
   }
 
   /** Wallet gardens: the wallet signed set_bot; the bot accepts with its own key. */
@@ -356,8 +370,8 @@ export class TaniBotService {
   async tick(): Promise<number> {
     const now = this.d.now();
     const due = this.db
-      .prepare("SELECT player_id FROM bots WHERE status = 'ready' AND enabled = 1 AND next_run_at <= ?")
-      .all(now) as { player_id: number }[];
+      .prepare("SELECT player_id FROM bots WHERE status = 'ready' AND enabled = 1 AND next_run_at <= ? AND hold_until <= ?")
+      .all(now, now) as { player_id: number }[];
     for (const { player_id } of due) {
       try {
         if (this.aiAllowed(player_id, now)) await this.runAi(player_id);
@@ -379,9 +393,9 @@ export class TaniBotService {
     const bots = this.db
       .prepare(
         `SELECT b.player_id FROM bots b JOIN players p ON p.id = b.player_id
-         WHERE b.status = 'ready' AND b.enabled = 1 AND p.demo = 1`,
+         WHERE b.status = 'ready' AND b.enabled = 1 AND p.demo = 1 AND b.hold_until <= ?`,
       )
-      .all() as { player_id: number }[];
+      .all(now) as { player_id: number }[];
     let n = 0;
     for (const { player_id } of bots) {
       if (justRan.has(player_id)) {

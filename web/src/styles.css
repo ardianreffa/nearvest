@@ -6073,3 +6073,121 @@ button.chip:focus-visible {
   -webkit-mask: radial-gradient(circle, #000 28%, rgba(0, 0, 0, 0.85) 46%, transparent 66%);
   filter: blur(1px) drop-shadow(0 0 6px rgba(245, 197, 66, 0.6));
 }
+
+/* =====================================================================
+   Try as Judge (judge.tsx): login button, status chip, tour window
+   ===================================================================== */
+
+.judge-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  max-width: 320px;
+  margin: 8px 0 12px;
+}
+
+.btn-judge {
+  width: 100%;
+  min-height: 48px;
+  font-size: 18px;
+}
+
+.judge-entry p {
+  margin: 0;
+  text-align: center;
+}
+
+.chip-judge {
+  color: #1b1b2f;
+  background: var(--gold);
+  border-color: #000;
+}
+
+.chip-judge.done {
+  background: var(--mint);
+}
+
+.judge-steps {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.judge-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  background: #fffaf0;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  border-radius: var(--r-panel);
+  corner-shape: var(--corner);
+}
+
+.judge-step.next {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.35);
+}
+
+.judge-step.done {
+  background: #e9fbf2;
+  border-color: var(--leaf);
+}
+
+.judge-step .grow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.judge-num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  font-weight: 700;
+  color: #fff;
+  background: #6b4a2f;
+  border-radius: var(--r-btn);
+  corner-shape: var(--corner);
+}
+
+.judge-step.done .judge-num {
+  background: var(--leaf);
+}
+
+.judge-do,
+.judge-see,
+.judge-proof {
+  font-size: 13px;
+}
+
+.judge-see {
+  color: #4b5563;
+}
+
+.judge-proof a {
+  font-weight: 700;
+}
+
+.judge-step .btn {
+  flex: none;
+  align-self: center;
+}
+
+@media (max-width: 480px) {
+  .judge-step {
+    flex-wrap: wrap;
+  }
+
+  .judge-step .btn {
+    width: 100%;
+  }
+}

@@ -12,6 +12,7 @@ const SIGN_IN_LABEL: Record<GameState['player']['signIn'], string> = {
   google: 'Google',
   near: 'NEAR wallet',
   dev: 'Dev login (local testing)',
+  judge: 'Try as Judge (this device)',
 };
 
 export function Profile({

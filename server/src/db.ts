@@ -12,8 +12,8 @@ export const MICRO = 1_000_000;
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY,
-  provider TEXT NOT NULL,          -- 'google', 'near' (wallet) or 'dev'
-  subject TEXT NOT NULL,           -- Google 'sub', NEAR account id or dev username
+  provider TEXT NOT NULL,          -- 'google', 'near' (wallet), 'dev' or 'judge' (Try as Judge)
+  subject TEXT NOT NULL,           -- Google 'sub', NEAR account id, dev username or the judge's device id
   email TEXT,
   created_at INTEGER NOT NULL,
   UNIQUE (provider, subject)
@@ -186,6 +186,15 @@ CREATE TABLE IF NOT EXISTS ai_usage (
   error TEXT
 );
 CREATE INDEX IF NOT EXISTS ai_usage_day ON ai_usage(day);
+
+-- Try as Judge: the judge tour steps a judge garden has done (and the chain job that proves it).
+CREATE TABLE IF NOT EXISTS judge_steps (
+  player_id INTEGER NOT NULL REFERENCES players(id),
+  step TEXT NOT NULL,              -- 'harvest' | 'sell' | 'shop' | 'tanibot' | 'village'
+  job_id INTEGER,                  -- chain job of that action (NULL for the viewing steps)
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (player_id, step)
+);
 `;
 
 export function openDb(path: string): DB {
@@ -209,6 +218,8 @@ function migrate(db: DB): void {
   if (!has('bots', 'last_ai_at')) db.exec('ALTER TABLE bots ADD COLUMN last_ai_at INTEGER NOT NULL DEFAULT 0');
   if (!has('players', 'google_sub')) db.exec('ALTER TABLE players ADD COLUMN google_sub TEXT');
   if (!has('players', 'avatar')) db.exec("ALTER TABLE players ADD COLUMN avatar TEXT NOT NULL DEFAULT 'farmer_hat'");
+  // Judge gardens: TaniBot waits for the judge's first harvest (at most until this time).
+  if (!has('bots', 'hold_until')) db.exec('ALTER TABLE bots ADD COLUMN hold_until INTEGER NOT NULL DEFAULT 0');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS players_google_sub ON players (google_sub)');
   // One wallet = one garden.
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS players_wallet_account ON players (wallet_account_id)');

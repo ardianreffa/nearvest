@@ -134,6 +134,12 @@ interface TreeRow {
   status: string;
 }
 
+/** Try as Judge: starting XP (Farmhand, third plot open) and PANEN. */
+export const JUDGE_XP = 60;
+export const JUDGE_PANEN = 100;
+export const JUDGE_STEPS = ['harvest', 'sell', 'shop', 'tanibot', 'village'] as const;
+export type JudgeStep = (typeof JUDGE_STEPS)[number];
+
 const RESERVED_NAMES = new Set([
   'game', 'panen', 'pohon', 'garden', 'market', 'bot', 'admin', 'owner', 'nearvest', 'darto',
   'tanibot', 'lumbung', 'judge', 'system',
@@ -251,6 +257,7 @@ export class Game {
     if (!user) throw new GameError('Please sign in', 401);
     // Wallet players bring their own account; everyone else gets <name>.<suffix>, created by the game.
     const wallet = user.provider === 'near';
+    if (name.startsWith('judge-') && user.provider !== 'judge') throw new GameError("Names starting with 'judge-' are reserved for Try as Judge");
     if (user.provider === 'google' && this.getPlayerByGoogle(user.subject)) {
       throw new GameError('This Google account is already linked to another garden', 409, { code: 'google_linked' });
     }
@@ -304,6 +311,83 @@ export class Game {
       return id;
     });
     return this.getPlayer(playerId);
+  }
+
+  /**
+   * Try as Judge: fills a new judge garden so every feature can be tried right away.
+   * Three real Tree NFTs (ripe Rare Durian, nearly ripe Gold Rambutan, Mango sprout),
+   * Rare / Gold seeds, 100 PANEN in total and Farmhand XP (third plot open). All chain
+   * jobs queue after the account creation, so they land in order.
+   */
+  prefillJudgeGarden(playerId: number): void {
+    tx(this.db, () => {
+      const p = this.getPlayer(playerId);
+      const now = this.d.now();
+      const dayMs = this.dayMs(p);
+      this.db.prepare('UPDATE players SET xp = MAX(xp, ?), first_tree_planted = 1 WHERE id = ?').run(JUDGE_XP, p.id);
+      const trees: { plot: number; species: Species; quality: Quality; ripe: number }[] = [
+        { plot: 0, species: 'durian', quality: 'rare', ripe: 1 },
+        { plot: 1, species: 'rambutan', quality: 'gold', ripe: 0.8 },
+        { plot: 2, species: 'mango', quality: 'common', ripe: 0.4 },
+      ];
+      for (const t of trees) {
+        if (this.treeOnPlot(p.id, t.plot)) continue;
+        const rules = SPECIES[t.species];
+        const res = this.db
+          .prepare(
+            `INSERT INTO trees (player_id, plot, species, quality, parent_tree_id, planted_at, growth, target, last_tick,
+               water_until, water_day, max_harvests, regrow_days, synced_stage)
+             VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 'seed')`,
+          )
+          .run(p.id, t.plot, t.species, t.quality, now - dayMs * rules.growDays, rules.growDays * t.ripe, rules.growDays, now, now + dayMs * WATER_DAYS, this.today(p), rules.harvests, rules.regrowDays);
+        const treeId = Number(res.lastInsertRowid);
+        enqueue(this.db, p.id, { kind: 'mint_tree', treeId, accountId: p.account_id, species: t.species, quality: t.quality }, now);
+      }
+      // Seeds: the Rare Durian of the welcome pack (if given) plus these.
+      const seeds: [Species, Quality | null][] = [
+        ['durian', 'gold'],
+        ['rambutan', 'rare'],
+        ['rambutan', 'rare'],
+        ['mango', null],
+        ['mango', null],
+      ];
+      for (const [species, quality] of seeds) if (this.storageFree(p.id) > 0) this.addSeed(p.id, species, quality, null, 'judge');
+      const top = JUDGE_PANEN - fromMicro(this.getPlayer(p.id).balance_micro);
+      if (top > 0) this.earn(p.id, p.account_id, 'judge', top, 'Try as Judge starter PANEN');
+    });
+  }
+
+  /** Whether this garden was made by Try as Judge. */
+  isJudge(playerId: number): boolean {
+    return !!this.db.prepare("SELECT 1 FROM players p JOIN users u ON u.id = p.user_id WHERE p.id = ? AND u.provider = 'judge'").get(playerId);
+  }
+
+  /** Records a Judge tour step once (with the chain job of the action that did it). */
+  judgeStep(playerId: number, step: JudgeStep): void {
+    if (!JUDGE_STEPS.includes(step)) throw new GameError('Unknown tour step');
+    const job = ['harvest', 'sell', 'shop'].includes(step)
+      ? ((this.db.prepare('SELECT MAX(id) AS id FROM chain_jobs WHERE player_id = ?').get(playerId) as { id: number | null }).id ?? null)
+      : null;
+    this.db.prepare('INSERT OR IGNORE INTO judge_steps (player_id, step, job_id, created_at) VALUES (?, ?, ?, ?)').run(playerId, step, job, this.d.now());
+  }
+
+  /** The Judge tour (judge gardens only): which steps are done, with the transaction that proves each. */
+  private judgeTour(playerId: number) {
+    const rows = this.db
+      .prepare(
+        `SELECT s.step, j.status, j.tx_hash FROM judge_steps s LEFT JOIN chain_jobs j ON j.id = s.job_id WHERE s.player_id = ?`,
+      )
+      .all(playerId) as { step: string; status: string | null; tx_hash: string | null }[];
+    const by = new Map(rows.map((r) => [r.step, r]));
+    return JUDGE_STEPS.map((step) => {
+      const r = by.get(step);
+      return {
+        step,
+        done: !!r,
+        txStatus: r?.status ?? null,
+        txUrl: r?.tx_hash && !r.tx_hash.startsWith('fake') ? this.d.explorerTxUrl + r.tx_hash : null,
+      };
+    });
   }
 
   private dayMs(p: PlayerRow): number {
@@ -976,6 +1060,7 @@ export class Game {
       .prepare('SELECT item, qty FROM items WHERE player_id = ? AND qty > 0')
       .all(p.id) as unknown as { item: string; qty: number }[];
 
+    const signIn = (this.db.prepare('SELECT provider FROM users WHERE id = ?').get(p.user_id) as { provider: string } | undefined)?.provider ?? 'dev';
     return {
       player: {
         name: p.name,
@@ -987,7 +1072,7 @@ export class Game {
         googleLinked: p.google_sub !== null,
         avatar: p.avatar,
         tanibot: this.tanibotStatus(p.id),
-        signIn: (this.db.prepare('SELECT provider FROM users WHERE id = ?').get(p.user_id) as { provider: string } | undefined)?.provider ?? 'dev',
+        signIn,
         demo,
         balance: fromMicro(p.balance_micro),
         xp: p.xp,
@@ -1015,6 +1100,8 @@ export class Game {
       darto: this.dartoPrices(demo),
       season: this.seasonInfo(),
       activity: this.activity(p.id),
+      /** Try as Judge gardens only: the 5-step tour. */
+      judgeTour: signIn === 'judge' ? this.judgeTour(p.id) : null,
     };
   }
 

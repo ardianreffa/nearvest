@@ -8,6 +8,7 @@
 // Market rows (needs an EXISTING dev garden with fruit; fake-chain server): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --market=<devUser> [width] [height]
 // Fullscreen layout at several screen sizes (EXISTING dev garden): node tools/ui-test.mjs <outDir> --fullscreen=<devUser>
 // TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> NEXT_XP=<xp> to raise its XP live; UI_URL=...?record=1 checks that no share card opens): node tools/ui-test.mjs <outDir> --tiers=<devUser>
+// Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
@@ -307,6 +308,66 @@ try {
       console.log('idle moments seen:', [...seen].join(', '));
     });
     throw Object.assign(new Error('motion done'), { done: true });
+  }
+  if (name === '--judge') {
+    await step('Try as Judge: one click, then the 5-step tour', async () => {
+      const tour = () => evaluate(`document.querySelector('.chip-judge')?.innerText.replace(/\\s+/g, ' ') ?? 'no chip'`);
+      const openTour = async () => {
+        if (!(await evaluate(`!!document.querySelector('.judge-dialog')`))) await evaluate(`document.querySelector('.chip-judge').click()`);
+        await waitFor(`!!document.querySelector('.judge-dialog')`, 'tour window');
+      };
+      const go = async (label) => {
+        await openTour();
+        await clickText(label, '.judge-dialog button');
+        await sleep(500);
+      };
+      await screenshot('login');
+      await clickText('Try as Judge');
+      await waitFor(`!!document.querySelector('.judge-dialog')`, 'tour opens', 30000);
+      await sleep(500); await screenshot('tour-start');
+      console.log('garden:', await evaluate(`document.querySelector('.who-btn')?.innerText.replace(/\\n/g, ' ')`), '|', await tour());
+      console.log('steps:', await evaluate(`[...document.querySelectorAll('.judge-step')].map(l => l.querySelector('b').innerText).join(' / ')`));
+      // 1. Harvest the ripe Rare Durian.
+      await go('Go to the garden');
+      await evaluate(`document.querySelectorAll('.plot')[0].click()`);
+      await sleep(300); await screenshot('garden');
+      console.log('plots:', await evaluate(`[...document.querySelectorAll('.plot')].map(p => p.getAttribute('aria-label')).join(' | ')`));
+      await clickText('Harvest');
+      await waitFor(`(document.querySelector('.chip-judge')?.innerText ?? '').includes('1/5')`, 'harvest step', 20000);
+      console.log('after harvest:', await tour());
+      // 2. Sell to Mr. Darto.
+      await go('Open the Market');
+      await waitFor(`!!document.querySelector('.market-row:not(.empty) .sell-go')`, 'market');
+      await evaluate(`(() => { const r = document.querySelector('.market-row:not(.empty)'); r.querySelector('.sell-max').click(); })()`);
+      await sleep(200);
+      await evaluate(`document.querySelector('.market-row:not(.empty) .sell-go').click()`);
+      await waitFor(bodyHas('Sold'), 'sold', 20000);
+      await sleep(400); await screenshot('sold');
+      // 3. Buy in the Shop (burn).
+      await go('Open the Shop');
+      await waitFor(`[...document.querySelectorAll('.shop li')].some(l => l.textContent.includes('Fertilizer'))`, 'shop');
+      await evaluate(`[...document.querySelectorAll('.shop li')].find(l => l.textContent.includes('Fertilizer')).querySelector('button').click()`);
+      await waitFor(bodyHas('Bought'), 'bought', 20000);
+      // 4. TaniBot's Log.
+      await go('Open TaniBot');
+      await waitFor(`!!document.querySelector('[aria-label="TaniBot"]')`, 'TaniBot window');
+      await sleep(800); await screenshot('tanibot');
+      console.log('TaniBot log:', await evaluate(`[...document.querySelectorAll('.bot-log li')].slice(0, 6).map(l => l.innerText.replace(/\\n/g, ' ')).join(' || ')`));
+      await clickText('Close', '[aria-label="TaniBot"] button');
+      await sleep(300);
+      // 5. Village Stats.
+      await go('Open the Village');
+      await waitFor(bodyHas('PANEN ever minted'), 'village stats', 30000);
+      await sleep(1500); await screenshot('village');
+      await waitFor(`(document.querySelector('.chip-judge')?.innerText ?? '').includes('5/5')`, 'all steps', 20000);
+      await openTour();
+      await waitFor(`!document.querySelector('.judge-dialog').innerText.includes('Sending to NEAR')`, 'all transactions landed', 90000);
+      await sleep(500); await screenshot('tour-done');
+      console.log('tour:', await tour(), '|', await evaluate(`[...document.querySelectorAll('.judge-step')].map(l => (l.classList.contains('done') ? 'DONE ' : 'todo ') + l.querySelector('b').innerText + ' ' + (l.querySelector('.judge-proof a')?.href ?? l.querySelector('.judge-proof')?.innerText ?? '')).join(' | ')`));
+      const overflow = await evaluate(`document.documentElement.scrollWidth > window.innerWidth`);
+      console.log('horizontal overflow:', overflow);
+    });
+    throw Object.assign(new Error('judge done'), { done: true });
   }
   if (name.startsWith('--tanibot=')) {
     await step('TaniBot window on a new dev garden', async () => {

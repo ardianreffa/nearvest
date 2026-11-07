@@ -6,6 +6,7 @@ import { ChainWorker } from '../src/chain/worker.ts';
 import { openDb } from '../src/db.ts';
 import { Game } from '../src/game.ts';
 import { TaniBotService } from '../src/tanibot.ts';
+import { JudgeService } from '../src/judge.ts';
 import { AiMeter, type AiLimits, type Brain } from '../src/brain.ts';
 
 /** 2026-11-07 01:00 UTC (08:00 WIB), one hour after the village day began. */
@@ -56,8 +57,10 @@ export function makeWorld(
     panenContractId: 'panen.nearvest.testnet',
     explorerTxUrl: 'https://testnet.nearblocks.io/txns/',
   });
+  const judge = new JudgeService(db, game, tanibot, now);
   const app = createApp({
     tanibot,
+    judge,
     db,
     game,
     chain,
@@ -85,7 +88,7 @@ export function makeWorld(
     );
     return game.createPlayer(userId, name, ip);
   };
-  return { db, chain, game, worker, app, clock, now, advance, masterKey, newPlayer, rng, tanibot, meter };
+  return { db, chain, game, worker, app, clock, now, advance, masterKey, newPlayer, rng, tanibot, meter, judge };
 }
 
 export const UNIT = 10n ** 18n;

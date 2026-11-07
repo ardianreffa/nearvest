@@ -2,7 +2,7 @@
 
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type Quality, type ServerConfig, type Species } from './api';
+import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type JudgeStep, type Quality, type ServerConfig, type Species } from './api';
 import { TaniBot, TaniBotHead, tierOf, tierRank } from './art/tanibot';
 import { getAudioPrefs, initAudio, onAudioPrefsChange, playSound, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
@@ -18,6 +18,7 @@ import { signShopBurn, walletProof } from './wallet';
 import { Profile } from './profile';
 import { TaniBotWindow } from './tanibot';
 import { GoogleButton } from './google';
+import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Avatar } from './art/avatars';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
@@ -120,7 +121,7 @@ export function App() {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [audio, setAudio] = useState(getAudioPrefs());
   const fullscreen = useFullscreen();
-  const [info, setInfo] = useState<'help' | 'panen' | 'profile' | 'tanibot' | 'checkin' | null>(null);
+  const [info, setInfo] = useState<'help' | 'panen' | 'profile' | 'tanibot' | 'checkin' | 'judge' | null>(null);
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
@@ -319,14 +320,29 @@ export function App() {
     [applyState, ask, refresh, toast],
   );
 
-  const onLoggedIn = (token: string, s: GameState | null) => {
+  const onLoggedIn = (token: string, s: GameState | null, note?: string) => {
     setToken(token);
     resetSession();
     if (s) {
       applyState(s);
       setPhase('play');
+      // Judge gardens open with the tour.
+      if (s.judgeTour) setInfo('judge');
     } else setPhase('create');
+    if (note) toast({ kind: 'info', text: note });
   };
+
+  // Judge tour: opening TaniBot's window or the Village counts as done (once).
+  const judgeTour = state?.judgeTour;
+  const villageOpen = wide ? drawerOpen && sideTab === 'village' : tab === 'village';
+  useEffect(() => {
+    if (!judgeTour) return;
+    const step: JudgeStep | null = info === 'tanibot' ? 'tanibot' : villageOpen ? 'village' : null;
+    if (!step || judgeTour.find((t) => t.step === step)?.done) return;
+    api<{ state: GameState }>('POST', '/api/judge/step', { step })
+      .then((r) => applyState(r.state))
+      .catch(() => undefined);
+  }, [info, villageOpen, judgeTour, applyState]);
 
   const logout = async () => {
     await api('POST', '/auth/logout').catch(() => undefined);
@@ -434,6 +450,16 @@ export function App() {
       </main>
     );
   }
+  /** Judge tour "Go" buttons: open the place where the step happens. */
+  const judgeGo = (step: JudgeStep) => {
+    setInfo(step === 'tanibot' ? 'tanibot' : null);
+    const side = (t: SideTab) => (wide ? (setSideTab(t), setDrawerOpen(true)) : setTab(t));
+    if (step === 'harvest' && !wide) setTab('garden');
+    if (step === 'sell') side('market');
+    if (step === 'shop') side('shop');
+    if (step === 'village') side('village');
+  };
+
   const infoView =
     info === 'help' ? (
       <HowToPlay onClose={() => setInfo(null)} />
@@ -441,6 +467,8 @@ export function App() {
       <PanenInfo state={state} config={config} onClose={() => setInfo(null)} />
     ) : info === 'tanibot' && state ? (
       <TaniBotWindow state={state} config={config} onState={applyState} onClose={() => setInfo(null)} notify={toast} />
+    ) : info === 'judge' && state && config ? (
+      <JudgeTour state={state} config={config} onGo={judgeGo} onClose={() => setInfo(null)} />
     ) : info === 'profile' && state ? (
       <Profile state={state} config={config} onState={applyState} onSignOut={() => (setInfo(null), void logout())} onClose={() => setInfo(null)} />
     ) : null;
@@ -555,6 +583,7 @@ export function App() {
         Day {state.clock.farmDay}
         {p.demo && <span class="chip-demo">Demo</span>}
       </span>
+      <JudgeTourChip state={state} onOpen={() => (playSound('click'), setInfo('judge'))} />
     </div>
   );
   const notices = (
@@ -708,7 +737,7 @@ function TabButton({ tab, current, set, icon, label }: { tab: Tab; current: Tab;
   );
 }
 
-function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedIn: (token: string, s: GameState | null) => void; onHelp: () => void }) {
+function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedIn: (token: string, s: GameState | null, note?: string) => void; onHelp: () => void }) {
   const [username, setUsername] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -720,6 +749,26 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
       const proof = await walletProof(config);
       const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/near', proof);
       onLoggedIn(res.token, res.player);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Try as Judge: a new, filled garden for this device (the same one again next time). */
+  const judgeLogin = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api<{ token: string; kind: 'new' | 'same' | 'shared'; player: GameState }>('POST', '/auth/judge', { deviceId: judgeDeviceId() });
+      const note =
+        res.kind === 'same'
+          ? 'Welcome back: this is your judge garden.'
+          : res.kind === 'shared'
+            ? 'Many judge gardens were made today, so you are sharing a recent one.'
+            : undefined;
+      onLoggedIn(res.token, res.player, note);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -757,6 +806,13 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
       <button class="btn how-btn" onClick={onHelp}>
         How to play
       </button>
+
+      <div class="judge-entry">
+        <button class="btn btn-gold btn-judge" onClick={judgeLogin} disabled={busy}>
+          {busy ? 'Preparing your garden...' : 'Try as Judge'}
+        </button>
+        <p class="small">One click, no sign-in: your own ready garden with real testnet Tree NFTs, PANEN and TaniBot, plus a 5-step tour.</p>
+      </div>
 
       <GoogleButton
         clientId={config.googleClientId}

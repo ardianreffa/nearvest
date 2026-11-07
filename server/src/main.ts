@@ -11,6 +11,7 @@ import { loadConfig } from './config.ts';
 import { openDb } from './db.ts';
 import { Game } from './game.ts';
 import { TaniBotService } from './tanibot.ts';
+import { JudgeService } from './judge.ts';
 import { AiMeter, NearAiBrain } from './brain.ts';
 
 const config = loadConfig();
@@ -96,7 +97,8 @@ setInterval(() => {
 // Sync tree stages to the NFTs every 20 seconds.
 setInterval(() => game.syncStages(), 20_000);
 
-const app = createApp({ db, game, chain, config, now: systemNow, tanibot });
+const judge = new JudgeService(db, game, tanibot, systemNow);
+const app = createApp({ db, game, chain, config, now: systemNow, tanibot, judge });
 serve({ fetch: app.fetch, port: config.port, hostname: '127.0.0.1' }, (info) => {
   console.log(`NEARvest server on http://127.0.0.1:${info.port} (chain: ${config.chainMode}, dev login: ${config.devLogin})`);
 });
