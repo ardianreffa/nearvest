@@ -49,3 +49,28 @@ export function immersiveLayout(width: number, height: number, drawerWidth: numb
   const stageRight = Math.max(drawerWidth > 0 ? drawerWidth + 36 : 24, width - (artLeft + artW) + margin);
   return { k, artLeft, artBottom, stageLeft, stageRight, stageBottom: artBottom + bedBottom };
 }
+
+/** Phone garden: the scene box and the art inside it (wider than the screen, panned sideways). */
+export interface PhoneZoom extends Immersive {
+  sceneW: number;
+  sceneH: number;
+}
+
+/**
+ * Phones (below 1024 px): a "game first" garden. The scene takes about 55% of the screen height
+ * and the art is drawn at a whole-number scale (3 px per pixel on most phones, so trees are 3 px
+ * per tree pixel). The art is wider than the screen: the scene box is as wide as the art and the
+ * page pans it sideways (the selected plot is scrolled into view).
+ */
+export function phoneLayout(width: number, height: number): PhoneZoom {
+  // Room left for the top HUD (about 120 px), the sheet (about 25%) and the tabs (about 70 px):
+  // the scale is the biggest whole number whose art fits in about 53% of the height.
+  const k = Math.min(4, Math.max(2, Math.floor((height * 0.53) / ART_H)));
+  const sceneH = Math.max(ART_H * k, Math.round(height * 0.5));
+  const artW = ART_W * k;
+  const sceneW = Math.max(artW, Math.round(width));
+  const artLeft = Math.round((sceneW - artW) / 2);
+  const bedBottom = (ART_H - SOIL_TOP_ROW - BED_ROWS) * k;
+  const margin = Math.round(artW * 0.11);
+  return { k, artLeft, artBottom: 0, stageLeft: artLeft + margin, stageRight: sceneW - artLeft - artW + margin, stageBottom: bedBottom, sceneW, sceneH };
+}

@@ -77,7 +77,8 @@ function safeAreaTop(): number {
  * at the top (under the top HUD and the phone's safe area).
  */
 function visibleArea(host: HTMLElement): Rect {
-  const scene = (host.closest('.scene') ?? host).getBoundingClientRect();
+  // Phones: the visible part is the panning box, not the (wider) scene inside it.
+  const scene = (host.closest('.scene-pan') ?? host.closest('.scene') ?? host).getBoundingClientRect();
   const safeTop = safeAreaTop();
   let top = Math.max(scene.top, safeTop);
   for (const el of document.querySelectorAll('.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys')) {
@@ -177,6 +178,12 @@ export function Hotspots({ onPlace, account }: { onPlace: (p: Place) => void; ac
         const el = pins.current[id];
         if (!el) continue;
         const [x, y] = SPOTS[id].pin;
+        // Phones pan the village: a pin whose building is out of view waits until it scrolls in.
+        const hr = h.getBoundingClientRect();
+        const ax = hr.left + (x / 240) * hr.width;
+        const inView = ax > area.left - 12 && ax < area.right + 12;
+        el.style.visibility = inView ? '' : 'hidden';
+        if (!inView) continue;
         place(el, h, x, y, area, [...obstacles, ...placed], false, id === 'village');
         placed.push(el.getBoundingClientRect());
       }
@@ -188,9 +195,13 @@ export function Hotspots({ onPlace, account }: { onPlace: (p: Place) => void; ac
     };
     layout();
     window.addEventListener('resize', layout);
+    // Phones: re-place the pins while the village is panned sideways.
+    const pan = host.current?.closest('.scene-pan');
+    pan?.addEventListener('scroll', layout, { passive: true });
     const t = setInterval(layout, 1000);
     return () => {
       window.removeEventListener('resize', layout);
+      pan?.removeEventListener('scroll', layout);
       clearInterval(t);
     };
   }, [bubble, hover]);

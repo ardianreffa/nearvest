@@ -1,9 +1,10 @@
 // The garden: three plots, the selected plot's actions and the daily check-in.
 
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Place } from './art/hotspots';
 import type { GameState, Quality, ServerConfig } from './api';
 import { floatText } from './fx';
+import { phoneLayout } from './layout';
 import { seasonPayout } from './qty';
 import { GardenScene, type ActionKind, type Immersive, type SceneFx } from './scene';
 import { Sprite } from './sprites';
@@ -102,16 +103,157 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
   }
 
   return (
-    <div class="garden-screen">
+    <PhoneGarden
+      state={state}
+      selected={selected}
+      onSelect={setSelected}
+      elapsed={elapsed}
+      fx={fx}
+      big={big}
+      onBot={onBot}
+      onPlace={onPlace}
+      sheet={
+        <PlotPanel
+          state={state}
+          config={config}
+          plotIndex={selected}
+          act={botAct}
+          ask={ask}
+          choose={choose}
+          busy={busy}
+          elapsed={elapsed}
+          goShop={goShop}
+          sheet
+          key={selected}
+        />
+      }
+      hint={!plot.tree && !plot.locked && state.seeds.length === 0}
+    />
+  );
+}
 
-      <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} onBot={onBot} onPlace={onPlace} />
+/** The window size (phones re-lay out the garden when it changes, e.g. on rotation). */
+function useWindowSize() {
+  const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const on = () => setSize({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  return size;
+}
 
-      {panel}
-      {!plot.tree && !plot.locked && state.seeds.length === 0 && (
-        <p class="hint">No seeds? Check in daily for a free Mango seed, or visit the Shop.</p>
-      )}
+/**
+ * Phones: "game first". The zoomed garden fills about 55% of the screen and pans sideways (the
+ * selected plot scrolls into view); the selected plot's panel is a compact sheet above the tabs.
+ */
+function PhoneGarden({
+  state,
+  selected,
+  onSelect,
+  elapsed,
+  fx,
+  big,
+  onBot,
+  onPlace,
+  sheet,
+  hint,
+}: {
+  state: GameState;
+  selected: number;
+  onSelect: (plot: number) => void;
+  elapsed: number;
+  fx: SceneFx | null;
+  big: boolean;
+  onBot?: () => void;
+  onPlace?: (p: Place) => void;
+  sheet: preact.ComponentChildren;
+  hint: boolean;
+}) {
+  const { w, h } = useWindowSize();
+  const base = phoneLayout(w, h);
+  const pan = useRef<HTMLDivElement>(null);
+  const sheetBox = useRef<HTMLDivElement>(null);
+  const first = useRef(true);
+  // The scene grows into any room left between the top bar and the sheet, so the sheet always
+  // sits right above the tab bar (the art stays at the bottom; more sky shows above it).
+  const [extra, setExtra] = useState(0);
+  useLayoutEffect(() => {
+    const fit = () => {
+      const p = pan.current;
+      const sb = sheetBox.current;
+      const tabs = document.querySelector('.tabs');
+      if (!p || !sb || !tabs) return;
+      const room = tabs.getBoundingClientRect().top - 8 - sb.getBoundingClientRect().height - (p.getBoundingClientRect().top + window.scrollY) - 8;
+      setExtra((e) => {
+        const next = Math.max(0, Math.round(room - base.sceneH));
+        return Math.abs(next - e) > 2 ? next : e;
+      });
+    };
+    fit();
+    const t = setInterval(fit, 1000);
+    return () => clearInterval(t);
+  });
+  const zoom = { ...base, sceneH: base.sceneH + extra };
+
+  // Keep the selected plot in view (smoothly, unless the player prefers less motion).
+  useEffect(() => {
+    const el = pan.current;
+    if (!el) return;
+    const stageW = zoom.sceneW - zoom.stageLeft - zoom.stageRight;
+    const centre = zoom.stageLeft + (stageW * (selected + 0.5)) / 3;
+    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollTo({ left: Math.max(0, centre - el.clientWidth / 2), behavior: first.current || reduce ? 'auto' : 'smooth' });
+    first.current = false;
+  }, [selected, zoom.sceneW, zoom.stageLeft, zoom.stageRight]);
+
+  return (
+    <div class="garden-screen phone-garden">
+      <div class="scene-pan" ref={pan} style={{ height: `${zoom.sceneH}px` }}>
+        <GardenScene state={state} selected={selected} onSelect={onSelect} elapsed={elapsed} fx={fx} big={big} phone={zoom} onBot={onBot} onPlace={onPlace} />
+      </div>
+      <div class="garden-sheet" ref={sheetBox}>
+        {sheet}
+        {hint && <p class="hint">No seeds? Check in daily for a free Mango seed, or visit the Shop.</p>}
+      </div>
     </div>
   );
+}
+
+const SHEET_KEY = 'nearvest.gardenSheet';
+function readSheetOpen(): boolean {
+  try {
+    return localStorage.getItem(SHEET_KEY) === 'open';
+  } catch {
+    return false;
+  }
+}
+
+/** Open / closed state of the phone sheet, remembered in localStorage; tap or swipe the header. */
+function useSheet(): { open: boolean; toggle: () => void; set: (v: boolean) => void; handlers: Record<string, (e: PointerEvent) => void> } {
+  const [open, setOpen] = useState(readSheetOpen);
+  const set = (v: boolean) => {
+    setOpen(v);
+    try {
+      localStorage.setItem(SHEET_KEY, v ? 'open' : 'closed');
+    } catch {
+      // Storage blocked: remembered for this visit only.
+    }
+  };
+  const startY = useRef<number | null>(null);
+  const handlers = {
+    onPointerDown: (e: PointerEvent) => {
+      startY.current = e.clientY;
+    },
+    onPointerUp: (e: PointerEvent) => {
+      if (startY.current === null) return;
+      const dy = e.clientY - startY.current;
+      startY.current = null;
+      if (dy < -24) set(true);
+      else if (dy > 24) set(false);
+    },
+  };
+  return { open, toggle: () => set(!open), set, handlers };
 }
 
 export function CheckinBanner({ state, act, ask, busy, elapsed = 0 }: { state: GameState; act: Act; ask: Ask; busy: boolean; elapsed?: number }) {
@@ -179,12 +321,15 @@ function PlotPanel({
   elapsed,
   goShop,
   bar = false,
+  sheet = false,
 }: {
   state: GameState;
   config: ServerConfig;
   plotIndex: number;
   /** Compact action-bar layout (immersive mode). */
   bar?: boolean;
+  /** Phones: a compact sheet above the tabs (closed: name, time and actions; open: details). */
+  sheet?: boolean;
   act: Act;
   ask: Ask;
   choose: Choose;
@@ -194,10 +339,12 @@ function PlotPanel({
 }) {
   const p = state.plots[plotIndex];
   const fertilizer = state.items.find((i) => i.item === 'fertilizer')?.qty ?? 0;
+  const sh = useSheet();
+  const [help, setHelp] = useState(false);
 
   if (p.locked) {
     return (
-      <Panel title={`Plot ${plotIndex + 1}`} class={bar ? 'plot-bar' : undefined}>
+      <Panel title={`Plot ${plotIndex + 1}`} class={bar ? 'plot-bar' : sheet ? 'plot-sheet plain' : undefined}>
         <p class="muted">Locked. Reach 50 XP (Farmhand) to unlock this plot. You have {state.player.xp} XP.</p>
       </Panel>
     );
@@ -206,7 +353,7 @@ function PlotPanel({
   if (!p.tree) {
     const groups = groupSeeds(state.seeds, true);
     return (
-      <Panel title={`Plot ${plotIndex + 1} · empty`} class={`plot-empty${bar ? ' plot-bar' : ''}`}>
+      <Panel title={`Plot ${plotIndex + 1} · empty`} class={`plot-empty${bar ? ' plot-bar' : ''}${sheet ? ' plot-sheet plain' : ''}`}>
         {groups.length === 0 ? (
           <p class="muted">You have no seeds.</p>
         ) : (
@@ -247,6 +394,113 @@ function PlotPanel({
     }
     await act('/api/harvest', plot, t.stage === 'old' ? 'Got a superior seed!' : 'Harvested!');
   };
+  const statusText = t.ready
+    ? t.stage === 'old'
+      ? 'This old tree is ready to drop a superior seed. After that it becomes a Memorial Tree.'
+      : 'Fruit is ripe. Harvest it!'
+    : t.isWatered
+      ? `Growing. Ready in about ${formatDuration(t.msToReady - Math.min(elapsed, t.msToReady))}.`
+      : 'Thirsty: water it, trees only grow while watered.';
+  const helpText =
+    t.stage === 'old'
+      ? 'Old trees give no more fruit or XP. Harvest the seed to plant a new generation.'
+      : `XP comes from harvests: +${xpGain} XP per ${SPECIES_NAME[t.species]}${state.player.xpMultiplier > 1 ? ` (demo: ${state.player.xpMultiplier}x)` : ''}. Watering is required: trees only grow while watered (1 day per watering). Fertilizer: 1.5x speed for 1 day and better fruit odds on the next harvest.`;
+  const actions = (
+    <div class="actions">
+      <button class="btn btn-cyan act-water" disabled={busy || t.wateredToday} onClick={() => act('/api/water', plot, 'Watered!')}>
+        <Sprite name="droplet" scale={2} /> {t.wateredToday ? (sheet ? 'Watered' : 'Watered today') : 'Water'}
+      </button>
+      <button class="btn act-fertilize" disabled={busy || t.isFertilized || fertilizer < 1} onClick={() => act('/api/fertilize', plot, 'Fertilized!')}>
+        <Sprite name="fertilizer" scale={2} /> Fertilize ({fertilizer})
+      </button>
+      <button class="btn btn-gold act-harvest" disabled={busy || !t.ready} onClick={() => void harvest()}>
+        <Sprite name="sparkle" scale={2} /> Harvest
+      </button>
+    </div>
+  );
+  const buyLink = fertilizer < 1 && !t.isFertilized && (
+    <p class="buy-link">
+      No fertilizer.{' '}
+      <button class="link-btn" onClick={goShop}>
+        Buy in Shop
+      </button>
+    </p>
+  );
+  const chop = (
+    <button
+      class="link-btn danger"
+      disabled={busy}
+      onClick={async () => {
+        if (await ask('Cut this tree down? It becomes a Memorial Tree and the plot is freed.', 'Cut down')) {
+          await act('/api/chop', plot, 'Tree cut down');
+        }
+      }}
+    >
+      Cut down tree
+    </button>
+  );
+
+  if (sheet) {
+    // Phones: a compact sheet. Closed: name + quality, time / progress, the three actions.
+    // Open (tap or swipe the header up): Harvests, Age, Next harvest, Cut down tree.
+    return (
+      <section class={`panel plot-sheet ${sh.open ? 'open' : 'closed'}`} aria-label="Selected plot">
+        <header class="sheet-head" {...sh.handlers}>
+          <button class="sheet-toggle" onClick={sh.toggle} aria-expanded={sh.open} aria-label={sh.open ? 'Show less' : 'Show details'}>
+            <span class="sheet-grip" aria-hidden="true" />
+            <h2>
+              {QUALITY_NAME[t.quality]} {SPECIES_NAME[t.species]}
+            </h2>
+            <span class="sheet-chevron" aria-hidden="true">
+              {sh.open ? '▾' : '▴'}
+            </span>
+          </button>
+          <button class="icon-btn sheet-help-btn" onClick={() => setHelp(!help)} aria-label="How this tree grows" aria-expanded={help}>
+            ?
+          </button>
+        </header>
+        {help && <p class="sheet-help small">{helpText}</p>}
+        <div class="sheet-status">
+          <div class="progress" aria-label="Growth">
+            <div class="progress-bar" style={{ width: `${Math.min(100, t.growthPercent)}%` }} />
+          </div>
+          <span class="small">
+            {t.ready ? (t.stage === 'old' ? 'Seed ready' : 'Ripe!') : t.isWatered ? formatDuration(t.msToReady - Math.min(elapsed, t.msToReady)) : 'Thirsty'}
+          </span>
+        </div>
+        {actions}
+        {buyLink}
+        {sh.open && (
+          <div class="sheet-details">
+            <div class="tree-info">
+              <span>{STAGE_NAME[t.stage]}</span>
+              <span>
+                Harvests {t.harvestCount}/{t.maxHarvests}
+              </span>
+              <span>Age {t.ageDays}d</span>
+              <span class="muted">{t.tokenId ? `NFT #${t.tokenId}` : 'minting NFT...'}</span>
+            </div>
+            <p class="muted small">{statusText}</p>
+            {t.isFertilized && t.fertMsLeft - elapsed > 0 && (
+              <div class="fert-badge" role="status">
+                <Sprite name="fertilizer" scale={2} />
+                <span>
+                  Fertilized: <b>{t.fertSpeed}x speed</b> · {formatDuration(t.fertMsLeft - elapsed)} left
+                </span>
+              </div>
+            )}
+            {t.stage !== 'old' && (
+              <p class="odds-line small">
+                Next harvest: <OddsLine odds={t.nextHarvestOdds} />
+              </p>
+            )}
+            {chop}
+          </div>
+        )}
+      </section>
+    );
+  }
+
   return (
     <Panel
       class={bar ? 'plot-bar' : undefined}

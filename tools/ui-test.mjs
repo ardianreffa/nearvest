@@ -78,6 +78,8 @@ const step = async (label, fn) => { console.log('==', label); await fn(); };
 await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: MOBILE ? 2 : 1, mobile: MOBILE });
 await send('Emulation.setTouchEmulationEnabled', { enabled: MOBILE });
+// REDUCED_MOTION=1: emulate prefers-reduced-motion: reduce.
+if (process.env.REDUCED_MOTION) await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
 const realClick = async (x, y) => { for (const type of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 }); };
 
 try {
@@ -115,7 +117,7 @@ try {
       await clickText('Durian', '.seed-card');
       await waitFor(`!!document.querySelector('.plot .tree')`, 'planted');
       await clickText('Water');
-      await waitFor(bodyHas('Watered today'), 'watered');
+      await waitFor(`[...document.querySelectorAll('.act-water')].some(b => /Watered/.test(b.innerText))`, 'watered');
       await sleep(1500); await screenshot('plot-panel');
       const overlap = await evaluate(`(() => {
         const bar = document.querySelector('.hud-bar .panel') || document.querySelector('.garden-screen .panel');
@@ -383,6 +385,22 @@ try {
         // Pins: inside the screen, below the top HUD, and not on the HUD, TaniBot, its ON chip, tree timers, plots or the panel.
         console.log('pins:', await evaluate(`(() => { const sel = '.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .topbar, .bot-spot .tanibot, .bot-hint, .bot-status, .badge, .plot-art, .soil, .garden-sheet, .tabs'; const obs = [...document.querySelectorAll(sel)].map(e => [e, e.getBoundingClientRect()]).filter(([, r]) => r.width); const hudBottom = Math.max(0, ...[...document.querySelectorAll('.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys')].map(e => e.getBoundingClientRect().bottom)); return [...document.querySelectorAll('.place-pin')].map(p => { const r = p.getBoundingClientRect(); const hit = obs.filter(([, o]) => r.left < o.right && o.left < r.right && r.top < o.bottom && o.top < r.bottom).map(([e]) => e.className.split(' ')[0]); const off = r.left < 0 || r.right > innerWidth || r.top < 0 || r.bottom > innerHeight; return p.innerText.replace(/\\n/g, ' ') + ' ' + Math.round(r.width) + 'x' + Math.round(r.height) + (hit.length ? ' COVERS ' + hit.join('/') : '') + (off ? ' OFFSCREEN' : '') + (hudBottom && r.top < hudBottom ? ' ABOVE-SAFE-LINE' : ''); }).join(' | '); })()`));
         await screenshot('pins');
+        if (MOBILE && await evaluate(`!!document.querySelector('.sheet-toggle')`)) {
+          await evaluate(`document.querySelector('.sheet-toggle').click()`);
+          await sleep(400);
+          console.log('sheet open:', await evaluate(`(() => { const s = document.querySelector('.plot-sheet'); const r = s.getBoundingClientRect(); return s.className + ' ' + Math.round(r.height) + 'px of ' + innerHeight + ' | remembered ' + localStorage.getItem('nearvest.gardenSheet'); })()`));
+          await screenshot('sheet-open');
+          await evaluate(`document.querySelector('.sheet-toggle').click()`);
+          await sleep(1500);
+          console.log('sheet closed:', await evaluate(`(() => { const s = document.querySelector('.plot-sheet'); const r = s.getBoundingClientRect(); const tabs = document.querySelector('.tabs').getBoundingClientRect(); return Math.round(100 * r.height / innerHeight) + '% of the screen | gap to tabs ' + Math.round(tabs.top - r.bottom) + 'px | buttons ' + [...s.querySelectorAll('.actions .btn')].map(b => b.innerText.trim()).join(' / '); })()`));
+        }
+        if (MOBILE) {
+          // Phones: pan the village to the right end and report the pins again.
+          await evaluate(`(() => { const p = document.querySelector('.scene-pan'); p.scrollLeft = p.scrollWidth; })()`);
+          await sleep(600);
+          console.log('pins after panning right:', await evaluate(`[...document.querySelectorAll('.place-pin')].filter(p => getComputedStyle(p).visibility !== 'hidden').map(p => p.innerText.replace(/\\n/g, ' ')).join(' | ')`), '| page scrolls sideways:', await evaluate(`document.documentElement.scrollWidth > innerWidth || scrollX !== 0`));
+          await screenshot('pins-panned');
+        }
       }
       // Any sky element bigger than 3 game pixels drawn as a plain box (no picture inside, solid fill)?
       console.log('plain boxes in the sky:', await evaluate(`(() => { const art = document.querySelector('.bg-art').getBoundingClientRect(); const px = art.width / 240; return [...document.querySelectorAll('.sky *, .bg-fx > *')].filter(e => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); if (r.width < 3 * px || r.height < 3 * px || e.querySelector('svg, img') || e.tagName === 'svg' || e.closest('svg')) return false; const solid = cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundImage === 'none' && cs.clipPath === 'none' && cs.borderRadius === '0px'; return solid && parseFloat(cs.opacity) > 0.05; }).map(e => e.className).join(', ') || 'none'; })()`));
@@ -678,7 +696,7 @@ try {
     await clickText('Mango', '.seed-btn');
     await waitFor(`!!document.querySelector('.plot .tree')`, 'planted');
     await clickText('Water');
-    await waitFor(bodyHas('Watered today'), 'watered');
+    await waitFor(`[...document.querySelectorAll('.act-water')].some(b => /Watered/.test(b.innerText))`, 'watered');
     await sleep(400); await screenshot('planted-watered');
   });
   await step('plot 3 is locked', async () => {

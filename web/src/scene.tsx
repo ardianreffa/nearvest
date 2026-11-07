@@ -45,7 +45,7 @@ function botX(plot: number, lane: Lane): number {
 // ---------- Immersive layout (laptop / PC): web/src/layout.ts ----------
 
 export { ART_H, ART_W, immersiveLayout, type Immersive } from './layout';
-import type { Immersive } from './layout';
+import type { Immersive, PhoneZoom } from './layout';
 
 /** Dev builds only: ?time=day / dusk / night locks the village clock (screenshots and video). */
 const TIME_LOCKED = import.meta.env.DEV && typeof location !== 'undefined' ? lockedFraction(location.search) : null;
@@ -70,9 +70,12 @@ interface Props {
   onBot?: () => void;
   /** Hotspots in the village: open the Shop, the Market or the Village panel. */
   onPlace?: (p: Place) => void;
+  /** Phones: the zoomed garden (the scene box is wider than the screen and pans sideways). */
+  phone?: PhoneZoom;
 }
 
-export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive, onBot, onPlace }: Props) {
+export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive: wideLayout, onBot, onPlace, phone }: Props) {
+  const immersive = wideLayout ?? phone;
   // Trees use the same pixel size as the backdrop: 2 on phones, 3 on the wide
   // layout, k in the immersive layout.
   const px = immersive ? immersive.k : big ? 3 : 2;
@@ -100,12 +103,21 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
 
   return (
     <div
-      class={`scene phase-${phase}${immersive ? ' immersive-scene' : ''}`}
+      class={`scene phase-${phase}${immersive ? ' immersive-scene' : ''}${phone ? ' phone-scene' : ''}`}
       role="group"
       aria-label="Your garden"
-      style={immersive ? { '--k': String(immersive.k), '--art-left': `${immersive.artLeft}px`, '--art-bottom': `${immersive.artBottom}px` } : undefined}
+      style={
+        immersive
+          ? {
+              '--k': String(immersive.k),
+              '--art-left': `${immersive.artLeft}px`,
+              '--art-bottom': `${immersive.artBottom}px`,
+              ...(phone ? { width: `${phone.sceneW}px`, height: `${phone.sceneH}px` } : {}),
+            }
+          : undefined
+      }
     >
-      <Backdrop fraction={fraction} blurFill={!!immersive} hd={!!immersive} onPlace={onPlace} account={state.player.accountId} />
+      <Backdrop fraction={fraction} blurFill={!!immersive && !phone} hd={!!immersive} onPlace={onPlace} account={state.player.accountId} />
 
       <Stage immersive={immersive}>
       <div class="plots">
