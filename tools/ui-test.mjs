@@ -337,14 +337,14 @@ try {
       await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
       await evaluate(`document.querySelector('.drawer-close')?.click()`);
       await sleep(800);
-      // Train frames: jump the 120 s cycle to points of the 16 s run.
-      for (const t of [2, 5, 8, 11, 14]) {
-        await evaluate(`(() => { const tr = document.querySelector('.train'); tr.style.animationDelay = '-${t}s'; tr.style.animationPlayState = 'paused'; })()`);
-        await sleep(250);
-        console.log(`train at ${t}s:`, await evaluate(`(() => { const r = document.querySelector('.train').getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); })()`));
+      // Train frames: freeze the 18 s run at a few points (dev builds: window.__trainT).
+      for (const t of [1.5, 4, 7, 10, 13, 16]) {
+        await evaluate(`window.__trainT = ${t}`);
+        await sleep(400);
+        console.log(`train at ${t}s:`, await evaluate(`[...document.querySelectorAll('.train-car')].map(c => { const r = c.getBoundingClientRect(); return c.className.split(' ')[1] + ' ' + c.dataset.angle + 'deg @' + Math.round(r.left) + ',' + Math.round(r.top); }).join(' | ') || 'not on screen'`));
         await screenshot(`train-${t}s`);
       }
-      await evaluate(`(() => { const tr = document.querySelector('.train'); tr.style.animationDelay = ''; tr.style.animationPlayState = ''; })()`);
+      await evaluate(`delete window.__trainT`);
       // Hotspots: what is on top at each hotspot's centre (must be the hotspot), and at each plot (must be the plot).
       console.log('hit test:', await evaluate(`[...document.querySelectorAll('.hotspot')].map(h => { const r = h.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return h.className.split(' ')[1] + '=' + (e === h ? 'ok' : (e?.className || e?.tagName)); }).join(' | ')`));
       console.log('plots still win:', await evaluate(`[...document.querySelectorAll('.plot')].map(p => { const r = p.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.bottom - 6); return p.contains(e) ? 'ok' : (e?.className || e?.tagName); }).join(' | ')`));
@@ -368,6 +368,15 @@ try {
       await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
       await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
       await sleep(2500); await screenshot('scene-a');
+      if (process.env.BIRDS) {
+        // Freeze both flocks in the middle of the sky and report their size (birds: 3-5 game pixels).
+        await evaluate(`document.querySelectorAll('.day-flock, .home-flock').forEach(f => { f.style.animationDelay = '${process.env.BIRDS_AT || '-5s'}'; f.style.animationPlayState = 'paused'; })`);
+        await sleep(300);
+        console.log('birds:', await evaluate(`[...document.querySelectorAll('.bird')].filter(b => getComputedStyle(b.closest('.sky-day, .sky-dusk')).opacity > 0).slice(0, 2).map(b => { const r = b.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }).join(' | ') || 'none visible'`));
+        await screenshot('birds');
+      }
+      // Any sky element bigger than 3 game pixels drawn as a plain box (no picture inside, solid fill)?
+      console.log('plain boxes in the sky:', await evaluate(`(() => { const art = document.querySelector('.bg-art').getBoundingClientRect(); const px = art.width / 240; return [...document.querySelectorAll('.sky *, .bg-fx > *')].filter(e => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); if (r.width < 3 * px || r.height < 3 * px || e.querySelector('svg, img') || e.tagName === 'svg' || e.closest('svg')) return false; const solid = cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundImage === 'none' && cs.clipPath === 'none' && cs.borderRadius === '0px'; return solid && parseFloat(cs.opacity) > 0.05; }).map(e => e.className).join(', ') || 'none'; })()`));
       console.log('sky layers (day / dusk / night opacity):', await evaluate(`['.sky-day', '.sky-dusk', '.sky-night'].map(s => getComputedStyle(document.querySelector(s)).opacity).join(' / ')`), '| phase:', await evaluate(`document.querySelector('.scene').className`));
       await sleep(6000); await screenshot('scene-b');
     });

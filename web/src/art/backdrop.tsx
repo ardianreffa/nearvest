@@ -11,6 +11,7 @@
 // All coordinates are art pixels of the 240x135 phone image (the laptop image is 480x270).
 
 import { Drone } from './tanibot';
+import { Train, TRAIN_CLIP } from './train';
 import { Hotspots, type Place } from './hotspots';
 import { at, SkyBack, SkyBands, SkyFront } from './sky';
 import { skyBands } from './sky-colors';
@@ -89,57 +90,6 @@ const SMOKE = [
   { x: 124, y: 33, d: 3.3, small: true },
 ];
 
-// The monorail: top of the rail (where the train runs) from its left end to behind the palm.
-const RAIL: [number, number][] = [
-  [123.5, 63.5],
-  [145, 58.5],
-  [165, 55],
-  [185, 51.5],
-  [200, 49],
-  [215, 47.5],
-  [228, 46.8],
-];
-/** The train shows only on the rail: from its left end to the palm on the right. */
-const TRAIN_CLIP = { x: 122, y: 28, w: 103, h: 40 };
-const TRAIN_W = { sd: 49, hd: 53.5 };
-const TRAIN_H = { sd: 5, hd: 5.5 };
-
-function railY(x: number): { y: number; angle: number } {
-  const pts = RAIL;
-  let i = 0;
-  if (x <= pts[0][0]) i = 0;
-  else if (x >= pts[pts.length - 1][0]) i = pts.length - 2;
-  else while (pts[i + 1][0] < x) i++;
-  const [x0, y0] = pts[i];
-  const [x1, y1] = pts[i + 1];
-  const slope = (y1 - y0) / (x1 - x0);
-  return { y: y0 + slope * (x - x0), angle: (Math.atan(slope) * 180) / Math.PI };
-}
-
-/**
- * Keyframes of one train run every TRAIN_CYCLE seconds: the train's bottom centre follows the
- * rail from out of sight at the left end to out of sight behind the palm, tilting with the curve.
- */
-const TRAIN_CYCLE = 120;
-const TRAIN_RUN = 16;
-function trainKeyframes(w: number): string {
-  const start = TRAIN_CLIP.x - w / 2 - 1;
-  const end = TRAIN_CLIP.x + TRAIN_CLIP.w + w / 2 + 1;
-  const run = (TRAIN_RUN / TRAIN_CYCLE) * 100;
-  const steps = 14;
-  const frames: string[] = [];
-  for (let i = 0; i <= steps; i++) {
-    const x = start + ((end - start) * i) / steps;
-    const { y, angle } = railY(x);
-    const left = ((x - TRAIN_CLIP.x) / TRAIN_CLIP.w) * 100;
-    const top = ((y - TRAIN_CLIP.y) / TRAIN_CLIP.h) * 100;
-    frames.push(`${((run * i) / steps).toFixed(3)}% { left: ${left.toFixed(2)}%; top: ${top.toFixed(2)}%; transform: translate(-50%, -100%) rotate(${angle.toFixed(2)}deg); }`);
-  }
-  const last = frames[frames.length - 1].replace(/^[\d.]+%/, '100%');
-  return frames.join('\n') + '\n' + last;
-}
-const TRAIN_CSS = `@keyframes train-run-sd {\n${trainKeyframes(TRAIN_W.sd)}\n}\n@keyframes train-run-hd {\n${trainKeyframes(TRAIN_W.hd)}\n}`;
-
 /** Wind turbine rotors on the two poles on the right (hub positions), turning at their own pace. */
 const ROTORS = [
   { x: 207.5, y: 25, size: 15, speed: 7 },
@@ -161,11 +111,9 @@ export function Backdrop({ fraction, blurFill = false, hd = false, onPlace }: { 
     '--day': ((1 - dusk) * (1 - night)).toFixed(3),
     '--tint': tint.toFixed(3),
   };
-  const g = hd ? 'hd' : 'sd';
 
   return (
     <div class="backdrop" style={vars} aria-hidden={onPlace ? undefined : 'true'}>
-      <style>{TRAIN_CSS}</style>
       {blurFill && (
         // Full-window layout: whatever the sharp art does not cover shows a blurred copy of it.
         <div class="bg-blur">
@@ -191,18 +139,7 @@ export function Backdrop({ fraction, blurFill = false, hd = false, onPlace }: { 
             </span>
           ))}
           <div class="train-clip" style={at(TRAIN_CLIP.x, TRAIN_CLIP.y, TRAIN_CLIP.w, TRAIN_CLIP.h)}>
-            <span
-              class="train"
-              style={{
-                width: `${(TRAIN_W[g] / TRAIN_CLIP.w) * 100}%`,
-                height: `${(TRAIN_H[g] / TRAIN_CLIP.h) * 100}%`,
-                animationName: `train-run-${g}`,
-                animationDuration: `${TRAIN_CYCLE}s`,
-              }}
-            >
-              <img src={`/assets/bg/train-day${suf}.png`} alt="" />
-              <img class="train-night" src={`/assets/bg/train-night${suf}.png`} alt="" />
-            </span>
+            <Train hd={hd} />
           </div>
           {SMOKE.map((s, i) => (
             <i key={i} class={`puff${s.small ? ' small' : ''}`} style={{ ...at(s.x, s.y, s.small ? 2 : 4, s.small ? 2 : 4), animationDelay: `${s.d}s` }} />
