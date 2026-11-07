@@ -16,6 +16,9 @@ interface AvatarArt {
   rows: string[];
   /** 'b' = background; other letters extend the shared sprite palette. */
   palette: Record<string, string>;
+  /** TaniBot avatars: twice the detail for big sizes, and the tier (background and aura in CSS). */
+  hdRows?: string[];
+  tier?: Tier;
 }
 
 const BASIC: Record<BasicAvatarId, AvatarArt> = {
@@ -197,7 +200,7 @@ const BASIC: Record<BasicAvatarId, AvatarArt> = {
   },
 };
 
-/** Background of each TaniBot head avatar, brighter with each title. */
+/** Soft background of each TaniBot avatar (matches its frame), brighter with each title. */
 const BOT_BG: Record<Tier, string> = {
   seedling: '#BDE8F5',
   farmhand: '#C8F0D8',
@@ -207,17 +210,43 @@ const BOT_BG: Record<Tier, string> = {
   legend: '#CFFAFE',
 };
 
-/** The head and hat of a TaniBot tier (58x33), centred in a 58x58 square. */
-function botHead(tier: Tier): AvatarArt {
-  const { rows, palette } = botSprite(tier, false);
-  const head = rows.slice(0, 33).map((r) => r.replace(/\./g, '#'));
-  const pad = (n: number) => Array.from({ length: n }, () => '#'.repeat(58));
-  return { name: `TaniBot ${TIER_TITLE[tier]}`, rows: [...pad(13), ...head, ...pad(12)], palette: { ...palette, '#': BOT_BG[tier] } };
+/** The whole TaniBot of a tier, trimmed to its body and centred in a square (transparent around it). */
+function botFull(tier: Tier, hd: boolean): string[] {
+  // Tiers with an aura get more room around the body; Legend also room above the hat for its halo.
+  const margin = tier === 'legend' ? 1.3 : tier === 'durian_king' ? 1.2 : 1.06;
+  const rows = botSprite(tier, hd).rows;
+  const filled = (r: string) => /[^.]/.test(r);
+  const top = rows.findIndex(filled);
+  const bottom = rows.length - 1 - [...rows].reverse().findIndex(filled);
+  let left = Infinity;
+  let right = -1;
+  for (const r of rows) {
+    const i = r.search(/[^.]/);
+    if (i < 0) continue;
+    left = Math.min(left, i);
+    right = Math.max(right, r.length - 1 - [...r].reverse().findIndex((c) => c !== '.'));
+  }
+  const body = rows.slice(top, bottom + 1).map((r) => r.slice(left, right + 1));
+  const h = body.length;
+  const w = body[0].length;
+  const side = Math.ceil(Math.max(w, h) * margin);
+  const padX = Math.floor((side - w) / 2);
+  const padTop = tier === 'legend' ? side - h - Math.floor((side - h) * 0.15) : Math.floor((side - h) / 2);
+  const blank = '.'.repeat(side);
+  return [
+    ...Array.from({ length: padTop }, () => blank),
+    ...body.map((r) => '.'.repeat(padX) + r + '.'.repeat(side - w - padX)),
+    ...Array.from({ length: side - h - padTop }, () => blank),
+  ];
+}
+
+function botAvatar(tier: Tier): AvatarArt {
+  return { name: `TaniBot ${TIER_TITLE[tier]}`, rows: botFull(tier, false), hdRows: botFull(tier, true), palette: botSprite(tier, false).palette, tier };
 }
 
 export const AVATARS: Record<AvatarId, AvatarArt> = {
   ...BASIC,
-  ...(Object.fromEntries(TIERS.map((t) => [`bot_${t}`, botHead(t)])) as Record<BotAvatarId, AvatarArt>),
+  ...(Object.fromEntries(TIERS.map((t) => [`bot_${t}`, botAvatar(t)])) as Record<BotAvatarId, AvatarArt>),
 };
 
 export const AVATAR_IDS = Object.keys(AVATARS) as AvatarId[];
@@ -227,11 +256,24 @@ export function avatarTitle(id: AvatarId): string | null {
   return id.startsWith('bot_') && id !== 'bot_seedling' ? TIER_TITLE[id.slice(4) as Tier] : null;
 }
 
-/** A square, still avatar. `size` is the CSS width in px. `locked` = a dark silhouette. */
+/**
+ * A square, still avatar. `size` is the CSS width in px. `locked` = a dark silhouette.
+ * TaniBot avatars show the whole robot of that title, facing front, on a soft background;
+ * Durian King adds a still golden durian glow, Legend a white-cyan circle of light and a halo.
+ */
 export function Avatar({ id, size = 48, locked = false }: { id: string; size?: number; locked?: boolean }) {
   const art = AVATARS[(id in AVATARS ? id : 'farmer_hat') as AvatarId];
+  if (art.tier) {
+    const rows = size >= 64 && art.hdRows ? art.hdRows : art.rows;
+    const palette = locked ? Object.fromEntries(Object.keys(art.palette).map((k) => [k, '#1b1b2f'])) : art.palette;
+    return (
+      <span class={`avatar avatar-bot bot-bg-${art.tier}${locked ? ' locked' : ''}`} style={{ width: size, height: size, '--bot-bg': BOT_BG[art.tier] }}>
+        <Pixels rows={rows} palette={palette} scale={size / rows[0].length} title={art.name} />
+      </span>
+    );
+  }
   const grid = art.rows[0].length;
-  const palette = locked ? Object.fromEntries(Object.keys(art.palette).map((k) => [k, k === '#' || k === 'b' && grid === 16 ? '#3a3f4b' : '#1b1b2f'])) : art.palette;
+  const palette = locked ? Object.fromEntries(Object.keys(art.palette).map((k) => [k, k === 'b' ? '#3a3f4b' : '#1b1b2f'])) : art.palette;
   return (
     <span class={`avatar${locked ? ' locked' : ''}`} style={{ width: size, height: size }}>
       <Pixels rows={art.rows} palette={palette} scale={size / grid} title={art.name} />

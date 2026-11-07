@@ -81,6 +81,17 @@ function HoleCheck() {
 function Gallery() {
   return (
     <main class="preview">
+      <h2>TaniBot avatars: capsule (32, 48), Profile (96), locked (48)</h2>
+      <div class="preview-row" style={{ background: '#2a1d10', padding: '8px', gap: '12px', alignItems: 'center' }}>
+        {AVATAR_IDS.filter((id) => id.startsWith('bot_')).map((id) => (
+          <div key={id} class="preview-cell" style={{ flexDirection: 'row', alignItems: 'center', gap: '6px' }}>
+            <Avatar id={id} size={32} />
+            <Avatar id={id} size={48} />
+            <Avatar id={id} size={96} />
+            <Avatar id={id} size={48} locked />
+          </div>
+        ))}
+      </div>
       <HoleCheck />
       <h2>Drones</h2>
       <div class="preview-row drone-row">

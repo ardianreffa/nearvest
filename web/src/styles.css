@@ -6210,3 +6210,35 @@ button.chip:focus-visible {
 .share-preview[open] > summary {
   margin-bottom: 8px;
 }
+
+/* TaniBot avatars (art/avatars.tsx): the whole robot on a soft background that matches its
+   frame; Durian King and Legend get a still version of their in-game aura. */
+.avatar-bot {
+  position: relative;
+  background: var(--bot-bg, #bde8f5);
+}
+
+.avatar-bot svg {
+  position: relative;
+}
+
+/* Durian King: a golden durian of light (round glow with spikes). */
+.avatar-bot.bot-bg-durian_king {
+  background:
+    radial-gradient(circle at 50% 56%, rgba(255, 236, 160, 0.95) 0 24%, rgba(245, 197, 66, 0.75) 36%, rgba(245, 197, 66, 0) 50%),
+    repeating-conic-gradient(from 0deg at 50% 56%, rgba(255, 206, 84, 0.85) 0 6deg, rgba(255, 206, 84, 0) 6deg 22.5deg),
+    #fbe5a3;
+}
+
+/* Legend: a white-cyan circle of light with a soft outer ring, and the halo above the hat. */
+.avatar-bot.bot-bg-legend {
+  background:
+    radial-gradient(ellipse 24% 7% at 50% 10%, rgba(255, 255, 255, 0) 50%, #ffffff 60%, #a5f3fc 75%, rgba(34, 211, 238, 0) 100%),
+    radial-gradient(circle at 50% 60%, transparent 0 44%, rgba(165, 243, 252, 0.95) 46%, transparent 50%),
+    radial-gradient(circle at 50% 60%, #ffffff 0 20%, rgba(186, 250, 255, 0.95) 32%, rgba(34, 211, 238, 0.6) 40%, rgba(34, 211, 238, 0) 44%),
+    #bdeff6;
+}
+
+.avatar-bot.locked {
+  background: #3a3f4b;
+}
