@@ -22,6 +22,10 @@ export interface Config {
   /** NEAR attached to fund each new player account's storage. */
   playerAccountDepositNear: string;
   webOrigins: string[];
+  /** TaniBot's brain: true = NEAR AI Cloud (uses credits), false = simple rules only. */
+  tanibotAi: boolean;
+  /** NEAR AI Cloud API key (only needed when tanibotAi is on). */
+  nearAiApiKey: string;
 }
 
 function env(name: string, fallback?: string): string {
@@ -34,7 +38,7 @@ function env(name: string, fallback?: string): string {
 function bool(name: string, fallback: boolean): boolean {
   const value = process.env[name];
   if (value === undefined || value === '') return fallback;
-  return value === 'true' || value === '1';
+  return value === 'true' || value === '1' || value === 'on';
 }
 
 /** True when every allowed web origin is this computer (local development). */
@@ -74,11 +78,17 @@ export function loadConfig(): Config {
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
+    tanibotAi: bool('TANIBOT_AI', false),
+    nearAiApiKey: env('NEAR_AI_API_KEY', ''),
   };
   const wanted = bool('DEV_LOGIN', false);
   config.devLogin = devLoginAllowed(wanted, config.webOrigins);
   if (wanted && !config.devLogin) {
     console.warn('DEV_LOGIN=true ignored: WEB_ORIGINS has a public site, so dev login stays off.');
+  }
+  if (config.tanibotAi && !config.nearAiApiKey) {
+    console.warn('TANIBOT_AI=on but NEAR_AI_API_KEY is empty: TaniBot uses simple rules.');
+    config.tanibotAi = false;
   }
   return config;
 }

@@ -78,3 +78,10 @@ Draft numbers live in `server/src/rules.ts` and are tuned in testing. Sounds and
 ## Skipped
 
 - Pruning / tidying trees (not in the GDD).
+
+## Ideas after the hackathon
+
+Not planned for the hackathon. These will also become the roadmap section of the README.
+
+- **Garden visits to friends** (already a Bonus feature in the GDD): visit a friend's garden, look around and help (for example water a thirsty tree).
+- **1v1 PvP between farmers**: two farmers compete head to head (for example a timed harvest race or a best-fruit contest), with $PANEN or seed rewards.

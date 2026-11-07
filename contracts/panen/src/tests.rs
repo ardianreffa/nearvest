@@ -210,3 +210,264 @@ fn only_owner_can_change_thresholds() {
     call_as(&server());
     c.set_season_thresholds(vec![U128(1)]);
 }
+
+// ---------- TaniBot budgets ----------
+
+fn bot() -> AccountId {
+    "bot.ardian.nearvest.testnet".parse().unwrap()
+}
+
+/// 2026-11-07 10:00 UTC, in nanoseconds.
+const T0: u64 = 1_793_354_400_000_000_000;
+const DAY: u64 = 86_400_000_000_000;
+
+fn call_at(account: &AccountId, yocto: u128, ts: u64) {
+    let ctx = VMContextBuilder::new()
+        .current_account_id("panen.nearvest.testnet".parse().unwrap())
+        .predecessor_account_id(account.clone())
+        .signer_account_id(account.clone())
+        .attached_deposit(NearToken::from_yoctonear(yocto))
+        .block_timestamp(ts)
+        .build();
+    testing_env!(ctx);
+}
+
+/// ardian links bot.ardian with a 10 PANEN daily limit, the bot accepts, and
+/// ardian sends it a 50 PANEN budget.
+fn with_bot() -> Contract {
+    let mut c = setup();
+    call_at(&server(), 0, T0);
+    c.mint(ardian(), U128(panen(100)), None);
+    call_at(&ardian(), 1, T0);
+    c.set_bot(bot(), U128(panen(10)));
+    call_at(&bot(), 0, T0);
+    c.bot_accept(ardian());
+    call_at(&ardian(), 1, T0);
+    c.ft_transfer(bot(), U128(panen(50)), Some("TaniBot budget".into()));
+    c
+}
+
+#[test]
+fn bot_link_needs_the_player_and_the_bot() {
+    let c = with_bot();
+    let info = c.bot_info(bot()).unwrap();
+    assert_eq!(info.owner_id, ardian());
+    assert!(info.accepted);
+    assert_eq!(info.daily_limit.0, panen(10));
+    assert_eq!(info.balance.0, panen(50));
+    assert_eq!(info.remaining_today.0, panen(10));
+    assert!(c.bot_info(budi()).is_none());
+}
+
+#[test]
+fn bot_can_burn_up_to_the_daily_limit() {
+    let mut c = with_bot();
+    call_at(&bot(), 0, T0);
+    c.burn(U128(panen(8)), Some("Shop: 1 x Fertilizer".into()));
+    c.burn(U128(panen(2)), None);
+    assert_eq!(c.ft_balance_of(bot()).0, panen(40));
+    assert_eq!(c.bot_info(bot()).unwrap().remaining_today.0, 0);
+    assert_eq!(c.village_stats().total_burned.0, panen(10));
+}
+
+#[test]
+#[should_panic(expected = "TaniBot daily spending limit reached")]
+fn bot_cannot_spend_more_than_the_daily_limit() {
+    let mut c = with_bot();
+    call_at(&bot(), 0, T0);
+    c.burn(U128(panen(8)), None);
+    c.burn(U128(panen(3)), None);
+}
+
+#[test]
+fn the_limit_starts_again_the_next_utc_day() {
+    let mut c = with_bot();
+    call_at(&bot(), 0, T0);
+    c.burn(U128(panen(10)), None);
+    // 14 hours later it is a new UTC day (00:00 UTC = 07:00 WIB).
+    call_at(&bot(), 0, T0 + 14 * DAY / 24);
+    assert_eq!(c.bot_info(bot()).unwrap().remaining_today.0, panen(10));
+    c.burn(U128(panen(10)), None);
+    assert_eq!(c.ft_balance_of(bot()).0, panen(30));
+}
+
+#[test]
+#[should_panic(expected = "A TaniBot cannot transfer tokens")]
+fn bot_cannot_transfer_tokens() {
+    let mut c = with_bot();
+    call_at(&bot(), 1, T0);
+    c.ft_transfer(budi(), U128(panen(1)), None);
+}
+
+#[test]
+#[should_panic(expected = "A TaniBot cannot transfer tokens")]
+fn bot_cannot_transfer_even_to_its_player() {
+    let mut c = with_bot();
+    call_at(&bot(), 1, T0);
+    c.ft_transfer(ardian(), U128(panen(1)), None);
+}
+
+#[test]
+#[should_panic(expected = "A TaniBot cannot transfer tokens")]
+fn bot_cannot_transfer_call() {
+    let mut c = with_bot();
+    call_at(&bot(), 1, T0);
+    let _ = c.ft_transfer_call(budi(), U128(panen(1)), None, String::new());
+}
+
+#[test]
+fn only_the_player_can_withdraw_the_budget() {
+    let mut c = with_bot();
+    call_at(&ardian(), 1, T0);
+    c.bot_withdraw(bot(), U128(panen(20)));
+    assert_eq!(c.ft_balance_of(bot()).0, panen(30));
+    assert_eq!(c.ft_balance_of(ardian()).0, panen(70));
+}
+
+#[test]
+#[should_panic(expected = "Only the bot's player can withdraw")]
+fn another_player_cannot_withdraw_the_budget() {
+    let mut c = with_bot();
+    call_at(&budi(), 1, T0);
+    c.bot_withdraw(bot(), U128(panen(1)));
+}
+
+#[test]
+#[should_panic(expected = "Only the bot's player can withdraw")]
+fn the_contract_owner_cannot_withdraw_the_budget() {
+    let mut c = with_bot();
+    call_at(&owner(), 1, T0);
+    c.bot_withdraw(bot(), U128(panen(1)));
+}
+
+#[test]
+#[should_panic(expected = "Only the bot's player can withdraw")]
+fn the_game_server_cannot_withdraw_the_budget() {
+    let mut c = with_bot();
+    call_at(&server(), 1, T0);
+    c.bot_withdraw(bot(), U128(panen(1)));
+}
+
+#[test]
+#[should_panic(expected = "Requires attached deposit of exactly 1 yoctoNEAR")]
+fn withdraw_needs_a_full_access_key() {
+    let mut c = with_bot();
+    call_at(&ardian(), 0, T0);
+    c.bot_withdraw(bot(), U128(panen(1)));
+}
+
+#[test]
+fn only_the_player_can_change_the_limit() {
+    let mut c = with_bot();
+    call_at(&ardian(), 1, T0);
+    c.set_bot(bot(), U128(panen(3)));
+    assert_eq!(c.bot_info(bot()).unwrap().daily_limit.0, panen(3));
+    assert!(c.bot_info(bot()).unwrap().accepted);
+}
+
+#[test]
+#[should_panic(expected = "This bot belongs to another player")]
+fn another_player_cannot_take_over_a_bot() {
+    let mut c = with_bot();
+    call_at(&budi(), 1, T0);
+    c.set_bot(bot(), U128(panen(1_000)));
+}
+
+#[test]
+#[should_panic(expected = "This bot belongs to another player")]
+fn the_contract_owner_cannot_take_over_a_bot() {
+    let mut c = with_bot();
+    call_at(&owner(), 1, T0);
+    c.set_bot(bot(), U128(panen(1_000)));
+}
+
+#[test]
+#[should_panic(expected = "Requires attached deposit of exactly 1 yoctoNEAR")]
+fn the_bot_cannot_raise_its_own_limit() {
+    // The bot only has a function call key: it can never attach 1 yoctoNEAR.
+    let mut c = with_bot();
+    call_at(&bot(), 0, T0);
+    c.set_bot(bot(), U128(panen(1_000)));
+}
+
+#[test]
+#[should_panic(expected = "A player cannot be their own bot")]
+fn a_bot_cannot_be_its_own_player() {
+    let mut c = with_bot();
+    call_at(&bot(), 1, T0);
+    c.set_bot(bot(), U128(panen(1_000)));
+}
+
+#[test]
+fn claiming_someone_else_as_a_bot_gives_no_power_without_their_consent() {
+    // budi tries to link ardian's account as "his bot" to withdraw ardian's tokens.
+    let mut c = setup();
+    call_at(&server(), 0, T0);
+    c.mint(ardian(), U128(panen(100)), None);
+    c.mint(budi(), U128(panen(1)), None);
+    call_at(&budi(), 1, T0);
+    c.set_bot(ardian(), U128(0));
+    // ardian never accepted: no bot rules apply, ardian can still spend and send.
+    call_at(&ardian(), 0, T0);
+    c.burn(U128(panen(5)), None);
+    call_at(&ardian(), 1, T0);
+    c.ft_transfer(budi(), U128(panen(1)), None);
+    assert_eq!(c.ft_balance_of(ardian()).0, panen(94));
+}
+
+#[test]
+#[should_panic(expected = "This bot has not accepted its player")]
+fn claiming_someone_else_as_a_bot_cannot_withdraw_their_tokens() {
+    // The attack: budi "links" ardian as his bot, then tries to pull ardian's tokens.
+    let mut c = setup();
+    call_at(&server(), 0, T0);
+    c.mint(ardian(), U128(panen(100)), None);
+    call_at(&budi(), 1, T0);
+    c.set_bot(ardian(), U128(0));
+    c.bot_withdraw(ardian(), U128(panen(100)));
+}
+
+#[test]
+#[should_panic(expected = "This bot was linked by another player")]
+fn a_bot_only_accepts_its_own_player() {
+    let mut c = setup();
+    call_at(&ardian(), 1, T0);
+    c.set_bot(bot(), U128(panen(10)));
+    call_at(&bot(), 0, T0);
+    c.bot_accept(budi());
+}
+
+#[test]
+fn normal_players_are_not_limited() {
+    let mut c = with_bot();
+    call_at(&ardian(), 0, T0);
+    c.burn(U128(panen(40)), None);
+    assert_eq!(c.ft_balance_of(ardian()).0, panen(10));
+}
+
+#[test]
+fn a_strangers_pending_claim_cannot_block_the_real_player() {
+    let mut c = setup();
+    call_at(&server(), 0, T0);
+    c.mint(ardian(), U128(panen(10)), None);
+    // budi claims bot.ardian and ardian itself first (never accepted)...
+    call_at(&budi(), 1, T0);
+    c.set_bot(bot(), U128(panen(1_000)));
+    c.set_bot(ardian(), U128(0));
+    // ...ardian can still link his own bot, and the bot accepts ardian.
+    call_at(&ardian(), 1, T0);
+    c.set_bot(bot(), U128(panen(10)));
+    call_at(&bot(), 0, T0);
+    c.bot_accept(ardian());
+    let info = c.bot_info(bot()).unwrap();
+    assert_eq!(info.owner_id, ardian());
+    assert_eq!(info.daily_limit.0, panen(10));
+}
+
+#[test]
+#[should_panic(expected = "A bot cannot own a bot")]
+fn an_accepted_bot_cannot_own_a_bot() {
+    let mut c = with_bot();
+    call_at(&bot(), 1, T0);
+    c.set_bot(budi(), U128(panen(1)));
+}
