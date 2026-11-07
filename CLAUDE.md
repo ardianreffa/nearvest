@@ -166,6 +166,15 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - **Important (Penting):** P2P Market + TaniBot trading, weather and wilting, seed quality and lineage, Village Granary and Harvest Festival, titles, TaniBot v2, Farmer Card SBT, share to X (moments, profile, referral), buy plots, Memorial Trees, browser notifications.
 - **Bonus:** pests, friends and garden visits, agent-to-agent negotiation, TaniBot evolutions per title (done 2026-11-07, see docs/BACKLOG.md), badges, family tree view, leaderboard, extra fruit types.
 
+## New schedule (replaces the dates below) (Ardian, 2026-11-07; work may be done earlier when there is time)
+
+- **Mon 9 - Tue 10 Nov:** first deploy (VPS + Vercel, only with Ardian's OK) and tests on phones. MUST checkpoint.
+- **Wed 11 Nov:** atmosphere package: weather + wilting, living trees, living sky, dusk backdrop, ambient sound.
+- **Thu 12 Nov:** interactive backdrop (hotspots to Shop / Market / Village, a train passes about every 2 minutes); simple garden visits (farmer list -> view their garden -> help water 1 tree per day, both get a little XP; template stickers / messages, no free chat); share popup per moment; referral.
+- **Fri 13 Nov morning:** simple Arena (not real-time): challenge another player's garden; best-fruit contest in 3 rounds with a TaniBot duel animation; NO wagering of players' tokens; the winner gets a small PANEN prize from the game via `mint_reward` (follows the Season rule), a few duels per day; result + tx link in the log. If the schedule slips, Arena goes back to "coming soon".
+- **Fri 13 Nov afternoon:** feature freeze. **Fri evening:** README + demo video. **Sat 14 Nov:** submit.
+- Moved forward to Sat 7 Nov: living trees, living sky + dusk backdrop, login evolution journey, `?time=` lock, share card layout.
+
 ## 9-day work plan (from the GDD, "Rencana kerja 9 hari")
 
 - **Checkpoint:** all Must features done by **Tue 10 Nov**. If not reached, cut Important features first.
