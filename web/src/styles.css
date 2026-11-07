@@ -596,6 +596,9 @@ button {
   inset: 0;
   z-index: 0;
   --night: 0;
+  --dusk: 0;
+  --day: 1;
+  --village: 1;
   --tint: 0;
   background: #27c5fd; /* top row of the day image, fills the sky above it on phones */
   overflow: hidden;
@@ -604,6 +607,12 @@ button {
 .bg-fill {
   position: absolute;
   inset: 0;
+}
+
+.bg-fill-dusk {
+  background: #ba7b4e; /* top row of the dusk image */
+  opacity: var(--dusk);
+  transition: opacity 1s linear;
 }
 
 .bg-fill-night {
@@ -644,6 +653,17 @@ button {
 
 .bg-img-night {
   opacity: var(--night);
+  transition: opacity 1s linear;
+}
+
+.bg-img-dusk {
+  opacity: var(--dusk);
+  transition: opacity 1s linear;
+}
+
+/* Lanterns, holograms, waterfalls and smoke belong to the day/night drawing. */
+.bg-fx-village {
+  opacity: var(--village);
   transition: opacity 1s linear;
 }
 
@@ -2637,6 +2657,10 @@ input:focus-visible {
   object-fit: cover;
   object-position: center bottom;
   filter: blur(14px) saturate(1.1) brightness(0.85);
+}
+
+.bg-blur .bg-img-dusk {
+  opacity: var(--dusk);
 }
 
 .bg-blur .bg-img-night {
@@ -6509,5 +6533,313 @@ button.chip:focus-visible {
 
   .shell[data-tut] .plots > .plot:first-child {
     animation: none;
+  }
+}
+
+
+/* =====================================================================
+   Living sky (art/sky.tsx): sun, clouds, birds / dusk glow, birds home /
+   stars, meteor, UFO, fireflies. Layers fade with --day / --dusk / --night.
+   ===================================================================== */
+
+.sky,
+.sky > div {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sky span,
+.sky i {
+  position: absolute;
+}
+
+.sky svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.sky-day {
+  opacity: var(--day);
+  transition: opacity 1s linear;
+}
+
+.sky-dusk {
+  opacity: calc(var(--dusk) * (1 - var(--night)));
+  transition: opacity 1s linear;
+}
+
+.sky-night {
+  opacity: var(--night);
+  transition: opacity 1s linear;
+}
+
+/* Sun: a soft glow that breathes. */
+.sky-sun {
+  filter: drop-shadow(0 0 3px rgba(255, 220, 120, 0.9));
+  animation: sun-breathe 6s ease-in-out infinite;
+}
+
+@keyframes sun-breathe {
+  50% {
+    filter: drop-shadow(0 0 6px rgba(255, 220, 120, 1));
+  }
+}
+
+/* Clouds drift slowly from left to right across the whole sky. */
+.cloud {
+  opacity: 0.92;
+  animation: cloud-drift 140s linear infinite;
+  animation-delay: -40s;
+}
+
+.cloud.c2 {
+  animation-duration: 190s;
+  animation-delay: -80s;
+  opacity: 0.8;
+}
+
+.cloud.c3 {
+  animation-duration: 230s;
+  animation-delay: -170s;
+  opacity: 0.7;
+}
+
+@keyframes cloud-drift {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(1400%);
+  }
+}
+
+/* A flock of birds crosses the sky now and then (visible in the first 40% of the cycle). */
+.flock-lane {
+  overflow: visible;
+}
+
+.flock {
+  position: absolute;
+  inset: 0;
+}
+
+.bird {
+  width: 17%;
+  height: 38%;
+}
+
+.bird .wing {
+  position: absolute;
+  inset: 0;
+}
+
+.bird .down {
+  animation: wing-flap 0.5s steps(1) infinite;
+  animation-delay: inherit;
+}
+
+.bird .up {
+  animation: wing-flap 0.5s steps(1) infinite reverse;
+  animation-delay: inherit;
+}
+
+@keyframes wing-flap {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.day-flock {
+  animation: flock-right 34s linear infinite;
+  animation-delay: -6s;
+}
+
+@keyframes flock-right {
+  0% {
+    transform: translate(-120%, 0);
+  }
+  42% {
+    transform: translate(820%, -40%);
+  }
+  42.01%,
+  100% {
+    transform: translate(-120%, 0);
+    visibility: hidden;
+  }
+}
+
+/* Dusk: birds fly home from the right towards the big tree, gliding down. */
+.home-flock {
+  animation: flock-home 26s linear infinite;
+}
+
+@keyframes flock-home {
+  0% {
+    transform: translate(820%, -60%) scaleX(-1);
+  }
+  45% {
+    transform: translate(90%, 60%) scaleX(-1) scale(0.8);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(70%, 80%) scaleX(-1) scale(0.7);
+    opacity: 0;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+    transform: translate(820%, -60%) scaleX(-1);
+  }
+}
+
+/* The setting sun of the dusk image glows and pulses softly. */
+.sun-glow {
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 236, 160, 0.75) 0 22%, rgba(255, 170, 80, 0.35) 45%, rgba(255, 140, 60, 0) 70%);
+  mix-blend-mode: screen;
+  animation: sun-set-glow 5s ease-in-out infinite;
+}
+
+@keyframes sun-set-glow {
+  50% {
+    transform: scale(1.15);
+    opacity: 0.75;
+  }
+}
+
+/* Night: stars twinkle, a meteor streaks by now and then, a UFO very rarely, fireflies. */
+.star {
+  background: #f0f8ff;
+  animation: twinkle 2.8s steps(2) infinite;
+}
+
+.star.big {
+  box-shadow: 0 0 2px #cfe8ff;
+}
+
+.meteor {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), #ffffff 85%, #fff8d0);
+  transform-origin: right center;
+  opacity: 0;
+  animation: meteor 17s linear infinite;
+  animation-delay: 4s;
+}
+
+@keyframes meteor {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-18deg) scaleX(0.2);
+  }
+  2% {
+    opacity: 1;
+    transform: translate(-60%, 120%) rotate(-18deg) scaleX(1);
+  }
+  6% {
+    opacity: 0;
+    transform: translate(-260%, 520%) rotate(-18deg) scaleX(0.6);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The UFO crosses once every few minutes and lights the fields for a moment. */
+.ufo {
+  opacity: 0;
+  animation: ufo 150s linear infinite;
+  animation-delay: 60s;
+}
+
+@keyframes ufo {
+  0% {
+    opacity: 0;
+    transform: translateX(-140%);
+  }
+  1% {
+    opacity: 1;
+  }
+  5% {
+    opacity: 1;
+    transform: translate(1300%, -30%);
+  }
+  5.01%,
+  100% {
+    opacity: 0;
+    transform: translateX(2700%);
+  }
+}
+
+.ufo-beam {
+  left: 30%;
+  top: 100%;
+  width: 40%;
+  height: 260%;
+  background: linear-gradient(rgba(165, 243, 252, 0.55), rgba(165, 243, 252, 0));
+  clip-path: polygon(30% 0, 70% 0, 100% 100%, 0 100%);
+  animation: ufo-beam 1.2s steps(2) infinite;
+}
+
+@keyframes ufo-beam {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.firefly {
+  border-radius: 50%;
+  background: #f4ff9e;
+  box-shadow: 0 0 4px 2px rgba(214, 255, 110, 0.9);
+  animation: firefly-blink 3.4s ease-in-out infinite, firefly-wander 9s ease-in-out infinite alternate;
+}
+
+@keyframes firefly-blink {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  40%,
+  60% {
+    opacity: 1;
+  }
+}
+
+@keyframes firefly-wander {
+  50% {
+    transform: translate(300%, -250%);
+  }
+  100% {
+    transform: translate(-200%, -500%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloud,
+  .day-flock,
+  .home-flock,
+  .meteor,
+  .ufo,
+  .firefly,
+  .star,
+  .sky-sun,
+  .sun-glow,
+  .bird .wing {
+    animation: none !important;
+  }
+
+  .day-flock,
+  .home-flock,
+  .meteor,
+  .ufo {
+    visibility: hidden;
+  }
+
+  .firefly {
+    opacity: 0.8;
   }
 }

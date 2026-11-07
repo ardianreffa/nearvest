@@ -8,6 +8,7 @@
 // Market rows (needs an EXISTING dev garden with fruit; fake-chain server): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --market=<devUser> [width] [height]
 // Fullscreen layout at several screen sizes (EXISTING dev garden): node tools/ui-test.mjs <outDir> --fullscreen=<devUser>
 // TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> NEXT_XP=<xp> to raise its XP live; UI_URL=...?record=1 checks that no share card opens): node tools/ui-test.mjs <outDir> --tiers=<devUser>
+// Garden scene of an EXISTING dev garden (no changes): UI_URL='http://localhost:5173/?time=dusk' node tools/ui-test.mjs <outDir> --scene=<devUser> [w] [h]
 // Tutorial on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tutorial=<newDevUser> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
@@ -310,6 +311,18 @@ try {
       console.log('idle moments seen:', [...seen].join(', '));
     });
     throw Object.assign(new Error('motion done'), { done: true });
+  }
+  if (name.startsWith('--scene=')) {
+    await step('garden scene (EXISTING dev garden; add ?time=day|dusk|night to UI_URL)', async () => {
+      await typeInto('#dev-user', name.slice('--scene='.length));
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      await sleep(2500); await screenshot('scene-a');
+      console.log('sky layers (day / dusk / night opacity):', await evaluate(`['.sky-day', '.sky-dusk', '.sky-night'].map(s => getComputedStyle(document.querySelector(s)).opacity).join(' / ')`), '| phase:', await evaluate(`document.querySelector('.scene').className`));
+      await sleep(6000); await screenshot('scene-b');
+    });
+    throw Object.assign(new Error('scene done'), { done: true });
   }
   if (name.startsWith('--tutorial=')) {
     await step('Tutorial on a NEW dev garden: TaniBot guides the whole loop', async () => {

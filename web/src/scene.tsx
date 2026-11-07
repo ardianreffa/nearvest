@@ -2,7 +2,7 @@
 // selected plot, and TaniBot's action animations.
 
 import { loadToken, type GameState, type TreeView } from './api';
-import { Backdrop, phaseOf } from './art/backdrop';
+import { Backdrop, lockedFraction, phaseOf } from './art/backdrop';
 import { BASKET, Drone, droneCount, HOE, TaniBot, TANIBOT_H, TANIBOT_W, tierOf, tierRank, type Tier } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import { leafBurst } from './fx';
@@ -46,6 +46,9 @@ function botX(plot: number, lane: Lane): number {
 export { ART_H, ART_W, immersiveLayout, type Immersive } from './layout';
 import type { Immersive } from './layout';
 
+/** Dev builds only: ?time=day / dusk / night locks the village clock (screenshots and video). */
+const TIME_LOCKED = import.meta.env.DEV && typeof location !== 'undefined' ? lockedFraction(location.search) : null;
+
 function status(tree: TreeView, elapsed: number) {
   if (tree.ready) return { text: tree.stage === 'old' ? 'Seed ready' : 'Ready!', cls: 'ready' };
   if (!tree.isWatered) return { text: 'Thirsty', cls: 'thirsty' };
@@ -72,7 +75,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const px = immersive ? immersive.k : big ? 3 : 2;
   const botScale = immersive ? Math.max(1, Math.round(immersive.k / 2)) : big ? 2 : 1;
   const lane = immersive ? LANE_STAGE : LANE_NORMAL;
-  const fraction = 1 - Math.max(0, state.clock.msUntilNextDay - elapsed) / state.clock.dayLengthMs;
+  // Dev builds: ?time=day / dusk / night locks the village clock (screenshots and video).
+  const fraction = TIME_LOCKED ?? 1 - Math.max(0, state.clock.msUntilNextDay - elapsed) / state.clock.dayLengthMs;
   const phase = phaseOf(fraction);
   const tier = tierOf(state.player.title);
   /** Drone size: about a third of TaniBot's width at every scale. */

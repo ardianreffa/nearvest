@@ -1,11 +1,13 @@
-// Garden backdrop: the Solarpunk village of Tandur from two AI images (ChatGPT,
+// Garden backdrop: the Solarpunk village of Tandur from three AI images (ChatGPT,
 // made at Ardian's request, see docs/ASSETS.md), pixelized to 240x135 with
-// tools/pixelize. The day and night versions are stacked and cross-faded from
-// the village clock (dawn and dusk mix both with a warm tint). Small code-drawn
+// tools/pixelize. Day, dusk (the market square at sunset) and night are stacked and
+// cross-faded from the village clock (dawn gets a warm tint); the living sky
+// (sun, clouds, birds, stars, meteors, a rare UFO, fireflies) is in sky.tsx. Small code-drawn
 // animations sit on top: passing drones, blinking drone LEDs, lanterns and
 // holograms, shimmering waterfalls and moving volcano smoke.
 // All overlay coordinates are in art pixels (the 240x135 image).
 
+import { Sky } from './sky';
 import { Drone } from './tanibot';
 export type Phase = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -21,23 +23,39 @@ export function phaseOf(fractionOfDay: number): Phase {
   const hour = hourOf(fractionOfDay);
   if (hour < 5) return 'night';
   if (hour < 7) return 'dawn';
-  if (hour < 17) return 'day';
+  if (hour < 16.5) return 'day';
   if (hour < 19) return 'dusk';
   return 'night';
 }
 
-/** How much of the night image shows (0 = day, 1 = night) and the warm dawn/dusk tint. */
-export function skyMix(fractionOfDay: number): { night: number; tint: number } {
+/**
+ * How much of the dusk and night images show (0..1) and the warm dawn tint.
+ * Day -> dusk 16:00-17:00, dusk until 18:30, dusk -> night 18:30-19:30, night -> day 05:00-07:00.
+ */
+export function skyMix(fractionOfDay: number): { night: number; dusk: number; tint: number } {
   const hour = hourOf(fractionOfDay);
+  const ramp = (from: number, to: number) => Math.min(1, Math.max(0, (hour - from) / (to - from)));
   if (hour >= 5 && hour < 7) {
-    const t = (hour - 5) / 2; // dawn: night -> day
-    return { night: 1 - t, tint: Math.sin(Math.PI * t) };
+    const t = ramp(5, 7);
+    return { night: 1 - t, dusk: 0, tint: Math.sin(Math.PI * t) };
   }
-  if (hour >= 17 && hour < 19) {
-    const t = (hour - 17) / 2; // dusk: day -> night
-    return { night: t, tint: Math.sin(Math.PI * t) };
+  if (hour >= 16 && hour < 19.5) {
+    const dusk = ramp(16, 17);
+    return { night: ramp(18.5, 19.5), dusk, tint: 0.35 * Math.sin(Math.PI * dusk) };
   }
-  return { night: hour >= 7 && hour < 17 ? 0 : 1, tint: 0 };
+  return { night: hour >= 7 && hour < 16 ? 0 : 1, dusk: 0, tint: 0 };
+}
+
+/** Village fractions for ?time=day / dusk / night (dev builds: lock the clock for screenshots and video). */
+export const TIME_LOCK: Record<string, number> = {
+  day: (12 - 7) / 24,
+  dusk: (17.75 - 7) / 24,
+  night: (23 - 7) / 24,
+};
+
+export function lockedFraction(search: string): number | null {
+  const t = new URLSearchParams(search).get('time');
+  return t && t in TIME_LOCK ? TIME_LOCK[t] : null;
 }
 
 /** Absolute position of a box given in art pixels. */
@@ -92,16 +110,26 @@ const STARS = Array.from({ length: 14 }, (_, i) => ({ x: (i * 41 + 7) % 100, y: 
 export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction: number; blurFill?: boolean; hd?: boolean }) {
   const daySrc = hd ? '/assets/bg/bg-day-hd.png' : '/assets/bg/bg-day.png';
   const nightSrc = hd ? '/assets/bg/bg-night-hd.png' : '/assets/bg/bg-night.png';
-  const { night, tint } = skyMix(fraction);
-  const vars = { '--night': night.toFixed(3), '--tint': tint.toFixed(3) };
+  const duskSrc = hd ? '/assets/bg/bg-dusk-hd.png' : '/assets/bg/bg-dusk.png';
+  const { night, dusk, tint } = skyMix(fraction);
+  const vars = {
+    '--night': night.toFixed(3),
+    '--dusk': dusk.toFixed(3),
+    '--day': Math.max(0, 1 - night - dusk).toFixed(3),
+    // The village effects below sit on the day/night drawing: hidden while the dusk image shows.
+    '--village': (1 - dusk * (1 - night)).toFixed(3),
+    '--tint': tint.toFixed(3),
+  };
 
   return (
     <div class="backdrop" style={vars} aria-hidden="true">
+      <div class="bg-fill bg-fill-dusk" />
       <div class="bg-fill bg-fill-night" />
       {blurFill && (
         // Full-window layout: whatever the sharp art does not cover shows a blurred copy of it.
         <div class="bg-blur">
           <img src={daySrc} alt="" />
+          <img class="bg-img-dusk" src={duskSrc} alt="" />
           <img class="bg-img-night" src={nightSrc} alt="" />
         </div>
       )}
@@ -113,9 +141,10 @@ export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction:
 
       <div class="bg-art">
         <img class="bg-img" src={daySrc} alt="" />
+        <img class="bg-img bg-img-dusk" src={duskSrc} alt="" />
         <img class="bg-img bg-img-night" src={nightSrc} alt="" />
 
-        <div class="bg-fx">
+        <div class="bg-fx bg-fx-village">
           {SMOKE.map((s, i) => (
             <i key={i} class={`puff${s.small ? ' small' : ''}`} style={{ ...at(s.x, s.y, s.small ? 2 : 4, s.small ? 2 : 4), animationDelay: `${s.d}s` }} />
           ))}
@@ -131,6 +160,9 @@ export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction:
           {DRONE_LEDS.map(([x, y], i) => (
             <i key={i} class="led" style={{ ...at(x, y, 1, 1), animationDelay: `${i * 0.4}s` }} />
           ))}
+        </div>
+        <Sky />
+        <div class="bg-fx">
           {/* Quadcopters crossing the sky, each with a small shadow sliding over the fields. */}
           <div class="flyby f1">
             <span style={at(0, 30, 10, 5)}>
