@@ -52,54 +52,58 @@ interface Shape {
   trunkTop: number;
   trunkW: number;
   canopy: Blob[];
-  fruits: [number, number][];
+  /** How many fruits hang in the crown when fruiting. */
+  fruitCount: number;
   branches: [number, number, number, number][];
 }
 
-const SHAPES: Record<Species, Shape> = {
-  // Wide, dense dome on a short thick trunk.
-  mango: {
-    trunkTop: 22,
-    trunkW: 4,
-    canopy: [
-      { cx: 16, cy: 15, r: 9 },
-      { cx: 8.5, cy: 18, r: 6 },
-      { cx: 23.5, cy: 18, r: 6 },
-      { cx: 16, cy: 9, r: 6.5 },
-    ],
-    fruits: [[9, 22], [14, 21], [21, 22], [24, 17], [12, 16], [19, 14]],
-    branches: [],
-  },
-  // Bushy, lumpy round crown, lighter green, red clusters.
-  rambutan: {
-    trunkTop: 24,
-    trunkW: 3,
-    canopy: [
-      { cx: 16, cy: 16, r: 7.5 },
-      { cx: 10, cy: 12, r: 5 },
-      { cx: 22, cy: 12, r: 5 },
-      { cx: 8, cy: 19, r: 5 },
-      { cx: 24, cy: 19, r: 5 },
-      { cx: 16, cy: 9, r: 4.5 },
-    ],
-    fruits: [[8, 21], [13, 22], [20, 22], [24, 21], [11, 14], [21, 13], [16, 18]],
-    branches: [],
-  },
-  // Tall thin trunk, layered narrow crown, big spiky fruit on the branches.
-  durian: {
-    trunkTop: 6,
-    trunkW: 3,
-    canopy: [
-      { cx: 16, cy: 7, r: 5.5 },
-      { cx: 11, cy: 14, r: 5 },
-      { cx: 21, cy: 14, r: 5 },
-      { cx: 9, cy: 21, r: 4 },
-      { cx: 23, cy: 21, r: 4 },
-    ],
-    fruits: [[10, 25], [21, 25], [14, 19]],
-    branches: [[16, 18, 9, 24], [16, 18, 23, 24], [16, 12, 12, 16]],
-  },
+/**
+ * Three crown shapes per species, each with its own silhouette:
+ * mango = round and dense, rambutan = wide and lumpy, durian = tall and layered.
+ * A tree keeps its shape for life (picked from its NFT / tree id, see variantOf).
+ */
+const SHAPES: Record<Species, Shape[]> = {
+  mango: [
+    // Wide, dense dome on a short thick trunk.
+    { trunkTop: 22, trunkW: 4, fruitCount: 6, branches: [], canopy: [{ cx: 16, cy: 15, r: 9 }, { cx: 8.5, cy: 18, r: 6 }, { cx: 23.5, cy: 18, r: 6 }, { cx: 16, cy: 9, r: 6.5 }] },
+    // Rounder and taller.
+    { trunkTop: 21, trunkW: 4, fruitCount: 6, branches: [], canopy: [{ cx: 16, cy: 13, r: 9.5 }, { cx: 9, cy: 17, r: 6 }, { cx: 23, cy: 17, r: 6 }, { cx: 16, cy: 7, r: 5.5 }] },
+    // Low and broad, two bumps on top.
+    { trunkTop: 23, trunkW: 4, fruitCount: 7, branches: [], canopy: [{ cx: 16, cy: 16, r: 9 }, { cx: 7.5, cy: 19, r: 6 }, { cx: 24.5, cy: 19, r: 6 }, { cx: 12, cy: 11, r: 5.5 }, { cx: 20, cy: 11, r: 5.5 }] },
+  ],
+  rambutan: [
+    // Wide, lumpy crown with many small bumps.
+    { trunkTop: 24, trunkW: 3, fruitCount: 7, branches: [], canopy: [{ cx: 16, cy: 16, r: 7 }, { cx: 9, cy: 13, r: 5 }, { cx: 23, cy: 13, r: 5 }, { cx: 6.5, cy: 19, r: 4.5 }, { cx: 25.5, cy: 19, r: 4.5 }, { cx: 16, cy: 9.5, r: 4.5 }, { cx: 12, cy: 20, r: 4 }, { cx: 20, cy: 20, r: 4 }] },
+    // Flat umbrella.
+    { trunkTop: 23, trunkW: 3, fruitCount: 7, branches: [], canopy: [{ cx: 16, cy: 14, r: 6 }, { cx: 9, cy: 15, r: 5.5 }, { cx: 23, cy: 15, r: 5.5 }, { cx: 5.5, cy: 18, r: 4 }, { cx: 26.5, cy: 18, r: 4 }, { cx: 16, cy: 19, r: 5 }] },
+    // Two lobes.
+    { trunkTop: 24, trunkW: 3, fruitCount: 7, branches: [], canopy: [{ cx: 11, cy: 14, r: 6.5 }, { cx: 21, cy: 14, r: 6.5 }, { cx: 16, cy: 10, r: 5 }, { cx: 7, cy: 19, r: 4.5 }, { cx: 25, cy: 19, r: 4.5 }, { cx: 16, cy: 19, r: 5 }] },
+  ],
+  durian: [
+    // Tall thin trunk, layered narrow crown, big spiky fruit on the branches.
+    { trunkTop: 6, trunkW: 3, fruitCount: 3, branches: [[16, 18, 9, 24], [16, 18, 23, 24], [16, 12, 12, 16]], canopy: [{ cx: 16, cy: 7, r: 5.5 }, { cx: 11, cy: 14, r: 5 }, { cx: 21, cy: 14, r: 5 }, { cx: 9, cy: 21, r: 4 }, { cx: 23, cy: 21, r: 4 }] },
+    // A pagoda of tiers, wider towards the bottom.
+    { trunkTop: 4, trunkW: 3, fruitCount: 3, branches: [[16, 20, 9, 25], [16, 20, 23, 25]], canopy: [{ cx: 16, cy: 4.5, r: 3.5 }, { cx: 13, cy: 10.5, r: 3.8 }, { cx: 19, cy: 10.5, r: 3.8 }, { cx: 10.5, cy: 16.5, r: 4.2 }, { cx: 21.5, cy: 16.5, r: 4.2 }, { cx: 16, cy: 16, r: 3.5 }, { cx: 8, cy: 22.5, r: 4 }, { cx: 24, cy: 22.5, r: 4 }] },
+    // Uneven tiers, a little lopsided.
+    { trunkTop: 5, trunkW: 3, fruitCount: 3, branches: [[16, 18, 9, 24], [16, 17, 23, 23]], canopy: [{ cx: 17, cy: 5.5, r: 4 }, { cx: 12.5, cy: 11.5, r: 4 }, { cx: 20.5, cy: 11, r: 4.2 }, { cx: 9.5, cy: 18, r: 4.2 }, { cx: 22.5, cy: 17.5, r: 4.5 }, { cx: 16, cy: 17, r: 3.2 }, { cx: 8, cy: 23, r: 3.5 }] },
+  ],
 };
+
+/** Per-tree look: crown shape, lean (top moves -1..1 px) and trunk height (-2..+1 px). */
+export interface TreeLook {
+  shape: number;
+  lean: number;
+  lift: number;
+}
+
+/** A stable look for a tree from its NFT token id (or tree id). 0 = the default look. */
+export function variantOf(seed: string | number | null | undefined): TreeLook {
+  if (seed === null || seed === undefined || seed === '') return { shape: 0, lean: 0, lift: 0 };
+  let h = 2166136261;
+  for (const ch of String(seed)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  h >>>= 0;
+  return { shape: h % 3, lean: ((h >>> 4) % 3) - 1, lift: [-2, -1, 0, 1][(h >>> 8) % 4] };
+}
 
 function empty(): Grid {
   return Array.from({ length: H }, () => Array.from({ length: W }, () => '.'));
@@ -117,10 +121,13 @@ function line(g: Grid, x0: number, y0: number, x1: number, y1: number, c: string
   }
 }
 
-function trunk(g: Grid, shape: Shape, top: number) {
+function trunk(g: Grid, shape: Shape, top: number, lean: number) {
   const x0 = Math.round(16 - shape.trunkW / 2);
+  const base = H - 4;
   for (let y = top; y < H - 3; y++) {
-    for (let i = 0; i < shape.trunkW; i++) set(g, x0 + i, y, i === 0 ? 'n' : i === shape.trunkW - 1 ? 'B' : 'b');
+    // A leaning tree: the trunk shifts towards the top.
+    const dx = Math.round((lean * (base - y)) / Math.max(1, base - top));
+    for (let i = 0; i < shape.trunkW; i++) set(g, x0 + i + dx, y, i === 0 ? 'n' : i === shape.trunkW - 1 ? 'B' : 'b');
   }
   // roots
   set(g, x0 - 1, H - 4, 'B');
@@ -130,10 +137,10 @@ function trunk(g: Grid, shape: Shape, top: number) {
 }
 
 /** Fills a canopy from overlapping circles with light from the top-left and a dark outline. */
-function canopy(g: Grid, blobs: Blob[], scale: number, offsetY: number, sparse: boolean) {
+function canopy(g: Grid, blobs: Blob[], scale: number, offsetY: number, sparse: boolean, dx = 0) {
   const inside = (x: number, y: number) =>
     blobs.some((b) => {
-      const cx = 16 + (b.cx - 16) * scale;
+      const cx = 16 + (b.cx - 16) * scale + dx;
       const cy = b.cy * scale + offsetY;
       return (x - cx) ** 2 + (y - cy) ** 2 <= (b.r * scale) ** 2;
     });
@@ -204,33 +211,86 @@ function sprout(g: Grid, species: Species) {
   mound(g, 's');
 }
 
-export function treeRows(species: Species, stage: Stage): string[] {
+/** A tree in layers: trunk (still) and crown (sways in the wind, fruit included). */
+export interface TreeLayers {
+  trunk: string[];
+  crown: string[];
+  /** Row where the crown is split: the top part sways more than the bottom. */
+  split: number;
+}
+
+/**
+ * Fruit spots: one per column across the crown (so they spread left to right), at a height
+ * that varies from column to column, in the lower part of the crown; stable for a shape.
+ */
+function fruitSpots(g: Grid, count: number, species: Species): [number, number][] {
+  const inner = (x: number, y: number) => 'Ggd'.includes(g[y]?.[x] ?? '.') && 'Ggd'.includes(g[y + 1]?.[x + 1] ?? '.') && 'Ggd'.includes(g[y]?.[x - 1] ?? '.');
+  let top = H;
+  let bottom = 0;
+  let left = W;
+  let right = 0;
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++)
+      if ('Ggd'.includes(g[y][x])) {
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+      }
+  const from = Math.ceil(species === 'durian' ? top + (bottom - top) * 0.45 : top + (bottom - top) * 0.25);
+  const picked: [number, number][] = [];
+  const colW = (right - left - 2) / count;
+  for (let i = 0; i < count; i++) {
+    const cx = Math.round(left + 1 + colW * (i + 0.5));
+    const options: [number, number][] = [];
+    for (let y = from; y <= bottom - 2; y++) for (let dx = -1; dx <= 1; dx++) if (inner(cx + dx, y)) options.push([cx + dx, y]);
+    if (!options.length) continue;
+    // Alternate high and low spots, with a little per-column wobble.
+    const want = i % 2 ? 0.75 : 0.3;
+    options.sort((a, b) => Math.abs((a[1] - from) / Math.max(1, bottom - from) - want) - Math.abs((b[1] - from) / Math.max(1, bottom - from) - want));
+    const pick = options[Math.min(options.length - 1, (i * 5) % 3)];
+    if (picked.every((p) => Math.abs(p[0] - pick[0]) >= 2 || Math.abs(p[1] - pick[1]) >= 3)) picked.push(pick);
+  }
+  return picked;
+}
+
+export function treeLayers(species: Species, stage: Stage, look: TreeLook = { shape: 0, lean: 0, lift: 0 }): TreeLayers {
   const g = empty();
-  const shape = SHAPES[species];
+  const crown = empty();
+  const shape = SHAPES[species][look.shape] ?? SHAPES[species][0];
   if (stage === 'seed') {
     mound(g, species === 'mango' ? 'y' : species === 'rambutan' ? 'r' : 'q');
-  } else if (stage === 'sprout') {
-    sprout(g, species);
-  } else {
-    // A young tree is the same species shape, smaller and lower.
-    const young = stage === 'tree';
-    const scale = young ? 0.72 : 1;
-    const offsetY = young ? 11 : 0;
-    trunk(g, shape, Math.round(shape.trunkTop * scale + offsetY));
-    for (const [x0, y0, x1, y1] of shape.branches) {
-      const t = (v: number, isY: boolean) => (isY ? Math.round(v * scale + offsetY) : Math.round(16 + (v - 16) * scale));
-      line(g, t(x0, false), t(y0, true), t(x1, false), t(y1, true), 'B');
-    }
-    const blobs = young && species !== 'durian' ? shape.canopy.filter((b) => b.cy > 10) : shape.canopy;
-    canopy(g, blobs, scale, offsetY, stage === 'old');
-    if (stage === 'fruiting') for (const [x, y] of shape.fruits) fruit(g, species, x, y);
-    if (stage === 'old') {
-      // bare twigs poking out of the thinning crown
-      line(g, 16, 10, 11, 5, 'B');
-      line(g, 17, 9, 22, 4, 'B');
-    }
+    return { trunk: g.map((r) => r.join('')), crown: crown.map((r) => r.join('')), split: H };
   }
-  return g.map((r) => r.join(''));
+  if (stage === 'sprout') {
+    sprout(g, species);
+    return { trunk: g.map((r) => r.join('')), crown: crown.map((r) => r.join('')), split: H };
+  }
+  // A young tree is the same species shape, smaller and lower.
+  const young = stage === 'tree';
+  const scale = young ? 0.72 : 1;
+  const offsetY = (young ? 11 : 0) - (young ? 0 : look.lift);
+  trunk(g, shape, Math.round(shape.trunkTop * scale + offsetY), look.lean);
+  const t = (v: number, isY: boolean) => (isY ? Math.round(v * scale + offsetY) : Math.round(16 + (v - 16) * scale) + look.lean);
+  for (const [x0, y0, x1, y1] of shape.branches) line(crown, t(x0, false), t(y0, true), t(x1, false), t(y1, true), 'B');
+  const blobs = young && species !== 'durian' ? shape.canopy.filter((b) => b.cy > 10) : shape.canopy;
+  canopy(crown, blobs, scale, offsetY, stage === 'old', look.lean);
+  if (stage === 'fruiting') for (const [x, y] of fruitSpots(crown, shape.fruitCount, species)) fruit(crown, species, x, y);
+  if (stage === 'old') {
+    // bare twigs poking out of the thinning crown
+    line(crown, 16 + look.lean, 10 - look.lift, 11 + look.lean, 5 - look.lift, 'B');
+    line(crown, 17 + look.lean, 9 - look.lift, 22 + look.lean, 4 - look.lift, 'B');
+  }
+  const rows = crown.map((r) => r.join(''));
+  const filled = rows.map((r, i) => (/[^.]/.test(r) ? i : -1)).filter((i) => i >= 0);
+  const split = filled.length ? Math.round((filled[0] + filled[filled.length - 1]) / 2) : H;
+  return { trunk: g.map((r) => r.join('')), crown: rows, split };
+}
+
+/** The whole tree as one picture (share cards). */
+export function treeRows(species: Species, stage: Stage, look?: TreeLook): string[] {
+  const { trunk: tr, crown } = treeLayers(species, stage, look);
+  return tr.map((r, y) => [...r].map((c, x) => (crown[y][x] !== '.' ? crown[y][x] : c)).join(''));
 }
 
 /** Colors for a tree's rows (species leaves, faded leaves when old). */
@@ -238,19 +298,35 @@ export function treePalette(species: Species, stage: Stage): Record<string, stri
   return { ...TREE_PALETTE, ...(stage === 'old' ? OLD_LEAF : LEAF[species]) };
 }
 
-const cache = new Map<string, string[]>();
+const cache = new Map<string, TreeLayers>();
 
-export function TreePixels({ species, stage, quality, scale = 2 }: { species: Species; stage: Stage; quality: Quality; scale?: number }) {
-  const key = `${species}-${stage}`;
-  let rows = cache.get(key);
-  if (!rows) {
-    rows = treeRows(species, stage);
-    cache.set(key, rows);
+/**
+ * A tree. `seed` (NFT token id or tree id) picks its own look for life. The crown sways in
+ * the wind in whole pixels (top part a little more), fruit included; now and then a leaf falls.
+ */
+export function TreePixels({ species, stage, quality, scale = 2, seed }: { species: Species; stage: Stage; quality: Quality; scale?: number; seed?: string | number | null }) {
+  const look = variantOf(seed);
+  const key = `${species}-${stage}-${look.shape}-${look.lean}-${look.lift}`;
+  let layers = cache.get(key);
+  if (!layers) {
+    layers = treeLayers(species, stage, look);
+    cache.set(key, layers);
   }
   const palette = treePalette(species, stage);
+  const { trunk: tr, crown, split } = layers;
+  const hasCrown = split < H;
+  const top = hasCrown ? crown.map((r, y) => (y < split ? r : '.'.repeat(W))) : null;
+  const bottom = hasCrown ? crown.map((r, y) => (y >= split ? r : '.'.repeat(W))) : null;
+  // Out of step per tree, so a row of trees does not sway in unison.
+  const h = typeof seed === 'number' ? seed : String(seed ?? '').length * 7 + (String(seed ?? '').charCodeAt(0) || 0);
+  const delay = `${-((h * 0.73) % 4).toFixed(2)}s`;
+  const leafX = 30 + ((h * 37) % 40);
   return (
-    <div class={`tree tree-${stage} q-${quality}`}>
-      <Pixels rows={rows} palette={palette} scale={scale} />
+    <div class={`tree tree-${stage} q-${quality}`} style={{ '--tpx': `${scale}px`, '--sway-delay': delay, '--leaf': palette.G }}>
+      <Pixels rows={tr} palette={palette} scale={scale} />
+      {bottom && <Pixels rows={bottom} palette={palette} scale={scale} class="crown crown-low" />}
+      {top && <Pixels rows={top} palette={palette} scale={scale} class="crown crown-top" />}
+      {hasCrown && <i class="leaf-fall" style={{ left: `${leafX}%`, top: `${(split / H) * 100}%`, width: scale * 2, height: scale, animationDelay: `${(h * 1.7) % 11}s` }} aria-hidden="true" />}
       {quality !== 'common' && stage !== 'seed' && (
         <div class="twinkles" aria-hidden="true">
           <i style="left:18%;top:20%" />

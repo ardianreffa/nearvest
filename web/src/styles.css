@@ -790,6 +790,85 @@ button {
   line-height: 0;
 }
 
+/* The crown sways in the wind in whole pixels (the top part a little more), fruit included. */
+.tree .crown {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.tree .crown-top {
+  animation: sway-top 4.2s steps(1) infinite;
+  animation-delay: var(--sway-delay, 0s);
+}
+
+.tree .crown-low {
+  animation: sway-low 4.2s steps(1) infinite;
+  animation-delay: var(--sway-delay, 0s);
+}
+
+@keyframes sway-top {
+  0%,
+  45%,
+  90% {
+    transform: none;
+  }
+  20% {
+    transform: translateX(var(--tpx, 2px));
+  }
+  65% {
+    transform: translateX(calc(-1 * var(--tpx, 2px)));
+  }
+}
+
+@keyframes sway-low {
+  0%,
+  50%,
+  100% {
+    transform: none;
+  }
+  25% {
+    transform: translateX(var(--tpx, 2px));
+  }
+}
+
+/* Now and then a leaf drifts down from the crown. */
+.tree .leaf-fall {
+  position: absolute;
+  background: var(--leaf, #4fbf6e);
+  opacity: 0;
+  pointer-events: none;
+  animation: leaf-drop 11s linear infinite;
+}
+
+@keyframes leaf-drop {
+  0%,
+  78% {
+    opacity: 0;
+    transform: none;
+  }
+  80% {
+    opacity: 1;
+    transform: none;
+  }
+  88% {
+    transform: translate(calc(var(--tpx, 2px) * -3), calc(var(--tpx, 2px) * 7));
+  }
+  96% {
+    opacity: 1;
+    transform: translate(calc(var(--tpx, 2px) * -1), calc(var(--tpx, 2px) * 13));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--tpx, 2px) * -4), calc(var(--tpx, 2px) * 15));
+  }
+}
+
+.tree-seed .leaf-fall,
+.tree-sprout .leaf-fall {
+  display: none;
+}
+
 .tree.q-rare {
   filter: drop-shadow(0 0 3px var(--purple)) drop-shadow(0 0 1px #c4b5fd);
 }

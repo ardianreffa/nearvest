@@ -119,7 +119,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
                 {p.locked ? (
                   <Sprite name="lock" scale={px * 2} title="Locked" />
                 ) : p.tree ? (
-                  <TreePixels species={p.tree.species} stage={p.tree.stage} quality={p.tree.quality} scale={px} />
+                  <TreePixels species={p.tree.species} stage={p.tree.stage} quality={p.tree.quality} scale={px} seed={p.tree.tokenId ?? p.tree.id} />
                 ) : (
                   <span class="empty-hint">Plant</span>
                 )}

@@ -81,6 +81,16 @@ function HoleCheck() {
 function Gallery() {
   return (
     <main class="preview">
+      <h2>Tree looks (6 seeds per species, fruiting and young tree)</h2>
+      {SPECIES.map((sp) => (
+        <div class="preview-row tree-looks" key={sp} style={{ background: '#cfe9f5', padding: '8px', alignItems: 'flex-end', gap: '10px' }}>
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <TreePixels key={n} species={sp} stage="fruiting" quality="common" scale={4} seed={String(n * 7 + 3)} />
+          ))}
+          <TreePixels species={sp} stage="tree" quality="common" scale={4} seed="11" />
+          <TreePixels species={sp} stage="old" quality="common" scale={4} seed="12" />
+        </div>
+      ))}
       <h2>TaniBot avatars: capsule (32, 48), Profile (96), locked (48)</h2>
       <div class="preview-row" style={{ background: '#2a1d10', padding: '8px', gap: '12px', alignItems: 'center' }}>
         {AVATAR_IDS.filter((id) => id.startsWith('bot_')).map((id) => (
