@@ -163,7 +163,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           <div class={`bot-drones${on ? '' : ' parked'}`} aria-hidden="true">
             {Array.from({ length: droneCount(tier) }, (_, i) => (
               <span key={i} class={`orbit o${i + 1}`}>
-                <Drone scale={droneScale} shadow={Math.round(TANIBOT_H * botScale * 0.5)} />
+                <Drone scale={droneScale} shadow={Math.round(TANIBOT_H * botScale * 0.36)} />
               </span>
             ))}
           </div>

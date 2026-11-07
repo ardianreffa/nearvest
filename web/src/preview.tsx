@@ -6,7 +6,7 @@ import { EVOLUTION_PALETTE, TANIBOT_EVOLUTIONS, type EvolutionId } from './art/t
 import { Pixels } from './sprites';
 import { DartoFigure, HoverCart } from './art/darto';
 import { ShopStall } from './art/shop';
-import { Drone, TaniBot, TIER_TITLE, TIERS } from './art/tanibot';
+import { botSprite, Drone, TaniBot, TIER_TITLE, TIERS } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import type { Quality, Species, Stage } from './api';
 import './styles.css';
@@ -42,9 +42,46 @@ function EvolutionRow({ label, grid, px }: { label: string; grid: 'sd' | 'hd'; p
   );
 }
 
+/**
+ * Hole check: every TaniBot on loud backgrounds (magenta, black), zoomed x4. Any hole in the body
+ * shows up as a magenta or black spot. Phone = the sd sprite; laptop = the live, layered TaniBot
+ * (hd, all layers composed, no effects).
+ */
+function HoleCheck() {
+  return (
+    <>
+      <h2>TaniBot hole check (zoom x4, magenta and black)</h2>
+      {(['#FF00FF', '#000000'] as const).map((bg) => (
+        <div key={bg}>
+          <div class="evo-strip hole-check" style={{ background: bg }}>
+            {TIERS.map((t) => {
+              const { rows, palette } = botSprite(t, false);
+              return (
+                <div key={t} class="evo-cell">
+                  <Pixels rows={rows} palette={palette} scale={4} title={`${TIER_TITLE[t]} sd`} />
+                  <small>{TIER_TITLE[t]} sd</small>
+                </div>
+              );
+            })}
+          </div>
+          <div class="evo-strip hole-check" style={{ background: bg }}>
+            {TIERS.map((t) => (
+              <div key={t} class="evo-cell">
+                <TaniBot tier={t} scale={4} effects={false} />
+                <small>{TIER_TITLE[t]} hd, live</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function Gallery() {
   return (
     <main class="preview">
+      <HoleCheck />
       <h2>Drones</h2>
       <div class="preview-row drone-row">
         <Drone scale={2} />

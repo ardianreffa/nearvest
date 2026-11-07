@@ -5,7 +5,8 @@
 # 1. Registration: the two cyan eyes (identical in every version) and the visor width are
 #    found in the original and in each new image; the original's pixel grid is moved and
 #    scaled onto the new image by them.
-# 2. Body only: the background is flood-filled from the edges; everything not connected
+# 2. Body only: the background is flood-filled from the edges (white enclosed by the body,
+#    such as chrome highlights, stays body: no holes); everything not connected
 #    to the body (drones, halo ring, sparkles) is dropped; with --aura the pale cyan glow
 #    outside the dark outline counts as background too (Legend).
 # 3. Each cell takes the dominant palette color (same palette as pixelize.py).
@@ -117,13 +118,38 @@ def sample(w, h, px, x0, y0, cell, cols, rows_n, mask=None, step=2):
                 for xx in range(int(cx0 + cell * 0.15), int(cx0 + cell * 0.85) + 1, 2):
                     if not (0 <= yy < h and 0 <= xx < w): continue
                     total += 1
+                    # With a body mask, white / pale silver INSIDE the body (chrome highlights) is body
+                    # too: only the background flood-filled from the image edges is left out.
                     inside = mask[yy // step][xx // step] if mask else not white(px[yy][xx])
-                    if inside and not white(px[yy][xx]):
+                    if inside:
                         keep += 1
                         counts[nearest(px[yy][xx])] += 1
             line += counts.most_common(1)[0][0] if total and keep > total * 0.5 else '.'
         grid.append(line)
     return grid
+
+def fill_holes(rows):
+    """Empty cells enclosed by the body (not reachable from the edge) take their neighbours' color."""
+    H, W = len(rows), len(rows[0])
+    grid = [list(r) for r in rows]
+    out = [[False] * W for _ in range(H)]
+    st = [(x, y) for x in range(W) for y in (0, H - 1)] + [(x, y) for y in range(H) for x in (0, W - 1)]
+    while st:
+        x, y = st.pop()
+        if not (0 <= x < W and 0 <= y < H) or out[y][x] or grid[y][x] != '.': continue
+        out[y][x] = True
+        st += [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+    holes = [(x, y) for y in range(H) for x in range(W) if grid[y][x] == '.' and not out[y][x]]
+    while holes:
+        left = []
+        for x, y in holes:
+            near = collections.Counter(grid[y + dy][x + dx] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
+                                       if 0 <= x + dx < W and 0 <= y + dy < H and grid[y + dy][x + dx] != '.')
+            if near: grid[y][x] = near.most_common(1)[0][0]
+            else: left.append((x, y))
+        if len(left) == len(holes): break
+        holes = left
+    return [''.join(r) for r in grid]
 
 def outside_count(mask, step, x0, y0, cell, cols, rows_n):
     n = 0
@@ -188,11 +214,11 @@ def main():
         y0 = (b0 + b1) / 2 - ((ey0 + ey1) / 2 - gy0) * s
         mask, step = body_mask(w, h, px, use_aura, ((l + r) // 2, t + 4))
         if factor > 1:
-            rows = sample(w, h, px, x0, y0, cell / factor, cols * factor, rows_n * factor, mask, step)
+            rows = fill_holes(sample(w, h, px, x0, y0, cell / factor, cols * factor, rows_n * factor, mask, step))
             result[name] = rows
             print(f'{name}: {cols * factor}x{rows_n * factor} grid (no layer matching)')
             continue
-        rows = sample(w, h, px, x0, y0, cell, cols, rows_n, mask, step)
+        rows = fill_holes(sample(w, h, px, x0, y0, cell, cols, rows_n, mask, step))
         outside = outside_count(mask, step, x0, y0, cell, cols, rows_n)
         before = score(rows, orig_rows)
         best = max(((dx, dy) for dx in range(-2, 3) for dy in range(-2, 3)), key=lambda d: (score(shift(rows, *d), orig_rows), -abs(d[0]) - abs(d[1])))

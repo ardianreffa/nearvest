@@ -157,6 +157,12 @@ try {
       const info = () => evaluate(`(() => { const t = document.querySelector('.bot-spot .tanibot'); return JSON.stringify({ tier: t?.className, drones: document.querySelectorAll('.bot-drones .drone').length, parked: !!document.querySelector('.bot-drones.parked'), aura: !!t?.querySelector('.bot-aura'), halo: !!t?.querySelector('.bot-halo'), prop: !!t?.querySelector('.bot-prop'), leaf: !!t?.querySelector('.bot-leaf'), title: document.querySelector('.title-line')?.innerText }); })()`);
       console.log('garden:', await info());
       await screenshot('tier-garden');
+      // Drones: 4 moments of the 8 s orbit (sides and behind; never over the face).
+      for (let i = 1; i <= 4; i++) {
+        await sleep(2000);
+        console.log(`drone frame ${i}:`, await evaluate(`[...document.querySelectorAll('.bot-drones .orbit')].map(o => getComputedStyle(o).zIndex).join(',')`));
+        await screenshot(`drones-${i}`);
+      }
       if (process.env.FAKE_DB && process.env.NEXT_XP) {
         const { DatabaseSync } = await import('node:sqlite');
         const db = new DatabaseSync(process.env.FAKE_DB);

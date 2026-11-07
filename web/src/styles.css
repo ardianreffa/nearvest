@@ -5170,6 +5170,13 @@ button.chip:focus-visible {
   filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.25));
 }
 
+/* Preview hole check: plain loud background, no shadows or motion. */
+.hole-check .evo-cell svg,
+.hole-check .tanibot {
+  filter: none;
+  animation: none;
+}
+
 .evo-cell small {
   color: #fff;
   font-size: 11px;
@@ -5397,15 +5404,29 @@ button.chip:focus-visible {
   animation: aura-pulse 3.2s ease-in-out infinite;
 }
 
-/* Legend: a white-cyan circle of light, turning very slowly. */
+/* Legend: a big, bright circle of light behind the body (dense glowing disc with a turning
+   band of light, plus two soft outer rings), turning very slowly. */
 .aura-legend {
-  width: 100%;
+  width: 136%;
   aspect-ratio: 1;
-  background: conic-gradient(from 0deg, rgba(255, 255, 255, 0.9), rgba(34, 211, 238, 0.35), rgba(255, 255, 255, 0.85), rgba(165, 243, 252, 0.3), rgba(255, 255, 255, 0.9));
-  mask: radial-gradient(circle, transparent 50%, #000 54%, #000 60%, transparent 66%);
-  -webkit-mask: radial-gradient(circle, transparent 50%, #000 54%, #000 60%, transparent 66%);
-  filter: blur(1px) drop-shadow(0 0 6px rgba(34, 211, 238, 0.7));
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, transparent 0 63%, rgba(165, 243, 252, 0.45) 65%, transparent 67.5%),
+    radial-gradient(circle, transparent 0 55.5%, rgba(220, 255, 255, 0.7) 57.5%, transparent 60%),
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 22%, rgba(186, 250, 255, 0.85) 36%, rgba(34, 211, 238, 0.55) 47%, rgba(34, 211, 238, 0.25) 51%, transparent 53%);
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.85));
   animation: aura-spin 40s linear infinite, aura-pulse-only 3.4s ease-in-out infinite;
+}
+
+/* The turning band of light inside the disc (rays you can see rotate). */
+.aura-legend::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.9) 0 8deg, rgba(165, 243, 252, 0.15) 8deg 30deg);
+  mask: radial-gradient(circle, transparent 0 24%, #000 34%, #000 46%, transparent 52%);
+  -webkit-mask: radial-gradient(circle, transparent 0 24%, #000 34%, #000 46%, transparent 52%);
 }
 
 @keyframes aura-pulse {
@@ -5429,23 +5450,28 @@ button.chip:focus-visible {
 @keyframes aura-pulse-only {
   0%,
   100% {
-    opacity: 0.6;
+    opacity: 0.82;
   }
   50% {
-    opacity: 0.95;
+    opacity: 1;
   }
 }
 
-/* Legend: the ring of light floating above the hat, turning slowly. */
+/* Legend: the ring of light floating above the hat, turning slowly. Thick and bright with a
+   glow; the line width follows TaniBot's size (--bot-w; 116px outside the garden). */
 .bot-halo {
+  --halo-bw: max(3px, calc(var(--bot-w, 116px) * 0.045));
   left: 50%;
-  top: -10%;
-  width: 46%;
-  height: 12%;
-  margin-left: -23%;
+  top: -12%;
+  width: 50%;
+  height: 14%;
+  margin-left: -25%;
   border-radius: 50%;
-  border: 3px solid rgba(220, 255, 255, 0.95);
-  box-shadow: 0 0 8px rgba(34, 211, 238, 0.9), inset 0 0 6px rgba(34, 211, 238, 0.8);
+  border: var(--halo-bw) solid #f0ffff;
+  box-shadow:
+    0 0 calc(var(--halo-bw) * 1.5) rgba(165, 243, 252, 0.95),
+    0 0 calc(var(--halo-bw) * 4) rgba(34, 211, 238, 0.8),
+    inset 0 0 calc(var(--halo-bw) * 1.5) rgba(34, 211, 238, 0.9);
   pointer-events: none;
   animation: halo-float 3s ease-in-out infinite;
 }
@@ -5453,11 +5479,11 @@ button.chip:focus-visible {
 .bot-halo::after {
   content: '';
   position: absolute;
-  inset: -3px;
+  inset: calc(var(--halo-bw) * -1);
   border-radius: 50%;
   background: conic-gradient(from var(--halo-a, 0deg), #fff 0 30deg, transparent 60deg 360deg);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--halo-bw) - 1px), #000 calc(100% - var(--halo-bw)));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--halo-bw) - 1px), #000 calc(100% - var(--halo-bw)));
   animation: halo-turn 6s linear infinite;
 }
 
@@ -5767,22 +5793,26 @@ button.chip:focus-visible {
   filter: blur(1px);
 }
 
-/* Drones orbit TaniBot's shoulders (front and back of it), asleep they park dimly. */
+/* Drones orbit TaniBot at shoulder height, beside and BEHIND it, never in front of the
+   face, visor or hat: side -> behind the body (smaller, drawn under the sprite) -> other side.
+   .bot-drones has no z-index on purpose, so each drone's z-index is compared with the sprite's
+   (inside .bot-spot): 2 at the sides (clear of the body), -1 while it passes behind. */
 .bot-spot .bot-drones {
-  bottom: 50%;
-  z-index: 2;
+  bottom: 36%;
+  z-index: auto;
 }
 
 .orbit {
   position: absolute;
   left: 0;
   bottom: 0;
+  z-index: 2;
   transform: translateX(-50%);
-  animation: drone-orbit 7s ease-in-out infinite;
+  animation: drone-orbit 8s ease-in-out infinite;
 }
 
 .orbit.o2 {
-  animation-delay: -3.5s;
+  animation-delay: -4s;
 }
 
 .orbit > .drone {
@@ -5790,35 +5820,51 @@ button.chip:focus-visible {
 }
 
 @keyframes drone-orbit {
-  0% {
-    transform: translate(calc(var(--bot-w) * -0.62), 0) scale(1);
-    z-index: 3;
+  0%,
+  100% {
+    transform: translate(calc(var(--bot-w) * -0.74), 0) scale(1);
+    z-index: 2;
   }
-  25% {
-    transform: translate(0, calc(var(--bot-w) * -0.08)) scale(1.05);
-    z-index: 3;
+  20% {
+    transform: translate(calc(var(--bot-w) * -0.66), calc(var(--bot-w) * -0.03)) scale(0.92);
+    z-index: 2;
   }
-  50% {
-    transform: translate(calc(var(--bot-w) * 0.62), 0) scale(1);
-    z-index: 3;
-  }
-  51% {
+  21% {
     z-index: -1;
   }
-  75% {
-    transform: translate(0, calc(var(--bot-w) * -0.2)) scale(0.75);
+  35% {
+    transform: translate(0, calc(var(--bot-w) * -0.06)) scale(0.72);
+    z-index: -1;
+  }
+  49% {
+    z-index: -1;
+  }
+  50% {
+    transform: translate(calc(var(--bot-w) * 0.66), calc(var(--bot-w) * -0.03)) scale(0.92);
+    z-index: 2;
+  }
+  60% {
+    transform: translate(calc(var(--bot-w) * 0.74), 0) scale(1);
+    z-index: 2;
+  }
+  70% {
+    transform: translate(calc(var(--bot-w) * 0.66), calc(var(--bot-w) * -0.03)) scale(0.92);
+    z-index: 2;
+  }
+  71% {
+    z-index: -1;
+  }
+  85% {
+    transform: translate(0, calc(var(--bot-w) * -0.06)) scale(0.72);
     z-index: -1;
   }
   99% {
     z-index: -1;
   }
-  100% {
-    transform: translate(calc(var(--bot-w) * -0.62), 0) scale(1);
-    z-index: 3;
-  }
 }
 
-.bot-drones.parked {
+/* Dim each drone, not the container (opacity on .bot-drones would stack every drone in front). */
+.bot-drones.parked .drone {
   opacity: 0.25;
 }
 
@@ -5962,7 +6008,11 @@ button.chip:focus-visible {
   }
 
   .orbit {
-    transform: translate(calc(var(--bot-w) * -0.55), 0);
+    transform: translate(calc(var(--bot-w) * -0.74), 0);
+  }
+
+  .orbit.o2 {
+    transform: translate(calc(var(--bot-w) * 0.74), 0);
   }
 }
 
