@@ -4785,3 +4785,351 @@ details.sell-seeds[open] > summary h2::before {
     box-shadow: 0 0 10px 2px rgba(245, 197, 66, 0.6);
   }
 }
+
+/* =====================================================================
+   HUD composition + one shape language (2026-11-07)
+   - Spacing: 8px grid; the same 16px margin to every screen edge.
+   - Shapes: pixel-style chamfered corners (corner-shape: bevel; browsers
+     without it fall back to plain rounded corners of the same size).
+       --r-pill  capsules and chips
+       --r-panel panels, windows, rail, drawer, cards
+       --r-btn   buttons
+   ===================================================================== */
+
+:root {
+  --space: 8px;
+  --edge: 16px;
+  --r-pill: 14px;
+  --r-panel: 10px;
+  --r-btn: 5px;
+  --corner: bevel;
+  /* Height of the top-right system capsule (36px buttons + padding + border). */
+  --sys-h: 48px;
+}
+
+/* ---------- Shapes ---------- */
+
+.hud-capsule,
+.chip,
+.owned-chip,
+.seed-q,
+.tag,
+.bot-status,
+.ai-tag,
+.tag-demo {
+  border-radius: var(--r-pill);
+  corner-shape: var(--corner);
+}
+
+.panel,
+.dialog,
+.hud,
+.hud-bar > .panel,
+.toast,
+.checkin,
+.seed-card,
+.market-row,
+.bot-hint,
+.profile-card,
+.farmer-card-slot,
+.stat,
+.notice,
+.list li {
+  border-radius: var(--r-panel);
+  corner-shape: var(--corner);
+}
+
+.btn,
+.icon-btn,
+.rail-btn,
+.seed-btn,
+.bot-style,
+.avatar-choice,
+.cal-day,
+.avatar,
+.hud-capsule .avatar,
+.tab,
+.bot-click:focus-visible,
+input[type='number'],
+.bot-field input,
+.bot-budget input,
+.dev-login input {
+  border-radius: var(--r-btn);
+  corner-shape: var(--corner);
+}
+
+/* Panels: a solid bamboo frame instead of the striped border image (border images
+   ignore corner shapes); the wood header follows the panel's top corners. */
+.panel {
+  border: 3px solid var(--bamboo-a);
+  border-image: none;
+}
+
+.panel > .panel-head:first-child,
+details.panel > summary.panel-head {
+  border-radius: calc(var(--r-panel) - 3px) calc(var(--r-panel) - 3px) 0 0;
+  corner-shape: var(--corner);
+}
+
+/* Corner rivets sit a little inside the chamfered corners. */
+.panel::before {
+  left: 12px;
+}
+
+.panel::after {
+  right: 12px;
+}
+
+/* ---------- Laptop / immersive HUD ---------- */
+
+.shell.immersive .hud-top {
+  top: var(--edge);
+  left: var(--edge);
+  right: var(--edge);
+  gap: var(--space);
+}
+
+/* Top left: the player's status (profile capsule, then a row of chips). */
+.hud-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space);
+  min-width: 0;
+  pointer-events: none;
+}
+
+.hud-left > * {
+  pointer-events: auto;
+}
+
+.shell.immersive .hud-capsule-left {
+  padding: 6px 18px 6px 6px;
+  gap: 10px;
+}
+
+.hud-left .notice {
+  margin: 0;
+  max-width: 360px;
+  font-size: 12px;
+}
+
+.hud-chips {
+  display: flex;
+  align-items: center;
+  gap: var(--space);
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  color: #f4ead2;
+  background: rgba(40, 26, 14, 0.66);
+  border: 2px solid rgba(201, 152, 84, 0.6);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+
+button.chip:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+/* PANEN: gold and the most prominent chip. */
+.chip-panen {
+  height: 36px;
+  padding: 0 14px 0 8px;
+  font-size: 18px;
+  color: #3b2a00;
+  background: linear-gradient(#ffe08a, var(--gold));
+  border-color: #1b1b2f;
+  box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.45), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.chip-panen .chip-unit {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  opacity: 0.75;
+}
+
+.chip-icon {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.chip-checkin.ready {
+  border-color: var(--gold);
+  animation: rail-glow 1.4s ease-in-out infinite;
+}
+
+.chip-checkin.done {
+  border-color: rgba(0, 236, 151, 0.6);
+  color: #c9f7e3;
+}
+
+.chip-dot {
+  position: absolute;
+  top: -4px;
+  right: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #1b1b2f;
+  box-shadow: 0 0 6px #ef4444;
+}
+
+.chip-check {
+  position: absolute;
+  right: -7px;
+  bottom: -5px;
+  width: 14px;
+  height: 14px;
+  font-style: normal;
+  font-size: 9px;
+  line-height: 11px;
+  text-align: center;
+  color: #053b26;
+  background: var(--mint);
+  border: 2px solid #1b1b2f;
+  border-radius: 50%;
+}
+
+/* Farm day: information only, so quieter and not clickable. */
+.chip-day {
+  cursor: default;
+  font-weight: 600;
+  color: #e6d7b5;
+  background: rgba(40, 26, 14, 0.5);
+  border-color: rgba(201, 152, 84, 0.35);
+}
+
+.chip-demo {
+  font-size: 10px;
+  padding: 3px 6px;
+  color: #062b33;
+  background: var(--cyan);
+  border-radius: var(--r-btn);
+  corner-shape: var(--corner);
+}
+
+/* Top right: only system controls, smaller and quieter than the player's group. */
+.hud-sys {
+  gap: 4px;
+  padding: 4px;
+  background: rgba(20, 14, 8, 0.42);
+  border-color: rgba(42, 25, 12, 0.6);
+  box-shadow: inset 0 0 0 2px rgba(201, 152, 84, 0.25), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.hud-sys .icon-row {
+  gap: 4px;
+}
+
+.shell.immersive .hud-sys .icon-btn {
+  width: 36px;
+  height: 36px;
+  opacity: 0.85;
+  border-radius: var(--r-btn);
+}
+
+.shell.immersive .hud-sys .icon-btn:hover,
+.shell.immersive .hud-sys .icon-btn:focus-visible {
+  opacity: 1;
+}
+
+.shell.immersive .hud-sys .icon-btn svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* Rail and drawer: under the system capsule, right edges aligned with it. */
+.shell.immersive .hud-rail,
+.shell.immersive .hud-drawer {
+  top: calc(var(--edge) + var(--sys-h) + var(--space));
+  right: var(--edge);
+}
+
+.shell.immersive .hud-drawer {
+  bottom: var(--edge);
+}
+
+.shell.immersive .hud-rail {
+  padding: 6px;
+  gap: 6px;
+}
+
+/* Bottom action bar: centered between the left edge and the rail / drawer. */
+.shell.immersive .hud-bar {
+  left: var(--edge);
+  bottom: var(--edge);
+  right: calc(var(--edge) + 64px + var(--space));
+}
+
+.shell.immersive.drawer-open .hud-bar {
+  right: calc(var(--edge) + 400px + var(--space));
+}
+
+/* Notifications under the player's status group. */
+.shell.immersive .toasts {
+  left: var(--edge);
+  top: calc(var(--edge) + 64px + var(--space) + 36px + var(--space));
+}
+
+.hud-capsule .avatar {
+  border-radius: var(--r-btn);
+}
+
+/* ---------- Phones: the same logic ---------- */
+
+.topbar {
+  gap: var(--space);
+  align-items: stretch;
+}
+
+.topbar > .hud-sys {
+  align-self: center;
+}
+
+.shell:not(.immersive) > .hud-chips {
+  margin: var(--space) 0 var(--space);
+}
+
+@media (max-width: 1023px) {
+  .chip {
+    height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .chip-panen {
+    height: 34px;
+    font-size: 16px;
+  }
+
+  .topbar .hud-sys .icon-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-btn);
+  }
+}
+
+.checkin-dialog .checkin {
+  margin-bottom: var(--space);
+}
+
+/* The PANEN chip pops when the balance changes; coins fly to it. */
+.chip-panen.bump {
+  animation: bump 0.4s steps(2);
+}

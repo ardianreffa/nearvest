@@ -126,6 +126,7 @@ try {
         return JSON.stringify({ overlaps: hits, cutOff: cut, scroll: bar.scrollHeight > bar.clientHeight + 1 });
       })()`);
       console.log('plot panel:', overlap);
+      console.log('plots covered by the action bar:', await evaluate(`(() => { const B = document.querySelector('.hud-bar .panel')?.getBoundingClientRect(); if (!B) return 'no bar (phone)'; return [...document.querySelectorAll('.plot .soil')].some(p => { const P = p.getBoundingClientRect(); return P.bottom > B.top + 1 && P.right > B.left && P.left < B.right; }); })()`));
       // Switch TaniBot on (fake chain) and watch the garden.
       await evaluate(`document.querySelector('.bot-click').click()`);
       await waitFor(bodyHas('Activate TaniBot'), 'activate panel');
@@ -158,14 +159,14 @@ try {
       console.log('rows:', await evaluate(`[...document.querySelectorAll('.market-panel .market-row')].map(r => r.innerText.replace(/\\s+/g, ' ')).join(' || ')`));
       const fit = await evaluate(`(() => { const rows = [...document.querySelectorAll('.market-panel .market-row')]; return rows.map(r => { const h = r.querySelector('.market-price').getBoundingClientRect(); const s = r.querySelector('.sell-go').getBoundingClientRect(); return Math.round(s.bottom - h.top); }).join(','); })()`);
       console.log('price-to-sell height per row (px):', fit);
-      const balBefore = await evaluate(`document.querySelector('.balance span').innerText`);
+      const balBefore = await evaluate(`document.querySelector('.chip-panen b').innerText`);
       const row = await evaluate(`(() => { const r = [...document.querySelectorAll('.market-panel .market-row')].find(x => !x.classList.contains('empty')); if (!r) return 'none'; r.querySelector('.sell-max').click(); return r.querySelector('.market-name').innerText; })()`);
       await sleep(200);
       const label = await evaluate(`[...document.querySelectorAll('.market-panel .market-row')].find(x => !x.classList.contains('empty')).querySelector('.sell-go').innerText`);
       await evaluate(`[...document.querySelectorAll('.market-panel .market-row')].find(x => !x.classList.contains('empty')).querySelector('.sell-go').click()`);
       await waitFor(bodyHas('Sold'), 'sold toast', 20000);
       await sleep(600);
-      console.log('sold', row, 'with', label, '| balance', balBefore, '->', await evaluate(`document.querySelector('.balance span').innerText`));
+      console.log('sold', row, 'with', label, '| balance', balBefore, '->', await evaluate(`document.querySelector('.chip-panen b').innerText`));
       await screenshot('market-sold');
       const hasSeeds = await evaluate(`!!document.querySelector('details.sell-seeds')`);
       if (hasSeeds) {
@@ -183,24 +184,41 @@ try {
       await typeInto('#dev-user', name.slice('--fullscreen='.length));
       await clickText('Enter');
       await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      const hudCheck = `(() => {
+        const r = (sel) => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { l: Math.round(b.left), t: Math.round(b.top), r: Math.round(b.right), b: Math.round(b.bottom) }; };
+        const left = r('.hud-left'), cap = r('.hud-capsule-left'), sys = r('.hud-sys'), rail = r('.hud-rail') || r('.hud-drawer'), bar = r('.hud-bar .panel');
+        const W = innerWidth, H = innerHeight;
+        const els = ['.hud-capsule-left', '.hud-chips', '.hud-sys', '.hud-rail', '.hud-drawer', '.hud-bar .panel'].map(s => [s, r(s)]).filter(([, b]) => b && b.r > b.l);
+        const overlaps = [];
+        for (let i = 0; i < els.length; i++) for (let j = i + 1; j < els.length; j++) { const [a, A] = els[i], [c, C] = els[j]; if (A.l < C.r && C.l < A.r && A.t < C.b && C.t < A.b) overlaps.push(a + ' x ' + c); }
+        for (const p of document.querySelectorAll('.plot .soil')) { const P = p.getBoundingClientRect(); const B = document.querySelector('.hud-bar .panel')?.getBoundingClientRect(); if (B && P.bottom > B.top + 1 && P.right > B.left && P.left < B.right) overlaps.push('plot soil x action bar'); }
+        return JSON.stringify({ edgeLeft: cap.l, edgeTop: cap.t, edgeRight: W - sys.r, edgeBottom: bar ? H - bar.b : null, topsAligned: cap.t === sys.t, railRightAligned: rail ? rail.r === sys.r : 'no rail', railGapBelowSys: rail ? rail.t - sys.b : null, chips: document.querySelector('.hud-chips')?.innerText.replace(/\\s+/g, ' '), overlaps });
+      })()`;
       for (const [w, h] of [[1280, 800], [1440, 900], [1920, 1080]]) {
         await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false });
         await evaluate(`document.dispatchEvent(new Event('fullscreenchange'))`);
         await sleep(900);
-        const r = await evaluate(`(() => { const a = document.querySelector('.bg-art').getBoundingClientRect(); return JSON.stringify({ k: getComputedStyle(document.querySelector('.scene')).getPropertyValue('--k'), left: Math.round(a.left), top: Math.round(a.top), right: Math.round(a.right), bottom: Math.round(a.bottom), covers: a.left <= 0 && a.top <= 0 && a.right >= innerWidth && a.bottom >= innerHeight }); })()`);
-        console.log(`fullscreen ${w}x${h}:`, r);
+        const r = await evaluate(`(() => { const a = document.querySelector('.bg-art').getBoundingClientRect(); return JSON.stringify({ k: getComputedStyle(document.querySelector('.scene')).getPropertyValue('--k'), covers: a.left <= 0 && a.top <= 0 && a.right >= innerWidth && (a.bottom >= innerHeight || !!document.querySelector('.bg-soil-ext')) }); })()`);
+        console.log(`fullscreen ${w}x${h}:`, r, '| HUD', await evaluate(hudCheck));
         await screenshot(`fullscreen-${w}x${h}`);
       }
+      // Drawer closed: the rail.
+      await evaluate(`document.querySelector('.drawer-close')?.click()`);
+      await sleep(600);
+      console.log('rail closed: HUD', await evaluate(hudCheck));
+      console.log('rail buttons:', await evaluate(`[...document.querySelectorAll('.hud-rail .rail-btn')].map(b => b.innerText.trim()).join(', ')`));
+      console.log('check-in chip:', await evaluate(`(() => { const b = document.querySelector('.chip-checkin'); return b ? b.className + ' | ' + b.innerText.replace(/\\s+/g, ' ') + ' | dot ' + !!b.querySelector('.chip-dot') + ' | check ' + !!b.querySelector('.chip-check') : 'missing'; })()`));
+      await screenshot('rail');
+      await evaluate(`document.querySelector('.chip-checkin').click()`);
+      await sleep(400);
+      console.log('check-in window opens:', await evaluate(`!!document.querySelector('.checkin-dialog .calendar')`));
+      await screenshot('checkin-window');
+      await clickText('Close');
       // Leaving fullscreen (Esc) back to a window with browser bars.
       await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
       await evaluate(`document.dispatchEvent(new Event('fullscreenchange'))`);
       await sleep(900);
-      // The check-in shortcut in the rail (drawer closed).
-      await evaluate(`document.querySelector('.drawer-close')?.click()`);
-      await sleep(600);
-      console.log('rail check-in:', await evaluate(`(() => { const b = document.querySelector('.rail-checkin'); return b ? b.className + ' | ' + b.innerText.replace(/\\s+/g, ' ') + ' | dot ' + !!b.querySelector('.rail-dot') + ' | check ' + !!b.querySelector('.rail-check') : 'missing'; })()`));
-      await screenshot('rail');
-      console.log('after Esc 1280x720:', await evaluate(`(() => { const a = document.querySelector('.bg-art').getBoundingClientRect(); return JSON.stringify({ k: getComputedStyle(document.querySelector('.scene')).getPropertyValue('--k'), covers: a.left <= 0 && a.top <= 0 && a.right >= innerWidth && a.bottom >= innerHeight }); })()`));
+      console.log('after Esc 1280x720:', await evaluate(`(() => { const a = document.querySelector('.bg-art').getBoundingClientRect(); return JSON.stringify({ window: innerWidth + 'x' + innerHeight, k: getComputedStyle(document.querySelector('.scene')).getPropertyValue('--k'), covers: a.left <= 0 && a.top <= 0 && a.right >= innerWidth && (a.bottom >= innerHeight || !!document.querySelector('.bg-soil-ext')) }); })()`));
     });
     throw Object.assign(new Error('fullscreen done'), { done: true });
   }

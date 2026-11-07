@@ -6,7 +6,7 @@ import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type
 import { botVersion, TaniBot, TaniBotHead } from './art/tanibot';
 import { getAudioPrefs, initAudio, onAudioPrefsChange, playSound, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
-import { HowToPlay, PanenInfo } from './help';
+import { HowToPlay, Modal, PanenInfo } from './help';
 import { ShareHost, shareMomentOnce } from './share';
 import { burnAt, coinsToBalance, confetti, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
@@ -90,7 +90,7 @@ const DRAWER_KEY = 'nearvest.drawer';
 /** Width of the right drawer (open) and of the icon rail (closed), and the action bar height. */
 const DRAWER_W = 400;
 const RAIL_W = 64;
-const BAR_H = 128;
+const BAR_H = 200;
 
 function readDrawer(): boolean {
   try {
@@ -119,7 +119,7 @@ export function App() {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [audio, setAudio] = useState(getAudioPrefs());
   const fullscreen = useFullscreen();
-  const [info, setInfo] = useState<'help' | 'panen' | 'profile' | 'tanibot' | null>(null);
+  const [info, setInfo] = useState<'help' | 'panen' | 'profile' | 'tanibot' | 'checkin' | null>(null);
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
@@ -336,7 +336,7 @@ export function App() {
   const balance = state?.player.balance;
   const lastBalance = useRef<number | undefined>(undefined);
   useEffect(() => {
-    const el = document.querySelector('.balance');
+    const el = document.querySelector('.chip-panen');
     if (el && lastBalance.current !== undefined && balance !== lastBalance.current) {
       el.classList.remove('bump');
       void (el as HTMLElement).offsetWidth;
@@ -488,7 +488,6 @@ export function App() {
       elapsed={elapsed}
       busy={busy}
       goShop={goShop}
-      showCheckin={!wide}
       big={wide}
       immersive={immersive}
       onBot={openBot}
@@ -528,17 +527,31 @@ export function App() {
       </div>
     </button>
   );
-  const balanceView = (
-    <button class="balance" title="Your PANEN balance: what is PANEN?" onClick={() => (playSound('click'), setInfo('panen'))} aria-label={`${formatPanen(p.balance)} PANEN. What is PANEN?`}>
-      <Coin scale={3} />
-      <span>{formatPanen(p.balance)}</span>
-    </button>
-  );
-  const dayInfo = (
-    <span>
-      Farm day {state.clock.farmDay} · next day in {formatDuration(state.clock.msUntilNextDay - elapsed)}
-      {p.demo && <span class="tag tag-demo">Demo: 1 day = 1 min</span>}
-    </span>
+  const nextIn = formatDuration(state.clock.msUntilNextDay - elapsed);
+  /** Player status chips under the profile: PANEN (most prominent), check-in, farm day. */
+  const chips = (
+    <div class="hud-chips">
+      <button class="chip chip-panen" title="Your PANEN balance: what is PANEN?" onClick={() => (playSound('click'), setInfo('panen'))} aria-label={`${formatPanen(p.balance)} PANEN. What is PANEN?`}>
+        <Coin scale={2} />
+        <b>{formatPanen(p.balance)}</b>
+        <span class="chip-unit">PANEN</span>
+      </button>
+      <button
+        class={`chip chip-checkin ${state.checkin.available ? 'ready' : 'done'}`}
+        onClick={() => (playSound('click'), setInfo('checkin'))}
+        title={state.checkin.available ? 'Daily check-in is ready' : `Checked in. Next check-in in ${nextIn}`}
+      >
+        <span class="chip-icon">
+          <Sprite name="seedPacket" scale={2} />
+          {state.checkin.available ? <i class="chip-dot" aria-hidden="true" /> : <i class="chip-check" aria-hidden="true">✓</i>}
+        </span>
+        <span>{state.checkin.available ? 'Check in' : nextIn}</span>
+      </button>
+      <span class="chip chip-day" title={`Next farm day in ${nextIn}`}>
+        Day {state.clock.farmDay}
+        {p.demo && <span class="chip-demo">Demo</span>}
+      </span>
+    </div>
   );
   const notices = (
     <>
@@ -553,18 +566,14 @@ export function App() {
         <>
           {garden}
           {/* Two floating capsules; the middle stays open so the village shows through. */}
+          {/* Top left: the player's status. Top right: only system controls. The middle stays open. */}
           <header class="hud-top">
-            <div class="hud-capsule hud-capsule-left">
-              {who}
-              <div class="hud-day">
-                {dayInfo}
-                {notices}
-              </div>
+            <div class="hud-left">
+              <div class="hud-capsule hud-capsule-left">{who}</div>
+              {chips}
+              {notices}
             </div>
-            <div class="hud-capsule hud-capsule-right">
-              {balanceView}
-              {muteButton}
-            </div>
+            <div class="hud-capsule hud-sys">{muteButton}</div>
           </header>
 
           <aside class="hud hud-drawer" aria-label="Menu" aria-hidden={!drawerOpen} inert={!drawerOpen}>
@@ -578,7 +587,6 @@ export function App() {
               </button>
             </div>
             <div class="drawer-scroll">
-              <CheckinBanner state={state} act={act} ask={ask} busy={busy} elapsed={elapsed} />
               <nav class="side-tabs" aria-label="Panels">
                 {(['storage', 'shop', 'market', 'village'] as SideTab[]).map((t) => (
                   <TabButton key={t} tab={t} current={sideTab} set={(x) => (playSound('click'), setSideTab(x as SideTab))} icon={tabIcons[t]} label={tabLabels[t]} />
@@ -589,18 +597,6 @@ export function App() {
           </aside>
           {!drawerOpen && (
             <nav class="hud hud-rail" aria-label="Open the menu">
-              {/* Check-in stays in its place: glowing with a red dot when ready, a check mark and the countdown after. */}
-              <button
-                class={`rail-btn rail-checkin ${state.checkin.available ? 'ready' : 'done'}`}
-                onClick={() => (playSound('click'), setDrawerOpen(true))}
-                title={state.checkin.available ? 'Daily check-in is ready' : `Checked in. Next check-in in ${formatDuration(state.clock.msUntilNextDay - elapsed)}`}
-              >
-                <span class="rail-checkin-icon">
-                  <Sprite name="seedPacket" scale={3} />
-                  {state.checkin.available ? <i class="rail-dot" aria-hidden="true" /> : <i class="rail-check" aria-hidden="true">✓</i>}
-                </span>
-                <span>{state.checkin.available ? 'Check in' : formatDuration(state.clock.msUntilNextDay - elapsed)}</span>
-              </button>
               {(['storage', 'shop', 'market', 'village'] as SideTab[]).map((t) => (
                 <button key={t} class="rail-btn" onClick={() => (playSound('click'), openSide(t))} title={tabLabels[t]}>
                   {tabIcons[t]}
@@ -618,14 +614,9 @@ export function App() {
         <>
           <header class="topbar">
             <div class="hud-capsule hud-capsule-left">{who}</div>
-            <div class="hud-capsule hud-capsule-right topbar-right">
-              {balanceView}
-              {muteButton}
-            </div>
+            <div class="hud-capsule hud-sys topbar-right">{muteButton}</div>
           </header>
-          <div class="subbar">
-            {dayInfo}
-          </div>
+          {chips}
           {notices}
           <div class="content">{tab === 'garden' ? garden : panelFor(tab)}</div>
           <nav class="tabs">
@@ -659,6 +650,12 @@ export function App() {
       </div>
       {dialogView}
       {infoView}
+      {info === 'checkin' && (
+        <Modal title="Daily check-in" onClose={() => setInfo(null)} closeLabel="Close" class="checkin-dialog">
+          <CheckinBanner state={state} act={act} ask={ask} busy={busy} elapsed={elapsed} />
+          <p class="muted small">Check in every day: 5 PANEN and a free Mango seed. Day 7 of a streak doubles the PANEN and adds a Gold seed.</p>
+        </Modal>
+      )}
       <ShareHost state={state} />
       <FxLayer />
     </main>

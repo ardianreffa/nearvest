@@ -42,7 +42,6 @@ interface Props {
   elapsed: number;
   busy: boolean;
   goShop: () => void;
-  showCheckin: boolean;
   /** Wide screens draw the scene art at 3 px per pixel. */
   big: boolean;
   /** Laptop / PC: full-window garden with the selected plot in a bottom action bar. */
@@ -51,7 +50,7 @@ interface Props {
   onBot?: () => void;
 }
 
-export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, showCheckin, big, immersive, onBot }: Props) {
+export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, big, immersive, onBot }: Props) {
   const [selected, setSelected] = useState(0);
   const [fx, setFx] = useState<SceneFx | null>(null);
   const fxTimer = useRef<number>(0);
@@ -102,7 +101,6 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
 
   return (
     <div class="garden-screen">
-      {showCheckin && <CheckinBanner state={state} act={act} ask={ask} busy={busy} elapsed={elapsed} />}
 
       <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} onBot={onBot} />
 
