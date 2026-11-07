@@ -34,7 +34,7 @@ Tip: the Read tool cannot render this PDF without poppler. Extract text with mac
 
 ## Decisions (agreed with Ardian, 2026-11-05)
 
-- **Login:** Google login to our own game server. On first login the server creates the player's sub-account `<name>.nearvest.testnet` and pays the gas. The player's account key is generated and held by the server and **must be stored encrypted** (key from an env variable, never in the repo or plain text in the database). The README must say honestly that this is a custodial testnet design. Fallback login: NEAR wallet via `@hot-labs/near-connect` (do not use MyNearWallet, deprecated 2026-10-31).
+- **Login:** Google login to our own game server. On first login the server creates the player's sub-account `<name>.nearvest.testnet` and pays the gas. The player's account key is generated and held by the server and **must be stored encrypted** (key from an env variable, never in the repo or plain text in the database). The README must say honestly that this is a custodial testnet design. Second login: NEAR wallet via `@hot-labs/near-connect` (do not use MyNearWallet, deprecated 2026-10-31). Both are done and were tested by Ardian on 2026-11-07 (see Game server -> Login).
 - **Smart contracts:** Rust with `near-sdk-rs` (NEAR's only official contract SDK; standard NEP-141/NEP-171 implementations available).
 - **Assets:** only assets listed in `docs/ASSETS.md`. Check the license on the source page before adding any asset, and record it there with any requested attribution.
 
@@ -68,7 +68,14 @@ Tip: the Read tool cannot render this PDF without poppler. Extract text with mac
 - **Players:** the server creates `<name>.nearvest.testnet` through the factory (0.003 NEAR storage paid by the game), generates the key pair and stores the secret key **AES-256-GCM encrypted** with `MASTER_KEY` from `.env`. Losing `MASTER_KEY` = losing all player keys: back it up privately.
 - **Gas:** the game account signs everything. Burns must come from the player, so the server signs a meta transaction (NEP-366) with the player key and the game account relays it and pays gas.
 - **Chain job queue:** actions update SQLite instantly and queue the NEAR transaction; one worker sends them in order, retries network errors and reverts the local balance if a token job fails for good.
-- **Login:** Google Identity Services button on the web -> ID token -> `POST /auth/google` (verified against Google's keys; only the Client ID is needed, no secret). `POST /auth/dev` exists only when `DEV_LOGIN=true` (never on a public server). Sessions are Bearer tokens (stored hashed).
+- **Login (done, tested manually by Ardian 2026-11-07):**
+  - **Google:** Google Identity Services button (forced English) -> ID token -> `POST /auth/google`, checked with jose (RS256, issuer accounts.google.com, aud = Client ID, not expired, `email_verified` required). Identity = Google `sub`; 1 Google account = 1 garden. Only the public Client ID is needed (no secret). Sessions are Bearer tokens (stored hashed, 30 days; survive refresh; logout deletes them).
+  - **NEAR wallet (non-custodial):** `@hot-labs/near-connect` 0.12.0 on testnet (`web/src/wallet.ts`). No manual wallet list: near-connect shows only wallets whose manifest supports testnet. **HOT Wallet does not support testnet**; Ardian tests with **Meteor Wallet** (`nearvestwallet.testnet`, `ardianwallet65.testnet`). Login = NEP-413 signed message "Sign in to NEARvest", recipient `nearvest.testnet`, one-time 32-byte nonce from `POST /auth/near/challenge` (5 minutes, single use), ed25519 check, and the key must be a FullAccess key of the account (RPC `view_access_key`). Shared check: `verifyWalletProof` in `server/src/wallet.ts`. A wallet garden uses the player's own account (`players.custody = 'wallet'`, no key stored).
+  - **Connect NEAR Wallet** (Village tab, Google gardens): same proof -> `POST /api/wallet/link`; `players.wallet_account_id` is unique (1 wallet = 1 garden); the linked wallet can then sign in to that Google garden.
+  - **Shop for wallet gardens:** the first purchase asks "Set up Shop": near-connect asks the wallet to add a limited game key (function call key, only `burn` on `panen.nearvest.testnet`, 0.01 NEAR allowance) whose secret stays in the browser (`localStorage nearvest.gamekey.<account>`). **This one AddKey step is paid by the player's wallet (tiny testnet fee); say so in the README.** After that the browser signs each burn as a NEP-366 delegate action (`POST /api/wallet/burn` gives the exact burn, `signedBurn` goes with `POST /api/shop/buy`), the game relays it and pays gas; no more wallet popups. Wallet balances are re-synced from the chain (`ft_balance_of`) at most every 30 s.
+  - `POST /auth/dev` exists only when `DEV_LOGIN=true` and the server is local-only (never on a public server).
+  - **.env names:** server `GOOGLE_CLIENT_ID` (set in `server/.env`), `DEV_LOGIN`, `WEB_ORIGINS`; web only `VITE_API_URL` (the web reads the Client ID from the server's `/api/config`). Google Cloud Console "Authorized JavaScript origins" must list every web origin (now `http://localhost:5173` and `http://localhost`; add the Vercel URL before deploy). Open the dev web at `http://localhost:5173`, not `127.0.0.1` (Google rejects IP origins).
+  - **Tests:** `server/test/google.test.ts` (fake Google key set: valid, wrong aud, expired, unverified email, wrong issuer, forged, same garden on second login, logout, dev login switch) and `server/test/wallet.test.ts` (valid proof, reused/expired/unknown nonce, key not owned, wallet linked elsewhere, signed burn accepted/refused, missing game key). Login page in the browser: `node tools/ui-test.mjs <outDir> --login-only 390 844` and `... 1280 800` (screenshots login + wallet picker, creates no account).
 - **HTTPS (agreed 2026-11-05, not installed yet):** Caddy on the VPS with a free `150-109-24-35.sslip.io` hostname and automatic Let's Encrypt certificates, proxying to the server on 127.0.0.1:8787. Fallback: Cloudflare Tunnel.
 - **Draft game numbers (not in the GDD; approved by Ardian 2026-11-05 as starting values, tune in testing; all in `server/src/rules.ts`):** grow days to first fruit mango 1 / rambutan 2 / durian 4; regrow 0.5 / 1 / 2 days; harvests before old 3 / 4 / 5; XP per harvest 10 / 25 / 60; titles at 0 / 50 / 200 / 600 / 1500 / 4000 XP; plot 3 unlocks at 50 XP (Farmhand); watering lasts 1 game day and is allowed once per tree per day (free for now by Ardian's choice; weather water comes with the Important features); fertilizer +50% speed for 1 day; Mr. Darto price swing ±30% minus up to 15% when many fruits were sold yesterday, bounded by [seed price, base +30%]; day-7 check-in bonus seed = Gold Mango; old tree drops 1 superior seed then becomes a Memorial Tree.
 
@@ -167,7 +174,7 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - [ ] Claim NEAR AI Cloud credits via NEAR Builders, create an API key
 - [x] Create the GitHub repo nearvest (private for now), store the GDD in docs/
 - [x] Find CC0 pixel-art assets (garden, fruit, robot) and record their licenses (`docs/ASSETS.md`)
-- [ ] Test Google login on NEAR; if too complicated, use wallet login (decided: Google login to our server, see Decisions; still to be tested)
+- [x] Test Google login (done 2026-11-07, plus NEAR wallet login)
 
 **Fri 6 Nov: core contracts**
 - [x] $PANEN contract (NEP-141): mint when earned, burn when spent, Seasons
@@ -178,7 +185,7 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - [x] Database, village clock (07:00 WIB), gas-paying relayer (on the Mac; VPS move still to do)
 - [x] Actions: plant, water, fertilize, harvest, sell, check-in (plus Shop burn, welcome pack, demo mode, Village Stats endpoint)
 - [x] Simple Mr. Darto (daily price with upper and lower bounds)
-- [ ] Google OAuth Client ID (Ardian) and test real Google login
+- [x] Google OAuth Client ID (Ardian) and test real Google login (2026-11-07)
 - [ ] Move the server to the VPS with HTTPS (ask Ardian first)
 
 **Sun 8 Nov: web UI**
@@ -225,7 +232,8 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 ## Status and next steps (2026-11-05 evening)
 
 - Done ahead of plan: contracts (Fri), game server on the Mac (Sat), web UI + visual polish + official TaniBot (Sun). All pushed to the private repo.
-- **Waiting on Ardian:** Google OAuth Client ID; NEAR AI Cloud API key (needed Mon for TaniBot's brain); (ChatGPT images for village background, Mr. Darto and Shop all done 2026-11-05).
+- **2026-11-07:** Google login + NEAR wallet login (Meteor) done and tested manually by Ardian; backlog of Ardian's decisions with priorities and days in `docs/BACKLOG.md`.
+- **Waiting on Ardian:** NEAR AI Cloud API key (needed Mon for TaniBot's brain); (ChatGPT images for village background, Mr. Darto and Shop all done 2026-11-05).
 - **How to bring in an AI image:** keep the original in `docs/art-source/`, convert with `python3 -I tools/pixelize/pixelize.py <image.png> <rows> <out_dir>` (add `--keep-bg [--colors N]` for full backgrounds: writes `bg.png` + `preview-x4.png`), check the preview, then generate a sprite module like `web/src/art/tanibot-sprite.ts` or PNGs in `web/public/assets/`, and record it in `docs/ASSETS.md` as AI-generated at Ardian's request.
 - **Browser test:** with server and web running, `node tools/ui-test.mjs <outDir> <name> 390 844` (phone) and `... 1280 800` (laptop); then look at the screenshots.
 - Server and web are not deployed yet (VPS + Caddy/sslip.io and Vercel need Ardian's OK).
@@ -234,6 +242,6 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 ## Open questions to verify while building
 
 - SBT standard (NEP-393) and wallet support.
-- How the relayer pays gas for new players.
+- How the relayer pays gas for new players. (Answered: the factory on `nearvest.testnet` pays 0.003 NEAR per player; only ~0.68 NEAR is free there on 2026-11-07, top up before deploy.)
 - NEAR AI Cloud credit claim and model choice.
 - Name "NEARvest" does not clash with another submission.
