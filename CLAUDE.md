@@ -243,12 +243,14 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - **TaniBot 6 tiers** (Seedling .. Legend) from Ardian's ChatGPT images with per-tier animations, real quadcopter drones, evolution moment and share card (docs/BACKLOG.md).
 - **UI:** new HUD (status group top left with PANEN / Check-in / Day chips, quiet system capsule top right, rail = navigation only, chamfered shape tokens, 8px grid); Market one row per fruit; seed cards; fullscreen fix (half-step backdrop scale); check-in window from the chip.
 
+- **TaniBot wallet test B (Meteor) passed** (Ardian, 2026-11-07): activate (set_bot), add budget, take back. Success indicators for TaniBot actions: button "Waiting for wallet..." / "Confirming on NEAR...", green toast with check mark + tx link, counting budget; "Cancelled in wallet. Nothing changed." (`web/src/tanibot.tsx`, `web/src/outcome.ts`).
+- **Demo recording mode:** `?record=1` hides the share card on title/evolution moments (`web/src/record.ts`); dev aid `tools/dev-xp.mjs <devGarden> <xp>`.
+- **Try as Judge (MUST) done 2026-11-07** (`server/src/judge.ts`, `web/src/judge.tsx`): one click on the login page -> a NEW garden `judge-xxxx.nearvest.testnet` per device (device id in localStorage; same device returns). Filled by the server: ripe Rare Durian, nearly ripe Gold Rambutan, Mango sprout (3 real Tree NFTs), Gold/Rare seeds, 100 PANEN, Farmhand XP, demo mode, TaniBot ON (limit 50, budget 30) that waits for the judge's first harvest (max 3 min). Judge tour chip + window: harvest, sell, Shop burn, TaniBot Log, Village Stats with nearblocks proofs. Cost about 0.04 testnet NEAR per garden; limits 3 per IP per day and 50 per day (then the newest judge garden is shared). Tested on real testnet (`judge-hh50`, all jobs done). Tests: `server/test/judge.test.ts`; browser: `node tools/ui-test.mjs <outDir> --judge [w] [h]` (creates a real judge garden on the normal server; use a fake-chain server to avoid that).
+
 **Next, in this order:**
-1. Test B TaniBot for wallet gardens with Meteor (set_bot signed in the wallet, budget add / take back).
-2. **Try as Judge** (MUST): pre-filled sample garden, TaniBot already ON.
-3. **Tutorial + How to play in 4 pages** (MUST; TaniBot is introduced after the first manual harvest).
-4. Deploy: VPS (server + Caddy/sslip.io) and Vercel (web) - **only with Ardian's OK**. At deploy: raise `TANIBOT_AI_MAX_CALLS_PER_DAY` from 30 (development) to **1500**, keep `TANIBOT_AI_BUDGET_USD=8`; add the Vercel URL to Google's Authorized JavaScript origins and to `WEB_ORIGINS`; top up `nearvest.testnet` and `game.nearvest.testnet` from the faucet.
-5. Then the Wednesday / Thursday packages from docs/BACKLOG.md (weather + ambient sound + dusk backdrop, share popup, referral, ...).
+1. **Tutorial + How to play in 4 pages** (MUST; TaniBot is introduced after the first manual harvest).
+2. Deploy: VPS (server + Caddy/sslip.io) and Vercel (web) - **only with Ardian's OK**. At deploy: raise `TANIBOT_AI_MAX_CALLS_PER_DAY` from 30 (development) to **1500**, keep `TANIBOT_AI_BUDGET_USD=8`; add the Vercel URL to Google's Authorized JavaScript origins and to `WEB_ORIGINS`; top up `nearvest.testnet`, `game.nearvest.testnet`, `pohon` and `panen` from the faucet (Try as Judge spends about 0.04 NEAR per judge garden).
+3. Then the Wednesday / Thursday packages from docs/BACKLOG.md (weather + ambient sound + dusk backdrop, share popup, referral, ...).
 
 **How-tos:**
 - **AI image:** keep the original in `docs/art-source/`, convert with `python3 -I tools/pixelize/pixelize.py <image.png> <rows> <out_dir>` (`--keep-bg [--colors N]` for backgrounds); TaniBot looks with `tools/pixelize/evolve.py`; record it in `docs/ASSETS.md` as AI-generated at Ardian's request.
