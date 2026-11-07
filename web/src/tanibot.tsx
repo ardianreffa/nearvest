@@ -1,13 +1,28 @@
 // TaniBot window: activate, on/off, working style, budget and the Log
 // (every action with its reason and the NEAR transaction that proves it).
 
-import { useCallback, useEffect, useState } from 'preact/hooks';
-import { api, type BotStyle, type GameState, type ServerConfig, type TaniBotResponse, type TaniBotView } from './api';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { api, type BotStyle, type GameState, type ServerConfig, type TaniBotLogEntry, type TaniBotResponse, type TaniBotView } from './api';
 import { TaniBot, tierOf } from './art/tanibot';
 import { Modal } from './help';
 import { Panel } from './ui';
 import { formatDuration } from './ui';
 import { walletFunctionCalls } from './wallet';
+
+/** A toast from the app shell ('success' = green with a check mark). */
+export type Notify = (t: { kind: 'info' | 'error' | 'chain' | 'success'; text: string; link?: string }) => void;
+
+/** What the busy button says: the wallet is open, or the transaction is on its way. */
+type Phase = 'wallet' | 'confirm' | 'busy';
+const PHASE_TEXT: Record<Phase, string> = { wallet: 'Waiting for wallet...', confirm: 'Confirming on NEAR...', busy: 'Please wait...' };
+
+/** A transaction the window waits for: the Log entry of its chain job. */
+interface Watch {
+  logId: number;
+  success: string;
+  failure: string;
+  button: 'activate' | 'add' | 'back';
+}
 
 const STYLES: { id: BotStyle; label: string; text: string }[] = [
   { id: 'thrifty', label: 'Thrifty', text: 'Waters, harvests and sells. Never buys.' },
@@ -42,15 +57,22 @@ export function TaniBotWindow({
   config,
   onState,
   onClose,
+  notify,
 }: {
   state: GameState;
   config: ServerConfig;
   onState: (s: GameState) => void;
   onClose: () => void;
+  notify: Notify;
 }) {
   const [data, setData] = useState<TaniBotResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Which button is working and what it waits for. */
+  const [phase, setPhase] = useState<{ button: Watch['button']; phase: Phase } | null>(null);
+  const [watch, setWatch] = useState<Watch | null>(null);
+  /** Same as `watch`, readable right away inside run() (state updates come a render later). */
+  const watchRef = useRef<Watch | null>(null);
   const [limit, setLimit] = useState<number | null>(null);
   const [budget, setBudget] = useState<number | null>(null);
   const [amount, setAmount] = useState(10);
@@ -70,68 +92,143 @@ export function TaniBotWindow({
 
   useEffect(() => {
     void load();
-    const id = setInterval(() => (void load(), setNow(Date.now())), 5000);
+    const id = setInterval(() => (void load(), setNow(Date.now())), watch ? 1500 : 5000);
     return () => clearInterval(id);
-  }, [load]);
+  }, [load, watch]);
 
-  /** Runs a request; keeps the window open and shows errors inline. */
-  const run = async (fn: () => Promise<TaniBotResponse | void>) => {
+  // A watched chain job landed (or failed): green toast with the tx link, or a clear error.
+  useEffect(() => {
+    if (!watch || !data?.bot) return;
+    const entry = data.bot.log.find((l) => l.id === watch.logId);
+    if (!entry || entry.txStatus === 'pending') return;
+    if (entry.txStatus === 'failed') notify({ kind: 'error', text: watch.failure });
+    else notify({ kind: 'success', text: watch.success, link: entry.txUrl ?? undefined });
+    watchRef.current = null;
+    setWatch(null);
+    setPhase(null);
+  }, [data, watch, notify]);
+
+  /** Runs a request; keeps the window open and shows errors inline (and as a toast for budget actions). */
+  const run = async (fn: () => Promise<TaniBotResponse | void>, button?: Watch['button']) => {
     setBusy(true);
     setError(null);
+    if (button) setPhase({ button, phase: 'busy' });
+    let keepPhase = false;
     try {
       const r = await fn();
       if (r) {
         setData((d) => ({ ...(d ?? r), ...r }));
         if (r.state) onState(r.state);
       }
+      keepPhase = watchRef.current !== null;
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      if (button) notify({ kind: 'error', text: msg });
     } finally {
       setBusy(false);
+      if (!keepPhase) setPhase(null);
     }
   };
+  const step = (button: Watch['button'], p: Phase) => setPhase({ button, phase: p });
+
+  const follow = (r: TaniBotResponse, before: number, w: Omit<Watch, 'logId'>, action: string) => {
+    const entry: TaniBotLogEntry | undefined = r.bot?.log.find((l) => l.id > before && l.action === action && l.txStatus === 'pending');
+    if (entry) {
+      const next = { ...w, logId: entry.id };
+      watchRef.current = next;
+      setWatch(next);
+      step(w.button, 'confirm');
+      return;
+    }
+    // Already on chain (or nothing to wait for).
+    const done = r.bot?.log.find((l) => l.id > before && l.action === action);
+    if (done?.txStatus === 'failed') notify({ kind: 'error', text: w.failure });
+    else notify({ kind: 'success', text: w.success, link: done?.txUrl ?? undefined });
+  };
+  const lastLogId = () => data?.bot?.log[0]?.id ?? 0;
+  const txLink = (hash: string | null) => (hash ? config.explorerTxUrl + hash : undefined);
 
   const activate = () =>
     run(async () => {
+      watchRef.current = null;
+      const before = lastLogId();
       const r = await api<TaniBotResponse>('POST', '/api/tanibot/setup', {
         dailyLimit: limit ?? data?.defaults.dailyLimit,
         ...(wallet ? {} : { budget: budget ?? Math.min(data?.defaults.budget ?? 20, Math.floor(p.balance)) }),
       });
       setData(r);
       if (r.state) onState(r.state);
-      if (wallet && r.walletCalls) await linkWithWallet(r);
+      if (wallet && r.walletCalls) return linkWithWallet(r);
+      follow(r, before, activated(r), 'limit');
       return r;
-    });
+    }, 'activate');
+
+  const activated = (r: TaniBotResponse): Omit<Watch, 'logId'> => ({
+    button: 'activate',
+    success: `TaniBot activated: daily limit ${r.bot?.dailyLimit ?? limit ?? data?.defaults.dailyLimit} PANEN`,
+    failure: 'Activating TaniBot failed on NEAR. Try again.',
+  });
 
   /** Wallet gardens: the wallet signs set_bot (the limit), then the bot accepts on the server. */
   const linkWithWallet = async (r: TaniBotResponse) => {
     const calls = r.walletCalls ?? [
       { receiverId: config.contracts.panen, method: 'set_bot', args: { bot_id: r.bot!.accountId, daily_limit: toUnits(r.bot!.dailyLimit) }, deposit: '1' },
     ];
+    step('activate', 'wallet');
     await walletFunctionCalls(config, p.accountId, calls[0].receiverId, calls);
-    setData(await api<TaniBotResponse>('POST', '/api/tanibot/linked'));
+    step('activate', 'confirm');
+    const before = lastLogId();
+    const linked = await api<TaniBotResponse>('POST', '/api/tanibot/linked');
+    follow(linked, before, activated(linked), 'limit');
+    return linked;
   };
 
   const settings = (body: { enabled?: boolean; style?: BotStyle }) => run(() => api<TaniBotResponse>('POST', '/api/tanibot/settings', body));
 
   const addBudget = () =>
     run(async () => {
-      if (!wallet) return api<TaniBotResponse>('POST', '/api/tanibot/fund', { amount });
-      await walletFunctionCalls(config, p.accountId, config.contracts.panen, [
+      watchRef.current = null;
+      const w = { button: 'add' as const, success: `Added ${amount} PANEN to TaniBot's budget`, failure: 'Adding budget failed on NEAR. Your PANEN was put back.' };
+      const before = lastLogId();
+      if (!wallet) {
+        const r = await api<TaniBotResponse>('POST', '/api/tanibot/fund', { amount });
+        follow(r, before, w, 'budget');
+        return r;
+      }
+      step('add', 'wallet');
+      const hash = await walletFunctionCalls(config, p.accountId, config.contracts.panen, [
         { method: 'ft_transfer', args: { receiver_id: bot!.accountId, amount: toUnits(amount), memo: 'TaniBot budget' }, deposit: '1' },
       ]);
-      return api<TaniBotResponse>('POST', '/api/tanibot/sync');
-    });
+      step('add', 'confirm');
+      const r = await api<TaniBotResponse>('POST', '/api/tanibot/sync');
+      notify({ kind: 'success', text: w.success, link: txLink(hash) });
+      return r;
+    }, 'add');
 
   const takeBack = () =>
     run(async () => {
+      watchRef.current = null;
       const amt = Math.min(amount, Math.floor(bot!.budget));
-      if (!wallet) return api<TaniBotResponse>('POST', '/api/tanibot/withdraw', { amount: amt });
-      await walletFunctionCalls(config, p.accountId, config.contracts.panen, [
+      const w = { button: 'back' as const, success: `Took back ${amt} PANEN`, failure: 'Taking budget back failed on NEAR. Nothing changed.' };
+      const before = lastLogId();
+      if (!wallet) {
+        const r = await api<TaniBotResponse>('POST', '/api/tanibot/withdraw', { amount: amt });
+        follow(r, before, w, 'budget');
+        return r;
+      }
+      step('back', 'wallet');
+      const hash = await walletFunctionCalls(config, p.accountId, config.contracts.panen, [
         { method: 'bot_withdraw', args: { bot_id: bot!.accountId, amount: toUnits(amt) }, deposit: '1' },
       ]);
-      return api<TaniBotResponse>('POST', '/api/tanibot/sync');
-    });
+      step('back', 'confirm');
+      const r = await api<TaniBotResponse>('POST', '/api/tanibot/sync');
+      notify({ kind: 'success', text: w.success, link: txLink(hash) });
+      return r;
+    }, 'back');
+
+  const label = (button: Watch['button'], idle: string) => (phase?.button === button ? PHASE_TEXT[phase.phase] : idle);
+  const working = busy || phase !== null;
 
   const bot: TaniBotView | null = data?.bot ?? null;
 
@@ -185,8 +282,8 @@ export function TaniBotWindow({
               ? 'Your wallet confirms the daily limit once (a tiny testnet fee). Add budget afterwards.'
               : 'The game pays every fee. You can switch TaniBot off or take the budget back at any time.'}
           </p>
-          <button class="btn btn-mint" disabled={busy} onClick={activate}>
-            {busy ? 'Setting up...' : 'Activate TaniBot'}
+          <button class="btn btn-mint" disabled={working} onClick={activate}>
+            {label('activate', 'Activate TaniBot')}
           </button>
         </Panel>
       )}
@@ -196,9 +293,14 @@ export function TaniBotWindow({
           <p class="small">
             Creating TaniBot's wallet <b>{bot.accountId}</b> on NEAR and linking it to you. This takes a few seconds.
           </p>
+          {phase?.button === 'activate' && !(wallet && bot.status === 'linking') && (
+            <button class="btn btn-mint" disabled>
+              {PHASE_TEXT[phase.phase]}
+            </button>
+          )}
           {wallet && bot.status === 'linking' && (
-            <button class="btn btn-small" disabled={busy} onClick={() => run(async () => linkWithWallet({ ...data!, walletCalls: null }))}>
-              Confirm the limit in my wallet again
+            <button class="btn btn-small" disabled={working} onClick={() => run(async () => linkWithWallet({ ...data!, walletCalls: null }), 'activate')}>
+              {label('activate', 'Confirm the limit in my wallet again')}
             </button>
           )}
         </Panel>
@@ -240,7 +342,9 @@ export function TaniBotWindow({
                 </a>
               </dd>
               <dt>Budget</dt>
-              <dd>{bot.budget} PANEN</dd>
+              <dd>
+                <CountNumber value={bot.budget} /> PANEN
+              </dd>
               <dt>Today</dt>
               <dd>
                 {bot.spentToday} of {bot.dailyLimit} PANEN spent (limit set in the contract)
@@ -248,11 +352,11 @@ export function TaniBotWindow({
             </dl>
             <div class="bot-budget">
               <input type="number" min={1} value={amount} aria-label="Amount of PANEN" onInput={(e) => setAmount(Math.max(1, Math.floor(Number((e.target as HTMLInputElement).value) || 1)))} />
-              <button class="btn btn-small btn-mint" disabled={busy || (!wallet && amount > p.balance)} onClick={addBudget}>
-                Add budget
+              <button class="btn btn-small btn-mint" disabled={working || (!wallet && amount > p.balance)} onClick={addBudget}>
+                {label('add', 'Add budget')}
               </button>
-              <button class="btn btn-small" disabled={busy || bot.budget < 1} onClick={takeBack}>
-                Take back
+              <button class="btn btn-small" disabled={working || bot.budget < 1} onClick={takeBack}>
+                {label('back', 'Take back')}
               </button>
             </div>
             {wallet && <p class="small muted">Your wallet confirms budget changes (a tiny testnet fee).</p>}
@@ -296,6 +400,36 @@ export function TaniBotWindow({
         </Panel>
       )}
     </Modal>
+  );
+}
+
+/** A number that counts up or down to its new value and flashes green when it changes. */
+function CountNumber({ value }: { value: number }) {
+  const [shown, setShown] = useState(value);
+  const [flash, setFlash] = useState(0);
+  const from = useRef(value);
+  useEffect(() => {
+    const start = from.current;
+    if (start === value) return;
+    from.current = value;
+    setFlash((f) => f + 1);
+    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return setShown(value);
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - t0) / 700);
+      const eased = 1 - (1 - k) ** 3;
+      setShown(k >= 1 ? value : Math.round(start + (value - start) * eased));
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return (
+    <b class={`count-num${flash ? ' flash' : ''}`} key={flash}>
+      {shown}
+    </b>
   );
 }
 

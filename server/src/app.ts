@@ -26,7 +26,7 @@ export interface AppDeps {
   db: DB;
   game: Game;
   chain: Chain;
-  config: Pick<Config, 'devLogin' | 'googleClientId' | 'webOrigins' | 'panenContractId' | 'pohonContractId' | 'networkId' | 'factoryAccountId'>;
+  config: Pick<Config, 'devLogin' | 'googleClientId' | 'webOrigins' | 'panenContractId' | 'pohonContractId' | 'networkId' | 'factoryAccountId' | 'explorerTxUrl'>;
   now: () => number;
   tanibot: TaniBotService;
   /** Google's signing keys; tests pass a fake key set. Default: Google's live keys. */
@@ -69,6 +69,7 @@ export function createApp(deps: AppDeps) {
   app.get('/api/config', (c) =>
     c.json({
       network: config.networkId,
+      explorerTxUrl: config.explorerTxUrl,
       googleClientId: config.googleClientId || null,
       devLogin: config.devLogin,
       contracts: { panen: config.panenContractId, pohon: config.pohonContractId },

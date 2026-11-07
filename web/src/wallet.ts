@@ -8,6 +8,7 @@
 //
 // The libraries are loaded only when a wallet is used, so Google players never download them.
 
+import { outcomeHash } from './outcome';
 import type { NearConnector } from '@hot-labs/near-connect';
 import { api, ApiError, type ServerConfig } from './api';
 
@@ -213,7 +214,15 @@ export interface WalletCall {
  * Asks the player's wallet to sign and send function calls on `receiverId`
  * (one confirmation; the wallet pays this small testnet fee).
  */
-export async function walletFunctionCalls(config: ServerConfig, accountId: string, receiverId: string, calls: WalletCall[]): Promise<void> {
+/** Thrown when the player closes or rejects the wallet window. */
+export const WALLET_CANCELLED = 'Cancelled in wallet. Nothing changed.';
+
+/**
+ * Asks the player's wallet to sign and send function calls. Returns the transaction hash
+ * (null if the wallet does not report it). Throws WALLET_CANCELLED when the player says no,
+ * or a clear error when the transaction failed on NEAR.
+ */
+export async function walletFunctionCalls(config: ServerConfig, accountId: string, receiverId: string, calls: WalletCall[]): Promise<string | null> {
   const c = await connector(config.network);
   let wallet: Awaited<ReturnType<NearConnector['wallet']>>;
   try {
@@ -224,15 +233,16 @@ export async function walletFunctionCalls(config: ServerConfig, accountId: strin
     try {
       wallet = await c.connect();
     } catch (e) {
-      throw new Error(friendly(e, 'Wallet confirmation was cancelled'));
+      throw new Error(friendly(e, WALLET_CANCELLED));
     }
   }
   const accounts = await wallet.getAccounts();
   if (!accounts.some((a) => a.accountId === accountId)) {
     throw new Error(`Please choose ${accountId} in your wallet.`);
   }
+  let outcome: Awaited<ReturnType<typeof wallet.signAndSendTransaction>>;
   try {
-    await wallet.signAndSendTransaction({
+    outcome = await wallet.signAndSendTransaction({
       receiverId,
       actions: calls.map((call) => ({
         type: 'FunctionCall' as const,
@@ -240,6 +250,8 @@ export async function walletFunctionCalls(config: ServerConfig, accountId: strin
       })),
     });
   } catch (e) {
-    throw new Error(friendly(e, 'Wallet confirmation was cancelled'));
+    throw new Error(friendly(e, WALLET_CANCELLED));
   }
+  return outcomeHash(outcome);
 }
+

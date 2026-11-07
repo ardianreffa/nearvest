@@ -71,6 +71,7 @@ export function makeWorld(
       pohonContractId: 'pohon.nearvest.testnet',
       networkId: 'testnet',
       factoryAccountId: 'nearvest.testnet',
+      explorerTxUrl: 'https://testnet.nearblocks.io/txns/',
     },
   });
   const advance = (ms: number) => {

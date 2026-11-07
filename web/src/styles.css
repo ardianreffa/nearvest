@@ -1271,7 +1271,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  z-index: 20;
+  /* Above dialogs (30): TaniBot's budget toasts show while its window is open. */
+  z-index: 40;
   pointer-events: none;
 }
 
@@ -1305,6 +1306,52 @@ button {
 
 .toast-chain a {
   color: var(--cyan);
+}
+
+/* Success (TaniBot activated, budget moved): green with a check mark and the tx link. */
+.toast-success {
+  background: #0a1d14;
+  color: var(--mint);
+  border-color: var(--mint);
+}
+
+.toast-success a {
+  color: var(--cyan);
+}
+
+.toast-check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  background: var(--mint);
+  color: #0a1d14;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Budget number: counts up/down and flashes green when it changes. */
+.count-num.flash {
+  animation: count-flash 1.2s ease-out;
+}
+
+@keyframes count-flash {
+  0%,
+  40% {
+    color: #0a8f5f;
+    text-shadow: 0 0 6px var(--mint);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .count-num.flash {
+    animation: none;
+  }
 }
 
 .chain-flash {
@@ -2912,7 +2959,7 @@ input:focus-visible {
   bottom: auto;
   transform: none;
   max-width: 420px;
-  z-index: 20;
+  z-index: 40;
   animation: none;
 }
 

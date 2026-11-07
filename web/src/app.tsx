@@ -27,7 +27,7 @@ type SideTab = Exclude<Tab, 'garden'>;
 interface Toast {
   id: number;
   text: string;
-  kind: 'info' | 'error' | 'chain';
+  kind: 'info' | 'error' | 'chain' | 'success';
   link?: string;
 }
 
@@ -140,7 +140,7 @@ export function App() {
   const toast = useCallback((t: Omit<Toast, 'id'>) => {
     const id = Math.random();
     setToasts((list) => [...list.slice(-1), { ...t, id }]);
-    setTimeout(() => setToasts((list) => list.filter((x) => x.id !== id)), t.kind === 'chain' ? 6000 : 3500);
+    setTimeout(() => setToasts((list) => list.filter((x) => x.id !== id)), t.kind === 'chain' || t.kind === 'success' ? 6000 : 3500);
   }, []);
 
   /** Dialog with several choices; resolves to the chosen value, or null for Cancel. */
@@ -440,7 +440,7 @@ export function App() {
     ) : info === 'panen' ? (
       <PanenInfo state={state} config={config} onClose={() => setInfo(null)} />
     ) : info === 'tanibot' && state ? (
-      <TaniBotWindow state={state} config={config} onState={applyState} onClose={() => setInfo(null)} />
+      <TaniBotWindow state={state} config={config} onState={applyState} onClose={() => setInfo(null)} notify={toast} />
     ) : info === 'profile' && state ? (
       <Profile state={state} config={config} onState={applyState} onSignOut={() => (setInfo(null), void logout())} onClose={() => setInfo(null)} />
     ) : null;
@@ -640,6 +640,11 @@ export function App() {
         {toasts.map((t) => (
           <div key={t.id} class={`toast toast-${t.kind}`}>
             {t.kind === 'chain' && <Sprite name="bolt" scale={2} />}
+            {t.kind === 'success' && (
+              <b class="toast-check" aria-hidden="true">
+                ✓
+              </b>
+            )}
             <span>
               {t.kind === 'chain' ? 'On NEAR: ' : ''}
               {t.text}

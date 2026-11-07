@@ -8,7 +8,7 @@
 // Market rows (needs an EXISTING dev garden with fruit; fake-chain server): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --market=<devUser> [width] [height]
 // Fullscreen layout at several screen sizes (EXISTING dev garden): node tools/ui-test.mjs <outDir> --fullscreen=<devUser>
 // TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> NEXT_XP=<xp> to raise its XP live; UI_URL=...?record=1 checks that no share card opens): node tools/ui-test.mjs <outDir> --tiers=<devUser>
-// TaniBot window on a NEW dev garden (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
+// TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
 import { spawn } from 'node:child_process';
@@ -322,8 +322,34 @@ try {
       await waitFor(`!!document.querySelector('[aria-label="TaniBot"]')`, 'TaniBot window');
       await waitFor(bodyHas('Activate TaniBot'), 'activate panel');
       await sleep(300); await screenshot('tanibot-activate');
+      // Success indicators: the button says what it waits for, then a green toast with a check mark.
+      const watchAction = async (label) => {
+        const seen = new Set();
+        for (let i = 0; i < 100; i++) {
+          const t = await evaluate(`[...document.querySelectorAll('[aria-label="TaniBot"] button')].map(b => b.innerText).find(x => /Waiting for wallet|Confirming on NEAR|Please wait/.test(x)) ?? ''`);
+          if (t) seen.add(t);
+          const toast = await evaluate(`[...document.querySelectorAll('.toast-success, .toast-error')].map(x => x.className.split(' ').pop() + ': ' + x.innerText.replace(/\\n/g, ' ')).join(' | ')`);
+          if (toast) {
+            console.log(`${label}: button ${[...seen].join(' -> ') || '(too fast to see)'} | toast ${toast} | budget flash ${await evaluate(`!!document.querySelector('.count-num.flash')`)}`);
+            await sleep(400);
+            await screenshot(`toast-${label}`);
+            return;
+          }
+          await sleep(150);
+        }
+        console.log(`${label}: NO toast`);
+      };
       await clickText('Activate TaniBot');
+      await watchAction('activate');
       await waitFor(bodyHas('Wallet and budget'), 'bot ready', 60000);
+      await sleep(6500);
+      await evaluate(`(() => { const i = document.querySelector('.bot-budget input'); i.value = '5'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await clickText('Add budget');
+      await watchAction('add-budget');
+      await sleep(6500);
+      await evaluate(`(() => { const i = document.querySelector('.bot-budget input'); i.value = '3'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+      await clickText('Take back');
+      await watchAction('take-back');
       await waitFor(bodyHas('Checked the garden') + ' || ' + bodyHas('watered'), 'first round', 60000);
       await sleep(500); await screenshot('tanibot-ready');
       await clickText('Turbo', '.bot-style');

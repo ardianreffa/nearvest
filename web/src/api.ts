@@ -129,6 +129,8 @@ export interface TaniBotResponse {
 
 export interface ServerConfig {
   network: string;
+  /** Transaction page base, e.g. https://testnet.nearblocks.io/txns/ */
+  explorerTxUrl: string;
   googleClientId: string | null;
   devLogin: boolean;
   contracts: { panen: string; pohon: string };
