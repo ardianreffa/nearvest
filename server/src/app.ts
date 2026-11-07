@@ -2,7 +2,7 @@
 
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
-import { devIdentity, login, logout, userFromToken, verifyGoogleCredential } from './auth.ts';
+import { devIdentity, login, logout, openSession, userFromToken, verifyGoogleCredential } from './auth.ts';
 import type { JWTVerifyGetKey } from 'jose';
 import type { Chain } from './chain/types.ts';
 import type { Config } from './config.ts';
@@ -11,16 +11,12 @@ import { Game, GameError, type SignedBurn } from './game.ts';
 import {
   BURN_GAS,
   BURN_TTL_BLOCKS,
-  consumeChallenge,
   createChallenge,
   GAME_KEY_ALLOWANCE_YOCTO,
   GAME_KEY_METHODS,
   isGameKey,
-  isValidAccountId,
-  LOGIN_MESSAGE,
-  nep413Hash,
   parsePublicKey,
-  verifySignature,
+  verifyWalletProof,
 } from './wallet.ts';
 import { UNITS_PER_MICRO } from './chain/types.ts';
 import { DEMO_XP_MULTIPLIER, fruitOdds, SEED_STORAGE_SLOTS, seedSellPrice, SHOP_ITEMS, SPECIES, SPECIES_LIST, TITLES, type Quality, type ShopItem, type Species } from './rules.ts';
@@ -141,16 +137,11 @@ export function createApp(deps: AppDeps) {
   app.post('/auth/near/challenge', (c) => c.json({ ...createChallenge(db, now()), recipient: config.factoryAccountId }));
 
   // Step 2: the signed message. The key must be a FullAccess key of the account.
+  // A wallet linked to a Google garden signs in to that garden; otherwise it is its own login.
   app.post('/auth/near', async (c) => {
-    const { accountId, publicKey, signature, nonce } = await body(c);
-    if (!isValidAccountId(accountId)) throw new GameError('Invalid NEAR account');
-    if (typeof signature !== 'string' || typeof nonce !== 'string') throw new GameError('Missing signature');
-    parsePublicKey(publicKey);
-    if (!consumeChallenge(db, nonce, now())) throw new GameError('Login expired, please try again', 401);
-    const hash = nep413Hash(LOGIN_MESSAGE, Buffer.from(nonce, 'base64'), config.factoryAccountId);
-    if (!verifySignature(publicKey as string, hash, signature)) throw new GameError('Wallet signature is not valid', 401);
-    const key = await chain.viewAccessKey(accountId, publicKey as string);
-    if (key?.permission !== 'FullAccess') throw new GameError('This key does not own the account', 401);
+    const accountId = await verifyWalletProof(db, chain, config.factoryAccountId, await body(c), now());
+    const linked = game.getPlayerByWallet(accountId);
+    if (linked) return c.json({ token: openSession(db, linked.user_id, now()), player: game.state(linked.id) });
     const { token, userId } = login(db, { provider: 'near', subject: accountId, email: null }, now());
     const p = game.getPlayerByUser(userId);
     return c.json({ token, player: p ? game.state(p.id) : null });
@@ -177,6 +168,20 @@ export function createApp(deps: AppDeps) {
     if (!p) throw new GameError('Create your garden first', 404);
     return p.id;
   };
+
+  /** Who is signed in (the create-garden screen shows the wallet account of wallet players). */
+  app.get('/api/session', (c) => {
+    const u = db.prepare('SELECT provider, subject FROM users WHERE id = ?').get(c.get('userId')) as { provider: string; subject: string };
+    return c.json({ provider: u.provider, walletAccountId: u.provider === 'near' ? u.subject : null });
+  });
+
+  // "Connect NEAR Wallet" for Google/dev gardens: the same NEP-413 proof, then the wallet is linked.
+  app.post('/api/wallet/link', async (c) => {
+    const pid = playerId(c);
+    const accountId = await verifyWalletProof(db, chain, config.factoryAccountId, await body(c), now());
+    game.linkWallet(pid, accountId);
+    return c.json(game.state(pid));
+  });
 
   app.post('/api/player', async (c) => {
     const { name, demo } = await body(c);

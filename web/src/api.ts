@@ -52,6 +52,10 @@ export interface GameState {
     name: string;
     accountId: string;
     accountStatus: 'pending' | 'ready' | 'failed';
+    /** 'server' = Google garden (game holds the key), 'wallet' = the player's own NEAR account. */
+    custody: 'server' | 'wallet';
+    /** NEAR wallet that can sign in to this garden (own account or linked), if any. */
+    walletAccountId: string | null;
     demo: boolean;
     balance: number;
     xp: number;
@@ -78,6 +82,10 @@ export interface ServerConfig {
   googleClientId: string | null;
   devLogin: boolean;
   contracts: { panen: string; pohon: string };
+  wallet: {
+    loginRecipient: string;
+    gameKey: { contractId: string; methodNames: string[]; allowance: string };
+  };
   shop: Record<string, { name: string; price: number }>;
   species: Record<Species, { name: string; seedPrice: number; sellPrice: number; xpPerHarvest: number }>;
   titles: { name: string; xp: number }[];

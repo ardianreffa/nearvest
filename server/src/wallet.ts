@@ -14,6 +14,7 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { actions, baseDecode, buildDelegateAction, encodeDelegateAction, PublicKey, teraToGas } from 'near-api-js';
+import type { Chain } from './chain/types.ts';
 import type { DB } from './db.ts';
 import { GameError } from './game.ts';
 
@@ -99,6 +100,31 @@ export function consumeChallenge(db: DB, nonce: string, nowMs: number): boolean 
     | { expires_at: number }
     | undefined;
   return !!row && row.expires_at >= nowMs;
+}
+
+/**
+ * Checks a NEP-413 proof from the browser: the nonce was issued by us and is
+ * unused and fresh, the signature is valid, and the signing key is a FullAccess
+ * key of the account on chain (so typing someone else's name is not enough).
+ * Returns the proven NEAR account id.
+ */
+export async function verifyWalletProof(
+  db: DB,
+  chain: Pick<Chain, 'viewAccessKey'>,
+  recipient: string,
+  proof: Record<string, unknown>,
+  nowMs: number,
+): Promise<string> {
+  const { accountId, publicKey, signature, nonce } = proof;
+  if (!isValidAccountId(accountId)) throw new GameError('Invalid NEAR account');
+  if (typeof signature !== 'string' || typeof nonce !== 'string') throw new GameError('Missing signature');
+  parsePublicKey(publicKey);
+  if (!consumeChallenge(db, nonce, nowMs)) throw new GameError('Login expired, please try again', 401, { code: 'nonce_invalid' });
+  const hash = nep413Hash(LOGIN_MESSAGE, Buffer.from(nonce, 'base64'), recipient);
+  if (!verifySignature(publicKey as string, hash, signature)) throw new GameError('Wallet signature is not valid', 401, { code: 'bad_signature' });
+  const key = await chain.viewAccessKey(accountId, publicKey as string);
+  if (key?.permission !== 'FullAccess') throw new GameError('This key does not own the account', 401, { code: 'not_owner' });
+  return accountId;
 }
 
 // ---------- shop burns ----------

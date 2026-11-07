@@ -87,6 +87,8 @@ export interface PlayerRow {
   /** 'server' = game-held key (Google/dev), 'wallet' = player's own NEAR account. */
   custody: 'server' | 'wallet';
   key_nonce: number;
+  /** NEAR wallet that can sign in to this garden (wallet players: their own account). */
+  wallet_account_id: string | null;
   demo: number;
   balance_micro: number;
   xp: number;
@@ -173,6 +175,22 @@ export class Game {
     return (this.db.prepare('SELECT * FROM players WHERE user_id = ?').get(userId) as unknown as PlayerRow) ?? null;
   }
 
+  /** The garden a NEAR wallet can sign in to (its own garden or a linked Google garden). */
+  getPlayerByWallet(accountId: string): PlayerRow | null {
+    return (this.db.prepare('SELECT * FROM players WHERE wallet_account_id = ?').get(accountId) as unknown as PlayerRow) ?? null;
+  }
+
+  /** Links a proven NEAR wallet to a Google/dev garden. One wallet = one garden. */
+  linkWallet(playerId: number, accountId: string): void {
+    const p = this.getPlayer(playerId);
+    if (p.custody === 'wallet') throw new GameError('This garden already uses a NEAR wallet');
+    if (p.wallet_account_id === accountId) return;
+    if (p.wallet_account_id) throw new GameError(`This garden is already linked to ${p.wallet_account_id}`, 409, { code: 'garden_linked' });
+    const taken = this.db.prepare('SELECT 1 FROM players WHERE (wallet_account_id = ? OR account_id = ?) AND id != ?').get(accountId, accountId, p.id);
+    if (taken) throw new GameError('This NEAR wallet is already linked to another garden', 409, { code: 'wallet_linked' });
+    this.db.prepare('UPDATE players SET wallet_account_id = ? WHERE id = ?').run(accountId, p.id);
+  }
+
   getPlayer(playerId: number): PlayerRow {
     const p = this.db.prepare('SELECT * FROM players WHERE id = ?').get(playerId) as unknown as PlayerRow | undefined;
     if (!p) throw new GameError('Player not found', 404);
@@ -203,7 +221,7 @@ export class Game {
     let secretEnc = '';
     if (wallet) {
       accountId = user.subject;
-      if (this.db.prepare('SELECT 1 FROM players WHERE account_id = ?').get(accountId)) {
+      if (this.db.prepare('SELECT 1 FROM players WHERE account_id = ? OR wallet_account_id = ?').get(accountId, accountId)) {
         throw new GameError('This NEAR account already has a garden', 409);
       }
     } else {
@@ -222,8 +240,8 @@ export class Game {
         : 0;
       const res = this.db
         .prepare(
-          `INSERT INTO players (user_id, name, account_id, public_key, secret_key_enc, account_status, custody, demo, created_ip, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO players (user_id, name, account_id, public_key, secret_key_enc, account_status, custody, wallet_account_id, demo, created_ip, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           userId,
@@ -233,6 +251,7 @@ export class Game {
           secretEnc,
           wallet ? 'ready' : 'pending',
           wallet ? 'wallet' : 'server',
+          wallet ? accountId : null,
           (demo ?? this.d.demoModeDefault) ? 1 : 0,
           ip,
           now,
@@ -859,6 +878,7 @@ export class Game {
         accountId: p.account_id,
         accountStatus: p.account_status,
         custody: p.custody,
+        walletAccountId: p.wallet_account_id,
         demo,
         balance: fromMicro(p.balance_micro),
         xp: p.xp,

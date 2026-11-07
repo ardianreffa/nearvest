@@ -8,6 +8,7 @@ import { MarketBackdrop, ShopBackdrop } from './art/scenes';
 import { MOMENT_LABELS, openShare, type MomentKind } from './share';
 import { ShopStall } from './art/shop';
 import { Sprite } from './sprites';
+import { walletProof } from './wallet';
 import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QtyPicker, QualityTag, QUALITY_NAME, SPECIES_NAME, type SeedGroup } from './ui';
 
 const QUALITY_MULT = { common: 1, rare: 2, gold: 5 } as const;
@@ -274,7 +275,7 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
   );
 }
 
-export function Village({ state, config }: { state: GameState; config: ServerConfig }) {
+export function Village({ state, config, onState }: { state: GameState; config: ServerConfig; onState: (s: GameState) => void }) {
   const [stats, setStats] = useState<VillageStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -354,6 +355,7 @@ export function Village({ state, config }: { state: GameState; config: ServerCon
           </>
         )}
       </Panel>
+      <WalletPanel state={state} config={config} onState={onState} />
       <Panel title="Your on-chain log">
         <p class="muted small">
           Your account:{' '}
@@ -388,5 +390,49 @@ function Stat({ label, value, note, accent, wide }: { label: string; value: stri
       <span class="stat-value">{value}</span>
       {note && <span class="stat-note">{note}</span>}
     </div>
+  );
+}
+
+/** NEAR wallet: wallet gardens show their account; Google gardens can link one wallet ("Connect NEAR Wallet"). */
+function WalletPanel({ state, config, onState }: { state: GameState; config: ServerConfig; onState: (s: GameState) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const p = state.player;
+
+  const connect = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const proof = await walletProof(config);
+      onState(await api<GameState>('POST', '/api/wallet/link', proof));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Panel title="NEAR wallet">
+      {p.custody === 'wallet' ? (
+        <p class="muted small">This garden lives in your own NEAR wallet account {p.accountId}. You hold its keys; the game still pays the gas.</p>
+      ) : p.walletAccountId ? (
+        <p class="muted small">
+          Linked wallet:{' '}
+          <a href={nearblocksAccount(p.walletAccountId)} target="_blank" rel="noreferrer">
+            {p.walletAccountId}
+          </a>
+          . You can also sign in with it.
+        </p>
+      ) : (
+        <>
+          <p class="muted small">Link your own NEAR wallet to this garden so you can also sign in with it. One wallet per garden; no gas fees.</p>
+          <button class="btn btn-wallet" onClick={connect} disabled={busy}>
+            {busy ? 'Waiting for your wallet...' : 'Connect NEAR Wallet'}
+          </button>
+        </>
+      )}
+      {error && <p class="error-text">{error}</p>}
+    </Panel>
   );
 }

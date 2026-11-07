@@ -325,6 +325,17 @@ button {
   max-width: 320px;
 }
 
+/* NEAR wallet: black with the NEAR mint accent. */
+.btn-wallet {
+  background: #111;
+  color: var(--mint);
+  border-color: var(--mint);
+}
+
+.login .btn-wallet {
+  margin-top: 10px;
+}
+
 .link-btn {
   background: none;
   border: 0;

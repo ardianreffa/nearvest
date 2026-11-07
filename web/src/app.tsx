@@ -13,6 +13,7 @@ import { CheckinBanner, Garden, type Choice } from './garden';
 import { immersiveLayout } from './scene';
 import { Market, Shop, Storage, Village } from './panels';
 import { Sprite } from './sprites';
+import { signShopBurn, walletProof } from './wallet';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
 type Tab = 'garden' | 'storage' | 'shop' | 'market' | 'village';
@@ -87,6 +88,8 @@ initAudio();
 export function App() {
   const [config, setConfig] = useState<ServerConfig | null>(null);
   const [state, setState] = useState<GameState | null>(null);
+  const stateRef = useRef<GameState | null>(null);
+  stateRef.current = state;
   const [loadedAt, setLoadedAt] = useState(Date.now());
   const [phase, setPhase] = useState<'loading' | 'login' | 'create' | 'play'>('loading');
   const [fatal, setFatal] = useState<string | null>(null);
@@ -226,7 +229,15 @@ export function App() {
     async (path: string, body?: unknown, success?: string): Promise<unknown | null> => {
       setBusy(true);
       try {
-        const res = await api<{ state: GameState; result: unknown }>('POST', path, body ?? {});
+        let payload = (body ?? {}) as Record<string, unknown>;
+        const me = stateRef.current?.player;
+        if (path === '/api/shop/buy' && me?.custody === 'wallet' && config) {
+          // Wallet gardens: the browser signs the burn with the game key; the game relays it and pays gas.
+          const signedBurn = await signShopBurn(config, me.accountId, { item: String(payload.item), qty: Number(payload.qty ?? 1) }, ask);
+          if (!signedBurn) return null;
+          payload = { ...payload, signedBurn };
+        }
+        const res = await api<{ state: GameState; result: unknown }>('POST', path, payload);
         playSound(ACTION_SOUNDS[path] ?? 'click');
         juice(path, res.result);
         applyState(res.state);
@@ -241,7 +252,7 @@ export function App() {
         setBusy(false);
       }
     },
-    [applyState, toast],
+    [applyState, toast, ask, config],
   );
 
   /** Sells at the price shown; if Mr. Darto's price changed meanwhile, asks before selling at the new one. */
@@ -454,7 +465,7 @@ export function App() {
     ) : t === 'market' ? (
       <Market state={state} config={config} sell={sell} act={act} busy={busy} />
     ) : (
-      <Village state={state} config={config} />
+      <Village state={state} config={config} onState={applyState} />
     );
 
   const tabIcons: Record<Tab, ComponentChildren> = {
@@ -648,6 +659,20 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const walletLogin = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const proof = await walletProof(config);
+      const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/near', proof);
+      onLoggedIn(res.token, res.player);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const devLogin = async (e: Event) => {
     e.preventDefault();
     setBusy(true);
@@ -680,6 +705,9 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
       </button>
 
       <GoogleButton clientId={config.googleClientId} onLoggedIn={onLoggedIn} onError={setError} />
+      <button class="btn btn-wallet" onClick={walletLogin} disabled={busy}>
+        Connect NEAR Wallet
+      </button>
 
       {config.devLogin && (
         <form class="dev-login" onSubmit={devLogin}>
@@ -733,7 +761,7 @@ function GoogleButton({ clientId, onLoggedIn, onError }: { clientId: string | nu
     };
     if (window.google) return render();
     const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
+    script.src = 'https://accounts.google.com/gsi/client?hl=en';
     script.async = true;
     script.onload = render;
     document.head.appendChild(script);
@@ -755,6 +783,13 @@ function CreateGarden({ onCreated, onLogout }: { onCreated: (s: GameState) => vo
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const clean = name.trim().toLowerCase();
+  /** Set when signed in with a NEAR wallet: the garden uses that account. */
+  const [walletAccount, setWalletAccount] = useState<string | null>(null);
+  useEffect(() => {
+    api<{ walletAccountId: string | null }>('GET', '/api/session')
+      .then((s) => setWalletAccount(s.walletAccountId))
+      .catch(() => undefined);
+  }, []);
 
   const submit = async (e: Event) => {
     e.preventDefault();
@@ -773,10 +808,14 @@ function CreateGarden({ onCreated, onLogout }: { onCreated: (s: GameState) => vo
     <main class="shell center">
       <TaniBot version={1} scale={2} />
       <h1>Welcome to Tandur!</h1>
-      <p class="muted">Choose your farmer name. It becomes your NEAR account and how friends find you.</p>
+      <p class="muted">
+        {walletAccount
+          ? 'Choose your farmer name. It is how friends find you; your garden uses your own NEAR wallet account.'
+          : 'Choose your farmer name. It becomes your NEAR account and how friends find you.'}
+      </p>
       <form class="create" onSubmit={submit}>
         <input value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} placeholder="your-name" maxLength={32} autocomplete="off" />
-        <p class="account-preview">{clean || 'your-name'}.nearvest.testnet</p>
+        <p class="account-preview">{walletAccount ?? `${clean || 'your-name'}.nearvest.testnet`}</p>
         <label class="check">
           <input type="checkbox" checked={demo} onChange={(e) => setDemo((e.target as HTMLInputElement).checked)} />
           Demo mode: 1 game day = 1 minute

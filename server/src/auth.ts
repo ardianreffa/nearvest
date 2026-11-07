@@ -59,13 +59,18 @@ export function login(db: DB, identity: Identity, nowMs: number): { token: strin
   const user = db.prepare('SELECT id FROM users WHERE provider = ? AND subject = ?').get(identity.provider, identity.subject) as {
     id: number;
   };
+  return { token: openSession(db, user.id, nowMs), userId: user.id };
+}
+
+/** Opens a session for a user (also used when a linked wallet signs in to a Google garden). */
+export function openSession(db: DB, userId: number, nowMs: number): string {
   const token = newSessionToken();
   db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(
     hashToken(token),
-    user.id,
+    userId,
     nowMs + SESSION_DAYS * 24 * 60 * 60 * 1000,
   );
-  return { token, userId: user.id };
+  return token;
 }
 
 export function userFromToken(db: DB, token: string | undefined, nowMs: number): number | null {

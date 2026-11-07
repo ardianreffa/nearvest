@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS players (
   secret_key_enc TEXT NOT NULL,    -- AES-256-GCM encrypted with MASTER_KEY; '' for wallet players
   custody TEXT NOT NULL DEFAULT 'server', -- 'server' (Google: game holds the key) | 'wallet' (player's own account)
   key_nonce INTEGER NOT NULL DEFAULT 0,   -- wallet players: last game-key nonce accepted for a burn
+  wallet_account_id TEXT,          -- NEAR wallet that can sign in to this garden (own account or linked); unique
   account_status TEXT NOT NULL,    -- 'pending' | 'ready' | 'failed'
   demo INTEGER NOT NULL DEFAULT 0,
   balance_micro INTEGER NOT NULL DEFAULT 0,
@@ -153,6 +154,9 @@ function migrate(db: DB): void {
   if (!has('trees', 'fert_boost')) db.exec('ALTER TABLE trees ADD COLUMN fert_boost INTEGER NOT NULL DEFAULT 0');
   if (!has('players', 'custody')) db.exec("ALTER TABLE players ADD COLUMN custody TEXT NOT NULL DEFAULT 'server'");
   if (!has('players', 'key_nonce')) db.exec('ALTER TABLE players ADD COLUMN key_nonce INTEGER NOT NULL DEFAULT 0');
+  if (!has('players', 'wallet_account_id')) db.exec('ALTER TABLE players ADD COLUMN wallet_account_id TEXT');
+  // One wallet = one garden.
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS players_wallet_account ON players (wallet_account_id)');
 }
 
 /** Runs `fn` inside a transaction; rolls back if it throws. */

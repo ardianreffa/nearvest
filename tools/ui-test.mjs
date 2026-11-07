@@ -1,6 +1,7 @@
 // Browser test: drives headless Chrome (temporary profile) through the whole game loop and saves screenshots.
 // Needs the server (npm run dev in server/, DEV_LOGIN=true) and the web dev server running.
 // Usage: node tools/ui-test.mjs <outDir> <playerName> [width=390] [height=844]
+// Login page only (no account is created): node tools/ui-test.mjs <outDir> --login-only [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
 import { spawn } from 'node:child_process';
@@ -73,6 +74,13 @@ try {
     await sleep(800); await screenshot('login');
     await realClick(5, 5); // a real pointer event unlocks audio
   });
+  if (name === '--login-only') {
+    await step('NEAR wallet picker', async () => {
+      if (!(await clickText('Connect NEAR Wallet'))) throw new Error('no Connect NEAR Wallet button');
+      await sleep(5000); await screenshot('wallet-picker');
+    });
+    throw Object.assign(new Error('login-only done'), { done: true });
+  }
   await step('dev login', async () => {
     await typeInto('#dev-user', `ui-${name}`);
     await clickText('Enter');
@@ -166,8 +174,13 @@ try {
     console.log('horizontal overflow:', overflow);
   });
 } catch (e) {
-  console.log('FAILED:', e.message);
-  await screenshot('failure');
+  if (e.done) {
+    const overflow = await evaluate(`document.documentElement.scrollWidth > window.innerWidth`);
+    console.log('horizontal overflow:', overflow);
+  } else {
+    console.log('FAILED:', e.message);
+    await screenshot('failure');
+  }
 } finally {
   console.log('PROBLEMS:', problems.length ? '\n' + problems.join('\n') : 'none');
   ws.close(); chrome.kill();
