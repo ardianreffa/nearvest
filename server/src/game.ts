@@ -145,6 +145,8 @@ export function nameError(name: string): string | null {
     return "Use lowercase letters and digits, optionally joined by single '-' or '_'";
   }
   if (RESERVED_NAMES.has(name)) return 'This name is reserved';
+  // `<name>-bot.nearvest.testnet` is the TaniBot account of a wallet garden.
+  if (name.endsWith('-bot')) return "Names ending in '-bot' are reserved for TaniBots";
   return null;
 }
 
@@ -744,6 +746,48 @@ export class Game {
       for (const r of rows) this.db.prepare('DELETE FROM seeds WHERE id = ?').run(r.id);
       return { discarded: rows.length };
     });
+  }
+
+  /**
+   * TaniBot buys from the Shop with ITS OWN budget (not the player's balance).
+   * The bot's key burns the PANEN on chain; the contract enforces the daily limit,
+   * and the local mirror (budget, spent today) is checked first so we never queue
+   * a burn that would fail. The item goes to the player's storage.
+   */
+  botBuy(playerId: number, item: ShopItem, qty: number, limitDay: number) {
+    return tx(this.db, () => {
+      const p = this.getPlayer(playerId);
+      const entry = SHOP_ITEMS[item];
+      if (!entry) throw new GameError('Unknown item');
+      const bot = this.db.prepare('SELECT * FROM bots WHERE player_id = ?').get(p.id) as
+        | { account_id: string; status: string; budget_micro: number; daily_limit_micro: number; spent_day: number | null; spent_micro: number }
+        | undefined;
+      if (!bot || bot.status !== 'ready') throw new GameError('TaniBot is not ready');
+      const costMicro = toMicro(entry.price * qty);
+      const spent = bot.spent_day === limitDay ? bot.spent_micro : 0;
+      if (bot.budget_micro < costMicro) throw new GameError('TaniBot budget is empty', 409, { code: 'bot_budget_empty' });
+      if (spent + costMicro > bot.daily_limit_micro) throw new GameError('TaniBot daily limit reached', 409, { code: 'bot_limit_reached' });
+      const isSeed = item.startsWith('seed_');
+      if (isSeed && this.seedCount(p.id) + qty > SEED_STORAGE_SLOTS) throw new GameError('Your seed storage is full');
+      const seedIds: number[] = [];
+      if (isSeed) {
+        const species = item.slice('seed_'.length) as Species;
+        for (let i = 0; i < qty; i++) seedIds.push(this.addSeed(p.id, species, null, null, 'tanibot'));
+      } else {
+        this.addItem(p.id, item, qty);
+      }
+      this.db
+        .prepare('UPDATE bots SET budget_micro = budget_micro - ?, spent_day = ?, spent_micro = ? WHERE player_id = ?')
+        .run(costMicro, limitDay, spent + costMicro, p.id);
+      const memo = `TaniBot Shop: ${qty} x ${entry.name}`;
+      const jobId = enqueue(this.db, p.id, { kind: 'bot_burn', botId: bot.account_id, amountMicro: costMicro, memo, grant: { item, qty, seedIds } }, this.d.now());
+      return { jobId, costPanen: entry.price * qty, name: entry.name };
+    });
+  }
+
+  /** Items in storage (TaniBot checks fertilizer). */
+  itemCount(playerId: number, item: string): number {
+    return this.itemQty(playerId, item);
   }
 
   /** Checks a Shop purchase and returns its price and memo (also used to prepare wallet burns). */

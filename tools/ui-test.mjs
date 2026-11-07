@@ -3,6 +3,7 @@
 // Usage: node tools/ui-test.mjs <outDir> <playerName> [width=390] [height=844]
 // Login page only (no account is created): node tools/ui-test.mjs <outDir> --login-only [width] [height]
 // Profile window of an EXISTING dev garden (no account is created): node tools/ui-test.mjs <outDir> --profile=<devUsername> [width] [height]
+// TaniBot window on a NEW dev garden (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
 import { spawn } from 'node:child_process';
@@ -14,6 +15,7 @@ const W = Number(process.argv[4] ?? 390), H = Number(process.argv[5] ?? 844);
 const MOBILE = W < 1024;
 mkdirSync(out, { recursive: true });
 const PORT = 9333;
+const UI_URL = process.env.UI_URL ?? 'http://localhost:5173';
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
   '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${out}/profile`,
   '--no-first-run', '--no-default-browser-check', `--window-size=${W},${H}`, 'about:blank',
@@ -70,11 +72,39 @@ const realClick = async (x, y) => { for (const type of ['mousePressed', 'mouseRe
 
 try {
   await step('open login', async () => {
-    await send('Page.navigate', { url: 'http://localhost:5173/' });
+    await send('Page.navigate', { url: UI_URL + '/' });
     await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
     await sleep(800); await screenshot('login');
     await realClick(5, 5); // a real pointer event unlocks audio
   });
+  if (name.startsWith('--tanibot=')) {
+    await step('TaniBot window on a new dev garden', async () => {
+      const user = name.slice('--tanibot='.length);
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(bodyHas('Welcome to Tandur'), 'create screen');
+      await typeInto('.create input:not([type=checkbox])', user);
+      await clickText('Start farming');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      await waitFor(`!document.body.innerText.includes('Creating your NEAR account')`, 'account', 60000);
+      await evaluate(`document.querySelector('.bot-click').click()`);
+      await waitFor(`!!document.querySelector('[aria-label="TaniBot"]')`, 'TaniBot window');
+      await waitFor(bodyHas('Activate TaniBot'), 'activate panel');
+      await sleep(300); await screenshot('tanibot-activate');
+      await clickText('Activate TaniBot');
+      await waitFor(bodyHas('Wallet and budget'), 'bot ready', 60000);
+      await waitFor(bodyHas('Checked the garden') + ' || ' + bodyHas('watered'), 'first round', 60000);
+      await sleep(500); await screenshot('tanibot-ready');
+      await clickText('Turbo', '.bot-style');
+      await waitFor(bodyHas('Turbo: I fertilize'), 'style log');
+      await clickText('ON', '.bot-switch');
+      await waitFor(bodyHas('Switched off'), 'switched off');
+      await evaluate(`document.querySelector('[aria-label="TaniBot"] .info-body').scrollTop = 9999`);
+      await sleep(300); await screenshot('tanibot-log');
+      console.log('log:', await evaluate(`[...document.querySelectorAll('.bot-log li')].map(l => l.innerText.replace(/\\n/g, ' ')).join(' || ')`));
+    });
+    throw Object.assign(new Error('tanibot done'), { done: true });
+  }
   if (name.startsWith('--profile=')) {
     await step('profile of an existing dev garden', async () => {
       await typeInto('#dev-user', name.slice('--profile='.length));

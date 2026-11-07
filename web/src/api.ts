@@ -83,6 +83,41 @@ export interface GameState {
   activity: Activity[];
 }
 
+export type BotStyle = 'thrifty' | 'balanced' | 'turbo';
+
+export interface TaniBotLogEntry {
+  id: number;
+  action: string;
+  reason: string;
+  brain: string;
+  at: number;
+  txStatus: 'pending' | 'done' | 'failed' | null;
+  txUrl: string | null;
+}
+
+export interface TaniBotView {
+  accountId: string;
+  explorerUrl: string;
+  status: 'creating' | 'linking' | 'ready' | 'failed';
+  enabled: boolean;
+  style: BotStyle;
+  brain: 'rules' | 'ai';
+  budget: number;
+  dailyLimit: number;
+  spentToday: number;
+  remainingToday: number;
+  nextRunAt: number | null;
+  log: TaniBotLogEntry[];
+}
+
+export interface TaniBotResponse {
+  bot: TaniBotView | null;
+  brain: 'rules' | 'ai';
+  defaults: { dailyLimit: number; budget: number; maxDailyLimit: number };
+  walletCalls?: { receiverId: string; method: string; args: Record<string, unknown>; deposit: string }[] | null;
+  state?: GameState;
+}
+
 export interface ServerConfig {
   network: string;
   googleClientId: string | null;

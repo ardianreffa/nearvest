@@ -199,3 +199,47 @@ export async function signBurnRequest(req: BurnRequest, secret: string): Promise
   const hashHex = [...hash].map((b) => b.toString(16).padStart(2, '0')).join('');
   return { hashHex, signature: bytesToBase64(key.sign(hash).signature) };
 }
+
+// ---------- wallet transactions (TaniBot settings for wallet gardens) ----------
+
+export interface WalletCall {
+  method: string;
+  args: Record<string, unknown>;
+  /** yoctoNEAR as a string ('1' proves the player's full access key). */
+  deposit: string;
+}
+
+/**
+ * Asks the player's wallet to sign and send function calls on `receiverId`
+ * (one confirmation; the wallet pays this small testnet fee).
+ */
+export async function walletFunctionCalls(config: ServerConfig, accountId: string, receiverId: string, calls: WalletCall[]): Promise<void> {
+  const c = await connector(config.network);
+  let wallet: Awaited<ReturnType<NearConnector['wallet']>>;
+  try {
+    wallet = await c.wallet();
+    const accounts = await wallet.getAccounts();
+    if (!accounts.some((a) => a.accountId === accountId)) throw new Error('other account');
+  } catch {
+    try {
+      wallet = await c.connect();
+    } catch (e) {
+      throw new Error(friendly(e, 'Wallet confirmation was cancelled'));
+    }
+  }
+  const accounts = await wallet.getAccounts();
+  if (!accounts.some((a) => a.accountId === accountId)) {
+    throw new Error(`Please choose ${accountId} in your wallet.`);
+  }
+  try {
+    await wallet.signAndSendTransaction({
+      receiverId,
+      actions: calls.map((call) => ({
+        type: 'FunctionCall' as const,
+        params: { methodName: call.method, args: call.args, gas: '30000000000000', deposit: call.deposit },
+      })),
+    });
+  } catch (e) {
+    throw new Error(friendly(e, 'Wallet confirmation was cancelled'));
+  }
+}

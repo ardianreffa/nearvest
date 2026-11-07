@@ -4,6 +4,7 @@ import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { devIdentity, login, logout, openSession, userFromToken, verifyGoogleCredential } from './auth.ts';
 import type { JWTVerifyGetKey } from 'jose';
+import { DEFAULT_BOT_BUDGET, DEFAULT_BOT_DAILY_LIMIT, MAX_BOT_DAILY_LIMIT, type TaniBotService } from './tanibot.ts';
 import type { Chain } from './chain/types.ts';
 import type { Config } from './config.ts';
 import type { DB } from './db.ts';
@@ -27,6 +28,9 @@ export interface AppDeps {
   chain: Chain;
   config: Pick<Config, 'devLogin' | 'googleClientId' | 'webOrigins' | 'panenContractId' | 'pohonContractId' | 'networkId' | 'factoryAccountId'>;
   now: () => number;
+  tanibot: TaniBotService;
+  /** TANIBOT_AI: true = NEAR AI Cloud brain, false = simple rules. */
+  tanibotAi?: boolean;
   /** Google's signing keys; tests pass a fake key set. Default: Google's live keys. */
   googleKeys?: JWTVerifyGetKey;
 }
@@ -38,7 +42,7 @@ const STATS_CACHE_MS = 15_000;
 const WALLET_SYNC_MS = 30_000;
 
 export function createApp(deps: AppDeps) {
-  const { db, game, chain, config, now } = deps;
+  const { db, game, chain, config, now, tanibot } = deps;
   const app = new Hono<Env>();
 
   app.use('*', cors({ origin: config.webOrigins, allowHeaders: ['Content-Type', 'Authorization'], allowMethods: ['GET', 'POST'] }));
@@ -195,6 +199,61 @@ export function createApp(deps: AppDeps) {
     game.linkGoogle(pid, identity.subject);
     return c.json(game.state(pid));
   });
+
+  // ---------- TaniBot ----------
+
+  const lastBotSync = new Map<number, number>();
+  const botView = async (pid: number, forceSync = false) => {
+    if (forceSync || now() - (lastBotSync.get(pid) ?? 0) > 20_000) {
+      lastBotSync.set(pid, now());
+      await tanibot.sync(pid).catch((err) => console.warn('TaniBot sync failed:', err instanceof Error ? err.message : err));
+    }
+    return {
+      bot: tanibot.view(pid),
+      brain: deps.tanibotAi ? 'ai' : 'rules',
+      defaults: { dailyLimit: DEFAULT_BOT_DAILY_LIMIT, budget: DEFAULT_BOT_BUDGET, maxDailyLimit: MAX_BOT_DAILY_LIMIT },
+    };
+  };
+  const num = (v: unknown) => (typeof v === 'number' ? v : Number(v));
+
+  app.get('/api/tanibot', async (c) => c.json(await botView(playerId(c))));
+
+  app.post('/api/tanibot/setup', async (c) => {
+    const b = await body(c);
+    const pid = playerId(c);
+    const r = tanibot.setup(pid, {
+      dailyLimit: b.dailyLimit === undefined ? undefined : num(b.dailyLimit),
+      budget: b.budget === undefined ? undefined : num(b.budget),
+    });
+    return c.json({ ...(await botView(pid)), walletCalls: r.walletCalls, state: game.state(pid) });
+  });
+
+  app.post('/api/tanibot/linked', async (c) => {
+    const pid = playerId(c);
+    tanibot.walletLinked(pid);
+    return c.json(await botView(pid));
+  });
+
+  app.post('/api/tanibot/settings', async (c) => {
+    const pid = playerId(c);
+    tanibot.settings(pid, await body(c));
+    return c.json(await botView(pid));
+  });
+
+  app.post('/api/tanibot/fund', async (c) => {
+    const pid = playerId(c);
+    tanibot.fund(pid, num((await body(c)).amount));
+    return c.json({ ...(await botView(pid)), state: game.state(pid) });
+  });
+
+  app.post('/api/tanibot/withdraw', async (c) => {
+    const pid = playerId(c);
+    tanibot.withdraw(pid, num((await body(c)).amount));
+    return c.json({ ...(await botView(pid)), state: game.state(pid) });
+  });
+
+  /** Wallet gardens: after a wallet transaction (budget, limit), re-read the bot from the chain. */
+  app.post('/api/tanibot/sync', async (c) => c.json(await botView(playerId(c), true)));
 
   app.post('/api/avatar', async (c) => {
     const pid = playerId(c);

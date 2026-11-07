@@ -3,13 +3,17 @@
 // the player (burning their own $PANEN) are signed by the player's key as a
 // meta transaction (NEP-366) and relayed by the game account.
 
-import { Account, JsonRpcProvider, KeyPairSigner, KeyType, Signature, actions, nearToYocto, teraToGas } from 'near-api-js';
+import { Account, JsonRpcProvider, KeyPair, KeyPairSigner, KeyType, PublicKey, Signature, actions, nearToYocto, teraToGas } from 'near-api-js';
 import type { Quality, Species, Stage } from '../rules.ts';
 import { burnDelegateAction, decodeSignature, type AccessKeyPermission, type BurnDelegate } from '../wallet.ts';
-import { PermanentChainError, type Chain, type ChainVillageStats, type TxResult } from './types.ts';
+import { BOT_KEY_METHODS, PermanentChainError, type Chain, type ChainBotInfo, type ChainVillageStats, type FnCall, type TxResult } from './types.ts';
 
 const GAS = teraToGas('30');
 const FACTORY_GAS = teraToGas('60');
+/** NEAR given to each TaniBot account for its storage (account + one key). */
+const BOT_FUND = nearToYocto('0.01');
+/** Gas allowance of the bot's key. Meta transactions are paid by the relayer, so this is only a safety cap. */
+const BOT_KEY_ALLOWANCE = nearToYocto('0.05');
 
 export interface NearChainOptions {
   rpcUrl: string;
@@ -112,12 +116,12 @@ export class NearChain implements Chain {
     }
   }
 
-  async createPlayerAccount(name: string, publicKey: string): Promise<TxResult> {
+  async createPlayerAccount(name: string, publicKey: string, depositNear?: string): Promise<TxResult> {
     const res = await this.call(
       this.opts.factoryAccountId,
       'create_player',
       { name, public_key: publicKey },
-      nearToYocto(this.opts.playerAccountDepositNear as `${number}`),
+      nearToYocto((depositNear ?? this.opts.playerAccountDepositNear) as `${number}`),
       FACTORY_GAS,
     );
     const result = check(res);
@@ -258,5 +262,80 @@ export class NearChain implements Chain {
     } catch (err) {
       classify(err);
     }
+  }
+
+  /** Relays a meta transaction signed by `signerId` with `actionList`; the game pays gas. */
+  private async relay(signerId: string, secretKey: string, receiverId: string, actionList: ReturnType<typeof actions.functionCall>[]): Promise<TxResult> {
+    try {
+      const signer = new Account(signerId, this.provider, KeyPairSigner.fromSecretKey(secretKey as `ed25519:${string}`));
+      const { signedDelegate } = await signer.createSignedMetaTransaction({ receiverId, actions: actionList });
+      const res = (await this.game.signAndSendTransaction({
+        receiverId: signerId,
+        actions: [actions.signedDelegate(signedDelegate)],
+        throwOnFailure: false,
+      })) as unknown as TxResponse;
+      return check(res);
+    } catch (err) {
+      classify(err);
+    }
+  }
+
+  async callAs(signerId: string, secretKey: string, receiverId: string, calls: FnCall[]): Promise<TxResult> {
+    return this.relay(
+      signerId,
+      secretKey,
+      receiverId,
+      calls.map((c) => actions.functionCall(c.method, c.args, GAS, c.deposit ?? 0n)),
+    );
+  }
+
+  private botKeyAction(botPublicKey: string) {
+    return actions.addFunctionCallAccessKey(PublicKey.fromString(botPublicKey), this.opts.panenContractId, BOT_KEY_METHODS, BOT_KEY_ALLOWANCE);
+  }
+
+  async createSubBot(ownerId: string, ownerSecret: string, botId: string, botPublicKey: string): Promise<TxResult> {
+    // Retried after it already landed: nothing to do.
+    if (await this.accountExists(botId)) return { txHash: 'already-created' };
+    try {
+      // The player's account needs NEAR to fund its bot: the game sends it first.
+      check((await this.game.signAndSendTransaction({ receiverId: ownerId, actions: [actions.transfer(BOT_FUND + nearToYocto('0.002'))], throwOnFailure: false })) as unknown as TxResponse);
+    } catch (err) {
+      classify(err);
+    }
+    return this.relay(ownerId, ownerSecret, botId, [actions.createAccount(), actions.transfer(BOT_FUND), this.botKeyAction(botPublicKey)]);
+  }
+
+  async createFactoryBot(name: string, tempSecret: string, botPublicKey: string): Promise<TxResult> {
+    const botId = `${name}.${this.opts.factoryAccountId}`;
+    const temp = KeyPair.fromString(tempSecret as `ed25519:${string}`);
+    if (!(await this.accountExists(botId))) await this.createPlayerAccount(name, temp.getPublicKey().toString(), '0.01');
+    if (!(await this.viewAccessKey(botId, temp.getPublicKey().toString()))) return { txHash: 'already-created' };
+    try {
+      const bot = new Account(botId, this.provider, KeyPairSigner.fromSecretKey(tempSecret as `ed25519:${string}`));
+      const res = (await bot.signAndSendTransaction({
+        receiverId: botId,
+        actions: [this.botKeyAction(botPublicKey), actions.deleteKey(temp.getPublicKey())],
+        throwOnFailure: false,
+      })) as unknown as TxResponse;
+      return check(res);
+    } catch (err) {
+      classify(err);
+    }
+  }
+
+  async botInfo(botId: string): Promise<ChainBotInfo | null> {
+    const r = await this.view<{ owner_id: string; accepted: boolean; daily_limit: string; spent_today: string; balance: string } | null>(
+      this.opts.panenContractId,
+      'bot_info',
+      { bot_id: botId },
+    );
+    if (!r) return null;
+    return {
+      ownerId: r.owner_id,
+      accepted: r.accepted,
+      dailyLimit: BigInt(r.daily_limit),
+      spentToday: BigInt(r.spent_today),
+      balance: BigInt(r.balance),
+    };
   }
 }

@@ -103,9 +103,10 @@ interface Props {
   big: boolean;
   /** Full-window garden with whole-pixel scale (laptop / PC). */
   immersive?: Immersive;
+  onBot?: () => void;
 }
 
-export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive }: Props) {
+export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive, onBot }: Props) {
   // Trees use the same pixel size as the backdrop: 2 on phones, 3 on the wide
   // layout, k in the immersive layout.
   const px = immersive ? immersive.k : big ? 3 : 2;
@@ -173,7 +174,9 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           <Drone version={version} scale={px} class="idle-drone d1" />
           {version === 2 && <Drone version={version} scale={px} class="idle-drone d2" />}
         </div>
-        <TaniBot version={version} scale={botScale} working={working} />
+        <button class="bot-click" onClick={onBot} aria-label="TaniBot: open its log and settings" title="TaniBot: log and settings">
+          <TaniBot version={version} scale={botScale} working={working} />
+        </button>
         {fx?.kind === 'harvest' && (
           <div class="basket" key={fx.id}>
             <Pixels rows={BASKET} palette={{ H: '#9A7438', h: '#C9A35A' }} scale={px} />

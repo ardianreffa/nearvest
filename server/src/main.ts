@@ -10,6 +10,7 @@ import { systemNow } from './clock.ts';
 import { loadConfig } from './config.ts';
 import { openDb } from './db.ts';
 import { Game } from './game.ts';
+import { TaniBotService } from './tanibot.ts';
 
 const config = loadConfig();
 const db = openDb(config.databasePath);
@@ -55,11 +56,30 @@ try {
   console.warn('Could not read the Season from the chain yet:', err instanceof Error ? err.message : err);
 }
 
+const tanibot = new TaniBotService({
+  db,
+  game,
+  chain,
+  now: systemNow,
+  masterKey: config.masterKey,
+  factoryAccountId: config.factoryAccountId,
+  panenContractId: config.panenContractId,
+  explorerTxUrl: config.explorerTxUrl,
+});
+
 worker.start();
+// TaniBot: check every 15 seconds which bots are due (3x/day; demo every 2 minutes).
+setInterval(() => {
+  try {
+    tanibot.tick();
+  } catch (err) {
+    console.warn('TaniBot tick failed:', err instanceof Error ? err.message : err);
+  }
+}, 15_000);
 // Sync tree stages to the NFTs every 20 seconds.
 setInterval(() => game.syncStages(), 20_000);
 
-const app = createApp({ db, game, chain, config, now: systemNow });
+const app = createApp({ db, game, chain, config, now: systemNow, tanibot, tanibotAi: config.tanibotAi });
 serve({ fetch: app.fetch, port: config.port, hostname: '127.0.0.1' }, (info) => {
   console.log(`NEARvest server on http://127.0.0.1:${info.port} (chain: ${config.chainMode}, dev login: ${config.devLogin})`);
 });

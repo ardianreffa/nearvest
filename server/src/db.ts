@@ -138,6 +138,37 @@ CREATE TABLE IF NOT EXISTS chain_jobs (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS chain_jobs_pending ON chain_jobs(status, id);
+
+-- TaniBot: one per garden. Its NEAR account holds the PANEN budget; the PANEN
+-- contract enforces the daily limit. Its only key is a function call key.
+CREATE TABLE IF NOT EXISTS bots (
+  player_id INTEGER PRIMARY KEY REFERENCES players(id),
+  account_id TEXT NOT NULL UNIQUE,
+  public_key TEXT NOT NULL,
+  secret_key_enc TEXT NOT NULL,    -- the bot's function call key, AES-256-GCM with MASTER_KEY
+  mode TEXT NOT NULL,              -- 'sub' (bot.<player>, Google) | 'factory' (<name>-bot, wallet)
+  status TEXT NOT NULL,            -- 'creating' | 'linking' | 'ready' | 'failed'
+  enabled INTEGER NOT NULL DEFAULT 1,
+  style TEXT NOT NULL DEFAULT 'balanced',  -- 'thrifty' | 'balanced' | 'turbo'
+  daily_limit_micro INTEGER NOT NULL,
+  budget_micro INTEGER NOT NULL DEFAULT 0, -- mirror of the bot's PANEN balance
+  spent_day INTEGER,               -- UTC day of spent_micro (same day as the contract)
+  spent_micro INTEGER NOT NULL DEFAULT 0,
+  next_run_at INTEGER NOT NULL DEFAULT 0,
+  empty_notice_day INTEGER,        -- last day the "budget is empty" notice was logged
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS bot_log (
+  id INTEGER PRIMARY KEY,
+  player_id INTEGER NOT NULL,
+  action TEXT NOT NULL,            -- 'water' | 'harvest' | 'sell' | 'buy' | 'fertilize' | 'setup' | 'budget' | 'notice' ...
+  reason TEXT NOT NULL,
+  job_id INTEGER,                  -- chain job that proves it (tx link), if any
+  brain TEXT NOT NULL DEFAULT 'rules',  -- 'rules' | 'ai'
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS bot_log_player ON bot_log(player_id, id);
 `;
 
 export function openDb(path: string): DB {

@@ -15,6 +15,7 @@ import { Market, Shop, Storage, Village } from './panels';
 import { Sprite } from './sprites';
 import { signShopBurn, walletProof } from './wallet';
 import { Profile } from './profile';
+import { TaniBotWindow } from './tanibot';
 import { GoogleButton } from './google';
 import { Avatar } from './art/avatars';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
@@ -105,7 +106,7 @@ export function App() {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [audio, setAudio] = useState(getAudioPrefs());
   const fullscreen = useFullscreen();
-  const [info, setInfo] = useState<'help' | 'panen' | 'profile' | null>(null);
+  const [info, setInfo] = useState<'help' | 'panen' | 'profile' | 'tanibot' | null>(null);
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
@@ -421,6 +422,8 @@ export function App() {
       <HowToPlay onClose={() => setInfo(null)} />
     ) : info === 'panen' ? (
       <PanenInfo state={state} config={config} onClose={() => setInfo(null)} />
+    ) : info === 'tanibot' && state ? (
+      <TaniBotWindow state={state} config={config} onState={applyState} onClose={() => setInfo(null)} />
     ) : info === 'profile' && state ? (
       <Profile state={state} config={config} onState={applyState} onSignOut={() => (setInfo(null), void logout())} onClose={() => setInfo(null)} />
     ) : null;
@@ -460,6 +463,7 @@ export function App() {
       showCheckin={!wide}
       big={wide}
       immersive={immersive}
+      onBot={() => (playSound('click'), setInfo('tanibot'))}
     />
   );
   const panelFor = (t: SideTab) =>
@@ -470,7 +474,7 @@ export function App() {
     ) : t === 'market' ? (
       <Market state={state} config={config} sell={sell} act={act} busy={busy} />
     ) : (
-      <Village state={state} config={config} />
+      <Village state={state} config={config} onBot={() => (playSound('click'), setInfo('tanibot'))} />
     );
 
   const tabIcons: Record<Tab, ComponentChildren> = {

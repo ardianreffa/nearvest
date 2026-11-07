@@ -26,6 +26,17 @@ export type JobPayload =
       /** What the purchase gave, taken back if the burn fails for good. */
       grant: { item: string; qty: number; seedIds: number[] };
     }
+  | { kind: 'create_bot'; mode: 'sub' | 'factory'; ownerId: string; botId: string; name: string; publicKey: string; tempSecretEnc?: string }
+  /** Player sets the limit (set_bot, Google gardens only), then the bot accepts with its own key. */
+  | { kind: 'bot_link'; ownerId: string; botId: string; dailyLimitMicro: number; ownerSigns: boolean }
+  /** Player -> bot budget (Google gardens). */
+  | { kind: 'bot_fund'; ownerId: string; botId: string; amountMicro: number; ledgerId: number }
+  /** Bot -> player budget (Google gardens). */
+  | { kind: 'bot_withdraw'; ownerId: string; botId: string; amountMicro: number; ledgerId: number }
+  /** New daily limit (Google gardens). */
+  | { kind: 'bot_limit'; ownerId: string; botId: string; dailyLimitMicro: number }
+  /** A Shop purchase paid from the bot's budget, signed by the bot's key. */
+  | { kind: 'bot_burn'; botId: string; amountMicro: number; memo: string; grant: { item: string; qty: number; seedIds: number[] } }
   | { kind: 'mint_tree'; treeId: number; accountId: string; species: Species; quality: Quality }
   | { kind: 'update_tree'; treeId: number }
   | { kind: 'make_memorial'; treeId: number };
@@ -193,6 +204,57 @@ export class ChainWorker {
         );
         return { txHash: r.txHash };
       }
+      case 'create_bot': {
+        const botKey = this.botPublic(job.player_id);
+        const r =
+          p.mode === 'sub'
+            ? await chain.createSubBot(p.ownerId, this.playerSecret(job.player_id), p.botId, botKey)
+            : await chain.createFactoryBot(p.name, decryptSecret(p.tempSecretEnc!, this.deps.masterKey), botKey);
+        db.prepare("UPDATE bots SET status = 'linking' WHERE player_id = ? AND status = 'creating'").run(job.player_id);
+        return { txHash: r.txHash };
+      }
+      case 'bot_link': {
+        let txHash = '';
+        if (p.ownerSigns) {
+          const r = await chain.callAs(p.ownerId, this.playerSecret(job.player_id), this.panen(), [
+            { method: 'set_bot', args: { bot_id: p.botId, daily_limit: units(p.dailyLimitMicro) }, deposit: 1n },
+          ]);
+          txHash = r.txHash;
+        } else {
+          // Wallet gardens: the player's wallet sent set_bot; wait until it is on chain.
+          const info = await chain.botInfo(p.botId);
+          if (!info || info.ownerId !== p.ownerId) throw new Error('Waiting for the wallet to link the bot');
+        }
+        const r = await chain.callAs(p.botId, this.botSecret(job.player_id), this.panen(), [
+          { method: 'bot_accept', args: { owner_id: p.ownerId } },
+        ]);
+        db.prepare("UPDATE bots SET status = 'ready' WHERE player_id = ?").run(job.player_id);
+        return { txHash: txHash || r.txHash, result: { acceptTx: r.txHash } };
+      }
+      case 'bot_fund': {
+        const r = await chain.callAs(p.ownerId, this.playerSecret(job.player_id), this.panen(), [
+          { method: 'ft_transfer', args: { receiver_id: p.botId, amount: units(p.amountMicro), memo: 'TaniBot budget' }, deposit: 1n },
+        ]);
+        return { txHash: r.txHash };
+      }
+      case 'bot_withdraw': {
+        const r = await chain.callAs(p.ownerId, this.playerSecret(job.player_id), this.panen(), [
+          { method: 'bot_withdraw', args: { bot_id: p.botId, amount: units(p.amountMicro) }, deposit: 1n },
+        ]);
+        return { txHash: r.txHash };
+      }
+      case 'bot_limit': {
+        const r = await chain.callAs(p.ownerId, this.playerSecret(job.player_id), this.panen(), [
+          { method: 'set_bot', args: { bot_id: p.botId, daily_limit: units(p.dailyLimitMicro) }, deposit: 1n },
+        ]);
+        return { txHash: r.txHash };
+      }
+      case 'bot_burn': {
+        const r = await chain.callAs(p.botId, this.botSecret(job.player_id), this.panen(), [
+          { method: 'burn', args: { amount: units(p.amountMicro), memo: p.memo } },
+        ]);
+        return { txHash: r.txHash };
+      }
       case 'mint_tree': {
         const snap = this.deps.treeSnapshot(p.treeId);
         const r = await chain.mintTree(p.accountId, p.species, p.quality, snap?.parent_token_id ?? null);
@@ -213,6 +275,28 @@ export class ChainWorker {
         return { txHash: r.txHash };
       }
     }
+  }
+
+  private panen(): string {
+    return this.deps.panenContractId ?? 'panen.nearvest.testnet';
+  }
+
+  private playerSecret(playerId: number | null): string {
+    const row = this.deps.db.prepare('SELECT secret_key_enc FROM players WHERE id = ?').get(playerId) as { secret_key_enc: string } | undefined;
+    if (!row?.secret_key_enc) throw new PermanentChainError('This player has no game-held key');
+    return decryptSecret(row.secret_key_enc, this.deps.masterKey);
+  }
+
+  private botSecret(playerId: number | null): string {
+    const row = this.deps.db.prepare('SELECT secret_key_enc FROM bots WHERE player_id = ?').get(playerId) as { secret_key_enc: string } | undefined;
+    if (!row) throw new PermanentChainError('TaniBot not found');
+    return decryptSecret(row.secret_key_enc, this.deps.masterKey);
+  }
+
+  private botPublic(playerId: number | null): string {
+    const row = this.deps.db.prepare('SELECT public_key FROM bots WHERE player_id = ?').get(playerId) as { public_key: string } | undefined;
+    if (!row) throw new PermanentChainError('TaniBot not found');
+    return row.public_key;
   }
 
   /** The contract decides the final reward (Season rule); fix the local balance if it differs. */
@@ -249,6 +333,26 @@ export class ChainWorker {
       return;
     }
     if (p.kind === 'burn_wallet') this.takeBack(job.player_id, p.grant);
+    if (p.kind === 'create_bot' || p.kind === 'bot_link') {
+      db.prepare("UPDATE bots SET status = 'failed', enabled = 0 WHERE player_id = ?").run(job.player_id);
+      return;
+    }
+    if (p.kind === 'bot_burn') {
+      // The purchase did not happen on chain: give the budget back and take the item back.
+      this.takeBack(job.player_id, p.grant);
+      db.prepare('UPDATE bots SET budget_micro = budget_micro + ?, spent_micro = MAX(0, spent_micro - ?) WHERE player_id = ?').run(p.amountMicro, p.amountMicro, job.player_id);
+      return;
+    }
+    if (p.kind === 'bot_fund' || p.kind === 'bot_withdraw') {
+      // Undo the local move between the player's balance and the bot's budget.
+      const toBot = p.kind === 'bot_fund' ? -p.amountMicro : p.amountMicro;
+      tx(db, () => {
+        db.prepare('UPDATE bots SET budget_micro = budget_micro + ? WHERE player_id = ?').run(toBot, job.player_id);
+        db.prepare('UPDATE players SET balance_micro = balance_micro - ? WHERE id = ?').run(toBot, job.player_id);
+        db.prepare("UPDATE ledger SET amount_micro = 0, note = COALESCE(note, '') || ' (failed on chain, reverted)' WHERE id = ?").run(p.ledgerId);
+      });
+      return;
+    }
     if (p.kind === 'mint' || p.kind === 'mint_reward' || p.kind === 'burn' || p.kind === 'burn_wallet') {
       tx(db, () => {
         const row = db.prepare('SELECT player_id, amount_micro FROM ledger WHERE id = ?').get(p.ledgerId) as
@@ -263,3 +367,8 @@ export class ChainWorker {
 }
 
 export { MICRO };
+
+/** Micro-PANEN (6 decimals, the database unit) -> smallest on-chain units (18 decimals), as a string. */
+function units(micro: number): string {
+  return (BigInt(micro) * UNITS_PER_MICRO).toString();
+}

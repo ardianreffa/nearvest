@@ -5,6 +5,7 @@ import { FakeChain } from '../src/chain/fake.ts';
 import { ChainWorker } from '../src/chain/worker.ts';
 import { openDb } from '../src/db.ts';
 import { Game } from '../src/game.ts';
+import { TaniBotService } from '../src/tanibot.ts';
 
 /** 2026-11-07 01:00 UTC (08:00 WIB), one hour after the village day began. */
 export const START = Date.UTC(2026, 10, 7, 1, 0, 0);
@@ -33,11 +34,24 @@ export function makeWorld(opts: { random?: number; demo?: boolean; googleClientI
     db,
     chain,
     masterKey,
+    panenContractId: 'panen.nearvest.testnet',
     now,
     treeSnapshot: (id) => game.treeSnapshot(id),
     onSeasonDivisor: (d) => (game.seasonDivisor = d),
   });
+  chain.now = now;
+  const tanibot = new TaniBotService({
+    db,
+    game,
+    chain,
+    now,
+    masterKey,
+    factoryAccountId: 'nearvest.testnet',
+    panenContractId: 'panen.nearvest.testnet',
+    explorerTxUrl: 'https://testnet.nearblocks.io/txns/',
+  });
   const app = createApp({
+    tanibot,
     db,
     game,
     chain,
@@ -64,7 +78,7 @@ export function makeWorld(opts: { random?: number; demo?: boolean; googleClientI
     );
     return game.createPlayer(userId, name, ip);
   };
-  return { db, chain, game, worker, app, clock, now, advance, masterKey, newPlayer, rng };
+  return { db, chain, game, worker, app, clock, now, advance, masterKey, newPlayer, rng, tanibot };
 }
 
 export const UNIT = 10n ** 18n;

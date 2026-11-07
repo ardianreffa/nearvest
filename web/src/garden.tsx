@@ -45,9 +45,11 @@ interface Props {
   big: boolean;
   /** Laptop / PC: full-window garden with the selected plot in a bottom action bar. */
   immersive?: Immersive;
+  /** Opens the TaniBot window (click on TaniBot). */
+  onBot?: () => void;
 }
 
-export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, showCheckin, big, immersive }: Props) {
+export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, showCheckin, big, immersive, onBot }: Props) {
   const [selected, setSelected] = useState(0);
   const [fx, setFx] = useState<SceneFx | null>(null);
   const fxTimer = useRef<number>(0);
@@ -88,7 +90,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
   if (immersive) {
     return (
       <>
-        <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} immersive={immersive} />
+        <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} immersive={immersive} onBot={onBot} />
         <div class="hud-bar" role="region" aria-label="Selected plot">
           {panel}
         </div>
@@ -100,7 +102,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
     <div class="garden-screen">
       {showCheckin && <CheckinBanner state={state} act={act} ask={ask} busy={busy} />}
 
-      <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} />
+      <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} onBot={onBot} />
 
       {panel}
       {!plot.tree && !plot.locked && state.seeds.length === 0 && (

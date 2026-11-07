@@ -274,7 +274,7 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
   );
 }
 
-export function Village({ state, config }: { state: GameState; config: ServerConfig }) {
+export function Village({ state, config, onBot }: { state: GameState; config: ServerConfig; onBot: () => void }) {
   const [stats, setStats] = useState<VillageStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -294,6 +294,12 @@ export function Village({ state, config }: { state: GameState; config: ServerCon
 
   return (
     <>
+      <Panel title="TaniBot">
+        <p class="muted small">Your AI farmer with its own NEAR wallet and a daily spending limit enforced by the PANEN contract.</p>
+        <button class="btn btn-mint" onClick={onBot}>
+          Open TaniBot
+        </button>
+      </Panel>
       <Panel title="Village Stats">
         {error && <p class="error-text">{error}</p>}
         {!stats ? (
