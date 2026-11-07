@@ -350,3 +350,56 @@ describe('TaniBot at a glance (garden state)', () => {
     assert.equal(w.game.state(p.id).player.tanibot!.alert, 'low');
   });
 });
+
+describe('TaniBot for new gardens and across devices', () => {
+  const call = async (w: World, method: string, path: string, token?: string, body?: unknown) => {
+    const res = await w.app.request(path, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    return { status: res.status, json: (await res.json()) as any };
+  };
+  const login = async (w: World) => (await call(w, 'POST', '/auth/dev', undefined, { username: 'farmer' })).json.token as string;
+
+  it('a new garden starts WITHOUT an active TaniBot (it sleeps until the player activates it)', async () => {
+    const w = makeWorld();
+    const token = await login(w);
+    const created = await call(w, 'POST', '/api/player', token, { name: 'farmer' });
+    assert.equal(created.json.player.tanibot, null);
+    assert.equal((await call(w, 'GET', '/api/tanibot', token)).json.bot, null);
+    await w.worker.drain();
+    assert.equal(await w.tanibot.tick(), 0, 'nothing runs before activation');
+  });
+
+  it('settings live on the server: a second device (new login) sees the same ON/OFF, style, limit and budget', async () => {
+    const w = makeWorld();
+    const phone = await login(w);
+    await call(w, 'POST', '/api/player', phone, { name: 'farmer' });
+    await w.worker.drain();
+    await call(w, 'POST', '/api/tanibot/setup', phone, { dailyLimit: 12, budget: 15 });
+    await w.worker.drain();
+    await call(w, 'POST', '/api/tanibot/settings', phone, { enabled: false, style: 'turbo' });
+    await call(w, 'POST', '/auth/logout', phone);
+
+    const laptop = await login(w); // another device = another session
+    const bot = (await call(w, 'GET', '/api/tanibot', laptop)).json.bot;
+    assert.deepEqual({ enabled: bot.enabled, style: bot.style, limit: bot.dailyLimit, budget: bot.budget }, { enabled: false, style: 'turbo', limit: 12, budget: 15 });
+    const me = (await call(w, 'GET', '/api/me', laptop)).json.player.tanibot;
+    assert.equal(me.enabled, false);
+  });
+
+  it('works while nobody has the game open (the server runs it on schedule)', async () => {
+    const w = makeWorld();
+    const token = await login(w);
+    await call(w, 'POST', '/api/player', token, { name: 'farmer' });
+    await w.worker.drain();
+    await call(w, 'POST', '/api/tanibot/setup', token, { dailyLimit: 10, budget: 10 });
+    await w.worker.drain();
+    const pid = (w.db.prepare("SELECT id FROM players WHERE name = 'farmer'").get() as { id: number }).id;
+    w.game.plant(pid, 0, seedOf(w, pid, 'durian'));
+    await call(w, 'POST', '/auth/logout', token); // the player is gone
+    await w.tanibot.tick();
+    assert.equal(w.game.state(pid).plots[0].tree!.wateredToday, true);
+  });
+});

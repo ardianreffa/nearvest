@@ -4121,3 +4121,398 @@ button.balance:focus-visible {
 .bot-nudge-later:focus-visible {
   color: var(--ink);
 }
+
+/* ---------- TaniBot body language (scene.tsx useBotMotion) ---------- */
+
+/* Smooth, eased move between plots (no stiff sliding, no overshoot). */
+.bot-spot {
+  transition: left 0.72s cubic-bezier(0.45, 0, 0.2, 1);
+}
+
+/* Idle: a calm standing pose with a tiny "breath". */
+.tanibot {
+  animation: bot-breathe 3.2s ease-in-out infinite;
+  transform-origin: 50% 100%;
+  transition: transform 0.18s ease-out;
+}
+
+.bot-spot::after {
+  animation: bot-shadow-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes bot-breathe {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  50% {
+    transform: translateY(-1.5px) scaleY(1.012);
+  }
+}
+
+@keyframes bot-shadow-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* Moving: face the move and lean forward, lifted on the jets. */
+.bot-spot.moving .tanibot {
+  animation: none;
+}
+
+.bot-spot.moving.dir-right .tanibot {
+  transform: translateY(-8px) rotate(8deg);
+}
+
+.bot-spot.moving.dir-left .tanibot {
+  transform: translateY(-8px) scaleX(-1) rotate(8deg);
+}
+
+.bot-spot.moving::after {
+  animation: none;
+  opacity: 0.5;
+  transform: translateX(-50%) scale(0.75);
+}
+
+/* Jets under the feet: two flickering mint/cyan flames and a short trail. */
+.bot-jet {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -14px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.bot-spot.moving .bot-jet {
+  display: block;
+}
+
+.bot-jet b {
+  position: absolute;
+  bottom: 0;
+  width: 12%;
+  height: 100%;
+  border-radius: 50% 50% 45% 45%;
+  background: linear-gradient(#ffffff 0 18%, var(--mint) 40%, var(--cyan) 70%, rgba(34, 211, 238, 0) 100%);
+  box-shadow: 0 0 8px var(--mint);
+  transform-origin: 50% 0;
+  animation: bot-flame 0.12s steps(2) infinite;
+}
+
+.bot-jet b:nth-child(1) {
+  left: 32%;
+}
+
+.bot-jet b:nth-child(2) {
+  right: 32%;
+  animation-delay: -0.06s;
+}
+
+.bot-jet i {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  background: var(--mint);
+  box-shadow: 0 0 4px var(--cyan);
+  opacity: 0;
+  animation: bot-trail 0.42s linear infinite;
+}
+
+.bot-jet i:nth-child(4) {
+  animation-delay: 0.14s;
+}
+
+.bot-jet i:nth-child(5) {
+  animation-delay: 0.28s;
+}
+
+/* The trail streams away behind the move. */
+.bot-spot.dir-right .bot-jet i {
+  --trail: -26px;
+}
+
+.bot-spot.dir-left .bot-jet i {
+  --trail: 26px;
+}
+
+@keyframes bot-flame {
+  0% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(0.65);
+    opacity: 0.8;
+  }
+}
+
+@keyframes bot-trail {
+  0% {
+    opacity: 0.9;
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--trail, 0), 10px) scale(0.4);
+  }
+}
+
+/* Landing: a little knee bend. */
+.bot-spot.landing .tanibot {
+  animation: bot-land 0.34s ease-out;
+}
+
+@keyframes bot-land {
+  0% {
+    transform: translateY(-6px);
+  }
+  45% {
+    transform: translateY(2px) scale(1.06, 0.9);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+
+/* Dust when it lifts off, a puff when it lands (drawn on the ground, not on the bot). */
+.bot-dust {
+  position: absolute;
+  bottom: 26px;
+  z-index: 4;
+  width: 70px;
+  height: 22px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.stage .bot-dust {
+  bottom: calc(var(--k) * 3px);
+  width: calc(var(--k) * 26px);
+}
+
+.bot-dust i {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
+  background: rgba(214, 196, 160, 0.85);
+  animation: bot-dust 0.55s ease-out forwards;
+}
+
+.bot-dust.land i {
+  background: rgba(200, 255, 232, 0.8);
+}
+
+.bot-dust i:nth-child(1) {
+  --dx: -26px;
+}
+
+.bot-dust i:nth-child(2) {
+  --dx: 0px;
+  animation-delay: 0.04s;
+}
+
+.bot-dust i:nth-child(3) {
+  --dx: 26px;
+  animation-delay: 0.08s;
+}
+
+@keyframes bot-dust {
+  0% {
+    opacity: 0.9;
+    transform: translate(0, 0) scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), -10px) scale(1.4);
+  }
+}
+
+/* A happy bounce, only right after finishing a job. */
+.bot-spot.bounce .tanibot {
+  animation: bot-bounce 0.6s ease-out;
+}
+
+@keyframes bot-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-10px);
+  }
+  55% {
+    transform: translateY(0) scale(1.04, 0.95);
+  }
+  75% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Random idle moments. */
+.bot-spot.idle-glance .bot-eyes {
+  animation: bot-glance 1.6s ease-in-out;
+}
+
+.bot-spot.idle-look-left .bot-eyes {
+  animation: bot-look-left 1.6s ease-in-out;
+}
+
+.bot-spot.idle-look-right .bot-eyes {
+  animation: bot-look-right 1.6s ease-in-out;
+}
+
+.bot-spot.idle-blink .bot-eyes {
+  animation: bot-blink 0.5s steps(1);
+}
+
+.bot-spot.idle-leds .bot-leds {
+  animation: bot-leds 1.6s steps(4);
+}
+
+.bot-spot.idle-wave .tanibot {
+  animation: bot-wave 1.4s ease-in-out;
+}
+
+@keyframes bot-glance {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25%,
+  40% {
+    transform: translateX(-4%);
+  }
+  60%,
+  80% {
+    transform: translateX(4%);
+  }
+}
+
+@keyframes bot-look-left {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  80% {
+    transform: translateX(-5%);
+  }
+}
+
+@keyframes bot-look-right {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  80% {
+    transform: translateX(5%);
+  }
+}
+
+@keyframes bot-blink {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  20%,
+  40% {
+    opacity: 0;
+  }
+}
+
+@keyframes bot-leds {
+  0% {
+    filter: drop-shadow(0 0 2px var(--mint)) drop-shadow(0 0 6px var(--mint));
+  }
+  25% {
+    filter: drop-shadow(0 0 2px var(--cyan)) drop-shadow(0 0 6px var(--cyan)) hue-rotate(40deg);
+  }
+  50% {
+    filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 6px var(--gold)) hue-rotate(-60deg);
+  }
+  75% {
+    filter: drop-shadow(0 0 2px var(--mint)) drop-shadow(0 0 9px var(--mint)) brightness(1.3);
+  }
+}
+
+@keyframes bot-wave {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(-6deg);
+  }
+  40% {
+    transform: rotate(6deg);
+  }
+  60% {
+    transform: rotate(-4deg);
+  }
+  80% {
+    transform: rotate(3deg);
+  }
+}
+
+/* Reduced motion: TaniBot stands still; no jets, dust or idle moments. */
+@media (prefers-reduced-motion: reduce) {
+  .bot-spot {
+    transition: none;
+  }
+
+  .tanibot,
+  .bot-spot .tanibot,
+  .bot-spot .bot-eyes,
+  .bot-spot .bot-leds,
+  .bot-spot::after {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .bot-jet,
+  .bot-dust {
+    display: none !important;
+  }
+}
+
+/* Laptop: the action bar sits right under TaniBot's feet, so it lifts higher and the
+   jets and dust stay above the bar instead of disappearing behind it. */
+.stage .bot-jet {
+  bottom: 0;
+  height: calc(var(--k) * 4px);
+}
+
+.stage .bot-spot.moving.dir-right .tanibot {
+  transform: translateY(calc(var(--k) * -5px)) rotate(8deg);
+}
+
+.stage .bot-spot.moving.dir-left .tanibot {
+  transform: translateY(calc(var(--k) * -5px)) scaleX(-1) rotate(8deg);
+}
+
+.stage .bot-dust {
+  bottom: calc(var(--k) * 5px);
+}
+
+/* Phones: the ON chip at the feet steps aside while the jets fire. */
+.bot-spot.moving .bot-status {
+  opacity: 0;
+}
+
+.bot-status {
+  transition: opacity 0.2s;
+}

@@ -125,6 +125,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const askOn = !tb || tb.status === 'failed' || (tb.status === 'ready' && !tb.enabled);
   const flash = useActionBubble(on, tb?.last ?? null);
   const nudge = useTurnOnNudge(askOn, state);
+  const motion = useBotMotion(bx, on, working, selected);
 
   return (
     <div
@@ -177,7 +178,23 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         })}
       </div>
 
-      <div class="bot-spot" style={{ left: `${bx}%` }}>
+      {motion.dust && (
+        <span class={`bot-dust ${motion.dust.kind}`} style={{ left: `${motion.dust.x}%` }} key={motion.dust.id} aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+      )}
+      <div class={`bot-spot ${motion.cls}`} style={{ left: `${bx}%` }}>
+        {on && (
+          <span class="bot-jet" aria-hidden="true">
+            <b />
+            <b />
+            <i />
+            <i />
+            <i />
+          </span>
+        )}
         <div class="bot-drones">
           <Drone version={version} scale={px} class="idle-drone d1" />
           {version === 2 && <Drone version={version} scale={px} class="idle-drone d2" />}
@@ -441,4 +458,88 @@ function useTurnOnNudge(askOn: boolean, state: GameState): { text: string | null
     setShown(null);
   };
   return { text: askOn && shown ? shown.text : null, key: shown?.key ?? 0, notNow };
+}
+
+type IdleAct = 'glance' | 'blink' | 'leds' | 'wave' | 'look';
+
+/**
+ * TaniBot's body language in the garden (CSS classes on the bot spot):
+ * - moving between plots: faces and leans toward the move, jets under the feet,
+ *   dust when it lifts off, a puff and a small knee bend when it lands;
+ * - idle: a calm "breathing" pose and, now and then, a random small action
+ *   (glance, blink, hat lights, wave, look at the nearest tree);
+ * - a happy bounce only right after it finished a job;
+ * - switched off: none of this (it sleeps).
+ */
+function useBotMotion(x: number, on: boolean, working: boolean, plot: number) {
+  const [move, setMove] = useState<{ dir: 'left' | 'right'; id: number } | null>(null);
+  const [landing, setLanding] = useState(0);
+  const [dust, setDust] = useState<{ x: number; id: number; kind: 'lift' | 'land' } | null>(null);
+  const [idle, setIdle] = useState<IdleAct | null>(null);
+  const [bounce, setBounce] = useState(0);
+  const prevX = useRef(x);
+  const wasWorking = useRef(working);
+
+  // A move between plots.
+  useEffect(() => {
+    const from = prevX.current;
+    prevX.current = x;
+    if (from === x) return;
+    const id = Date.now();
+    const dir = x > from ? 'right' : 'left';
+    setIdle(null);
+    if (!on) return; // asleep: it just shifts, no jets, no dust
+    setMove({ dir, id });
+    setDust({ x: from, id, kind: 'lift' });
+    const land = setTimeout(() => {
+      setMove(null);
+      setLanding(Date.now());
+      setDust({ x, id: id + 1, kind: 'land' });
+    }, 720);
+    const clear = setTimeout(() => (setLanding(0), setDust(null)), 1300);
+    return () => (clearTimeout(land), clearTimeout(clear));
+  }, [x]);
+
+  // A happy bounce right after a job.
+  useEffect(() => {
+    if (wasWorking.current && !working && on) {
+      setBounce(Date.now());
+      const t = setTimeout(() => setBounce(0), 700);
+      wasWorking.current = working;
+      return () => clearTimeout(t);
+    }
+    wasWorking.current = working;
+  }, [working]);
+
+  // Random idle moments every 5-10 seconds.
+  useEffect(() => {
+    if (!on) {
+      setIdle(null);
+      return;
+    }
+    let timer = 0;
+    let off = 0;
+    const next = () => {
+      timer = window.setTimeout(() => {
+        const acts: IdleAct[] = ['glance', 'blink', 'leds', 'wave', 'look'];
+        setIdle(acts[Math.floor(Math.random() * acts.length)]);
+        off = window.setTimeout(() => setIdle(null), 1700);
+        next();
+      }, 5000 + Math.random() * 5000);
+    };
+    next();
+    return () => (clearTimeout(timer), clearTimeout(off));
+  }, [on]);
+
+  // The nearest tree is on the bot's left for plots 1-2 and on its right for plot 3.
+  const lookDir = plot < 2 ? 'left' : 'right';
+  const cls = [
+    move ? `moving dir-${move.dir}` : '',
+    landing ? 'landing' : '',
+    bounce ? 'bounce' : '',
+    !move && !working && idle ? `idle-${idle === 'look' ? `look-${lookDir}` : idle}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  return { cls, dust };
 }

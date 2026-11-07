@@ -4,6 +4,7 @@
 // Login page only (no account is created): node tools/ui-test.mjs <outDir> --login-only [width] [height]
 // Profile window of an EXISTING dev garden (no account is created): node tools/ui-test.mjs <outDir> --profile=<devUsername> [width] [height]
 // Garden layout (top bar, plot panel with a Rare Durian, TaniBot hint) on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --layout=<newDevUsername> [width] [height]
+// TaniBot motion (jets, landing, idle moments) on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --motion=<newDevUsername> [width] [height]
 // TaniBot window on a NEW dev garden (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
@@ -141,6 +142,48 @@ try {
       console.log('bubble gone after ~4 s:', await evaluate(`!document.querySelector('.bot-hint-flash') || getComputedStyle(document.querySelector('.bot-hint-flash')).opacity === '0'`));
     });
     throw Object.assign(new Error('layout done'), { done: true });
+  }
+  if (name.startsWith('--motion=')) {
+    await step('TaniBot motion', async () => {
+      const user = name.slice('--motion='.length);
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(bodyHas('Welcome to Tandur'), 'create screen');
+      await typeInto('.create input:not([type=checkbox])', user);
+      await clickText('Start farming');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      await waitFor(`!document.body.innerText.includes('Creating your NEAR account')`, 'account', 60000);
+      console.log('new garden: asleep', await evaluate(`!!document.querySelector('.bot-click.asleep')`), '| chip', await evaluate(`document.querySelector('.bot-status')?.innerText`));
+      // Asleep: moving shows no jets.
+      await evaluate(`document.querySelectorAll('.plot')[1].click()`);
+      await sleep(250);
+      console.log('asleep move: jets visible', await evaluate(`!!document.querySelector('.bot-jet')`));
+      await evaluate(`document.querySelectorAll('.plot')[0].click()`);
+      await sleep(900);
+      // Switch on.
+      await evaluate(`document.querySelector('.bot-click').click()`);
+      await waitFor(bodyHas('Activate TaniBot'), 'activate panel');
+      await clickText('Activate TaniBot');
+      await waitFor(bodyHas('Wallet and budget'), 'bot ready', 60000);
+      await clickText('Close');
+      await waitFor(`document.querySelector('.bot-status')?.innerText === 'ON'`, 'ON', 30000);
+      await sleep(1500);
+      await evaluate(`document.querySelectorAll('.plot')[1].click()`);
+      await sleep(280);
+      console.log('moving:', await evaluate(`document.querySelector('.bot-spot').className`), '| jets', await evaluate(`getComputedStyle(document.querySelector('.bot-jet')).display`), '| dust', await evaluate(`document.querySelector('.bot-dust')?.className`));
+      await screenshot('moving');
+      await sleep(560);
+      console.log('landing:', await evaluate(`document.querySelector('.bot-spot').className`), '| dust', await evaluate(`document.querySelector('.bot-dust')?.className`));
+      await screenshot('landing');
+      const seen = new Set();
+      for (let i = 0; i < 60 && seen.size < 3; i++) {
+        const c = await evaluate(`document.querySelector('.bot-spot').className`);
+        for (const k of c.split(' ')) if (k.startsWith('idle-')) seen.add(k);
+        await sleep(500);
+      }
+      console.log('idle moments seen:', [...seen].join(', '));
+    });
+    throw Object.assign(new Error('motion done'), { done: true });
   }
   if (name.startsWith('--tanibot=')) {
     await step('TaniBot window on a new dev garden', async () => {
