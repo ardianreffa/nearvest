@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import type { JWTVerifyGetKey } from 'jose';
 import { createApp } from '../src/app.ts';
 import { FakeChain } from '../src/chain/fake.ts';
 import { ChainWorker } from '../src/chain/worker.ts';
@@ -11,7 +12,7 @@ export const MINUTE = 60_000;
 export const HOUR = 60 * MINUTE;
 export const DAY = 24 * HOUR;
 
-export function makeWorld(opts: { random?: number; demo?: boolean } = {}) {
+export function makeWorld(opts: { random?: number; demo?: boolean; googleClientId?: string; googleKeys?: JWTVerifyGetKey; devLogin?: boolean } = {}) {
   const db = openDb(':memory:');
   const chain = new FakeChain();
   const clock = { t: START };
@@ -41,13 +42,15 @@ export function makeWorld(opts: { random?: number; demo?: boolean } = {}) {
     game,
     chain,
     now,
+    googleKeys: opts.googleKeys,
     config: {
-      devLogin: true,
-      googleClientId: '',
+      devLogin: opts.devLogin ?? true,
+      googleClientId: opts.googleClientId ?? '',
       webOrigins: ['http://localhost:5173'],
       panenContractId: 'panen.nearvest.testnet',
       pohonContractId: 'pohon.nearvest.testnet',
       networkId: 'testnet',
+      factoryAccountId: 'nearvest.testnet',
     },
   });
   const advance = (ms: number) => {

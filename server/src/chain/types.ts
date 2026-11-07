@@ -2,6 +2,7 @@
 // `near.ts` (real NEAR testnet) and `fake.ts` (tests and offline dev).
 
 import type { Quality, Species, Stage } from '../rules.ts';
+import type { AccessKeyPermission, BurnDelegate } from '../wallet.ts';
 
 export interface TxResult {
   txHash: string;
@@ -36,6 +37,14 @@ export interface Chain {
   makeMemorial(tokenId: string): Promise<TxResult>;
   villageStats(): Promise<ChainVillageStats>;
   treeSupply(): Promise<number>;
+  /** An access key of an account, or null when the key is not on that account. */
+  viewAccessKey(accountId: string, publicKey: string): Promise<{ nonce: bigint; permission: AccessKeyPermission } | null>;
+  /** Latest final block height (for meta transaction expiry). */
+  blockHeight(): Promise<bigint>;
+  /** $PANEN balance in smallest units. */
+  ftBalanceOf(accountId: string): Promise<bigint>;
+  /** Relays a burn signed in the player's browser with their game key (wallet players). The game pays gas. */
+  relayWalletBurn(d: BurnDelegate, signature: string): Promise<TxResult>;
 }
 
 /** An error that will not go away by retrying (for example a contract panic). */

@@ -3,23 +3,43 @@
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { devIdentity, login, logout, userFromToken, verifyGoogleCredential } from './auth.ts';
+import type { JWTVerifyGetKey } from 'jose';
 import type { Chain } from './chain/types.ts';
 import type { Config } from './config.ts';
 import type { DB } from './db.ts';
-import { Game, GameError } from './game.ts';
+import { Game, GameError, type SignedBurn } from './game.ts';
+import {
+  BURN_GAS,
+  BURN_TTL_BLOCKS,
+  consumeChallenge,
+  createChallenge,
+  GAME_KEY_ALLOWANCE_YOCTO,
+  GAME_KEY_METHODS,
+  isGameKey,
+  isValidAccountId,
+  LOGIN_MESSAGE,
+  nep413Hash,
+  parsePublicKey,
+  verifySignature,
+} from './wallet.ts';
+import { UNITS_PER_MICRO } from './chain/types.ts';
 import { DEMO_XP_MULTIPLIER, fruitOdds, SEED_STORAGE_SLOTS, seedSellPrice, SHOP_ITEMS, SPECIES, SPECIES_LIST, TITLES, type Quality, type ShopItem, type Species } from './rules.ts';
 
 export interface AppDeps {
   db: DB;
   game: Game;
   chain: Chain;
-  config: Pick<Config, 'devLogin' | 'googleClientId' | 'webOrigins' | 'panenContractId' | 'pohonContractId' | 'networkId'>;
+  config: Pick<Config, 'devLogin' | 'googleClientId' | 'webOrigins' | 'panenContractId' | 'pohonContractId' | 'networkId' | 'factoryAccountId'>;
   now: () => number;
+  /** Google's signing keys; tests pass a fake key set. Default: Google's live keys. */
+  googleKeys?: JWTVerifyGetKey;
 }
 
 type Env = { Variables: { userId: number } };
 
 const STATS_CACHE_MS = 15_000;
+/** Wallet players' balances are re-read from the chain at most this often. */
+const WALLET_SYNC_MS = 30_000;
 
 export function createApp(deps: AppDeps) {
   const { db, game, chain, config, now } = deps;
@@ -54,6 +74,10 @@ export function createApp(deps: AppDeps) {
       googleClientId: config.googleClientId || null,
       devLogin: config.devLogin,
       contracts: { panen: config.panenContractId, pohon: config.pohonContractId },
+      wallet: {
+        loginRecipient: config.factoryAccountId,
+        gameKey: { contractId: config.panenContractId, methodNames: GAME_KEY_METHODS, allowance: GAME_KEY_ALLOWANCE_YOCTO },
+      },
       shop: SHOP_ITEMS,
       species: SPECIES,
       titles: TITLES,
@@ -98,9 +122,10 @@ export function createApp(deps: AppDeps) {
   app.post('/auth/google', async (c) => {
     const { credential } = await body(c);
     if (typeof credential !== 'string') throw new GameError('Missing Google credential');
-    const identity = await verifyGoogleCredential(credential, config.googleClientId);
+    const identity = await verifyGoogleCredential(credential, config.googleClientId, { keys: deps.googleKeys, nowMs: now() });
     const { token, userId } = login(db, identity, now());
-    return c.json({ token, player: game.getPlayerByUser(userId) ? game.state(game.getPlayerByUser(userId)!.id) : null });
+    const p = game.getPlayerByUser(userId);
+    return c.json({ token, player: p ? game.state(p.id) : null });
   });
 
   app.post('/auth/dev', async (c) => {
@@ -108,6 +133,25 @@ export function createApp(deps: AppDeps) {
     const { username } = await body(c);
     if (typeof username !== 'string') throw new GameError('Missing username');
     const { token, userId } = login(db, devIdentity(username), now());
+    const p = game.getPlayerByUser(userId);
+    return c.json({ token, player: p ? game.state(p.id) : null });
+  });
+
+  // NEAR wallet login (NEP-413). Step 1: a one-time nonce for the wallet to sign.
+  app.post('/auth/near/challenge', (c) => c.json({ ...createChallenge(db, now()), recipient: config.factoryAccountId }));
+
+  // Step 2: the signed message. The key must be a FullAccess key of the account.
+  app.post('/auth/near', async (c) => {
+    const { accountId, publicKey, signature, nonce } = await body(c);
+    if (!isValidAccountId(accountId)) throw new GameError('Invalid NEAR account');
+    if (typeof signature !== 'string' || typeof nonce !== 'string') throw new GameError('Missing signature');
+    parsePublicKey(publicKey);
+    if (!consumeChallenge(db, nonce, now())) throw new GameError('Login expired, please try again', 401);
+    const hash = nep413Hash(LOGIN_MESSAGE, Buffer.from(nonce, 'base64'), config.factoryAccountId);
+    if (!verifySignature(publicKey as string, hash, signature)) throw new GameError('Wallet signature is not valid', 401);
+    const key = await chain.viewAccessKey(accountId, publicKey as string);
+    if (key?.permission !== 'FullAccess') throw new GameError('This key does not own the account', 401);
+    const { token, userId } = login(db, { provider: 'near', subject: accountId, email: null }, now());
     const p = game.getPlayerByUser(userId);
     return c.json({ token, player: p ? game.state(p.id) : null });
   });
@@ -141,7 +185,49 @@ export function createApp(deps: AppDeps) {
     return c.json(game.state(p.id), 201);
   });
 
-  app.get('/api/me', (c) => c.json(game.state(playerId(c))));
+  const lastWalletSync = new Map<number, number>();
+  const syncWallet = async (pid: number) => {
+    const p = game.getPlayer(pid);
+    if (p.custody !== 'wallet') return;
+    game.syncWalletBalance(pid, await chain.ftBalanceOf(p.account_id));
+    lastWalletSync.set(pid, now());
+  };
+
+  app.get('/api/me', async (c) => {
+    const pid = playerId(c);
+    if (now() - (lastWalletSync.get(pid) ?? 0) > WALLET_SYNC_MS) {
+      lastWalletSync.set(pid, now());
+      await syncWallet(pid).catch((err) => console.warn('wallet balance sync failed:', err instanceof Error ? err.message : err));
+    }
+    return c.json(game.state(pid));
+  });
+
+  // Wallet players, step 1 of a Shop purchase: the exact burn their game key must sign.
+  app.post('/api/wallet/burn', async (c) => {
+    const b = await body(c);
+    const pid = playerId(c);
+    const p = game.getPlayer(pid);
+    if (p.custody !== 'wallet') throw new GameError('Only for NEAR wallet players');
+    const publicKey = parsePublicKey(b.publicKey).toString();
+    const key = await chain.viewAccessKey(p.account_id, publicKey);
+    if (!key || !isGameKey(key.permission, config.panenContractId)) {
+      throw new GameError('Your game key is missing. Connect your wallet once more to enable the Shop.', 409, { code: 'game_key_missing' });
+    }
+    await syncWallet(pid);
+    const quote = game.shopQuote(pid, b.item as ShopItem, Number(b.qty ?? 1));
+    const height = await chain.blockHeight();
+    const nonce = (key.nonce > BigInt(p.key_nonce) ? key.nonce : BigInt(p.key_nonce)) + 1n;
+    return c.json({
+      senderId: p.account_id,
+      receiverId: config.panenContractId,
+      publicKey,
+      nonce: nonce.toString(),
+      maxBlockHeight: (height + BURN_TTL_BLOCKS).toString(),
+      amount: (BigInt(quote.costMicro) * UNITS_PER_MICRO).toString(),
+      memo: quote.memo,
+      gas: BURN_GAS.toString(),
+    });
+  });
 
   const plotOf = (b: Record<string, unknown>) => {
     if (typeof b.plot !== 'number') throw new GameError('Missing plot');
@@ -176,7 +262,12 @@ export function createApp(deps: AppDeps) {
 
   app.post('/api/shop/buy', async (c) => {
     const b = await body(c);
-    return respond(c, game.buy(playerId(c), b.item as ShopItem, Number(b.qty ?? 1)));
+    const sb = b.signedBurn as Record<string, unknown> | undefined;
+    const signed: SignedBurn | undefined =
+      sb && typeof sb === 'object' && ['publicKey', 'nonce', 'maxBlockHeight', 'signature'].every((k) => typeof sb[k] === 'string')
+        ? (sb as unknown as SignedBurn)
+        : undefined;
+    return respond(c, game.buy(playerId(c), b.item as ShopItem, Number(b.qty ?? 1), signed));
   });
 
   return app;

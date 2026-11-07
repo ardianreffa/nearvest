@@ -12,8 +12,8 @@ export const MICRO = 1_000_000;
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY,
-  provider TEXT NOT NULL,          -- 'google' or 'dev'
-  subject TEXT NOT NULL,           -- Google 'sub' or dev username
+  provider TEXT NOT NULL,          -- 'google', 'near' (wallet) or 'dev'
+  subject TEXT NOT NULL,           -- Google 'sub', NEAR account id or dev username
   email TEXT,
   created_at INTEGER NOT NULL,
   UNIQUE (provider, subject)
@@ -25,13 +25,20 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS auth_challenges (
+  nonce TEXT PRIMARY KEY,          -- base64, 32 random bytes (NEP-413 login)
+  expires_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS players (
   id INTEGER PRIMARY KEY,
   user_id INTEGER NOT NULL UNIQUE REFERENCES users(id),  -- 1 login = 1 garden
   name TEXT NOT NULL UNIQUE,
   account_id TEXT NOT NULL UNIQUE,
-  public_key TEXT NOT NULL,
-  secret_key_enc TEXT NOT NULL,    -- AES-256-GCM encrypted with MASTER_KEY
+  public_key TEXT NOT NULL,        -- '' for wallet players
+  secret_key_enc TEXT NOT NULL,    -- AES-256-GCM encrypted with MASTER_KEY; '' for wallet players
+  custody TEXT NOT NULL DEFAULT 'server', -- 'server' (Google: game holds the key) | 'wallet' (player's own account)
+  key_nonce INTEGER NOT NULL DEFAULT 0,   -- wallet players: last game-key nonce accepted for a burn
   account_status TEXT NOT NULL,    -- 'pending' | 'ready' | 'failed'
   demo INTEGER NOT NULL DEFAULT 0,
   balance_micro INTEGER NOT NULL DEFAULT 0,
@@ -144,6 +151,8 @@ function migrate(db: DB): void {
   const has = (table: string, column: string) =>
     (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === column);
   if (!has('trees', 'fert_boost')) db.exec('ALTER TABLE trees ADD COLUMN fert_boost INTEGER NOT NULL DEFAULT 0');
+  if (!has('players', 'custody')) db.exec("ALTER TABLE players ADD COLUMN custody TEXT NOT NULL DEFAULT 'server'");
+  if (!has('players', 'key_nonce')) db.exec('ALTER TABLE players ADD COLUMN key_nonce INTEGER NOT NULL DEFAULT 0');
 }
 
 /** Runs `fn` inside a transaction; rolls back if it throws. */

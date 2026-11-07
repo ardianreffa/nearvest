@@ -3,8 +3,9 @@
 // the player (burning their own $PANEN) are signed by the player's key as a
 // meta transaction (NEP-366) and relayed by the game account.
 
-import { Account, JsonRpcProvider, KeyPairSigner, actions, nearToYocto, teraToGas } from 'near-api-js';
+import { Account, JsonRpcProvider, KeyPairSigner, KeyType, Signature, actions, nearToYocto, teraToGas } from 'near-api-js';
 import type { Quality, Species, Stage } from '../rules.ts';
+import { burnDelegateAction, decodeSignature, type AccessKeyPermission, type BurnDelegate } from '../wallet.ts';
 import { PermanentChainError, type Chain, type ChainVillageStats, type TxResult } from './types.ts';
 
 const GAS = teraToGas('30');
@@ -209,5 +210,53 @@ export class NearChain implements Chain {
 
   async treeSupply(): Promise<number> {
     return Number(await this.view<string>(this.opts.pohonContractId, 'nft_total_supply'));
+  }
+
+  async viewAccessKey(accountId: string, publicKey: string) {
+    try {
+      const key = (await this.provider.viewAccessKey({ accountId, publicKey, finality: 'final' } as never)) as unknown as {
+        nonce: bigint | number;
+        permission: 'FullAccess' | { FunctionCall: { allowance?: string | null; receiver_id: string; method_names: string[] } };
+      };
+      const permission: AccessKeyPermission =
+        key.permission === 'FullAccess'
+          ? 'FullAccess'
+          : {
+              receiverId: key.permission.FunctionCall.receiver_id,
+              methodNames: key.permission.FunctionCall.method_names,
+              allowance: key.permission.FunctionCall.allowance ?? null,
+            };
+      return { nonce: BigInt(key.nonce), permission };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/does not exist|UNKNOWN_ACCESS_KEY|UNKNOWN_ACCOUNT|AccessKeyDoesNotExist/i.test(msg)) return null;
+      throw err;
+    }
+  }
+
+  async blockHeight(): Promise<bigint> {
+    const block = (await this.provider.viewBlock({ finality: 'final' } as never)) as unknown as { header: { height: number } };
+    return BigInt(block.header.height);
+  }
+
+  async ftBalanceOf(accountId: string): Promise<bigint> {
+    return BigInt(await this.view<string>(this.opts.panenContractId, 'ft_balance_of', { account_id: accountId }));
+  }
+
+  async relayWalletBurn(d: BurnDelegate, signature: string): Promise<TxResult> {
+    try {
+      const relayed = actions.signedDelegate({
+        delegateAction: burnDelegateAction(d),
+        signature: new Signature({ keyType: KeyType.ED25519, data: decodeSignature(signature) }),
+      });
+      const res = (await this.game.signAndSendTransaction({
+        receiverId: d.accountId,
+        actions: [relayed],
+        throwOnFailure: false,
+      })) as unknown as TxResponse;
+      return check(res);
+    } catch (err) {
+      classify(err);
+    }
   }
 }

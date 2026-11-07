@@ -13,6 +13,19 @@ export type JobPayload =
   | { kind: 'mint'; accountId: string; amountMicro: number; memo: string; ledgerId: number }
   | { kind: 'mint_reward'; accountId: string; baseMicro: number; memo: string; ledgerId: number }
   | { kind: 'burn'; accountId: string; amountMicro: number; memo: string; ledgerId: number }
+  | {
+      kind: 'burn_wallet';
+      accountId: string;
+      publicKey: string;
+      nonce: string;
+      maxBlockHeight: string;
+      amountMicro: number;
+      memo: string;
+      signature: string;
+      ledgerId: number;
+      /** What the purchase gave, taken back if the burn fails for good. */
+      grant: { item: string; qty: number; seedIds: number[] };
+    }
   | { kind: 'mint_tree'; treeId: number; accountId: string; species: Species; quality: Quality }
   | { kind: 'update_tree'; treeId: number }
   | { kind: 'make_memorial'; treeId: number };
@@ -57,6 +70,8 @@ interface TreeRow {
 export interface WorkerDeps {
   db: DB;
   chain: Chain;
+  /** Needed to rebuild wallet players' burn meta transactions. */
+  panenContractId?: string;
   masterKey: string;
   now: () => number;
   /** Computes the current stage and age of a tree for syncing to the chain. */
@@ -163,6 +178,21 @@ export class ChainWorker {
         const r = await chain.burnAsPlayer(p.accountId, secret, BigInt(p.amountMicro) * UNITS_PER_MICRO, p.memo);
         return { txHash: r.txHash };
       }
+      case 'burn_wallet': {
+        const r = await chain.relayWalletBurn(
+          {
+            accountId: p.accountId,
+            publicKey: p.publicKey,
+            nonce: BigInt(p.nonce),
+            maxBlockHeight: BigInt(p.maxBlockHeight),
+            amount: BigInt(p.amountMicro) * UNITS_PER_MICRO,
+            memo: p.memo,
+            panenContractId: this.deps.panenContractId ?? 'panen.nearvest.testnet',
+          },
+          p.signature,
+        );
+        return { txHash: r.txHash };
+      }
       case 'mint_tree': {
         const snap = this.deps.treeSnapshot(p.treeId);
         const r = await chain.mintTree(p.accountId, p.species, p.quality, snap?.parent_token_id ?? null);
@@ -201,6 +231,16 @@ export class ChainWorker {
     });
   }
 
+  /** A wallet purchase whose burn failed: remove what it gave (what is left of it). */
+  private takeBack(playerId: number | null, grant: { item: string; qty: number; seedIds: number[] }): void {
+    const { db } = this.deps;
+    if (playerId === null) return;
+    for (const id of grant.seedIds) db.prepare('DELETE FROM seeds WHERE id = ? AND player_id = ?').run(id, playerId);
+    if (grant.seedIds.length === 0) {
+      db.prepare('UPDATE items SET qty = MAX(0, qty - ?) WHERE player_id = ? AND item = ?').run(grant.qty, playerId, grant.item);
+    }
+  }
+
   /** Undo the local balance change of a token job that failed for good. */
   private onFailed(job: JobRow, p: JobPayload): void {
     const { db } = this.deps;
@@ -208,7 +248,8 @@ export class ChainWorker {
       db.prepare("UPDATE players SET account_status = 'failed' WHERE id = ?").run(job.player_id);
       return;
     }
-    if (p.kind === 'mint' || p.kind === 'mint_reward' || p.kind === 'burn') {
+    if (p.kind === 'burn_wallet') this.takeBack(job.player_id, p.grant);
+    if (p.kind === 'mint' || p.kind === 'mint_reward' || p.kind === 'burn' || p.kind === 'burn_wallet') {
       tx(db, () => {
         const row = db.prepare('SELECT player_id, amount_micro FROM ledger WHERE id = ?').get(p.ledgerId) as
           | { player_id: number; amount_micro: number }

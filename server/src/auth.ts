@@ -1,31 +1,46 @@
 // Login. Google: the web game shows the "Sign in with Google" button (Google
 // Identity Services), receives an ID token and sends it here; we verify it
 // with Google's public keys. Dev: a username-only login for local testing,
-// only when DEV_LOGIN=true. Both return a session token (Bearer).
+// only when DEV_LOGIN=true. NEAR wallet: see wallet.ts (NEP-413 signed message).
+// All return a session token (Bearer).
 
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose';
 import { hashToken, newSessionToken } from './crypto.ts';
 import type { DB } from './db.ts';
 import { GameError } from './game.ts';
 
-const GOOGLE_JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+/** Google's public signing keys (fetched and cached by jose). Tests pass their own. */
+export const GOOGLE_JWKS: JWTVerifyGetKey = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const SESSION_DAYS = 30;
 
 export interface Identity {
-  provider: 'google' | 'dev';
+  provider: 'google' | 'near' | 'dev';
   subject: string;
   email: string | null;
 }
 
-export async function verifyGoogleCredential(credential: string, clientId: string): Promise<Identity> {
+/**
+ * Checks a Google ID token: signed by Google, issued by Google, made for our
+ * Client ID, not expired, and with a verified email. The player's identity is
+ * Google's stable `sub` (1 Google account = 1 garden).
+ */
+export async function verifyGoogleCredential(
+  credential: string,
+  clientId: string,
+  opts: { keys?: JWTVerifyGetKey; nowMs?: number } = {},
+): Promise<Identity> {
   if (!clientId) throw new GameError('Google login is not configured on this server', 503);
   try {
-    const { payload } = await jwtVerify(credential, GOOGLE_JWKS, {
+    const { payload } = await jwtVerify(credential, opts.keys ?? GOOGLE_JWKS, {
       issuer: ['https://accounts.google.com', 'accounts.google.com'],
       audience: clientId,
+      algorithms: ['RS256'],
+      requiredClaims: ['sub', 'exp', 'iat'],
+      currentDate: opts.nowMs === undefined ? undefined : new Date(opts.nowMs),
+      clockTolerance: 30,
     });
-    if (!payload.sub) throw new Error('missing sub');
-    if (payload.email && payload.email_verified !== true) throw new Error('email not verified');
+    if (typeof payload.sub !== 'string' || !payload.sub) throw new Error('missing sub');
+    if (payload.email_verified !== true) throw new Error('email not verified');
     return { provider: 'google', subject: payload.sub, email: (payload.email as string | undefined) ?? null };
   } catch {
     throw new GameError('Google sign-in failed. Please try again.', 401);

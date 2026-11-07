@@ -35,12 +35,14 @@ const game = new Game({
   accountSuffix: config.factoryAccountId,
   explorerTxUrl: config.explorerTxUrl,
   demoModeDefault: config.demoModeDefault,
+  panenContractId: config.panenContractId,
 });
 
 const worker = new ChainWorker({
   db,
   chain,
   masterKey: config.masterKey,
+  panenContractId: config.panenContractId,
   now: systemNow,
   treeSnapshot: (id) => game.treeSnapshot(id),
   onSeasonDivisor: (d) => (game.seasonDivisor = d),

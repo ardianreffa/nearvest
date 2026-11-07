@@ -729,7 +729,7 @@ function GoogleButton({ clientId, onLoggedIn, onError }: { clientId: string | nu
           }
         },
       });
-      window.google!.accounts.id.renderButton(ref.current!, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with' });
+      window.google!.accounts.id.renderButton(ref.current!, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', locale: 'en' });
     };
     if (window.google) return render();
     const script = document.createElement('script');

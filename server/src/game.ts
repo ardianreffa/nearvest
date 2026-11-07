@@ -7,6 +7,8 @@ import { encryptSecret } from './crypto.ts';
 import { allPrices, greeting, type DartoPrice } from './darto.ts';
 import { fromMicro, toMicro, tx, type DB } from './db.ts';
 import { enqueue, enqueueTreeUpdate } from './chain/worker.ts';
+import { UNITS_PER_MICRO } from './chain/types.ts';
+import { burnDelegateHash, verifySignature } from './wallet.ts';
 import {
   advance,
   CHECKIN_DAY7_MULTIPLIER,
@@ -63,6 +65,16 @@ export interface GameDeps {
   accountSuffix: string;
   explorerTxUrl: string;
   demoModeDefault: boolean;
+  /** PANEN contract: wallet players' burns are signed for this receiver. */
+  panenContractId?: string;
+}
+
+/** A shop burn signed in the browser with a wallet player's game key. */
+export interface SignedBurn {
+  publicKey: string;
+  nonce: string;
+  maxBlockHeight: string;
+  signature: string;
 }
 
 export interface PlayerRow {
@@ -72,6 +84,9 @@ export interface PlayerRow {
   account_id: string;
   public_key: string;
   account_status: string;
+  /** 'server' = game-held key (Google/dev), 'wallet' = player's own NEAR account. */
+  custody: 'server' | 'wallet';
+  key_nonce: number;
   demo: number;
   balance_micro: number;
   xp: number;
@@ -165,8 +180,9 @@ export class Game {
   }
 
   /**
-   * Creates the garden and the player's NEAR account `<name>.<suffix>`.
-   * The key pair is generated here and stored encrypted.
+   * Creates the garden. Google/dev players get a new NEAR account `<name>.<suffix>`
+   * (key pair generated here, stored encrypted). Wallet players keep their own
+   * account; the name is only their farmer name.
    */
   createPlayer(userId: number, name: string, ip: string | null, demo?: boolean): PlayerRow {
     const err = nameError(name);
@@ -176,10 +192,25 @@ export class Game {
       throw new GameError('This name is taken', 409);
     }
     const now = this.d.now();
-    const keyPair = KeyPair.fromRandom('ed25519');
-    const publicKey = keyPair.getPublicKey().toString();
-    const secretEnc = encryptSecret(keyPair.toString(), this.d.masterKey);
-    const accountId = `${name}.${this.d.accountSuffix}`;
+    const user = this.db.prepare('SELECT provider, subject FROM users WHERE id = ?').get(userId) as
+      | { provider: string; subject: string }
+      | undefined;
+    if (!user) throw new GameError('Please sign in', 401);
+    // Wallet players bring their own account; everyone else gets <name>.<suffix>, created by the game.
+    const wallet = user.provider === 'near';
+    let accountId = `${name}.${this.d.accountSuffix}`;
+    let publicKey = '';
+    let secretEnc = '';
+    if (wallet) {
+      accountId = user.subject;
+      if (this.db.prepare('SELECT 1 FROM players WHERE account_id = ?').get(accountId)) {
+        throw new GameError('This NEAR account already has a garden', 409);
+      }
+    } else {
+      const keyPair = KeyPair.fromRandom('ed25519');
+      publicKey = keyPair.getPublicKey().toString();
+      secretEnc = encryptSecret(keyPair.toString(), this.d.masterKey);
+    }
 
     const playerId = tx(this.db, () => {
       // Anti-cheat: limit welcome packs per IP per real day (never block the login itself).
@@ -191,12 +222,23 @@ export class Game {
         : 0;
       const res = this.db
         .prepare(
-          `INSERT INTO players (user_id, name, account_id, public_key, secret_key_enc, account_status, demo, created_ip, created_at)
-           VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+          `INSERT INTO players (user_id, name, account_id, public_key, secret_key_enc, account_status, custody, demo, created_ip, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(userId, name, accountId, publicKey, secretEnc, (demo ?? this.d.demoModeDefault) ? 1 : 0, ip, now);
+        .run(
+          userId,
+          name,
+          accountId,
+          publicKey,
+          secretEnc,
+          wallet ? 'ready' : 'pending',
+          wallet ? 'wallet' : 'server',
+          (demo ?? this.d.demoModeDefault) ? 1 : 0,
+          ip,
+          now,
+        );
       const id = Number(res.lastInsertRowid);
-      enqueue(this.db, id, { kind: 'create_account', name, publicKey }, now);
+      if (!wallet) enqueue(this.db, id, { kind: 'create_account', name, publicKey }, now);
 
       if (fromIp < WELCOME_PACKS_PER_IP_PER_DAY) {
         this.addSeed(id, 'durian', 'rare', null, 'welcome');
@@ -654,31 +696,107 @@ export class Game {
     });
   }
 
-  buy(playerId: number, item: ShopItem, qty = 1) {
-    return tx(this.db, () => {
-      const p = this.getPlayer(playerId);
-      this.assertAccountOk(p);
-      const entry = SHOP_ITEMS[item];
-      if (!entry) throw new GameError('Unknown item');
-      if (!Number.isInteger(qty) || qty < 1 || qty > 20) throw new GameError('Quantity must be 1-20');
-      const costMicro = toMicro(entry.price * qty);
-      if (p.balance_micro < costMicro) throw new GameError('Not enough PANEN');
-      const isSeed = item.startsWith('seed_');
-      if (isSeed && this.seedCount(p.id) + qty > SEED_STORAGE_SLOTS) throw new GameError('Your seed storage is full');
+  /** Checks a Shop purchase and returns its price and memo (also used to prepare wallet burns). */
+  shopQuote(playerId: number, item: ShopItem, qty: number) {
+    const p = this.getPlayer(playerId);
+    this.assertAccountOk(p);
+    const entry = SHOP_ITEMS[item];
+    if (!entry) throw new GameError('Unknown item');
+    if (!Number.isInteger(qty) || qty < 1 || qty > 20) throw new GameError('Quantity must be 1-20');
+    const costMicro = toMicro(entry.price * qty);
+    if (p.balance_micro < costMicro) throw new GameError('Not enough PANEN');
+    const isSeed = item.startsWith('seed_');
+    if (isSeed && this.seedCount(p.id) + qty > SEED_STORAGE_SLOTS) throw new GameError('Your seed storage is full');
+    return { p, entry, costMicro, isSeed, memo: `Shop: ${qty} x ${entry.name}` };
+  }
 
+  /**
+   * Shop purchase; the spent PANEN is burned on chain. Google players: the server
+   * signs the burn with their stored key. Wallet players: `signed` is the burn their
+   * browser signed with the game key; it must match this exact purchase.
+   */
+  buy(playerId: number, item: ShopItem, qty = 1, signed?: SignedBurn) {
+    return tx(this.db, () => {
+      const { p, entry, costMicro, isSeed, memo } = this.shopQuote(playerId, item, qty);
       const now = this.d.now();
-      const note = `Shop: ${qty} x ${entry.name}`;
-      const ledgerId = this.ledger(p.id, 'shop', -costMicro, note);
-      const jobId = enqueue(this.db, p.id, { kind: 'burn', accountId: p.account_id, amountMicro: costMicro, memo: note, ledgerId }, now);
-      this.db.prepare('UPDATE ledger SET job_id = ? WHERE id = ?').run(jobId, ledgerId);
+      let wallet: { nonce: bigint; signed: SignedBurn } | null = null;
+      if (p.custody === 'wallet') {
+        if (!signed) throw new GameError('Please confirm the purchase with your game key', 400, { code: 'signature_required' });
+        let nonce: bigint;
+        try {
+          nonce = BigInt(signed.nonce);
+          BigInt(signed.maxBlockHeight);
+        } catch {
+          throw new GameError('Invalid signed burn');
+        }
+        if (nonce <= BigInt(p.key_nonce)) throw new GameError('This purchase was already signed, please try again', 409, { code: 'nonce_used' });
+        const hash = burnDelegateHash({
+          accountId: p.account_id,
+          publicKey: signed.publicKey,
+          nonce,
+          maxBlockHeight: BigInt(signed.maxBlockHeight),
+          amount: BigInt(costMicro) * UNITS_PER_MICRO,
+          memo,
+          panenContractId: this.d.panenContractId ?? 'panen.nearvest.testnet',
+        });
+        if (!verifySignature(signed.publicKey, hash, signed.signature)) {
+          throw new GameError('The signed burn does not match this purchase', 400, { code: 'bad_signature' });
+        }
+        wallet = { nonce, signed };
+      }
+
+      const ledgerId = this.ledger(p.id, 'shop', -costMicro, memo);
       this.db.prepare('UPDATE players SET balance_micro = balance_micro - ? WHERE id = ?').run(costMicro, p.id);
+      const seedIds: number[] = [];
       if (isSeed) {
         const species = item.slice('seed_'.length) as Species;
-        for (let i = 0; i < qty; i++) this.addSeed(p.id, species, null, null, 'shop');
+        for (let i = 0; i < qty; i++) seedIds.push(this.addSeed(p.id, species, null, null, 'shop'));
       } else {
         this.addItem(p.id, item, qty);
       }
+      const jobId = wallet
+        ? enqueue(
+            this.db,
+            p.id,
+            {
+              kind: 'burn_wallet',
+              accountId: p.account_id,
+              publicKey: wallet.signed.publicKey,
+              nonce: wallet.nonce.toString(),
+              maxBlockHeight: wallet.signed.maxBlockHeight,
+              amountMicro: costMicro,
+              memo,
+              signature: wallet.signed.signature,
+              ledgerId,
+              grant: { item, qty, seedIds },
+            },
+            now,
+          )
+        : enqueue(this.db, p.id, { kind: 'burn', accountId: p.account_id, amountMicro: costMicro, memo, ledgerId }, now);
+      this.db.prepare('UPDATE ledger SET job_id = ? WHERE id = ?').run(jobId, ledgerId);
+      if (wallet) this.db.prepare('UPDATE players SET key_nonce = ? WHERE id = ?').run(Number(wallet.nonce), p.id);
       return { bought: item, qty, burnedPanen: entry.price * qty };
+    });
+  }
+
+  /**
+   * Wallet players own their tokens and can move them outside the game, so the
+   * chain is the source of truth: balance = chain balance + effect of jobs not sent yet.
+   */
+  syncWalletBalance(playerId: number, chainUnits: bigint): void {
+    tx(this.db, () => {
+      const p = this.getPlayer(playerId);
+      if (p.custody !== 'wallet') return;
+      const pending = this.db
+        .prepare(
+          `SELECT COALESCE(SUM(l.amount_micro), 0) AS n FROM ledger l JOIN chain_jobs j ON j.id = l.job_id
+           WHERE l.player_id = ? AND j.status = 'pending'`,
+        )
+        .get(p.id) as { n: number };
+      const expected = Number(chainUnits / UNITS_PER_MICRO) + pending.n;
+      if (expected !== p.balance_micro) {
+        this.db.prepare('UPDATE players SET balance_micro = ? WHERE id = ?').run(Math.max(0, expected), p.id);
+      }
     });
   }
 
@@ -740,6 +858,7 @@ export class Game {
         name: p.name,
         accountId: p.account_id,
         accountStatus: p.account_status,
+        custody: p.custody,
         demo,
         balance: fromMicro(p.balance_micro),
         xp: p.xp,

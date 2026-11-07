@@ -3,6 +3,7 @@
 
 import { randomBytes } from 'node:crypto';
 import type { Quality, Species, Stage } from '../rules.ts';
+import { burnDelegateHash, isGameKey, verifySignature, type AccessKeyPermission, type BurnDelegate } from '../wallet.ts';
 import { PermanentChainError, type Chain, type ChainVillageStats, type TxResult } from './types.ts';
 
 interface FakeTree {
@@ -27,6 +28,16 @@ export class FakeChain implements Chain {
   calls: { method: string; args: unknown }[] = [];
   /** Make the next N calls fail with a temporary error (retry tests). */
   failNext = 0;
+  /** Access keys of wallet accounts: `${accountId} ${publicKey}`. */
+  accessKeys = new Map<string, { nonce: bigint; permission: AccessKeyPermission }>();
+  height = 1000n;
+  panenContractId = 'panen.nearvest.testnet';
+
+  /** Tests: give a wallet account a key (as if the player's wallet added it). */
+  addAccessKey(accountId: string, publicKey: string, permission: AccessKeyPermission, nonce = 5n): void {
+    this.accounts.add(accountId);
+    this.accessKeys.set(`${accountId} ${publicKey}`, { nonce, permission });
+  }
 
   private hash(): TxResult {
     return { txHash: 'fake' + randomBytes(8).toString('hex') };
@@ -126,5 +137,33 @@ export class FakeChain implements Chain {
 
   async treeSupply(): Promise<number> {
     return this.trees.size;
+  }
+
+  async viewAccessKey(accountId: string, publicKey: string) {
+    return this.accessKeys.get(`${accountId} ${publicKey}`) ?? null;
+  }
+
+  async blockHeight(): Promise<bigint> {
+    return this.height;
+  }
+
+  async ftBalanceOf(accountId: string): Promise<bigint> {
+    return this.balances.get(accountId) ?? 0n;
+  }
+
+  /** Same checks as the NEAR runtime: key permission, signature, nonce, expiry, balance. */
+  async relayWalletBurn(d: BurnDelegate, signature: string) {
+    this.record('relay_burn', { accountId: d.accountId, amount: d.amount, memo: d.memo, nonce: d.nonce });
+    const key = this.accessKeys.get(`${d.accountId} ${d.publicKey}`);
+    if (!key || !isGameKey(key.permission, this.panenContractId)) throw new PermanentChainError('AccessKeyNotFound');
+    if (!verifySignature(d.publicKey, burnDelegateHash(d), signature)) throw new PermanentChainError('DelegateActionInvalidSignature');
+    if (d.nonce <= key.nonce) throw new PermanentChainError('DelegateActionInvalidNonce');
+    if (d.maxBlockHeight < this.height) throw new PermanentChainError('DelegateActionExpired');
+    key.nonce = d.nonce;
+    const balance = this.balances.get(d.accountId) ?? 0n;
+    if (balance < d.amount) throw new PermanentChainError("The account doesn't have enough balance");
+    this.balances.set(d.accountId, balance - d.amount);
+    this.totalBurned += d.amount;
+    return this.hash();
   }
 }
