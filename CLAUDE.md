@@ -173,7 +173,7 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - **Thu 12 Nov:** interactive backdrop (hotspots to Shop / Market / Village, a train passes about every 2 minutes); simple garden visits (farmer list -> view their garden -> help water 1 tree per day, both get a little XP; template stickers / messages, no free chat); share popup per moment; referral.
 - **Fri 13 Nov morning:** simple Arena (not real-time): challenge another player's garden; best-fruit contest in 3 rounds with a TaniBot duel animation; NO wagering of players' tokens; the winner gets a small PANEN prize from the game via `mint_reward` (follows the Season rule), a few duels per day; result + tx link in the log. If the schedule slips, Arena goes back to "coming soon".
 - **Fri 13 Nov afternoon:** feature freeze. **Fri evening:** README + demo video. **Sat 14 Nov:** submit.
-- Moved forward to Sat 7 Nov: living trees, living sky + dusk backdrop, login evolution journey, `?time=` lock, share card layout.
+- Moved forward and **done Sat 7 Nov**: living trees (`art/trees.tsx`: 3 shapes per species from the NFT id, sway, falling leaves), living sky + dusk backdrop (`art/sky.tsx`, `bg-dusk*.png`), login evolution journey, `?time=day|dusk|night` (dev builds), share card layout (`share.tsx`). Still to do Wed: weather + wilting, ambient sound.
 
 ## 9-day work plan (from the GDD, "Rencana kerja 9 hari")
 
