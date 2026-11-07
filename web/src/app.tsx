@@ -3,7 +3,7 @@
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
-import { TaniBot, TaniBotHead, tierOf, tierRank } from './art/tanibot';
+import { TaniBot, TaniBotHead, TIER_TITLE, TIERS, tierOf, tierRank } from './art/tanibot';
 import { getAudioPrefs, initAudio, onAudioPrefsChange, playSound, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
 import { HowToPlay, Modal, PanenInfo } from './help';
@@ -840,7 +840,7 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
     <div class="login-page">
       <div class="login-bg" aria-hidden="true" />
     <main class="shell center login">
-      <TaniBot tier="seedling" scale={3} />
+      <EvolutionJourney />
       <h1 class="logo">NEARvest</h1>
       <p class="tagline">Grow. Harvest. Own.</p>
       <p class="login-lead">A pixel farming game where your tree is a living NFT and an AI farmer tends it while you sleep.</p>
@@ -889,6 +889,23 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
         Runs on NEAR {config.network}. Sign in with Google (no wallet needed, the game pays all fees) or with your NEAR wallet. Testnet tokens have no real value.
       </p>
     </main>
+    </div>
+  );
+}
+
+/** Login page: the six TaniBots from Seedling to Legend, the evolution journey (swipe on phones). */
+function EvolutionJourney() {
+  const wide = useWide();
+  return (
+    <div class="journey" role="img" aria-label="TaniBot evolves with your title: Seedling, Farmhand, Farmer, Orchard Master, Durian King, Legend">
+      <div class="journey-track">
+        {TIERS.map((t, i) => (
+          <figure key={t} class={`journey-step tier-${t}`} style={{ '--i': String(i) }}>
+            <TaniBot tier={t} scale={wide ? 2 : 1} />
+            <figcaption>{TIER_TITLE[t]}</figcaption>
+          </figure>
+        ))}
+      </div>
     </div>
   );
 }
