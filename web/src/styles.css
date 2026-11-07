@@ -5133,3 +5133,45 @@ button.chip:focus-visible {
 .chip-panen.bump {
   animation: bump 0.4s steps(2);
 }
+
+/* Dev preview: TaniBot evolutions on a strip of the garden. */
+.evo-note {
+  max-width: 900px;
+  font-size: 13px;
+}
+
+.evo-block h3 {
+  margin: 12px 0 6px;
+  font-size: 14px;
+}
+
+.evo-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  padding: 12px 16px 8px;
+  background:
+    linear-gradient(transparent 72%, rgba(60, 40, 20, 0.55) 72%),
+    url('/assets/bg/bg-day-hd.png') center 72% / cover no-repeat;
+  image-rendering: pixelated;
+  border: 2px solid #000;
+}
+
+.evo-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.evo-cell svg {
+  image-rendering: pixelated;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.25));
+}
+
+.evo-cell small {
+  color: #fff;
+  font-size: 11px;
+  text-shadow: 1px 1px 0 #000;
+}
