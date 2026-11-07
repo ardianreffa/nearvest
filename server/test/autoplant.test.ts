@@ -62,6 +62,23 @@ describe('TaniBot auto-plant', () => {
     assert.equal(w.chain.trees.size, 1);
   });
 
+  it('Thrifty never buys: with no seed left the bot budget and today\'s spending stay the same', async () => {
+    const w = makeWorld({ demo: true });
+    const p = await botGarden(w, 'thrifty', { dailyLimit: 20, budget: 20 });
+    w.tanibot.settings(p.id, { autoPlant: 'common' });
+    const before = w.tanibot.view(p.id)!;
+    for (let i = 0; i < 3; i++) w.tanibot.run(p.id);
+    await w.worker.drain();
+    await w.tanibot.sync(p.id);
+    const after = w.tanibot.view(p.id)!;
+    assert.equal(after.budget, before.budget, 'budget unchanged');
+    assert.equal(after.budget, 20);
+    assert.equal(after.spentToday, 0);
+    assert.equal(await w.chain.ftBalanceOf(after.accountId), 20n * UNIT, 'nothing burned from the bot wallet');
+    assert.ok(!after.log.some((l) => l.action === 'buy'), 'no purchase in the Log');
+    assert.deepEqual(trees(w, p.id), ['empty', 'empty', 'locked'], 'the Rare Durian was not planted either');
+  });
+
   it('Balanced buys a Mango seed from the bot budget (burned, within the daily limit) when none is left', async () => {
     const w = makeWorld({ demo: true });
     const p = await botGarden(w, 'balanced', { dailyLimit: 5, budget: 20 });
