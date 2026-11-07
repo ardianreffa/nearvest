@@ -378,6 +378,15 @@ try {
         console.log('birds:', await evaluate(`[...document.querySelectorAll('.bird')].filter(b => getComputedStyle(b.closest('.sky-day, .sky-dusk')).opacity > 0).slice(0, 2).map(b => { const r = b.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }).join(' | ') || 'none visible'`));
         await screenshot('birds');
       }
+      if (process.env.ANIMALS) {
+        await evaluate(`document.querySelector('.drawer-close')?.click()`);
+        await sleep(400);
+        // Freeze the animals mid-lane and the mouse-deer while it peeks out.
+        await evaluate(`(() => { document.querySelectorAll('.animal:not(.kancil)').forEach((a, i) => { a.style.animationDelay = '-' + (8 + i * 3) + 's'; a.style.animationPlayState = 'paused'; }); const k = document.querySelector('.kancil'); if (k) { k.style.animationDelay = '-4s'; k.style.animationPlayState = 'paused'; } })()`);
+        await sleep(300);
+        console.log('animals:', await evaluate(`[...document.querySelectorAll('.animal')].map(a => { const r = a.getBoundingClientRect(); return a.className.split(' ')[1] + ' ' + Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' op ' + getComputedStyle(a).opacity; }).join(' | ')`), '| layer opacity', await evaluate(`getComputedStyle(document.querySelector('.animals')).opacity`));
+        await screenshot('animals');
+      }
       // Any sky element bigger than 3 game pixels drawn as a plain box (no picture inside, solid fill)?
       console.log('plain boxes in the sky:', await evaluate(`(() => { const art = document.querySelector('.bg-art').getBoundingClientRect(); const px = art.width / 240; return [...document.querySelectorAll('.sky *, .bg-fx > *')].filter(e => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); if (r.width < 3 * px || r.height < 3 * px || e.querySelector('svg, img') || e.tagName === 'svg' || e.closest('svg')) return false; const solid = cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundImage === 'none' && cs.clipPath === 'none' && cs.borderRadius === '0px'; return solid && parseFloat(cs.opacity) > 0.05; }).map(e => e.className).join(', ') || 'none'; })()`));
       console.log('sky layers (day / dusk / night opacity):', await evaluate(`['.sky-day', '.sky-dusk', '.sky-night'].map(s => getComputedStyle(document.querySelector(s)).opacity).join(' / ')`), '| phase:', await evaluate(`document.querySelector('.scene').className`));

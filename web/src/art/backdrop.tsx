@@ -11,6 +11,7 @@
 // All coordinates are art pixels of the 240x135 phone image (the laptop image is 480x270).
 
 import { Drone } from './tanibot';
+import { Animals } from './animals';
 import { Train, TRAIN_CLIP } from './train';
 import { Hotspots, type Place } from './hotspots';
 import { at, SkyBack, SkyBands, SkyFront } from './sky';
@@ -168,6 +169,7 @@ export function Backdrop({ fraction, blurFill = false, hd = false, onPlace, acco
             <i class="flyby-shadow" style={at(2, 99, 6, 1.5)} />
           </div>
         </div>
+        <Animals />
         <SkyFront />
         <div class="bg-night-shade" />
         {onPlace && <Hotspots onPlace={onPlace} account={account} />}
