@@ -13,7 +13,7 @@ Draft numbers live in `server/src/rules.ts` and are tuned in testing. Sounds and
 | 1 | Ambient sound layer | Important | Wed 11 Nov |
 | 5 | Share-to-X popup + moment animations | Important | Thu 12 Nov |
 | 6 | Referral via share link | Important | Thu 12 Nov |
-| 7 | Market tab layout | Polish | Fri 13 Nov |
+| 7 | Market tab layout | Polish | Done Sat 7 Nov (moved forward) |
 | 2 | Check-in surprise bonus | Polish | Fri 13 Nov |
 | 4 | Pests | Bonus (only if time) | Thu 12 Nov, if time |
 | - | Pruning / tidying trees | Skipped (not in GDD) | - |
@@ -60,7 +60,7 @@ Draft numbers live in `server/src/rules.ts` and are tuned in testing. Sounds and
 
 ## Polish
 
-**7. Market tab**
+**7. Market tab** (done 2026-11-07)
 - Panel title "Today's Prices".
 - Mr. Darto introduces himself in the speech bubble, e.g. "Welcome, farmer! I'm Mr. Darto. Show me what you've got!"
 - One row per fruit: icon, today's price, owned count, Sell button. Selling needs no scrolling.

@@ -8,6 +8,7 @@ import { MarketBackdrop, ShopBackdrop } from './art/scenes';
 import { MOMENT_LABELS, openShare, type MomentKind } from './share';
 import { ShopStall } from './art/shop';
 import { Sprite } from './sprites';
+import { clampQty, saleTotal, seasonPayout, stepQty } from './qty';
 import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QtyPicker, QualityTag, QUALITY_NAME, SPECIES_NAME, type SeedGroup } from './ui';
 
 const QUALITY_MULT = { common: 1, rare: 2, gold: 5 } as const;
@@ -160,117 +161,208 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
     }
   };
   const seedGroups = groupSeeds(state.seeds);
+  const owned = (species: Species) => state.fruits.filter((f) => f.species === species && f.qty > 0);
+  const seedCount = seedGroups.reduce((n, g) => n + g.ids.length, 0);
   return (
     <>
-      <Panel title="Mr. Darto">
+      <Panel title="Today's Prices" class="market-panel">
         <div class="market-scene" ref={sceneRef}>
           <MarketBackdrop />
           <DartoFigure pose={pose} fruit={heldFruit} scale={2} />
           <HoverCart scale={2} />
-          <p class="speech">"{d.greeting}"</p>
+          <p class="speech">"Welcome, farmer! I'm Mr. Darto. Show me what you've got! {d.greeting}"</p>
         </div>
-        <ul class="list prices">
-          {d.prices.map((p) => {
-            const pos = ((p.price - p.min) / (p.max - p.min)) * 100;
-            return (
-              <li key={p.species}>
-                <FruitIcon species={p.species} />
-                <span class="grow">
-                  {SPECIES_NAME[p.species]}
-                  <span class="range" aria-hidden="true">
-                    <span class="range-dot" style={{ left: `${pos}%` }} />
-                  </span>
-                  <span class="muted small">
-                    {p.min} - {p.max}
-                  </span>
-                </span>
-                <b class={p.price >= p.base ? 'up' : 'down'}>{p.price}</b>
-              </li>
-            );
-          })}
-        </ul>
-        <p class="muted small">Prices change every day. They never drop below the seed price. Rare fruit pays x2, Gold x5.</p>
-      </Panel>
-      <Panel title="Sell your fruit">
         {thanks > 0 && (
           <div class="darto-thanks" key={thanks} role="status">
             <DartoFace scale={1} />
             <span class="speech">Thanks!</span>
           </div>
         )}
-        {state.fruits.length === 0 ? (
-          <p class="muted">You have no fruit to sell.</p>
-        ) : (
-          <ul class="list">
-            {state.fruits.map((f) => {
-              const shown = d.prices.find((p) => p.species === f.species)!.price;
-              return (
-                <li key={`${f.species}-${f.quality}`} class="seed-row">
-                  <div class="seed-row-main">
-                    <FruitIcon species={f.species} />
-                    <span class="grow">
-                      {QUALITY_NAME[f.quality]} {SPECIES_NAME[f.species]} <b>x{f.qty}</b>
-                      <span class="tiny block">
-                        {shown} PANEN each{QUALITY_MULT[f.quality] > 1 ? ` x${QUALITY_MULT[f.quality]} (${QUALITY_NAME[f.quality]})` : ''}
-                      </span>
-                    </span>
-                  </div>
-                  <QtyPicker
-                    key={`${f.species}-${f.quality}-${f.qty}`}
-                    max={f.qty}
-                    unitPrice={shown}
-                    multiplier={QUALITY_MULT[f.quality]}
-                    season={state.season}
-                    busy={busy}
-                    actionLabel="Sell"
-                    onAction={(qty) => {
-                      react(f.species);
-                      void sell(f.species, f.quality, qty, shown);
-                    }}
-                  />
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <ul class="market-rows">
+          {d.prices.map((p) => (
+            <FruitRow
+              key={p.species}
+              price={p}
+              owned={owned(p.species)}
+              season={state.season}
+              busy={busy}
+              onSell={(quality, qty) => {
+                react(p.species);
+                void sell(p.species, quality, qty, p.price);
+              }}
+            />
+          ))}
+        </ul>
         <p class="muted small">
+          Prices change every day and never drop below the seed price. Rare pays x2, Gold x5.{' '}
           {state.season.divisor > 1
-            ? `Season ${state.season.number}: harvest rewards ${formatPanen(state.season.rewardPercent)}%. The amounts on the buttons are what you receive.`
-            : 'The amounts on the buttons are what you receive.'}
+            ? `Season ${state.season.number}: harvest rewards ${formatPanen(state.season.rewardPercent)}%. The amount on Sell is what you receive.`
+            : 'The amount on Sell is what you receive.'}
         </p>
       </Panel>
       {seedGroups.length > 0 && (
-        <Panel title="Sell seeds" right={<span class="muted small">{state.seedSlots.used}/{state.seedSlots.max} slots</span>}>
+        <details class="panel sell-seeds">
+          <summary class="panel-head">
+            <h2>Sell seeds</h2>
+            <span class="muted small">
+              {seedCount} in storage · {state.seedSlots.used}/{state.seedSlots.max} slots
+            </span>
+          </summary>
           <p class="muted small">Mr. Darto also buys seeds, cheaply. Handy when your storage is full.</p>
-          <ul class="list">
+          <ul class="market-rows">
             {seedGroups.map((g) => (
-              <li key={g.key} class="seed-row">
-                <div class="seed-row-main">
-                  <FruitIcon species={g.species} />
-                  <span class="grow">
-                    {SPECIES_NAME[g.species]} seed <b>x{g.ids.length}</b>
-                    {g.fromTree && <span class="tiny block">from your tree</span>}
-                  </span>
-                  <QualityTag quality={g.quality} />
-                </div>
-                <QtyPicker
-                  key={`${g.key}-${g.ids.length}`}
-                  max={g.ids.length}
-                  unitPrice={seedPrice(config, g)}
-                  season={state.season}
-                  busy={busy}
-                  actionLabel="Sell"
-                  onAction={(qty) => {
-                    react(g.species);
-                    void act('/api/seeds/sell', { seedIds: g.ids.slice(0, qty) }, `Sold ${qty} ${SPECIES_NAME[g.species]} seed${qty > 1 ? 's' : ''}`);
-                  }}
-                />
-              </li>
+              <SeedSellRow
+                key={g.key}
+                group={g}
+                unitPrice={seedPrice(config, g)}
+                season={state.season}
+                busy={busy}
+                onSell={(qty) => {
+                  react(g.species);
+                  void act('/api/seeds/sell', { seedIds: g.ids.slice(0, qty) }, `Sold ${qty} ${SPECIES_NAME[g.species]} seed${qty > 1 ? 's' : ''}`);
+                }}
+              />
             ))}
           </ul>
-        </Panel>
+        </details>
       )}
     </>
+  );
+}
+
+type Season = GameState['season'];
+
+/** - / amount / + / Max and a Sell button showing what the player really receives. */
+function SellControl({
+  max,
+  unitPrice,
+  multiplier = 1,
+  season,
+  busy,
+  onSell,
+}: {
+  max: number;
+  unitPrice: number;
+  multiplier?: number;
+  season: Season;
+  busy: boolean;
+  onSell: (qty: number) => void;
+}) {
+  const [picked, setPicked] = useState(1);
+  const qty = clampQty(picked, max);
+  const total = seasonPayout(saleTotal(unitPrice, multiplier, qty), season.divisor);
+  const none = max < 1;
+  return (
+    <div class="sell-ctl">
+      <button class="btn btn-small sell-step" aria-label="One less" disabled={busy || none || qty <= 1} onClick={() => setPicked(stepQty(qty, -1, max))}>
+        -
+      </button>
+      <span class="sell-qty" aria-live="polite">
+        {qty}
+      </span>
+      <button class="btn btn-small sell-step" aria-label="One more" disabled={busy || none || qty >= max} onClick={() => setPicked(stepQty(qty, 1, max))}>
+        +
+      </button>
+      <button class="btn btn-small sell-max" disabled={busy || none || qty >= max} onClick={() => setPicked(max)}>
+        Max
+      </button>
+      <button class="btn btn-small btn-gold sell-go" disabled={busy || none} onClick={() => onSell(qty)}>
+        {none ? 'Sell' : `Sell ${formatPanen(total)}`}
+      </button>
+    </div>
+  );
+}
+
+/** One fruit: today's price (with its range), what you own per quality, and selling, all in one row. */
+function FruitRow({
+  price,
+  owned,
+  season,
+  busy,
+  onSell,
+}: {
+  price: { species: Species; price: number; base: number; min: number; max: number };
+  owned: { quality: Quality; qty: number }[];
+  season: Season;
+  busy: boolean;
+  onSell: (quality: Quality, qty: number) => void;
+}) {
+  const [quality, setQuality] = useState<Quality | null>(owned[0]?.quality ?? null);
+  const chosen = owned.find((o) => o.quality === quality) ?? owned[0] ?? null;
+  const pos = ((price.price - price.min) / Math.max(1, price.max - price.min)) * 100;
+  return (
+    <li class={`market-row${chosen ? '' : ' empty'}`}>
+      <div class="market-row-head">
+        <FruitIcon species={price.species} scale={3} />
+        <span class="market-name">{SPECIES_NAME[price.species]}</span>
+        <span class="market-price">
+          <b class={price.price >= price.base ? 'up' : 'down'}>{price.price}</b>
+          <span class="tiny"> PANEN</span>
+        </span>
+        <span class="market-range" title={`Today's range ${price.min}-${price.max} (normal ${price.base})`}>
+          <span class="range" aria-hidden="true">
+            <span class="range-dot" style={{ left: `${pos}%` }} />
+          </span>
+          <span class="tiny">
+            {price.min}-{price.max}
+          </span>
+        </span>
+      </div>
+      <div class="market-row-sell">
+        {owned.length === 0 ? (
+          <span class="muted small market-none">None in storage</span>
+        ) : (
+          <span class="market-owned" role="radiogroup" aria-label={`${SPECIES_NAME[price.species]} quality to sell`}>
+            {owned.map((o) => (
+              <button
+                key={o.quality}
+                role="radio"
+                aria-checked={chosen?.quality === o.quality}
+                class={`owned-chip q-${o.quality}${chosen?.quality === o.quality ? ' selected' : ''}`}
+                onClick={() => setQuality(o.quality)}
+                title={o.quality === 'common' ? undefined : `${QUALITY_NAME[o.quality]} pays x${QUALITY_MULT[o.quality]}`}
+              >
+                {QUALITY_NAME[o.quality]} x{o.qty}
+              </button>
+            ))}
+          </span>
+        )}
+        <SellControl
+          key={`${chosen?.quality ?? 'none'}-${chosen?.qty ?? 0}`}
+          max={chosen?.qty ?? 0}
+          unitPrice={price.price}
+          multiplier={chosen ? QUALITY_MULT[chosen.quality] : 1}
+          season={season}
+          busy={busy}
+          onSell={(qty) => chosen && onSell(chosen.quality, qty)}
+        />
+      </div>
+    </li>
+  );
+}
+
+/** One kind of seed in the same row pattern. */
+function SeedSellRow({ group, unitPrice, season, busy, onSell }: { group: SeedGroup; unitPrice: number; season: Season; busy: boolean; onSell: (qty: number) => void }) {
+  return (
+    <li class="market-row">
+      <div class="market-row-head">
+        <FruitIcon species={group.species} scale={3} />
+        <span class="market-name">{SPECIES_NAME[group.species]} seed</span>
+        <span class="market-price">
+          <b>{unitPrice}</b>
+          <span class="tiny"> each</span>
+        </span>
+      </div>
+      <div class="market-row-sell">
+        <span class="market-owned">
+          <span class={`owned-chip q-${group.quality ?? 'unknown'} selected`}>
+            {group.quality ? QUALITY_NAME[group.quality] : 'Unknown'} x{group.ids.length}
+          </span>
+          {group.fromTree && <span class="tiny">from your tree</span>}
+        </span>
+        <SellControl key={`${group.key}-${group.ids.length}`} max={group.ids.length} unitPrice={unitPrice} season={season} busy={busy} onSell={onSell} />
+      </div>
+    </li>
   );
 }
 

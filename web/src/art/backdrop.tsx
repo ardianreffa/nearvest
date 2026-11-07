@@ -98,8 +98,8 @@ function MiniDrone() {
 }
 
 /**
- * `hd` uses the 480x270 versions (laptop immersive mode, drawn at a whole
- * number of px per pixel); phones use the 240x135 ones.
+ * `hd` uses the 480x270 versions (laptop immersive mode, drawn at a whole or
+ * half number of px per pixel); phones use the 240x135 ones.
  */
 export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction: number; blurFill?: boolean; hd?: boolean }) {
   const daySrc = hd ? '/assets/bg/bg-day-hd.png' : '/assets/bg/bg-day.png';

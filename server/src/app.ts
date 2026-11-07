@@ -235,7 +235,8 @@ export function createApp(deps: AppDeps) {
   app.post('/api/tanibot/settings', async (c) => {
     const pid = playerId(c);
     tanibot.settings(pid, await body(c));
-    return c.json(await botView(pid));
+    // The garden shows ON/OFF right away (sleeping pose, goodbye bubble).
+    return c.json({ ...(await botView(pid)), state: game.state(pid) });
   });
 
   app.post('/api/tanibot/fund', async (c) => {

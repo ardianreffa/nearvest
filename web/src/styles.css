@@ -4516,3 +4516,272 @@ button.balance:focus-visible {
 .bot-status {
   transition: opacity 0.2s;
 }
+
+/* ---------- Market: one row per fruit (price + what you own + selling) ---------- */
+
+.market-rows {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.market-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: #fffaf0;
+  border: 2px solid #d8c79c;
+  border-radius: 6px;
+  box-shadow: inset 0 -2px 0 #eadcb4;
+}
+
+.market-row.empty {
+  background: #f7f0dc;
+}
+
+.market-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.market-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: #1b1b2f;
+}
+
+.market-price {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.market-price b {
+  font-size: 20px;
+}
+
+.market-price b.up {
+  color: var(--leaf-dark);
+}
+
+.market-price b.down {
+  color: #b45309;
+}
+
+.market-range {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  width: 70px;
+  color: var(--ink-soft);
+}
+
+.market-range .range {
+  width: 100%;
+}
+
+.market-row-sell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.market-owned {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.market-none {
+  margin: 0;
+}
+
+.owned-chip {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 2px solid #b8a780;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.owned-chip.selected {
+  border-color: #1b1b2f;
+  box-shadow: 0 0 0 2px var(--mint);
+}
+
+.owned-chip.q-common {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.owned-chip.q-rare {
+  background: var(--purple);
+  color: #fff;
+}
+
+.owned-chip.q-gold {
+  background: var(--gold);
+  color: #3b2a00;
+}
+
+.owned-chip.q-unknown {
+  background: transparent;
+  color: var(--ink-soft);
+  border-style: dashed;
+}
+
+.sell-ctl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.sell-ctl .btn-small {
+  min-height: 32px;
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
+.sell-step {
+  width: 32px;
+  padding: 0 !important;
+}
+
+.sell-qty {
+  min-width: 26px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.sell-go {
+  min-width: 84px;
+}
+
+/* Seeds: a folding section with the same rows. */
+details.sell-seeds {
+  margin-top: 12px;
+}
+
+details.sell-seeds > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+details.sell-seeds > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.sell-seeds > summary h2::before {
+  content: '+ ';
+}
+
+details.sell-seeds[open] > summary h2::before {
+  content: '- ';
+}
+
+/* Laptop drawer: a shorter market picture so prices and selling fit without scrolling. */
+.wide .market-scene,
+.hud .market-scene {
+  height: 132px;
+}
+
+.hud .market-scene .speech {
+  font-size: 12px;
+}
+
+/* Goodbye bubble when TaniBot is switched off: shows ~5 s, then fades. */
+.bot-bye {
+  animation: bot-hint-in 0.4s ease-out forwards, bot-hint-out 0.6s ease-in 4.4s forwards;
+}
+
+/* ---------- Check-in shortcut in the rail: always there ---------- */
+
+.rail-checkin {
+  animation: none;
+}
+
+.rail-checkin-icon {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.rail-checkin.ready {
+  border-color: var(--gold);
+  animation: rail-glow 1.4s ease-in-out infinite;
+}
+
+.rail-checkin.done {
+  border-color: rgba(0, 236, 151, 0.55);
+}
+
+.rail-checkin.done span:last-child {
+  font-size: 10px;
+  color: #c9f7e3;
+}
+
+.rail-dot {
+  position: absolute;
+  top: -3px;
+  right: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #1b1b2f;
+  box-shadow: 0 0 6px #ef4444;
+}
+
+.rail-check {
+  position: absolute;
+  right: -7px;
+  bottom: -5px;
+  width: 16px;
+  height: 16px;
+  font-style: normal;
+  font-size: 11px;
+  line-height: 13px;
+  text-align: center;
+  color: #053b26;
+  background: var(--mint);
+  border: 2px solid #1b1b2f;
+  border-radius: 50%;
+}
+
+@keyframes rail-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 197, 66, 0);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px rgba(245, 197, 66, 0.75);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-checkin.ready {
+    animation: none;
+    box-shadow: 0 0 10px 2px rgba(245, 197, 66, 0.6);
+  }
+}

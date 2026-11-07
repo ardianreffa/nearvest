@@ -41,51 +41,10 @@ function botX(plot: number, lane: Lane): number {
   return plot < 2 ? plotCenter(plot, lane) + lane.botOffset : plotCenter(plot, lane) - lane.botOffset;
 }
 
-// ---------- Immersive layout (laptop / PC) ----------
+// ---------- Immersive layout (laptop / PC): web/src/layout.ts ----------
 
-export const ART_W = 240;
-export const ART_H = 135;
-/** Art rows: grass ends at 103, the beds sit on rows 104-110. */
-const SOIL_TOP_ROW = 104;
-const BED_ROWS = 7;
-
-export interface Immersive {
-  /**
-   * CSS px per pixel of the 240x135 art grid (trees and plots use it). The
-   * laptop backdrop is the 480x270 HD image at k / 2 px per pixel, always whole.
-   */
-  k: number;
-  artLeft: number;
-  artBottom: number;
-  stageLeft: number;
-  stageRight: number;
-  stageBottom: number;
-}
-
-/**
- * Picks a whole-number pixel scale for a full-window garden: cover the window
- * when that crops at most 20% of the width, otherwise fit it (the rest is filled
- * with a blurred copy of the backdrop). The plots get a stage that avoids the
- * open drawer and the action bar.
- */
-export function immersiveLayout(width: number, height: number, drawerWidth: number, barHeight: number): Immersive {
-  // Whole-pixel scale of the HD (480x270) backdrop.
-  const hdW = ART_W * 2;
-  const hdH = ART_H * 2;
-  const cover = Math.ceil(Math.max(width / hdW, height / hdH));
-  const fit = Math.max(1, Math.floor(Math.min(width / hdW, height / hdH)));
-  const hdScale = (hdW * cover - width) / width <= 0.2 ? cover : fit;
-  const k = hdScale * 2;
-  const artW = ART_W * k;
-  const artLeft = Math.round((width - artW) / 2);
-  const bedBottom = (ART_H - SOIL_TOP_ROW - BED_ROWS) * k;
-  // Lift the art if the action bar would cover the beds (the soil continues below).
-  const artBottom = Math.max(0, barHeight + 16 - bedBottom);
-  const margin = Math.round(artW * 0.11);
-  const stageLeft = Math.max(24, artLeft + margin);
-  const stageRight = Math.max(drawerWidth > 0 ? drawerWidth + 36 : 24, width - (artLeft + artW) + margin);
-  return { k, artLeft, artBottom, stageLeft, stageRight, stageBottom: artBottom + bedBottom };
-}
+export { ART_H, ART_W, immersiveLayout, type Immersive } from './layout';
+import type { Immersive } from './layout';
 
 function status(tree: TreeView, elapsed: number) {
   if (tree.ready) return { text: tree.stage === 'old' ? 'Seed ready' : 'Ready!', cls: 'ready' };
@@ -126,6 +85,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const flash = useActionBubble(on, tb?.last ?? null);
   const nudge = useTurnOnNudge(askOn, state);
   const motion = useBotMotion(bx, on, working, selected);
+  const bye = useGoodbye(on, tb?.status === 'ready');
 
   return (
     <div
@@ -199,7 +159,11 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           <Drone version={version} scale={px} class="idle-drone d1" />
           {version === 2 && <Drone version={version} scale={px} class="idle-drone d2" />}
         </div>
-        {askOn ? (
+        {bye ? (
+          <button class="bot-hint bot-bye" onClick={onBot} key={bye}>
+            Okay, going to sleep. Tap me when you need me!
+          </button>
+        ) : askOn ? (
           nudge.text && (
             <div class="bot-hint bot-nudge" role="status" key={nudge.key}>
               <button class="bot-nudge-text" onClick={onBot}>
@@ -542,4 +506,20 @@ function useBotMotion(x: number, on: boolean, working: boolean, plot: number) {
     .filter(Boolean)
     .join(' ');
   return { cls, dust };
+}
+
+/** One goodbye bubble (~5 s) when the player switches TaniBot from ON to OFF. */
+function useGoodbye(on: boolean, ready: boolean): number {
+  const [bye, setBye] = useState(0);
+  const was = useRef(on);
+  useEffect(() => {
+    const switchedOff = was.current && !on && ready;
+    was.current = on;
+    if (!switchedOff) return;
+    const id = Date.now();
+    setBye(id);
+    const t = setTimeout(() => setBye(0), 5000);
+    return () => clearTimeout(t);
+  }, [on]);
+  return bye;
 }

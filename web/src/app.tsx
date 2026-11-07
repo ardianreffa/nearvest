@@ -67,8 +67,21 @@ function useWindowSize(): { width: number; height: number } {
   const [size, setSize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
   useEffect(() => {
     const on = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    // Entering / leaving fullscreen (button or Esc): the final size can arrive after the
+    // animation, so measure right away and once more a moment later.
+    let late = 0;
+    const onFullscreen = () => {
+      on();
+      clearTimeout(late);
+      late = window.setTimeout(on, 350);
+    };
     window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
+    document.addEventListener('fullscreenchange', onFullscreen);
+    return () => {
+      window.removeEventListener('resize', on);
+      document.removeEventListener('fullscreenchange', onFullscreen);
+      clearTimeout(late);
+    };
   }, []);
   return size;
 }
@@ -565,7 +578,7 @@ export function App() {
               </button>
             </div>
             <div class="drawer-scroll">
-              <CheckinBanner state={state} act={act} ask={ask} busy={busy} />
+              <CheckinBanner state={state} act={act} ask={ask} busy={busy} elapsed={elapsed} />
               <nav class="side-tabs" aria-label="Panels">
                 {(['storage', 'shop', 'market', 'village'] as SideTab[]).map((t) => (
                   <TabButton key={t} tab={t} current={sideTab} set={(x) => (playSound('click'), setSideTab(x as SideTab))} icon={tabIcons[t]} label={tabLabels[t]} />
@@ -576,12 +589,18 @@ export function App() {
           </aside>
           {!drawerOpen && (
             <nav class="hud hud-rail" aria-label="Open the menu">
-              {state.checkin.available && (
-                <button class="rail-btn rail-checkin" onClick={() => (playSound('click'), setDrawerOpen(true))} title="Daily check-in is ready">
+              {/* Check-in stays in its place: glowing with a red dot when ready, a check mark and the countdown after. */}
+              <button
+                class={`rail-btn rail-checkin ${state.checkin.available ? 'ready' : 'done'}`}
+                onClick={() => (playSound('click'), setDrawerOpen(true))}
+                title={state.checkin.available ? 'Daily check-in is ready' : `Checked in. Next check-in in ${formatDuration(state.clock.msUntilNextDay - elapsed)}`}
+              >
+                <span class="rail-checkin-icon">
                   <Sprite name="seedPacket" scale={3} />
-                  <span>Check in</span>
-                </button>
-              )}
+                  {state.checkin.available ? <i class="rail-dot" aria-hidden="true" /> : <i class="rail-check" aria-hidden="true">✓</i>}
+                </span>
+                <span>{state.checkin.available ? 'Check in' : formatDuration(state.clock.msUntilNextDay - elapsed)}</span>
+              </button>
               {(['storage', 'shop', 'market', 'village'] as SideTab[]).map((t) => (
                 <button key={t} class="rail-btn" onClick={() => (playSound('click'), openSide(t))} title={tabLabels[t]}>
                   {tabIcons[t]}

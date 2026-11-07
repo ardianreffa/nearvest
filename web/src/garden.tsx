@@ -102,7 +102,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
 
   return (
     <div class="garden-screen">
-      {showCheckin && <CheckinBanner state={state} act={act} ask={ask} busy={busy} />}
+      {showCheckin && <CheckinBanner state={state} act={act} ask={ask} busy={busy} elapsed={elapsed} />}
 
       <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} onBot={onBot} />
 
@@ -114,7 +114,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
   );
 }
 
-export function CheckinBanner({ state, act, ask, busy }: { state: GameState; act: Act; ask: Ask; busy: boolean }) {
+export function CheckinBanner({ state, act, ask, busy, elapsed = 0 }: { state: GameState; act: Act; ask: Ask; busy: boolean; elapsed?: number }) {
   const c = state.checkin;
   const checkin = async () => {
     const seeds = c.nextCalendarDay === 7 ? 2 : 1;
@@ -144,7 +144,7 @@ export function CheckinBanner({ state, act, ask, busy }: { state: GameState; act
         })}
       </div>
       <button class="btn btn-mint" disabled={!c.available || busy} onClick={() => void checkin()}>
-        {c.available ? `Check in · day ${c.nextCalendarDay}` : `Streak ${c.streak} · see you tomorrow`}
+        {c.available ? `Check in · day ${c.nextCalendarDay}` : `✓ Checked in · streak ${c.streak} · next in ${formatDuration(state.clock.msUntilNextDay - elapsed)}`}
       </button>
       {state.player.demo && <p class="checkin-note">Demo mode: your streak keeps going if you miss up to 10 minutes.</p>}
     </div>

@@ -5,6 +5,8 @@
 // Profile window of an EXISTING dev garden (no account is created): node tools/ui-test.mjs <outDir> --profile=<devUsername> [width] [height]
 // Garden layout (top bar, plot panel with a Rare Durian, TaniBot hint) on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --layout=<newDevUsername> [width] [height]
 // TaniBot motion (jets, landing, idle moments) on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --motion=<newDevUsername> [width] [height]
+// Market rows (needs an EXISTING dev garden with fruit; fake-chain server): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --market=<devUser> [width] [height]
+// Fullscreen layout at several screen sizes (EXISTING dev garden): node tools/ui-test.mjs <outDir> --fullscreen=<devUser>
 // TaniBot window on a NEW dev garden (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
@@ -143,6 +145,65 @@ try {
     });
     throw Object.assign(new Error('layout done'), { done: true });
   }
+  if (name.startsWith('--market=')) {
+    await step('Market rows', async () => {
+      await typeInto('#dev-user', name.slice('--market='.length));
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      if (MOBILE) await clickText('Market', '.tab'); else await evaluate(`[...document.querySelectorAll('.rail-btn, .side-tabs button')].find(b => b.textContent.includes('Market'))?.click()`);
+      await waitFor(`!!document.querySelector('.market-rows')`, 'market');
+      await sleep(800); await screenshot('market');
+      console.log('panel title:', await evaluate(`[...document.querySelectorAll('.panel-head h2')].map(h => h.innerText).join(' | ')`));
+      console.log('speech:', await evaluate(`document.querySelector('.market-scene .speech').innerText`));
+      console.log('rows:', await evaluate(`[...document.querySelectorAll('.market-panel .market-row')].map(r => r.innerText.replace(/\\s+/g, ' ')).join(' || ')`));
+      const fit = await evaluate(`(() => { const rows = [...document.querySelectorAll('.market-panel .market-row')]; return rows.map(r => { const h = r.querySelector('.market-price').getBoundingClientRect(); const s = r.querySelector('.sell-go').getBoundingClientRect(); return Math.round(s.bottom - h.top); }).join(','); })()`);
+      console.log('price-to-sell height per row (px):', fit);
+      const balBefore = await evaluate(`document.querySelector('.balance span').innerText`);
+      const row = await evaluate(`(() => { const r = [...document.querySelectorAll('.market-panel .market-row')].find(x => !x.classList.contains('empty')); if (!r) return 'none'; r.querySelector('.sell-max').click(); return r.querySelector('.market-name').innerText; })()`);
+      await sleep(200);
+      const label = await evaluate(`[...document.querySelectorAll('.market-panel .market-row')].find(x => !x.classList.contains('empty')).querySelector('.sell-go').innerText`);
+      await evaluate(`[...document.querySelectorAll('.market-panel .market-row')].find(x => !x.classList.contains('empty')).querySelector('.sell-go').click()`);
+      await waitFor(bodyHas('Sold'), 'sold toast', 20000);
+      await sleep(600);
+      console.log('sold', row, 'with', label, '| balance', balBefore, '->', await evaluate(`document.querySelector('.balance span').innerText`));
+      await screenshot('market-sold');
+      const hasSeeds = await evaluate(`!!document.querySelector('details.sell-seeds')`);
+      if (hasSeeds) {
+        await evaluate(`document.querySelector('details.sell-seeds > summary').click()`);
+        await sleep(400);
+        await evaluate(`document.querySelector('details.sell-seeds').scrollIntoView()`);
+        await sleep(300); await screenshot('market-seeds');
+        console.log('seed rows:', await evaluate(`[...document.querySelectorAll('details.sell-seeds .market-row')].map(r => r.innerText.replace(/\\s+/g, ' ')).join(' || ')`));
+      }
+    });
+    throw Object.assign(new Error('market done'), { done: true });
+  }
+  if (name.startsWith('--fullscreen=')) {
+    await step('fullscreen layout', async () => {
+      await typeInto('#dev-user', name.slice('--fullscreen='.length));
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      for (const [w, h] of [[1280, 800], [1440, 900], [1920, 1080]]) {
+        await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false });
+        await evaluate(`document.dispatchEvent(new Event('fullscreenchange'))`);
+        await sleep(900);
+        const r = await evaluate(`(() => { const a = document.querySelector('.bg-art').getBoundingClientRect(); return JSON.stringify({ k: getComputedStyle(document.querySelector('.scene')).getPropertyValue('--k'), left: Math.round(a.left), top: Math.round(a.top), right: Math.round(a.right), bottom: Math.round(a.bottom), covers: a.left <= 0 && a.top <= 0 && a.right >= innerWidth && a.bottom >= innerHeight }); })()`);
+        console.log(`fullscreen ${w}x${h}:`, r);
+        await screenshot(`fullscreen-${w}x${h}`);
+      }
+      // Leaving fullscreen (Esc) back to a window with browser bars.
+      await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+      await evaluate(`document.dispatchEvent(new Event('fullscreenchange'))`);
+      await sleep(900);
+      // The check-in shortcut in the rail (drawer closed).
+      await evaluate(`document.querySelector('.drawer-close')?.click()`);
+      await sleep(600);
+      console.log('rail check-in:', await evaluate(`(() => { const b = document.querySelector('.rail-checkin'); return b ? b.className + ' | ' + b.innerText.replace(/\\s+/g, ' ') + ' | dot ' + !!b.querySelector('.rail-dot') + ' | check ' + !!b.querySelector('.rail-check') : 'missing'; })()`));
+      await screenshot('rail');
+      console.log('after Esc 1280x720:', await evaluate(`(() => { const a = document.querySelector('.bg-art').getBoundingClientRect(); return JSON.stringify({ k: getComputedStyle(document.querySelector('.scene')).getPropertyValue('--k'), covers: a.left <= 0 && a.top <= 0 && a.right >= innerWidth && a.bottom >= innerHeight }); })()`));
+    });
+    throw Object.assign(new Error('fullscreen done'), { done: true });
+  }
   if (name.startsWith('--motion=')) {
     await step('TaniBot motion', async () => {
       const user = name.slice('--motion='.length);
@@ -207,6 +268,12 @@ try {
       await waitFor(bodyHas('Turbo: I fertilize'), 'style log');
       await clickText('ON', '.bot-switch');
       await waitFor(bodyHas('Switched off'), 'switched off');
+      let bye = 'none';
+      for (let i = 0; i < 15 && bye === 'none'; i++) {
+        bye = await evaluate(`document.querySelector('.bot-bye')?.innerText ?? 'none'`);
+        if (bye === 'none') await sleep(200);
+      }
+      console.log('goodbye bubble:', bye, '| asleep:', await evaluate(`!!document.querySelector('.bot-click.asleep')`), '| scene mounted:', await evaluate(`!!document.querySelector('.scene')`));
       await evaluate(`document.querySelector('[aria-label="TaniBot"] .info-body').scrollTop = 9999`);
       await sleep(300); await screenshot('tanibot-log');
       console.log('log:', await evaluate(`[...document.querySelectorAll('.bot-log li')].map(l => l.innerText.replace(/\\n/g, ' ')).join(' || ')`));
