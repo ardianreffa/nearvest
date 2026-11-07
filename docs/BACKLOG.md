@@ -18,7 +18,7 @@ Draft numbers live in `server/src/rules.ts` and are tuned in testing. Sounds and
 | 9 | Login copy + hide Dev login | Must (before deploy) | Sun 8 Nov |
 | 10 | Top up testnet accounts | Must (before deploy) | Sun 8 Nov |
 | 8 | How to play pages + interactive tutorial | Must | Tue 10 Nov |
-| 3 | Weather + wilting | Important | Wed 11 Nov |
+| 3 | Weather / Village events + volcano eruption | Important | Wed 11 Nov |
 | 1 | Ambient sound layer | Important | Wed 11 Nov |
 | 5 | Share-to-X popup + moment animations | Important | Thu 12 Nov |
 | 6 | Referral via share link | Important | Thu 12 Nov |
@@ -44,9 +44,18 @@ Draft numbers live in `server/src/rules.ts` and are tuned in testing. Sounds and
 
 ## Important
 
-**3. Weather and wilting (GDD)**
-- Atmosphere art ready: `docs/art-source/bg-dusk.png` (ChatGPT, dusk village) for the evening phase of the backdrop (convert with tools/pixelize like bg-day / bg-night).
-- Rain = free water. Drought = water twice. 2 days without water = the tree goes back one stage.
+**3. Weather / Village events (Wednesday package, Ardian 2026-11-07; do not build before Wednesday)**
+Never call these "seasons": Season is the PANEN halving.
+- **Weather:** rain = free watering; drought = water twice; caterpillar time = caterpillars mostly on durian trees, pesticide 10 PANEN (burned in the Shop). 2 days without water = the tree goes back one stage (GDD wilting).
+- **Volcano eruption (rare village event, for every player at the same time):**
+  1. Warning: "Mount Tandur is rumbling!" (thick smoke from the crater, a small screen shake).
+  2. Short eruption: glowing lava, ash falling, a small shake, red sky; trees get covered in ash and stop growing for a short time; the player or TaniBot can clean the ash off.
+  3. Afterwards "Volcanic soil" for 1-2 days: faster growth and a higher Gold chance.
+  - An eruption never kills a tree or removes an NFT.
+  - TaniBot reacts (cleans ash, waters) with its reasons in the Log.
+  - Share card "I survived the eruption!".
+- **Demo mode:** events come more often so judges can see them.
+- Atmosphere art in the code sky (art/sky.tsx: bands, sun, moon, clouds) and the volcano smoke (art/backdrop.tsx) can be reused: rain streaks, red sky bands, ash particles.
 
 **1. Ambient sound layer**
 - By time and weather: day = birds/wind, night = crickets, rain = rain sound (once weather exists).

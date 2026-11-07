@@ -241,7 +241,7 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - $PANEN/NEAR pair on a NEAR DEX such as Rhea.
 - Get legal advice before any mainnet token launch.
 
-## Status and next steps (2026-11-07 evening)
+## Status and next steps (2026-11-07 night)
 
 **Done (all tested; pushed to the private repo):**
 - **Login:** Google (jose check, 1 Google account = 1 garden) and NEAR wallet (near-connect on testnet, NEP-413 proof); linking both ways: "Connect NEAR Wallet" for Google gardens, "Link Google account" for wallet gardens. Details in Game server -> Login.
@@ -258,9 +258,13 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 
 - **Tutorial + How to play done 2026-11-07** (`web/src/tutorial.tsx`, `web/src/help.tsx`): new gardens get a TaniBot-guided tutorial (plant, water, buy fertilizer = burn, fertilize, check in, harvest, sell, then meet TaniBot), progress in `players.tutorial_step`, steps finish when their goal is reached (any order), Skip any time; existing and judge gardens skip it. How to play = 4 pages with Back/Next/Skip. Judge gardens hold share cards until the tour is 5/5; Village share previews fold into "Preview share cards". TaniBot avatars show the full robot per title with a still aura (Durian King, Legend).
 
+- **Layered village backdrop done 2026-11-07 (night):** three villages without sky (day / dusk / night, `web/public/assets/bg/village-*`), the sky in code behind them (`art/sky.tsx`, `art/sky-colors.ts`: pixel bands, sun, moon, clouds, birds 5x3 px, stars, meteor, UFO), monorail train in 3 cars (locomotive, middle, rear; about 40% of the rail) that follow the curve with whole-pixel stair-step tilts (`art/train.tsx`, `art/train-sprite.ts`), turning rotors, village animals (`art/animals.tsx`: buffalo, ducks, chickens, rare mouse-deer; home at night), hotspots with always-visible place pins (`art/hotspots.tsx`: Shop = the stall, Market = the small house in the middle, Village Stats = the farm tower, Friends and Arena = Soon). `?time=day|dusk|night|<hour>` in dev builds; `window.__trainT = <s>` freezes the train (dev).
+- **TaniBot auto-plant done:** "Auto-plant: Off / Common seeds only" in the TaniBot window (off for existing gardens, on for judge gardens); only Common / unknown seeds, never Rare, Gold or superior seeds; Thrifty never buys, Balanced / Turbo may buy a Mango seed (burn, within the contract limit); AI "plant" action checked by the rules. A Tree NFT stores about 490 bytes (about 0.005 testnet NEAR from `pohon.nearvest.testnet`; on 2026-11-07 only about 0.37 NEAR of its 3.50 NEAR was free = about 75 more trees: **top up pohon before deploy**).
+- **Open notes:** the Shop stall is partly covered by the tree on plot 1 (the pin moves to a free spot, so it stays clickable); the Market house is often behind the plot 2 tree (same: use its pin).
+
 **Next, in this order:**
 1. Deploy: VPS (server + Caddy/sslip.io) and Vercel (web) - **only with Ardian's OK**. At deploy: raise `TANIBOT_AI_MAX_CALLS_PER_DAY` from 30 (development) to **1500**, keep `TANIBOT_AI_BUDGET_USD=8`; add the Vercel URL to Google's Authorized JavaScript origins and to `WEB_ORIGINS`; top up `nearvest.testnet`, `game.nearvest.testnet`, `pohon` and `panen` from the faucet (Try as Judge spends about 0.04 NEAR per judge garden).
-2. Then the Wednesday / Thursday packages from docs/BACKLOG.md (weather + ambient sound + dusk backdrop, share popup, referral, ...).
+2. Wednesday: Weather / Village events + volcano eruption (docs/BACKLOG.md item 3; never call them seasons), ambient sound. Then Thursday: simple garden visits, share popup per moment, referral (the interactive backdrop is done).
 
 **How-tos:**
 - **AI image:** keep the original in `docs/art-source/`, convert with `python3 -I tools/pixelize/pixelize.py <image.png> <rows> <out_dir>` (`--keep-bg [--colors N]` for backgrounds); TaniBot looks with `tools/pixelize/evolve.py`; record it in `docs/ASSETS.md` as AI-generated at Ardian's request.
