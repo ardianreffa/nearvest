@@ -73,6 +73,9 @@ Draft numbers live in `server/src/rules.ts` and are tuned in testing. Sounds and
 - One surprise bonus per 7-day streak, on a random day (never day 7), shown as a mystery box on the calendar.
 - Random but worth it (draft): 1-2 Fertilizer, or 10-15 bonus PANEN, or a Rare seed.
 
+**11. Login page: TaniBot evolution journey** (Fri 13 Nov, Ardian 2026-11-07)
+- The login page shows all six TaniBots in a row (Seedling, Farmhand, Farmer, Orchard Master, Durian King, Legend) as the "evolution journey", each with a light idle animation (hover / blink).
+
 ## Bonus
 
 **4. Pests** (only if time)
@@ -104,3 +107,4 @@ Not planned for the hackathon. These will also become the roadmap section of the
 
 - **Garden visits to friends** (already a Bonus feature in the GDD): visit a friend's garden, look around and help (for example water a thirsty tree).
 - **1v1 PvP between farmers**: two farmers compete head to head (for example a timed harvest race or a best-fruit contest), with $PANEN or seed rewards.
+- **TaniBot duels on the login page** (with PvP): two TaniBots playfully duel in an animation on the login page, a teaser for the PvP mode.
