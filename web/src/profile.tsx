@@ -2,7 +2,7 @@
 
 import { useState } from 'preact/hooks';
 import { api, nearblocksAccount, type GameState, type ServerConfig } from './api';
-import { Avatar, AVATAR_IDS, AVATARS } from './art/avatars';
+import { Avatar, AVATAR_IDS, AVATARS, avatarTitle } from './art/avatars';
 import { GoogleButton } from './google';
 import { Modal } from './help';
 import { Panel } from './ui';
@@ -63,19 +63,33 @@ export function Profile({
         </div>
         {picking && (
           <div class="avatar-grid" role="list" aria-label="Choose an avatar">
-            {AVATAR_IDS.map((id) => (
-              <button
-                key={id}
-                role="listitem"
-                class={`avatar-choice${id === p.avatar ? ' selected' : ''}`}
-                onClick={() => void pick(id)}
-                aria-pressed={id === p.avatar}
-                title={AVATARS[id].name}
-              >
-                <Avatar id={id} size={48} />
-                <span>{AVATARS[id].name}</span>
-              </button>
-            ))}
+            {AVATAR_IDS.map((id) => {
+              // TaniBot heads unlock with their title.
+              const needs = avatarTitle(id);
+              const needXp = needs ? (config.titles.find((t) => t.name === needs)?.xp ?? Infinity) : 0;
+              const locked = p.xp < needXp;
+              return (
+                <button
+                  key={id}
+                  role="listitem"
+                  class={`avatar-choice${id === p.avatar ? ' selected' : ''}${locked ? ' locked' : ''}`}
+                  onClick={() => !locked && void pick(id)}
+                  aria-pressed={id === p.avatar}
+                  aria-disabled={locked}
+                  title={locked ? `Reach ${needs} to unlock` : AVATARS[id].name}
+                >
+                  <span class="avatar-wrap">
+                    <Avatar id={id} size={48} locked={locked} />
+                    {locked && (
+                      <i class="avatar-lock" aria-hidden="true">
+                        <b />
+                      </i>
+                    )}
+                  </span>
+                  <span>{locked ? `Reach ${needs}` : AVATARS[id].name}</span>
+                </button>
+              );
+            })}
           </div>
         )}
         {error && <p class="error-text">{error}</p>}

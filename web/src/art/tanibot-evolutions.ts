@@ -2,7 +2,7 @@
 // images in docs/art-source/ (see docs/ASSETS.md): body only (no drones, halo, aura or sparkles),
 // on exactly the original TaniBot grid (registered by the eyes), so the animated layers line up.
 // `sd`: 58x64 like the original (phones); `hd`: 116x128, the same area at twice the detail (laptops).
-// DRAFT for review (stage 1): not used by the game yet.
+// Used by art/tanibot.tsx: one look per title (Seedling = the original design).
 
 export type EvolutionId = 'seedling' | 'farmhand' | 'farmer' | 'orchard_master' | 'durian_king' | 'legend';
 

@@ -3,7 +3,7 @@
 
 import { loadToken, type GameState, type TreeView } from './api';
 import { Backdrop, phaseOf } from './art/backdrop';
-import { BASKET, botVersion, Drone, HOE, TaniBot } from './art/tanibot';
+import { BASKET, Drone, droneCount, HOE, TaniBot, TANIBOT_H, TANIBOT_W, tierOf, tierRank, type Tier } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import { leafBurst } from './fx';
 import { Pixels, Sprite } from './sprites';
@@ -74,7 +74,9 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const lane = immersive ? LANE_STAGE : LANE_NORMAL;
   const fraction = 1 - Math.max(0, state.clock.msUntilNextDay - elapsed) / state.clock.dayLengthMs;
   const phase = phaseOf(fraction);
-  const version = botVersion(state.player.title);
+  const tier = tierOf(state.player.title);
+  /** Drone size: about a third of TaniBot's width at every scale. */
+  const droneScale = Math.max(1, botScale);
   const bx = botX(selected, lane);
   const working = fx !== null;
   const tb = state.player.tanibot;
@@ -86,6 +88,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const nudge = useTurnOnNudge(askOn, state);
   const motion = useBotMotion(bx, on, working, selected);
   const bye = useGoodbye(on, tb?.status === 'ready');
+  const evolving = useEvolution(tier);
 
   return (
     <div
@@ -145,7 +148,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           <i />
         </span>
       )}
-      <div class={`bot-spot ${motion.cls}`} style={{ left: `${bx}%` }}>
+      <div class={`bot-spot tier-${tier} ${motion.cls}${evolving ? ' evolving' : ''}`} style={{ left: `${bx}%`, '--bot-w': `${TANIBOT_W * botScale}px` }}>
         {on && (
           <span class="bot-jet" aria-hidden="true">
             <b />
@@ -155,10 +158,16 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
             <i />
           </span>
         )}
-        <div class="bot-drones">
-          <Drone version={version} scale={px} class="idle-drone d1" />
-          {version === 2 && <Drone version={version} scale={px} class="idle-drone d2" />}
-        </div>
+        {droneCount(tier) > 0 && (
+          // Drones orbit TaniBot's shoulders; their shadows run along the ground. Asleep: parked and dim.
+          <div class={`bot-drones${on ? '' : ' parked'}`} aria-hidden="true">
+            {Array.from({ length: droneCount(tier) }, (_, i) => (
+              <span key={i} class={`orbit o${i + 1}`}>
+                <Drone scale={droneScale} shadow={Math.round(TANIBOT_H * botScale * 0.5)} />
+              </span>
+            ))}
+          </div>
+        )}
         {bye ? (
           <button class="bot-hint bot-bye" onClick={onBot} key={bye}>
             Okay, going to sleep. Tap me when you need me!
@@ -187,7 +196,9 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           aria-label={`TaniBot is ${on ? 'on' : 'off'}: open its log and settings`}
           title="TaniBot: log and settings"
         >
-          <TaniBot version={version} scale={botScale} working={working && on} />
+          <TaniBot tier={tier} scale={botScale} working={working && on} effects={on} />
+          {evolving > 0 && <span class="bot-evolve-scan" key={evolving} aria-hidden="true" />}
+          {tier === 'legend' && on && <i class="bot-ripple" aria-hidden="true" />}
           {asleep && (
             <span class="bot-zzz" aria-hidden="true">
               <i>z</i>
@@ -207,7 +218,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         )}
       </div>
 
-      {fx && <ActionEffect fx={fx} from={botX(fx.plot, lane)} to={plotCenter(fx.plot, lane)} version={version} px={px} key={fx.id} />}
+      {fx && <ActionEffect fx={fx} from={botX(fx.plot, lane)} to={plotCenter(fx.plot, lane)} tier={tier} px={px} droneScale={droneScale} key={fx.id} />}
       </Stage>
     </div>
   );
@@ -223,7 +234,8 @@ function Stage({ immersive, children }: { immersive?: Immersive; children: preac
   );
 }
 
-function ActionEffect({ fx, from, to, version, px }: { fx: SceneFx; from: number; to: number; version: 1 | 2; px: number }) {
+function ActionEffect({ fx, from, to, tier, px, droneScale }: { fx: SceneFx; from: number; to: number; tier: Tier; px: number; droneScale: number }) {
+  const hasCan = tierRank(tier) >= tierRank('farmhand');
   const vars = { '--from': `${from}%`, '--to': `${to}%` };
   const left = Math.min(from, to);
   const width = Math.abs(from - to);
@@ -231,11 +243,20 @@ function ActionEffect({ fx, from, to, version, px }: { fx: SceneFx; from: number
   switch (fx.kind) {
     case 'water':
       return (
-        <div class="act act-water" style={vars}>
-          <Drone version={version} scale={px} class="fly-drone" />
-          {Array.from({ length: 9 }, (_, i) => (
-            <i key={i} class="drop" style={{ left: `calc(${to}% + ${(i % 3) * 6 - 6}px)`, animationDelay: `${450 + i * 70}ms` }} />
-          ))}
+        <div class={`act act-water${hasCan ? ' from-can' : ''}`} style={vars}>
+          {hasCan ? (
+            // From Farmhand on, TaniBot pours from its own watering can.
+            Array.from({ length: 12 }, (_, i) => (
+              <i key={i} class="pour" style={{ left: `calc(${to}% + ${(i % 4) * 5 - 8}px)`, animationDelay: `${150 + i * 70}ms` }} />
+            ))
+          ) : (
+            <>
+              <Drone scale={droneScale} class="fly-drone" />
+              {Array.from({ length: 9 }, (_, i) => (
+                <i key={i} class="drop" style={{ left: `calc(${to}% + ${(i % 3) * 6 - 6}px)`, animationDelay: `${450 + i * 70}ms` }} />
+              ))}
+            </>
+          )}
         </div>
       );
     case 'plant':
@@ -259,6 +280,8 @@ function ActionEffect({ fx, from, to, version, px }: { fx: SceneFx; from: number
           }}
         >
           <span class="laser" style={{ left: `${left}%`, width: `${width}%` }} />
+          {tier === 'durian_king' &&
+            [0, 1, 2, 3].map((i) => <i key={`c${i}`} class="king-coin" style={{ left: `calc(${to}% + ${i * 9 - 14}px)`, animationDelay: `${450 + i * 110}ms` }} />)}
           {fx.tree &&
             [0, 1, 2].map((i) => (
               <span key={i} class="jump-fruit" style={{ animationDelay: `${250 + i * 120}ms` }}>
@@ -522,4 +545,24 @@ function useGoodbye(on: boolean, ready: boolean): number {
     return () => clearTimeout(t);
   }, [on]);
   return bye;
+}
+
+/**
+ * The evolution moment when a new title brings a new TaniBot: a flashing white
+ * silhouette, a scan line from the feet up, then the new look (the app plays
+ * the fanfare and offers the "TaniBot evolved" card).
+ */
+function useEvolution(tier: Tier): number {
+  const [at, setAt] = useState(0);
+  const prev = useRef(tier);
+  useEffect(() => {
+    const up = tierRank(tier) > tierRank(prev.current);
+    prev.current = tier;
+    if (!up) return;
+    const id = Date.now();
+    setAt(id);
+    const t = setTimeout(() => setAt(0), 2600);
+    return () => clearTimeout(t);
+  }, [tier]);
+  return at;
 }

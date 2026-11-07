@@ -4,8 +4,12 @@
 // The ids must match AVATARS in server/src/rules.ts.
 
 import { Pixels } from '../sprites';
+import { botSprite, TIER_TITLE, TIERS, type Tier } from './tanibot';
 
-export type AvatarId = 'farmer_hat' | 'farmer_hijab' | 'solarpunk' | 'grandpa' | 'mango' | 'rambutan' | 'durian' | 'tanibot';
+export type BasicAvatarId = 'farmer_hat' | 'farmer_hijab' | 'solarpunk' | 'grandpa' | 'mango' | 'rambutan' | 'durian' | 'tanibot';
+/** TaniBot heads per title (unlock with the title; the server checks it too). */
+export type BotAvatarId = `bot_${Tier}`;
+export type AvatarId = BasicAvatarId | BotAvatarId;
 
 interface AvatarArt {
   name: string;
@@ -14,7 +18,7 @@ interface AvatarArt {
   palette: Record<string, string>;
 }
 
-export const AVATARS: Record<AvatarId, AvatarArt> = {
+const BASIC: Record<BasicAvatarId, AvatarArt> = {
   farmer_hat: {
     name: 'Farmer',
     palette: { b: '#BDE8F5' },
@@ -193,14 +197,44 @@ export const AVATARS: Record<AvatarId, AvatarArt> = {
   },
 };
 
+/** Background of each TaniBot head avatar, brighter with each title. */
+const BOT_BG: Record<Tier, string> = {
+  seedling: '#BDE8F5',
+  farmhand: '#C8F0D8',
+  farmer: '#B9F7DD',
+  orchard_master: '#D6F5C2',
+  durian_king: '#FCE7A8',
+  legend: '#CFFAFE',
+};
+
+/** The head and hat of a TaniBot tier (58x33), centred in a 58x58 square. */
+function botHead(tier: Tier): AvatarArt {
+  const { rows, palette } = botSprite(tier, false);
+  const head = rows.slice(0, 33).map((r) => r.replace(/\./g, '#'));
+  const pad = (n: number) => Array.from({ length: n }, () => '#'.repeat(58));
+  return { name: `TaniBot ${TIER_TITLE[tier]}`, rows: [...pad(13), ...head, ...pad(12)], palette: { ...palette, '#': BOT_BG[tier] } };
+}
+
+export const AVATARS: Record<AvatarId, AvatarArt> = {
+  ...BASIC,
+  ...(Object.fromEntries(TIERS.map((t) => [`bot_${t}`, botHead(t)])) as Record<BotAvatarId, AvatarArt>),
+};
+
 export const AVATAR_IDS = Object.keys(AVATARS) as AvatarId[];
 
-/** A square, still avatar. `size` is the CSS width in px (a multiple of 16 keeps pixels crisp). */
-export function Avatar({ id, size = 48 }: { id: string; size?: number }) {
+/** The title a TaniBot head avatar needs (none for the others and for Seedling). */
+export function avatarTitle(id: AvatarId): string | null {
+  return id.startsWith('bot_') && id !== 'bot_seedling' ? TIER_TITLE[id.slice(4) as Tier] : null;
+}
+
+/** A square, still avatar. `size` is the CSS width in px. `locked` = a dark silhouette. */
+export function Avatar({ id, size = 48, locked = false }: { id: string; size?: number; locked?: boolean }) {
   const art = AVATARS[(id in AVATARS ? id : 'farmer_hat') as AvatarId];
+  const grid = art.rows[0].length;
+  const palette = locked ? Object.fromEntries(Object.keys(art.palette).map((k) => [k, k === '#' || k === 'b' && grid === 16 ? '#3a3f4b' : '#1b1b2f'])) : art.palette;
   return (
-    <span class="avatar" style={{ width: size, height: size }}>
-      <Pixels rows={art.rows} palette={art.palette} scale={size / 16} title={art.name} />
+    <span class={`avatar${locked ? ' locked' : ''}`} style={{ width: size, height: size }}>
+      <Pixels rows={art.rows} palette={palette} scale={size / grid} title={art.name} />
     </span>
   );
 }

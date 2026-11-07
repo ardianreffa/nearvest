@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { GameState, Quality, Species } from './api';
 import { DARTO_IDLE, DARTO_PALETTE } from './art/darto-sprite';
-import { TANIBOT_ROWS, TANIBOT_V1, TANIBOT_V2 } from './art/tanibot-sprite';
+import { botSprite, TIER_TITLE, tierOf } from './art/tanibot';
 import { treePalette, treeRows } from './art/trees';
 import { BASE_PALETTE, SPRITES } from './sprites';
 import { withArticle } from './text';
@@ -48,7 +48,8 @@ function seenKey(accountId: string) {
 
 /** Opens the share dialog for a moment the first time it happens to this player. */
 export function shareMomentOnce(accountId: string, m: Moment, delayMs = 1600): void {
-  const id = m.kind === 'title' ? `title:${m.title}` : m.kind;
+  // Title and evolution cards come once per title; the others once ever.
+  const id = m.kind === 'title' || m.kind === 'evolved' ? `${m.kind}:${m.title}` : m.kind;
   let seen: string[] = [];
   try {
     seen = JSON.parse(localStorage.getItem(seenKey(accountId)) ?? '[]') as string[];
@@ -85,8 +86,8 @@ function texts(m: Moment, s: GameState): { headline: string; sub: string; post: 
     case 'evolved':
       return {
         headline: 'TaniBot evolved!',
-        sub: `${p.name} is now ${withArticle(p.title)}: TaniBot v2 with LED hat and 2 drones`,
-        post: `My AI farmer TaniBot just evolved in NEARvest: shiny chrome, an LED hat and two drones. ${TAGS}`,
+        sub: `${p.name} is now ${withArticle(p.title)}, and TaniBot evolved into its ${TIER_TITLE[tierOf(p.title)]} look`,
+        post: `My AI farmer TaniBot just evolved into its ${TIER_TITLE[tierOf(p.title)]} look in NEARvest. ${TAGS}`,
       };
     case 'streak7':
       return {
@@ -195,8 +196,9 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   ctx.fillRect(CARD_W - 8, 0, 8, CARD_H);
 
   // Hero art on the left.
-  const v2 = !['Seedling', 'Farmhand'].includes(s.player.title) || m.kind === 'evolved';
-  const botPalette = v2 ? TANIBOT_V2 : TANIBOT_V1;
+  // The TaniBot of the player's title, in the detailed (116x128) version drawn at half scale.
+  const bot = botSprite(tierOf(s.player.title), true);
+  const drawBot = (x: number, y: number, scale: number) => drawRows(ctx, bot.rows, bot.palette, x, y, scale / 2);
   if (m.kind === 'first_gold' || m.kind === 'first_harvest') {
     const species = m.species ?? 'mango';
     drawRows(ctx, treeRows(species, 'fruiting'), treePalette(species, 'fruiting'), 40, 150, 10);
@@ -204,11 +206,11 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
       ctx.fillStyle = 'rgba(245, 197, 66, 0.35)';
       for (const [x, y] of [[70, 170], [330, 200], [200, 140], [300, 420]]) ctx.fillRect(x, y, 14, 14);
     }
-    drawRows(ctx, TANIBOT_ROWS, botPalette, 300, 330, 4);
+    drawBot(300, 330, 4);
   } else if (m.kind === 'profile') {
-    drawRows(ctx, TANIBOT_ROWS, botPalette, 50, 150, 6);
+    drawBot(50, 150, 6);
   } else {
-    drawRows(ctx, TANIBOT_ROWS, botPalette, 70, 130, 7);
+    drawBot(70, 130, 7);
   }
   if (m.kind === 'streak7') drawRows(ctx, SPRITES.seedPacket, BASE_PALETTE, 380, 420, 12);
   if (m.kind === 'profile') drawRows(ctx, DARTO_IDLE.slice(0, 30), DARTO_PALETTE, 380, 380, 5);

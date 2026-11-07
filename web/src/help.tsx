@@ -56,7 +56,7 @@ interface Step {
 
 const STEPS: Step[] = [
   {
-    icon: <TaniBotHead version={1} scale={1} />,
+    icon: <TaniBotHead tier="seedling" scale={1} />,
     title: 'Log in',
     text: 'Sign in with Google or with your NEAR wallet. Google: no wallet needed, the game creates your NEAR testnet account (name.nearvest.testnet) and pays all fees. NEAR wallet: your garden lives in your own account; the game pays the fees too, only the one-time Shop setup is paid by your wallet (a tiny testnet fee).',
   },

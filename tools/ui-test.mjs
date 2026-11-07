@@ -7,6 +7,7 @@
 // TaniBot motion (jets, landing, idle moments) on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --motion=<newDevUsername> [width] [height]
 // Market rows (needs an EXISTING dev garden with fruit; fake-chain server): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --market=<devUser> [width] [height]
 // Fullscreen layout at several screen sizes (EXISTING dev garden): node tools/ui-test.mjs <outDir> --fullscreen=<devUser>
+// TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> to raise its XP live): node tools/ui-test.mjs <outDir> --tiers=<devUser>
 // TaniBot window on a NEW dev garden (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
@@ -145,6 +146,39 @@ try {
       console.log('bubble gone after ~4 s:', await evaluate(`!document.querySelector('.bot-hint-flash') || getComputedStyle(document.querySelector('.bot-hint-flash')).opacity === '0'`));
     });
     throw Object.assign(new Error('layout done'), { done: true });
+  }
+  if (name.startsWith('--tiers=')) {
+    await step('TaniBot tiers', async () => {
+      const user = name.slice('--tiers='.length);
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      await sleep(2500);
+      const info = () => evaluate(`(() => { const t = document.querySelector('.bot-spot .tanibot'); return JSON.stringify({ tier: t?.className, drones: document.querySelectorAll('.bot-drones .drone').length, parked: !!document.querySelector('.bot-drones.parked'), aura: !!t?.querySelector('.bot-aura'), halo: !!t?.querySelector('.bot-halo'), prop: !!t?.querySelector('.bot-prop'), leaf: !!t?.querySelector('.bot-leaf'), title: document.querySelector('.title-line')?.innerText }); })()`);
+      console.log('garden:', await info());
+      await screenshot('tier-garden');
+      if (process.env.FAKE_DB && process.env.NEXT_XP) {
+        const { DatabaseSync } = await import('node:sqlite');
+        const db = new DatabaseSync(process.env.FAKE_DB);
+        db.prepare('UPDATE players SET xp = ? WHERE name = ?').run(Number(process.env.NEXT_XP), user);
+        db.close();
+        await waitFor(`!!document.querySelector('.bot-spot.evolving')`, 'evolution moment', 20000);
+        await sleep(500); await screenshot('evolving-flash');
+        console.log('evolving: scan line', await evaluate(`!!document.querySelector('.bot-evolve-scan')`));
+        await sleep(2600);
+        console.log('after evolution:', await info());
+        await screenshot('evolved');
+      }
+      // Avatars: TaniBot heads unlock with titles.
+      await evaluate(`document.querySelector('.who-btn').click()`);
+      await waitFor(`!!document.querySelector('[aria-label="Profile"]')`, 'profile');
+      await clickText('Change avatar');
+      await sleep(400);
+      console.log('avatar heads:', await evaluate(`[...document.querySelectorAll('.avatar-choice')].filter(b => (b.title || '').includes('TaniBot') || b.classList.contains('locked')).map(b => (b.classList.contains('locked') ? 'LOCKED ' : '') + b.innerText.trim()).join(' | ')`));
+      await evaluate(`document.querySelector('.avatar-grid').scrollIntoView()`);
+      await sleep(300); await screenshot('avatars');
+    });
+    throw Object.assign(new Error('tiers done'), { done: true });
   }
   if (name.startsWith('--market=')) {
     await step('Market rows', async () => {

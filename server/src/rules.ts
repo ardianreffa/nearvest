@@ -105,7 +105,19 @@ export function rollFruitQuality(treeQuality: Quality, fertilized: boolean, roll
 }
 
 /** Profile avatars (pixel art drawn in web/src/art/avatars.tsx). Stored on the game server, not on chain. */
-export const AVATARS = ['farmer_hat', 'farmer_hijab', 'solarpunk', 'grandpa', 'mango', 'rambutan', 'durian', 'tanibot'] as const;
+export const AVATARS = [
+  'farmer_hat', 'farmer_hijab', 'solarpunk', 'grandpa', 'mango', 'rambutan', 'durian', 'tanibot',
+  // TaniBot heads per title: each unlocks when the player reaches that title.
+  'bot_seedling', 'bot_farmhand', 'bot_farmer', 'bot_orchard_master', 'bot_durian_king', 'bot_legend',
+] as const;
+/** Avatars that need a title first. */
+export const AVATAR_TITLE: Partial<Record<(typeof AVATARS)[number], string>> = {
+  bot_farmhand: 'Farmhand',
+  bot_farmer: 'Farmer',
+  bot_orchard_master: 'Orchard Master',
+  bot_durian_king: 'Durian King',
+  bot_legend: 'Legend',
+};
 export type AvatarId = (typeof AVATARS)[number];
 export const DEFAULT_AVATAR: AvatarId = 'farmer_hat';
 

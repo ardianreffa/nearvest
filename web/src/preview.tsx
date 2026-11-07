@@ -6,7 +6,7 @@ import { EVOLUTION_PALETTE, TANIBOT_EVOLUTIONS, type EvolutionId } from './art/t
 import { Pixels } from './sprites';
 import { DartoFigure, HoverCart } from './art/darto';
 import { ShopStall } from './art/shop';
-import { Drone, TaniBot } from './art/tanibot';
+import { Drone, TaniBot, TIER_TITLE, TIERS } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import type { Quality, Species, Stage } from './api';
 import './styles.css';
@@ -45,6 +45,11 @@ function EvolutionRow({ label, grid, px }: { label: string; grid: 'sd' | 'hd'; p
 function Gallery() {
   return (
     <main class="preview">
+      <h2>Drones</h2>
+      <div class="preview-row drone-row">
+        <Drone scale={2} />
+        <Drone scale={4} shadow={30} />
+      </div>
       <h2>TaniBot evolutions (draft for review)</h2>
       <p class="evo-note">
         Body only (drones, halo, aura and sparkles become code animations later). Same grid as the original, registered by the eyes. sd = 58x64 (like
@@ -82,12 +87,14 @@ function Gallery() {
         <div class="preview-cell"><TreePixels species="durian" stage="fruiting" quality="rare" scale={3} /><small>rare</small></div>
         <div class="preview-cell"><TreePixels species="mango" stage="fruiting" quality="gold" scale={3} /><small>gold</small></div>
       </div>
-      <h2>TaniBot v1 / v2, drones</h2>
-      <div class="preview-row">
-        <TaniBot version={1} scale={2} />
-        <TaniBot version={2} scale={2} />
-        <Drone version={1} scale={4} />
-        <Drone version={2} scale={4} />
+      <h2>TaniBot tiers, live (laptop size, with effects)</h2>
+      <div class="evo-strip evo-live">
+        {TIERS.map((t) => (
+          <div key={t} class="evo-cell">
+            <TaniBot tier={t} scale={3} />
+            <small>{TIER_TITLE[t]}</small>
+          </div>
+        ))}
       </div>
       <h2>Mr. Darto</h2>
       <div class="preview-row">

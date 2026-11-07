@@ -6,6 +6,7 @@
 // holograms, shimmering waterfalls and moving volcano smoke.
 // All overlay coordinates are in art pixels (the 240x135 image).
 
+import { Drone } from './tanibot';
 export type Phase = 'dawn' | 'day' | 'dusk' | 'night';
 
 const ART_W = 240;
@@ -83,19 +84,6 @@ const SMOKE = [
 // A few stars for the extra sky above the image on phones.
 const STARS = Array.from({ length: 14 }, (_, i) => ({ x: (i * 41 + 7) % 100, y: (i * 29) % 90, d: (i % 4) * 0.6 }));
 
-function MiniDrone() {
-  return (
-    <svg viewBox="0 0 9 4" shape-rendering="crispEdges" aria-hidden="true">
-      <rect x={0} y={0} width={3} height={1} fill="#D1D5DB" />
-      <rect x={6} y={0} width={3} height={1} fill="#D1D5DB" />
-      <rect x={1} y={1} width={1} height={1} fill="#4B5563" />
-      <rect x={7} y={1} width={1} height={1} fill="#4B5563" />
-      <rect x={2} y={1} width={5} height={2} fill="#E5E7EB" />
-      <rect x={3} y={2} width={3} height={1} fill="#1B1B2F" />
-      <rect x={4} y={3} width={1} height={1} class="mini-led" />
-    </svg>
-  );
-}
 
 /**
  * `hd` uses the 480x270 versions (laptop immersive mode, drawn at a whole or
@@ -143,15 +131,18 @@ export function Backdrop({ fraction, blurFill = false, hd = false }: { fraction:
           {DRONE_LEDS.map(([x, y], i) => (
             <i key={i} class="led" style={{ ...at(x, y, 1, 1), animationDelay: `${i * 0.4}s` }} />
           ))}
+          {/* Quadcopters crossing the sky, each with a small shadow sliding over the fields. */}
           <div class="flyby f1">
-            <span style={at(0, 30, 9, 4)}>
-              <MiniDrone />
+            <span style={at(0, 30, 10, 5)}>
+              <Drone scale={1} class="mini" />
             </span>
+            <i class="flyby-shadow" style={at(2, 102, 6, 1.5)} />
           </div>
           <div class="flyby f2">
-            <span style={at(0, 22, 9, 4)}>
-              <MiniDrone />
+            <span style={at(0, 22, 10, 5)}>
+              <Drone scale={1} class="mini" />
             </span>
+            <i class="flyby-shadow" style={at(2, 99, 6, 1.5)} />
           </div>
         </div>
         <div class="bg-night-shade" />

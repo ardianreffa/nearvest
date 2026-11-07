@@ -77,6 +77,22 @@ Draft numbers live in `server/src/rules.ts` and are tuned in testing. Sounds and
 **4. Pests** (only if time)
 - Caterpillars, mainly on durian; cured with pesticide (10 PANEN).
 
+## TaniBot evolutions (replaces the old "TaniBot v3 / v4 recolor" plan)
+
+Done 2026-11-07 (stage 2). One TaniBot per title, from Ardian's ChatGPT images (`docs/art-source/tanibot-*.png`, converted with `tools/pixelize/evolve.py`; laptop = 116x128 detail, phone = 58x64), each with its own code animations:
+
+- **Seedling**: the original.
+- **Farmhand**: the watering can swings while flying; water pours from the can when watering; dust on landing.
+- **Farmer**: a light sweep over the body every few seconds; pulsing hat LEDs; 1 drone orbiting the shoulders.
+- **Orchard Master**: shoulder leaves sway; bubbles rise in the seed tank; now and then a leaf falls; leaf particles in the jets; 1 drone.
+- **Durian King**: a golden durian-shaped aura behind the body; gold twinkles on the hat studs; a light sweep over the solar cape; gold-mint jets; coins jump out of harvests; 1 drone.
+- **Legend**: a ring of light floating and turning above the hat; a white-cyan circle of light turning slowly behind; pulsing cyan hologram glow and a scan line; 2 drones orbiting; the batik glows in two halves in turn; star sparkles; a hologram ripple on landing.
+- **Evolution moment** on a new title: flashing white silhouette, a scan line from the feet up, the new look appears with the fanfare; the "TaniBot evolved" share card (once per title).
+- **OFF**: every version keeps the sleeping pose; auras, sweeps and sparkles stop; drones park dimly.
+- **Drones** everywhere (TaniBot and the backdrop) are real quadcopters: body, four rotors with spinning propellers, a blinking LED, a small shadow on the ground.
+- **Avatars**: 6 TaniBot heads (Seedling to Legend); each unlocks with its title (checked by the server); locked ones show a silhouette, a padlock and "Reach <title>".
+- Light on phones (CSS only) and still with prefers-reduced-motion.
+
 ## Skipped
 
 - Pruning / tidying trees (not in the GDD).

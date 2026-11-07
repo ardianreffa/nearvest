@@ -3,7 +3,7 @@
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type Quality, type ServerConfig, type Species } from './api';
-import { botVersion, TaniBot, TaniBotHead } from './art/tanibot';
+import { TaniBot, TaniBotHead, tierOf, tierRank } from './art/tanibot';
 import { getAudioPrefs, initAudio, onAudioPrefsChange, playSound, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
 import { HowToPlay, Modal, PanenInfo } from './help';
@@ -173,15 +173,15 @@ export function App() {
         }
       }
       if (lastTitle.current !== null && lastTitle.current !== s.player.title) {
-        const evolved = botVersion(s.player.title) > botVersion(lastTitle.current);
+        const evolved = tierRank(tierOf(s.player.title)) > tierRank(tierOf(lastTitle.current));
         playSound('levelup');
         confetti();
         floatText(`${s.player.title}!`, 'mint', window.innerWidth / 2, window.innerHeight / 3);
         toast({ kind: 'info', text: evolved ? `New title: ${s.player.title}! TaniBot evolved.` : `New title: ${s.player.title}!` });
         const id = s.player.accountId;
-        if (evolved) shareMomentOnce(id, { kind: 'evolved' }, 2200);
-        else if (s.player.title === 'Legend') shareMomentOnce(id, { kind: 'legend' }, 2200);
-        else shareMomentOnce(id, { kind: 'title', title: s.player.title }, 2200);
+        if (s.player.title === 'Legend') shareMomentOnce(id, { kind: 'legend' }, 2600);
+        else if (evolved) shareMomentOnce(id, { kind: 'evolved', title: s.player.title }, 2600);
+        else shareMomentOnce(id, { kind: 'title', title: s.player.title }, 2600);
       }
       lastTitle.current = s.player.title;
       setState(s);
@@ -415,7 +415,7 @@ export function App() {
   if (fatal) {
     return (
       <main class="shell center">
-        <TaniBot version={1} scale={2} />
+        <TaniBot tier="seedling" scale={2} />
         <h1>NEARvest</h1>
         <p class="error-text">{fatal}</p>
         <p class="muted small">Start the server with "npm run dev" in the server folder, then reload.</p>
@@ -425,7 +425,7 @@ export function App() {
   if (phase === 'loading' || !config) {
     return (
       <main class="shell center">
-        <TaniBot version={1} scale={2} />
+        <TaniBot tier="seedling" scale={2} />
         <p class="muted">Waking up the village...</p>
       </main>
     );
@@ -463,7 +463,7 @@ export function App() {
   const botDotTitle = botDot === 'on' ? 'TaniBot is on' : botDot === 'warn' ? (tb?.alert === 'low' ? 'TaniBot: budget almost empty' : "TaniBot: today's limit reached") : 'TaniBot is off';
   const botIcon = (
     <span class="bot-icon" title={botDotTitle}>
-      <TaniBotHead version={botVersion(p.title)} scale={1} />
+      <TaniBotHead tier={tierOf(p.title)} scale={1} />
       <i class={`bot-dot bot-dot-${botDot}`} aria-label={botDotTitle} />
     </span>
   );
@@ -736,7 +736,7 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
     <div class="login-page">
       <div class="login-bg" aria-hidden="true" />
     <main class="shell center login">
-      <TaniBot version={1} scale={3} />
+      <TaniBot tier="seedling" scale={3} />
       <h1 class="logo">NEARvest</h1>
       <p class="tagline">Grow. Harvest. Own.</p>
       <p class="login-lead">A pixel farming game where your tree is a living NFT and an AI farmer tends it while you sleep.</p>
@@ -811,7 +811,7 @@ function CreateGarden({ onCreated, onLogout }: { onCreated: (s: GameState) => vo
 
   return (
     <main class="shell center">
-      <TaniBot version={1} scale={2} />
+      <TaniBot tier="seedling" scale={2} />
       <h1>Welcome to Tandur!</h1>
       <p class="muted">
         {walletAccount

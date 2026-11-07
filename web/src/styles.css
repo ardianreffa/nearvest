@@ -5175,3 +5175,804 @@ button.chip:focus-visible {
   font-size: 11px;
   text-shadow: 1px 1px 0 #000;
 }
+
+/* =====================================================================
+   TaniBot tiers (art/tanibot.tsx): layers, effects, drones, evolution
+   ===================================================================== */
+
+.tanibot > svg,
+.tanibot > span,
+.tanibot > i {
+  position: absolute;
+}
+
+.tanibot > svg {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Watering can: swings while TaniBot flies. Pivot = the hand. */
+.bot-prop {
+  transform-origin: 29% 76%;
+}
+
+.bot-spot.moving .bot-prop {
+  animation: bot-prop-swing 0.36s ease-in-out infinite alternate;
+}
+
+@keyframes bot-prop-swing {
+  from {
+    transform: rotate(-10deg);
+  }
+  to {
+    transform: rotate(9deg);
+  }
+}
+
+/* Shoulder leaves sway softly. */
+.bot-leaf {
+  transform-origin: 50% 58%;
+  animation: bot-leaf-sway 2.8s ease-in-out infinite;
+}
+
+@keyframes bot-leaf-sway {
+  0%,
+  100% {
+    transform: rotate(0) translateY(0);
+  }
+  50% {
+    transform: rotate(1.6deg) translateY(-0.5%);
+  }
+}
+
+/* Hat LEDs pulse (Farmer and up glow a little stronger). */
+.tier-farmer .bot-leds,
+.tier-orchard_master .bot-leds,
+.tier-durian_king .bot-leds,
+.tier-legend .bot-leds {
+  animation: bot-led-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes bot-led-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px var(--mint)) brightness(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 6px var(--mint)) drop-shadow(0 0 10px rgba(0, 236, 151, 0.6)) brightness(1.3);
+  }
+}
+
+/* A light sweep over the body (Farmer) or the solar cape (Durian King), masked to the sprite. */
+.bot-sweep {
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 0 40%, rgba(255, 255, 255, 0.85) 48%, rgba(255, 255, 255, 0.85) 52%, transparent 60%);
+  background-size: 300% 100%;
+  background-position: 120% 0;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mix-blend-mode: soft-light;
+  animation: bot-sweep 4.5s ease-in-out infinite;
+}
+
+.bot-sweep.cape {
+  background-image: linear-gradient(115deg, transparent 0 40%, rgba(255, 236, 160, 0.95) 48%, rgba(127, 211, 242, 0.9) 52%, transparent 60%);
+  mix-blend-mode: screen;
+  animation-duration: 3.6s;
+}
+
+@keyframes bot-sweep {
+  0%,
+  55% {
+    background-position: 120% 0;
+  }
+  85%,
+  100% {
+    background-position: -20% 0;
+  }
+}
+
+/* Gold twinkles on the hat studs and ornaments. */
+.bot-twinkle {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  pointer-events: none;
+  background:
+    linear-gradient(#fff, #fff) center / 100% 2px no-repeat,
+    linear-gradient(#fff, #fff) center / 2px 100% no-repeat;
+  filter: drop-shadow(0 0 3px var(--gold));
+  opacity: 0;
+  animation: bot-twinkle 3s ease-in-out infinite;
+}
+
+@keyframes bot-twinkle {
+  0%,
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* Bubbles rising in the seed tank. */
+.bot-bubbles {
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.bot-bubbles i {
+  position: absolute;
+  left: -2px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  opacity: 0;
+  animation: bot-bubble 2.4s ease-in infinite;
+}
+
+.bot-bubbles i:nth-child(2) {
+  left: 1px;
+  animation-delay: 0.8s;
+}
+
+.bot-bubbles i:nth-child(3) {
+  left: -1px;
+  animation-delay: 1.6s;
+}
+
+@keyframes bot-bubble {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+/* Now and then a leaf falls from the Orchard Master's shoulder. */
+.bot-falling-leaf {
+  left: 22%;
+  top: 56%;
+  width: 6px;
+  height: 4px;
+  border-radius: 6px 0 6px 0;
+  background: #2e7d4f;
+  box-shadow: inset 1px 1px 0 #4caf6a;
+  opacity: 0;
+  pointer-events: none;
+  animation: bot-leaf-fall 9s ease-in infinite;
+}
+
+@keyframes bot-leaf-fall {
+  0%,
+  78% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0);
+  }
+  80% {
+    opacity: 1;
+  }
+  90% {
+    transform: translate(-10px, 40px) rotate(160deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(4px, 80px) rotate(320deg);
+  }
+}
+
+/* Auras behind the body (pulse slowly). */
+.bot-aura {
+  left: 50%;
+  top: 58%;
+  z-index: -1;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+/* Durian King: a golden durian (round with spikes of light). */
+.aura-durian {
+  width: 92%;
+  aspect-ratio: 1;
+  background:
+    radial-gradient(circle, rgba(255, 223, 120, 0.85) 0 38%, rgba(245, 197, 66, 0.35) 52%, transparent 64%),
+    repeating-conic-gradient(rgba(255, 214, 102, 0.75) 0 5deg, transparent 5deg 22.5deg);
+  mask: radial-gradient(circle, #000 45%, rgba(0, 0, 0, 0.6) 58%, transparent 70%);
+  -webkit-mask: radial-gradient(circle, #000 45%, rgba(0, 0, 0, 0.6) 58%, transparent 70%);
+  filter: blur(1.5px);
+  animation: aura-pulse 3.2s ease-in-out infinite;
+}
+
+/* Legend: a white-cyan circle of light, turning very slowly. */
+.aura-legend {
+  width: 100%;
+  aspect-ratio: 1;
+  background: conic-gradient(from 0deg, rgba(255, 255, 255, 0.9), rgba(34, 211, 238, 0.35), rgba(255, 255, 255, 0.85), rgba(165, 243, 252, 0.3), rgba(255, 255, 255, 0.9));
+  mask: radial-gradient(circle, transparent 50%, #000 54%, #000 60%, transparent 66%);
+  -webkit-mask: radial-gradient(circle, transparent 50%, #000 54%, #000 60%, transparent 66%);
+  filter: blur(1px) drop-shadow(0 0 6px rgba(34, 211, 238, 0.7));
+  animation: aura-spin 40s linear infinite, aura-pulse-only 3.4s ease-in-out infinite;
+}
+
+@keyframes aura-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  50% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1.04);
+  }
+}
+
+@keyframes aura-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes aura-pulse-only {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+/* Legend: the ring of light floating above the hat, turning slowly. */
+.bot-halo {
+  left: 50%;
+  top: -10%;
+  width: 46%;
+  height: 12%;
+  margin-left: -23%;
+  border-radius: 50%;
+  border: 3px solid rgba(220, 255, 255, 0.95);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.9), inset 0 0 6px rgba(34, 211, 238, 0.8);
+  pointer-events: none;
+  animation: halo-float 3s ease-in-out infinite;
+}
+
+.bot-halo::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(from var(--halo-a, 0deg), #fff 0 30deg, transparent 60deg 360deg);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  animation: halo-turn 6s linear infinite;
+}
+
+@property --halo-a {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes halo-turn {
+  to {
+    --halo-a: 360deg;
+  }
+}
+
+@keyframes halo-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* Legend: cyan hologram aura (pulsing glow) and a scan line over the body. */
+.tier-legend > .bot-body {
+  animation: holo-glow 2.6s ease-in-out infinite;
+}
+
+@keyframes holo-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(34, 211, 238, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 7px rgba(34, 211, 238, 0.95)) drop-shadow(0 0 14px rgba(34, 211, 238, 0.4));
+  }
+}
+
+.bot-scan {
+  inset: 0;
+  pointer-events: none;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  background: linear-gradient(transparent 0 46%, rgba(165, 243, 252, 0.9) 49%, rgba(255, 255, 255, 0.95) 50%, transparent 54%);
+  background-size: 100% 300%;
+  mix-blend-mode: screen;
+  animation: bot-scan 3.2s linear infinite;
+}
+
+@keyframes bot-scan {
+  from {
+    background-position: 0 100%;
+  }
+  to {
+    background-position: 0 0%;
+  }
+}
+
+/* Legend's batik glows in two halves, in turn. */
+.bot-batik {
+  animation: batik-glow 3s ease-in-out infinite;
+}
+
+.bot-batik.b {
+  animation-delay: -1.5s;
+}
+
+@keyframes batik-glow {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.7) drop-shadow(0 0 3px var(--gold));
+  }
+}
+
+/* Legend: star sparkles around. */
+.bot-stars {
+  inset: 0;
+  pointer-events: none;
+}
+
+.bot-stars i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background:
+    linear-gradient(#fff, #fff) center / 100% 2px no-repeat,
+    linear-gradient(#fff, #fff) center / 2px 100% no-repeat;
+  filter: drop-shadow(0 0 3px var(--cyan));
+  opacity: 0;
+  animation: bot-twinkle 2.6s ease-in-out infinite;
+}
+
+.bot-stars i:nth-child(1) {
+  left: 4%;
+  top: 30%;
+}
+
+.bot-stars i:nth-child(2) {
+  left: 92%;
+  top: 22%;
+  animation-delay: 0.7s;
+}
+
+.bot-stars i:nth-child(3) {
+  left: 10%;
+  top: 74%;
+  animation-delay: 1.3s;
+}
+
+.bot-stars i:nth-child(4) {
+  left: 88%;
+  top: 66%;
+  animation-delay: 1.9s;
+}
+
+/* Jets per tier: leaves for the Orchard Master, gold and mint for the Durian King. */
+.bot-spot.tier-orchard_master .bot-jet i {
+  width: 5px;
+  height: 3px;
+  border-radius: 5px 0 5px 0;
+  background: #2e7d4f;
+  box-shadow: none;
+}
+
+.bot-spot.tier-durian_king .bot-jet b {
+  background: linear-gradient(#fff 0 15%, var(--gold) 38%, var(--mint) 70%, rgba(0, 236, 151, 0) 100%);
+  box-shadow: 0 0 8px var(--gold);
+}
+
+.bot-spot.tier-durian_king .bot-jet i {
+  background: var(--gold);
+  box-shadow: 0 0 4px var(--gold);
+}
+
+.bot-spot.tier-legend .bot-jet b {
+  background: linear-gradient(#fff 0 20%, #a5f3fc 45%, var(--cyan) 70%, rgba(34, 211, 238, 0) 100%);
+  box-shadow: 0 0 10px var(--cyan);
+}
+
+/* Legend: a hologram ripple where it lands. */
+.bot-ripple {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 60%;
+  height: 10px;
+  margin-left: -30%;
+  border-radius: 50%;
+  border: 2px solid rgba(165, 243, 252, 0.9);
+  box-shadow: 0 0 8px var(--cyan);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bot-spot.landing .bot-ripple {
+  animation: bot-ripple 0.8s ease-out;
+}
+
+@keyframes bot-ripple {
+  0% {
+    opacity: 1;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+/* Watering from the can (Farmhand and up). */
+.act-water.from-can .pour {
+  position: absolute;
+  bottom: 38%;
+  width: 3px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--cyan);
+  box-shadow: 0 0 4px var(--cyan);
+  opacity: 0;
+  animation: can-pour 0.7s ease-in forwards;
+}
+
+@keyframes can-pour {
+  0% {
+    opacity: 0;
+    transform: translate(18px, -26px);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, 10px);
+  }
+}
+
+/* Durian King: coins jump out of a harvest. */
+.king-coin {
+  position: absolute;
+  bottom: 40%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: 1px solid #a07a12;
+  box-shadow: 0 0 5px var(--gold);
+  opacity: 0;
+  animation: king-coin 0.9s ease-out forwards;
+}
+
+@keyframes king-coin {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  25% {
+    opacity: 1;
+  }
+  60% {
+    transform: translateY(-34px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.9);
+  }
+}
+
+/* ---------- Drones: quadcopter with spinning props, blinking LED, ground shadow ---------- */
+
+.drone {
+  position: relative;
+}
+
+.drone > svg {
+  position: absolute;
+  left: 0;
+  width: 100%;
+}
+
+.drone-body {
+  top: 0;
+  height: 100%;
+}
+
+.drone-prop {
+  top: 0;
+  height: calc(100% * 2 / 11);
+  animation: drone-prop 0.12s steps(1) infinite;
+}
+
+.drone-prop.b {
+  animation-delay: -0.06s;
+}
+
+@keyframes drone-prop {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.drone-led {
+  position: absolute;
+  background: #ef4444;
+  box-shadow: 0 0 4px #ef4444;
+  animation: drone-led 1.1s steps(1) infinite;
+}
+
+@keyframes drone-led {
+  0%,
+  60% {
+    background: #ef4444;
+    box-shadow: 0 0 4px #ef4444;
+  }
+  61%,
+  100% {
+    background: var(--mint);
+    box-shadow: 0 0 4px var(--mint);
+  }
+}
+
+.drone-shadow {
+  position: absolute;
+  left: 20%;
+  width: 60%;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  filter: blur(1px);
+}
+
+.flyby .drone.mini {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.flyby-shadow {
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.22);
+  filter: blur(1px);
+}
+
+/* Drones orbit TaniBot's shoulders (front and back of it), asleep they park dimly. */
+.bot-spot .bot-drones {
+  bottom: 50%;
+  z-index: 2;
+}
+
+.orbit {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  transform: translateX(-50%);
+  animation: drone-orbit 7s ease-in-out infinite;
+}
+
+.orbit.o2 {
+  animation-delay: -3.5s;
+}
+
+.orbit > .drone {
+  margin-left: -50%;
+}
+
+@keyframes drone-orbit {
+  0% {
+    transform: translate(calc(var(--bot-w) * -0.62), 0) scale(1);
+    z-index: 3;
+  }
+  25% {
+    transform: translate(0, calc(var(--bot-w) * -0.08)) scale(1.05);
+    z-index: 3;
+  }
+  50% {
+    transform: translate(calc(var(--bot-w) * 0.62), 0) scale(1);
+    z-index: 3;
+  }
+  51% {
+    z-index: -1;
+  }
+  75% {
+    transform: translate(0, calc(var(--bot-w) * -0.2)) scale(0.75);
+    z-index: -1;
+  }
+  99% {
+    z-index: -1;
+  }
+  100% {
+    transform: translate(calc(var(--bot-w) * -0.62), 0) scale(1);
+    z-index: 3;
+  }
+}
+
+.bot-drones.parked {
+  opacity: 0.25;
+}
+
+.bot-drones.parked .orbit,
+.bot-drones.parked .drone-prop,
+.bot-drones.parked .drone-led {
+  animation-play-state: paused;
+}
+
+/* ---------- The evolution moment ---------- */
+
+.bot-spot.evolving .tanibot {
+  animation: bot-evolve 2.4s steps(1, end);
+}
+
+@keyframes bot-evolve {
+  0%,
+  12%,
+  24%,
+  36% {
+    filter: brightness(0) invert(1) drop-shadow(0 0 10px #fff);
+  }
+  6%,
+  18%,
+  30% {
+    filter: brightness(1);
+  }
+  48%,
+  70% {
+    filter: brightness(0) invert(1) drop-shadow(0 0 16px var(--mint));
+  }
+  100% {
+    filter: none;
+  }
+}
+
+.bot-evolve-scan {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  height: 4px;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, #fff 20%, var(--mint) 50%, #fff 80%, transparent);
+  box-shadow: 0 0 12px var(--mint);
+  pointer-events: none;
+  animation: bot-evolve-scan 1.4s ease-in-out 0.9s both;
+}
+
+@keyframes bot-evolve-scan {
+  from {
+    bottom: 0;
+    opacity: 1;
+  }
+  to {
+    bottom: 100%;
+    opacity: 0;
+  }
+}
+
+/* ---------- Locked avatars (TaniBot heads unlock with titles) ---------- */
+
+.avatar-wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.avatar-choice.locked {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.avatar-choice.locked span:last-child {
+  color: var(--ink-soft);
+  font-size: 10px;
+}
+
+.avatar-lock {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 14px;
+  background: var(--gold);
+  border: 2px solid #1b1b2f;
+  border-radius: 3px;
+}
+
+.avatar-lock::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: -8px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #1b1b2f;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+}
+
+.avatar-lock b {
+  position: absolute;
+  left: 5px;
+  top: 3px;
+  width: 2px;
+  height: 4px;
+  background: #1b1b2f;
+}
+
+/* Reduced motion: still TaniBots, no flying drones, no sparkles. */
+@media (prefers-reduced-motion: reduce) {
+  .bot-prop,
+  .bot-leaf,
+  .bot-leds,
+  .bot-sweep,
+  .bot-twinkle,
+  .bot-bubbles i,
+  .bot-falling-leaf,
+  .bot-aura,
+  .bot-halo,
+  .bot-halo::after,
+  .tier-legend > .bot-body,
+  .bot-scan,
+  .bot-batik,
+  .bot-stars i,
+  .orbit,
+  .drone-prop,
+  .drone-led,
+  .bot-spot.evolving .tanibot,
+  .bot-evolve-scan {
+    animation: none !important;
+  }
+
+  .bot-sweep,
+  .bot-scan,
+  .bot-twinkle,
+  .bot-stars,
+  .bot-falling-leaf,
+  .bot-bubbles {
+    display: none;
+  }
+
+  .orbit {
+    transform: translate(calc(var(--bot-w) * -0.55), 0);
+  }
+}
+
+/* Durian King's aura: larger, so the spikes of light reach past the body. */
+.aura-durian {
+  width: 150%;
+  background:
+    radial-gradient(circle, rgba(255, 228, 140, 0.9) 0 22%, rgba(245, 197, 66, 0.45) 36%, transparent 48%),
+    repeating-conic-gradient(rgba(255, 210, 90, 0.95) 0 4deg, transparent 4deg 22.5deg);
+  mask: radial-gradient(circle, #000 28%, rgba(0, 0, 0, 0.85) 46%, transparent 66%);
+  -webkit-mask: radial-gradient(circle, #000 28%, rgba(0, 0, 0, 0.85) 46%, transparent 66%);
+  filter: blur(1px) drop-shadow(0 0 6px rgba(245, 197, 66, 0.6));
+}

@@ -12,6 +12,7 @@ import { burnDelegateHash, verifySignature } from './wallet.ts';
 import {
   advance,
   AVATARS,
+  AVATAR_TITLE,
   CHECKIN_DAY7_MULTIPLIER,
   CHECKIN_PANEN,
   DEMO_STREAK_GRACE_DAYS,
@@ -207,7 +208,11 @@ export class Game {
 
   setAvatar(playerId: number, avatar: unknown): void {
     if (typeof avatar !== 'string' || !(AVATARS as readonly string[]).includes(avatar)) throw new GameError('Unknown avatar');
-    this.db.prepare('UPDATE players SET avatar = ? WHERE id = ?').run(avatar, this.getPlayer(playerId).id);
+    const p = this.getPlayer(playerId);
+    const needs = AVATAR_TITLE[avatar as keyof typeof AVATAR_TITLE];
+    const needXp = needs ? TITLES.find((t) => t.name === needs)!.xp : 0;
+    if (p.xp < needXp) throw new GameError(`Reach ${needs} to unlock this avatar`, 403, { code: 'avatar_locked' });
+    this.db.prepare('UPDATE players SET avatar = ? WHERE id = ?').run(avatar, p.id);
   }
 
   /** Links a proven NEAR wallet to a Google/dev garden. One wallet = one garden. */

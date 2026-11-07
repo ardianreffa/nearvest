@@ -198,3 +198,19 @@ describe('Profile avatar', () => {
     assert.equal((await call(w.app, 'POST', '/api/avatar', json.token, { avatar: 'my-photo.png' })).status, 400);
   });
 });
+
+describe('TaniBot head avatars per title', () => {
+  it('Seedling is free; higher heads unlock with the title (checked by the server)', async () => {
+    const w = world(true);
+    const { json } = await call(w.app, 'POST', '/auth/dev', undefined, { username: 'tester' });
+    await call(w.app, 'POST', '/api/player', json.token, { name: 'tester' });
+    assert.equal((await call(w.app, 'POST', '/api/avatar', json.token, { avatar: 'bot_seedling' })).json.player.avatar, 'bot_seedling');
+    const locked = await call(w.app, 'POST', '/api/avatar', json.token, { avatar: 'bot_legend' });
+    assert.equal(locked.status, 403);
+    assert.equal(locked.json.code, 'avatar_locked');
+    assert.match(locked.json.error, /Reach Legend/);
+    w.db.prepare("UPDATE players SET xp = 50 WHERE name = 'tester'").run(); // Farmhand
+    assert.equal((await call(w.app, 'POST', '/api/avatar', json.token, { avatar: 'bot_farmhand' })).json.player.avatar, 'bot_farmhand');
+    assert.equal((await call(w.app, 'POST', '/api/avatar', json.token, { avatar: 'bot_farmer' })).status, 403);
+  });
+});

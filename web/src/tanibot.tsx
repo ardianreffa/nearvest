@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from 'preact/hooks';
 import { api, type BotStyle, type GameState, type ServerConfig, type TaniBotResponse, type TaniBotView } from './api';
-import { botVersion, TaniBot } from './art/tanibot';
+import { TaniBot, tierOf } from './art/tanibot';
 import { Modal } from './help';
 import { Panel } from './ui';
 import { formatDuration } from './ui';
@@ -138,7 +138,7 @@ export function TaniBotWindow({
   return (
     <Modal title="TaniBot" onClose={onClose} closeLabel="Close" class="tanibot-dialog">
       <div class="bot-head">
-        <TaniBot version={botVersion(p.title)} scale={2} />
+        <TaniBot tier={tierOf(p.title)} scale={2} />
         <div>
           <b>Your AI farmer with its own NEAR wallet</b>
           <p class="small">
