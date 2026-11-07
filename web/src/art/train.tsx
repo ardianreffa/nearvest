@@ -1,4 +1,4 @@
-// The monorail train: two cars that follow the curved rail on their own, like a real
+// The monorail train: three cars (locomotive, middle, rear) that follow the curved rail on their own, like a real
 // articulated train. Nothing is rotated freely (that makes pixel art jagged): each car comes
 // in a few pre-tilted pixel-art versions (0, 5, 10 and 15 degrees) made by shifting each pixel
 // column up a whole number of pixels (a clean stair-step slope), and every car picks the
@@ -115,15 +115,16 @@ export function Train({ hd }: { hd: boolean }) {
   const night = TRAIN_CARS[`${res}_night`];
   /** Pixels of the sprite per game pixel (hd sprites are twice as detailed). */
   const per = hd ? 2 : 1;
-  const carLen = day.front[0].length / per;
-  const trainLen = carLen * 2;
+  const order = ['front', 'mid', 'rear'] as const;
+  const lens = order.map((c) => day[c][0].length / per);
+  const trainLen = lens.reduce((a, b) => a + b, 0);
   const start = TRAIN_CLIP.x - 1;
   const end = TRAIN_CLIP.x + TRAIN_CLIP.w + trainLen + 1;
   const head = start + (end - start) * ease(Math.min(1, t / RUN_MS));
   const snap = (v: number) => Math.round(v * per) / per;
 
-  const cars = (['front', 'rear'] as const).map((which, i) => {
-    const centre = head - carLen * (i + 0.5);
+  const cars = order.map((which, i) => {
+    const centre = head - lens.slice(0, i).reduce((a, b) => a + b, 0) - lens[i] / 2;
     const { y, deg } = railAt(centre);
     const a = ANGLES.reduce((best, v) => (Math.abs(v - deg) < Math.abs(best - deg) ? v : best), 0);
     const d = tilt(day[which], a, `${res}-day-${which}`);
