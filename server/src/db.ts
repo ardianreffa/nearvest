@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS bot_log (
   reason TEXT NOT NULL,
   job_id INTEGER,                  -- chain job that proves it (tx link), if any
   brain TEXT NOT NULL DEFAULT 'rules',  -- 'rules' | 'ai'
+  short TEXT,                      -- a few words for the speech bubble above TaniBot
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS bot_log_player ON bot_log(player_id, id);
@@ -204,6 +205,7 @@ function migrate(db: DB): void {
   if (!has('players', 'custody')) db.exec("ALTER TABLE players ADD COLUMN custody TEXT NOT NULL DEFAULT 'server'");
   if (!has('players', 'key_nonce')) db.exec('ALTER TABLE players ADD COLUMN key_nonce INTEGER NOT NULL DEFAULT 0');
   if (!has('players', 'wallet_account_id')) db.exec('ALTER TABLE players ADD COLUMN wallet_account_id TEXT');
+  if (!has('bot_log', 'short')) db.exec('ALTER TABLE bot_log ADD COLUMN short TEXT');
   if (!has('bots', 'last_ai_at')) db.exec('ALTER TABLE bots ADD COLUMN last_ai_at INTEGER NOT NULL DEFAULT 0');
   if (!has('players', 'google_sub')) db.exec('ALTER TABLE players ADD COLUMN google_sub TEXT');
   if (!has('players', 'avatar')) db.exec("ALTER TABLE players ADD COLUMN avatar TEXT NOT NULL DEFAULT 'farmer_hat'");

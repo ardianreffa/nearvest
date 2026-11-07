@@ -3701,3 +3701,387 @@ button.balance:focus-visible {
   border-radius: 3px;
   vertical-align: 1px;
 }
+
+/* ---------- Seed cards (empty plot): same size, fill the row, scroll sideways when many ---------- */
+
+.seed-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(112px, 1fr);
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+  scroll-snap-type: x proximity;
+}
+
+.seed-card {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 132px;
+  padding: 10px 6px 8px;
+  font: inherit;
+  color: var(--ink);
+  background: #fffaf0;
+  border: 2px solid #b89a5e;
+  border-radius: 6px;
+  box-shadow: inset 0 -3px 0 #eadcb4, 0 2px 0 rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.08s steps(2);
+}
+
+.seed-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--leaf);
+}
+
+.seed-card:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.seed-card:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.seed-card-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 45%, #f1e3bf 70%);
+}
+
+.seed-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1b1b2f;
+  line-height: 1.2;
+}
+
+.seed-card-name b {
+  color: var(--leaf-dark);
+}
+
+.seed-q {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 2px solid #1b1b2f;
+}
+
+.seed-q-common {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.seed-q-rare {
+  background: var(--purple);
+  color: #fff;
+}
+
+.seed-q-gold {
+  background: var(--gold);
+  color: #3b2a00;
+}
+
+.seed-q-unknown {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  color: var(--ink-soft);
+  background: transparent;
+  border: 1px dashed #b8a780;
+}
+
+.seed-card-from {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.seed-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+/* Laptop action bar: cards in one row next to nothing else; note in the bar's light text. */
+.plot-bar.plot-empty > .seed-row {
+  grid-column: 1 / -1;
+}
+
+.plot-bar.plot-empty > .seed-note {
+  grid-column: 1 / -1;
+  color: #e6d7b5;
+}
+
+.plot-bar .seed-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-auto-rows: auto;
+  align-items: center;
+  justify-items: start;
+  column-gap: 10px;
+  row-gap: 3px;
+  min-height: 0;
+  padding: 6px 10px 6px 6px;
+  text-align: left;
+}
+
+.plot-bar .seed-row {
+  grid-auto-columns: minmax(168px, 1fr);
+}
+
+.plot-bar .seed-card-icon {
+  grid-row: 1 / span 3;
+  width: 44px;
+  height: 44px;
+}
+
+.plot-bar .seed-card > :not(.seed-card-icon) {
+  grid-column: 2;
+}
+
+.plot-bar .seed-card-name {
+  font-size: 14px;
+}
+
+/* ---------- TaniBot status at a glance ---------- */
+
+.tabs {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.tab {
+  font-size: 11px;
+}
+
+.bot-icon {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.bot-dot {
+  position: absolute;
+  right: -4px;
+  bottom: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid #1b1b2f;
+}
+
+.bot-dot-on {
+  background: var(--mint);
+  box-shadow: 0 0 6px var(--mint);
+}
+
+.bot-dot-off {
+  background: #9ca3af;
+}
+
+.bot-dot-warn {
+  background: var(--gold);
+  box-shadow: 0 0 6px var(--gold);
+}
+
+.drawer-head .drawer-bot {
+  margin-left: auto;
+  margin-right: 6px;
+}
+
+/* Small ON / OFF chip at TaniBot's side (never over the tree timers or the bubble). */
+.bot-status {
+  position: absolute;
+  left: 100%;
+  top: 38%;
+  margin-left: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 999px;
+  border: 2px solid #1b1b2f;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.bot-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.bot-status.on {
+  color: #053b26;
+  background: #b9f7dd;
+}
+
+.bot-status.on i {
+  background: var(--mint);
+  box-shadow: 0 0 6px var(--mint);
+  animation: bot-lamp 1.6s ease-in-out infinite;
+}
+
+.bot-status.off {
+  color: #374151;
+  background: #d1d5db;
+}
+
+.bot-status.off i {
+  background: #6b7280;
+}
+
+.wide .bot-status,
+.immersive-scene .bot-status {
+  font-size: 12px;
+  padding: 3px 8px 3px 5px;
+}
+
+@keyframes bot-lamp {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Sleeping TaniBot: dimmed, eyes almost closed, no hovering, floating zzz. */
+.bot-click {
+  position: relative;
+}
+
+.bot-click.asleep .tanibot {
+  animation: none;
+  filter: saturate(0.55) brightness(0.8) drop-shadow(0 6px 0 rgba(0, 0, 0, 0.25));
+}
+
+.bot-click.asleep .bot-eyes {
+  opacity: 0.25;
+  animation: none;
+}
+
+.bot-click.asleep .bot-leds,
+.bot-click.asleep .bot-screen {
+  opacity: 0.35;
+  animation: none;
+}
+
+.bot-zzz {
+  position: absolute;
+  top: 0;
+  right: -6px;
+  pointer-events: none;
+  font-family: 'Pixelify Sans', sans-serif;
+  font-weight: 700;
+  color: #e0f2fe;
+  text-shadow: 1px 1px 0 #1b1b2f;
+  line-height: 1;
+}
+
+.bot-zzz i {
+  position: absolute;
+  font-style: normal;
+  opacity: 0;
+  animation: bot-zzz 3s ease-out infinite;
+}
+
+.bot-zzz i:nth-child(1) {
+  font-size: 10px;
+}
+
+.bot-zzz i:nth-child(2) {
+  font-size: 13px;
+  animation-delay: 1s;
+}
+
+.bot-zzz i:nth-child(3) {
+  font-size: 16px;
+  animation-delay: 2s;
+}
+
+@keyframes bot-zzz {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(14px, -22px);
+  }
+}
+
+/* The short action bubble fades out on its own after about 4 seconds. */
+.bot-hint-flash {
+  animation: bot-hint-in 0.35s ease-out forwards, bot-hint-out 0.5s ease-in 3.4s forwards;
+  opacity: 0;
+}
+
+@keyframes bot-hint-out {
+  to {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bot-status.on i,
+  .bot-zzz i {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* TaniBot shortcut icon: the head (58 x 33 pixels) shrunk to icon size. */
+.bot-icon .tanibot-head {
+  width: 35px !important;
+  height: 20px !important;
+}
+
+.rail-btn .bot-icon .tanibot-head {
+  width: 44px !important;
+  height: 25px !important;
+}
+
+/* Seed cards keep one size; several cards fill the row, many scroll sideways. */
+.seed-row {
+  grid-auto-columns: minmax(112px, 150px);
+}
+
+.plot-bar .seed-row {
+  grid-auto-columns: minmax(168px, 230px);
+}
+
+/* Phones: the ON / OFF chip sits at TaniBot's feet, clear of the plot labels. */
+@media (max-width: 1023px) {
+  .scene:not(.immersive-scene) .bot-status {
+    left: 50%;
+    top: auto;
+    bottom: -4px;
+    margin-left: 0;
+    transform: translateX(-50%);
+    font-size: 9px;
+    padding: 1px 5px 1px 3px;
+  }
+}
+
+.bot-icon .tanibot-head > svg {
+  width: 100% !important;
+  height: 100% !important;
+}

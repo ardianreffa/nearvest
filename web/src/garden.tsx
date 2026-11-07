@@ -12,6 +12,8 @@ import {
   groupSeeds,
   Panel,
   QualityTag,
+  SEED_ODDS_TEXT,
+  SeedCard,
   QUALITY_NAME,
   SPECIES_NAME,
   STAGE_NAME,
@@ -47,10 +49,9 @@ interface Props {
   immersive?: Immersive;
   /** Opens the TaniBot window (click on TaniBot). */
   onBot?: () => void;
-  botHint?: boolean;
 }
 
-export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, showCheckin, big, immersive, onBot, botHint }: Props) {
+export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, showCheckin, big, immersive, onBot }: Props) {
   const [selected, setSelected] = useState(0);
   const [fx, setFx] = useState<SceneFx | null>(null);
   const fxTimer = useRef<number>(0);
@@ -91,7 +92,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
   if (immersive) {
     return (
       <>
-        <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} immersive={immersive} onBot={onBot} botHint={botHint} />
+        <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} immersive={immersive} onBot={onBot} />
         <div class="hud-bar" role="region" aria-label="Selected plot">
           {panel}
         </div>
@@ -103,7 +104,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
     <div class="garden-screen">
       {showCheckin && <CheckinBanner state={state} act={act} ask={ask} busy={busy} />}
 
-      <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} onBot={onBot} botHint={botHint} />
+      <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} onBot={onBot} />
 
       {panel}
       {!plot.tree && !plot.locked && state.seeds.length === 0 && (
@@ -203,31 +204,24 @@ function PlotPanel({
   }
 
   if (!p.tree) {
-    const groups = groupSeeds(state.seeds);
+    const groups = groupSeeds(state.seeds, true);
     return (
-      <Panel title={`Plot ${plotIndex + 1} · empty`} class={bar ? 'plot-bar' : undefined}>
+      <Panel title={`Plot ${plotIndex + 1} · empty`} class={`plot-empty${bar ? ' plot-bar' : ''}`}>
         {groups.length === 0 ? (
           <p class="muted">You have no seeds.</p>
         ) : (
-          <div class="seed-grid">
+          <div class="seed-row" role="list" aria-label="Your seeds">
             {groups.map((g) => (
-              <button
+              <SeedCard
                 key={g.key}
-                class="seed-btn"
+                group={g}
                 disabled={busy}
-                onClick={() => act('/api/plant', { plot: plotIndex, seedId: g.ids[0] }, `Planted ${SPECIES_NAME[g.species]}!`)}
-              >
-                <FruitIcon species={g.species} scale={3} />
-                <span>
-                  {SPECIES_NAME[g.species]} <b>x{g.ids.length}</b>
-                </span>
-                {g.fromTree && <span class="tiny">from your tree</span>}
-                <QualityTag quality={g.quality} />
-              </button>
+                onPick={() => act('/api/plant', { plot: plotIndex, seedId: g.ids[0] }, `Planted ${SPECIES_NAME[g.species]}!`)}
+              />
             ))}
           </div>
         )}
-        <p class="muted small">Tap a seed to plant it. A Tree NFT is minted to your account.</p>
+        <p class="seed-note">Tap a seed to plant it: a Tree NFT is minted to your account. {SEED_ODDS_TEXT}</p>
       </Panel>
     );
   }

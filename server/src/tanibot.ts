@@ -123,7 +123,8 @@ export class TaniBotService {
   /** Last quick reaction per player: when, and what it saw (to skip repeats). */
   private quick = new Map<number, { at: number; sig: string; acted: boolean }>();
 
-  log(playerId: number, action: string, reason: string, jobId: number | null = null, brain: 'rules' | 'ai' = 'rules'): void {
+  /** `short`: a few words for the speech bubble above TaniBot in the garden ("Harvested 1 Durian!"). */
+  log(playerId: number, action: string, reason: string, jobId: number | null = null, brain: 'rules' | 'ai' = 'rules', short: string | null = null): void {
     if (jobId === null) {
       // No spam: skip a line identical to a recent one (water 3 minutes, notices 10 minutes).
       const window = SAME_LOG_WINDOW_MS[action] ?? SAME_LOG_WINDOW_MS.default;
@@ -133,8 +134,8 @@ export class TaniBotService {
       if (same) return;
     }
     this.db
-      .prepare('INSERT INTO bot_log (player_id, action, reason, job_id, brain, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(playerId, action, reason, jobId, brain, this.d.now());
+      .prepare('INSERT INTO bot_log (player_id, action, reason, job_id, brain, short, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(playerId, action, reason, jobId, brain, short, this.d.now());
   }
 
   /** Latest chain job of this player created after `afterId` (the proof of an action). */
@@ -496,11 +497,11 @@ export class TaniBotService {
       return p && !p.locked ? p : null;
     };
     /** Runs one checked action; logs it with the AI's reason; a game error means the suggestion was not allowed. */
-    const doIt = (a: BrainAction, fn: () => string): boolean => {
+    const doIt = (a: BrainAction, fn: () => [string, string]): boolean => {
       const before = this.lastJobId();
       try {
-        const fact = fn();
-        this.log(playerId, a.action, `${a.reason.replace(/[.!]?$/, '.')} ${fact}`, this.jobSince(playerId, before), 'ai');
+        const [fact, short] = fn();
+        this.log(playerId, a.action, `${a.reason.replace(/[.!]?$/, '.')} ${fact}`, this.jobSince(playerId, before), 'ai', short);
         done++;
         aiDone++;
         return true;
@@ -516,7 +517,7 @@ export class TaniBotService {
       if (buyFailed) return false; // already explained once this round
       bought = doIt({ ...a, action: 'buy' } as BrainAction, () => {
         const r = game.botBuy(playerId, 'fertilizer', 1, this.limitDay());
-        return `Bought 1 Fertilizer for ${r.costPanen} PANEN from my budget (burned on chain).`;
+        return [`Bought 1 Fertilizer for ${r.costPanen} PANEN from my budget (burned on chain).`, 'Bought 1 Fertilizer!'];
       });
       buyFailed = !bought;
       return bought;
@@ -538,18 +539,18 @@ export class TaniBotService {
           doIt(a, () => {
             const r = game.harvest(playerId, plot.plot);
             return r.kind === 'fruit'
-              ? `Harvested 1 ${qualityName[r.quality]} ${label(r.species)} on plot ${a.plot} (+${r.xp} XP).`
-              : `The old ${label(r.species)} tree on plot ${a.plot} gave its superior seed.`;
+              ? [`Harvested 1 ${qualityName[r.quality]} ${label(r.species)} on plot ${a.plot} (+${r.xp} XP).`, `Harvested 1 ${label(r.species)}!`]
+              : [`The old ${label(r.species)} tree on plot ${a.plot} gave its superior seed.`, `Got a superior ${label(r.species)} seed!`];
           });
         } else if (a.action === 'water') {
-          doIt(a, () => (game.water(playerId, plot.plot), `Watered ${label(t.species)} on plot ${a.plot}.`));
+          doIt(a, () => (game.water(playerId, plot.plot), [`Watered ${label(t.species)} on plot ${a.plot}.`, `Watered the ${label(t.species)}.`]));
         } else {
           if (b.style === 'thrifty') {
             ignored.push('fertilize (Thrifty never fertilizes)');
             continue;
           }
           if (game.itemCount(playerId, 'fertilizer') < 1 && !buyFertilizer(a)) continue;
-          doIt(a, () => (game.fertilize(playerId, plot.plot), `Fertilized ${label(t.species)} on plot ${a.plot}.`));
+          doIt(a, () => (game.fertilize(playerId, plot.plot), [`Fertilized ${label(t.species)} on plot ${a.plot}.`, `Fertilized the ${label(t.species)}!`]));
         }
       } else if (a.action === 'buy') {
         if (a.item !== 'fertilizer' || a.qty !== 1) {
@@ -576,7 +577,7 @@ export class TaniBotService {
         }
         doIt(a, () => {
           const r = game.sell(playerId, a.species as Species, 'common', qty, price.price);
-          return `Sold ${qty} Common ${label(a.species as Species)} at ${price.price} (normal ${price.base}) for ${r.expectedPanen} PANEN, paid to you.`;
+          return [`Sold ${qty} Common ${label(a.species as Species)} at ${price.price} (normal ${price.base}) for ${r.expectedPanen} PANEN, paid to you.`, `Sold ${qty} ${label(a.species as Species)}!`];
         });
       }
     }
@@ -607,12 +608,13 @@ export class TaniBotService {
     const b = this.mustRow(playerId);
     const game = this.d.game;
     let done = 0;
-    const act = (action: string, fn: () => string | null) => {
+    const act = (action: string, fn: () => [string, string] | null) => {
       const before = this.lastJobId();
       try {
-        const reason = fn();
-        if (reason) {
-          this.log(playerId, action, prefix + reason, this.jobSince(playerId, before));
+        const r = fn();
+        if (r) {
+          const [reason, short] = r;
+          this.log(playerId, action, prefix + reason, this.jobSince(playerId, before), 'rules', short);
           done++;
         }
       } catch (err) {
@@ -628,8 +630,8 @@ export class TaniBotService {
       if (t?.ready) {
         act('harvest', () => {
           const r = game.harvest(playerId, plot.plot);
-          if (r.kind === 'fruit') return `${label(r.species)} on plot ${plot.plot + 1} was ripe: harvested 1 ${qualityName[r.quality]} fruit (+${r.xp} XP).`;
-          return `The old ${label(r.species)} tree on plot ${plot.plot + 1} gave its superior seed and became a Memorial Tree.`;
+          if (r.kind === 'fruit') return [`${label(r.species)} on plot ${plot.plot + 1} was ripe: harvested 1 ${qualityName[r.quality]} fruit (+${r.xp} XP).`, `Harvested 1 ${label(r.species)}!`];
+          return [`The old ${label(r.species)} tree on plot ${plot.plot + 1} gave its superior seed and became a Memorial Tree.`, `Got a superior ${label(r.species)} seed!`];
         });
       }
     }
@@ -648,7 +650,7 @@ export class TaniBotService {
       }
     }
     if (watered.length > 0) {
-      this.log(playerId, 'water', `${prefix}Watered ${watered.length === 1 ? 'a dry tree' : `${watered.length} dry trees`}: ${watered.join(', ')}. Watering is free and happens off-chain.`);
+      this.log(playerId, 'water', `${prefix}Watered ${watered.length === 1 ? 'a dry tree' : `${watered.length} dry trees`}: ${watered.join(', ')}. Watering is free and happens off-chain.`, null, 'rules', watered.length === 1 ? 'Watered 1 tree.' : `Watered ${watered.length} trees.`);
       done += watered.length;
     }
 
@@ -667,7 +669,7 @@ export class TaniBotService {
           act('buy', () => {
             const r = game.botBuy(playerId, 'fertilizer', 1, this.limitDay());
             bought = true;
-            return `${label(t.species)} grows slowly, so I bought 1 Fertilizer for ${r.costPanen} PANEN from my budget (burned on chain).`;
+            return [`${label(t.species)} grows slowly, so I bought 1 Fertilizer for ${r.costPanen} PANEN from my budget (burned on chain).`, 'Bought 1 Fertilizer!'];
           });
           if (!bought) {
             this.noticeOnce(playerId, price);
@@ -676,7 +678,7 @@ export class TaniBotService {
         }
         act('fertilize', () => {
           game.fertilize(playerId, plot.plot);
-          return `Fertilized ${label(t.species)} on plot ${plot.plot + 1}: 1.5x growth for a day and a better chance of Rare or Gold fruit.`;
+          return [`Fertilized ${label(t.species)} on plot ${plot.plot + 1}: 1.5x growth for a day and a better chance of Rare or Gold fruit.`, `Fertilized the ${label(t.species)}!`];
         });
       }
     }
@@ -692,7 +694,7 @@ export class TaniBotService {
       act('sell', () => {
         const r = game.sell(playerId, f.species, 'common', f.qty, price.price);
         const why = good ? `Mr. Darto pays ${price.price} (normal ${price.base})` : `Turbo style sells right away (price ${price.price}, normal ${price.base})`;
-        return `${why}: sold ${f.qty} Common ${label(f.species)} for ${r.expectedPanen} PANEN, paid to you.`;
+        return [`${why}: sold ${f.qty} Common ${label(f.species)} for ${r.expectedPanen} PANEN, paid to you.`, `Sold ${f.qty} ${label(f.species)}!`];
       });
     }
     const keep = st.fruits.filter((f) => f.quality !== 'common' && f.qty > 0);

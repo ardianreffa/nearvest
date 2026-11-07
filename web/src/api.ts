@@ -62,6 +62,13 @@ export interface GameState {
     googleLinked: boolean;
     /** Profile avatar id (web/src/art/avatars.tsx). */
     avatar: string;
+    /** TaniBot at a glance (null = not activated yet). */
+    tanibot: {
+      status: 'creating' | 'linking' | 'ready' | 'failed';
+      enabled: boolean;
+      alert: 'low' | 'limit' | null;
+      last: { id: number; text: string; at: number } | null;
+    } | null;
     demo: boolean;
     balance: number;
     xp: number;

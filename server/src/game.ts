@@ -785,6 +785,30 @@ export class Game {
     });
   }
 
+  /**
+   * TaniBot at a glance for the garden (no need to open its window): active or
+   * not, ON/OFF, a warning when it can no longer buy (budget or daily limit),
+   * and its latest action for the speech bubble.
+   */
+  private tanibotStatus(playerId: number) {
+    const b = this.db
+      .prepare('SELECT status, enabled, budget_micro, daily_limit_micro, spent_day, spent_micro FROM bots WHERE player_id = ?')
+      .get(playerId) as { status: string; enabled: number; budget_micro: number; daily_limit_micro: number; spent_day: number | null; spent_micro: number } | undefined;
+    if (!b) return null;
+    const price = toMicro(SHOP_ITEMS.fertilizer.price);
+    const spent = b.spent_day === dayIndex(this.d.now(), false) ? b.spent_micro : 0;
+    const last = this.db
+      .prepare("SELECT id, short, created_at FROM bot_log WHERE player_id = ? AND short IS NOT NULL ORDER BY id DESC LIMIT 1")
+      .get(playerId) as { id: number; short: string; created_at: number } | undefined;
+    return {
+      status: b.status as 'creating' | 'linking' | 'ready' | 'failed',
+      enabled: b.enabled === 1,
+      /** 'low': budget below a fertilizer, 'limit': today's spending limit reached. */
+      alert: b.budget_micro < price ? ('low' as const) : b.daily_limit_micro - spent < price ? ('limit' as const) : null,
+      last: last ? { id: last.id, text: last.short, at: last.created_at } : null,
+    };
+  }
+
   /** Items in storage (TaniBot checks fertilizer). */
   itemCount(playerId: number, item: string): number {
     return this.itemQty(playerId, item);
@@ -957,6 +981,7 @@ export class Game {
         /** How the garden's owner signs in: 'google', 'near' (wallet garden) or 'dev'. */
         googleLinked: p.google_sub !== null,
         avatar: p.avatar,
+        tanibot: this.tanibotStatus(p.id),
         signIn: (this.db.prepare('SELECT provider FROM users WHERE id = ?').get(p.user_id) as { provider: string } | undefined)?.provider ?? 'dev',
         demo,
         balance: fromMicro(p.balance_micro),

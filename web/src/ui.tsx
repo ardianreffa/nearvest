@@ -30,16 +30,22 @@ export interface SeedGroup {
   species: Species;
   quality: Quality | null;
   fromTree: boolean;
+  /** Where the seeds came from (only when grouped by source). */
+  source?: string;
   ids: number[];
 }
 
 /** Stacks identical seeds ("Mango seed x7"). Seeds from old trees stay separate (lineage). */
-export function groupSeeds(seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null }[]): SeedGroup[] {
+export function groupSeeds(
+  seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null; source?: string }[],
+  bySource = false,
+): SeedGroup[] {
   const groups = new Map<string, SeedGroup>();
   for (const s of seeds) {
     const fromTree = s.parentTreeId !== null;
-    const key = `${s.species}|${s.quality ?? 'unknown'}|${fromTree ? 'tree' : 'plain'}`;
-    const g = groups.get(key) ?? { key, species: s.species, quality: s.quality, fromTree, ids: [] };
+    const source = bySource ? (fromTree ? 'tree' : (s.source ?? 'shop')) : undefined;
+    const key = `${s.species}|${s.quality ?? 'unknown'}|${fromTree ? 'tree' : 'plain'}|${source ?? ''}`;
+    const g = groups.get(key) ?? { key, species: s.species, quality: s.quality, fromTree, source, ids: [] };
     g.ids.push(s.id);
     groups.set(key, g);
   }
@@ -152,5 +158,34 @@ export function QtyPicker({
         </p>
       )}
     </div>
+  );
+}
+
+const SEED_SOURCE: Record<string, string> = {
+  tree: 'from your tree',
+  checkin: 'check-in',
+  welcome: 'welcome pack',
+  shop: 'Shop',
+  tanibot: 'bought by TaniBot',
+};
+
+export const SEED_ODDS_TEXT = 'Quality is revealed when planted: 80% Common, 17% Rare, 3% Gold.';
+
+/** A seed card for planting: big fruit icon, name + amount, quality badge, where it came from. */
+export function SeedCard({ group, disabled, onPick }: { group: SeedGroup; disabled: boolean; onPick: () => void }) {
+  const q = group.quality;
+  return (
+    <button class="seed-card" disabled={disabled} onClick={onPick} aria-label={`Plant ${q ? QUALITY_NAME[q] + ' ' : ''}${SPECIES_NAME[group.species]} seed (${group.ids.length} in storage)`}>
+      <span class="seed-card-icon">
+        <FruitIcon species={group.species} scale={4} />
+      </span>
+      <span class="seed-card-name">
+        {SPECIES_NAME[group.species]} <b>x{group.ids.length}</b>
+      </span>
+      <span class={`seed-q seed-q-${q ?? 'unknown'}`} title={q ? undefined : SEED_ODDS_TEXT}>
+        {q ? QUALITY_NAME[q] : 'Unknown'}
+      </span>
+      {group.source && <span class="seed-card-from">{SEED_SOURCE[group.source] ?? group.source}</span>}
+    </button>
   );
 }

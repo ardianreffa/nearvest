@@ -440,24 +440,20 @@ export function App() {
 
   const elapsed = now - loadedAt;
   const p = state.player;
-  /** "Tap me!" above TaniBot until this player opens its window once (remembered per account in this browser). */
-  const hintKey = `nearvest.tanibotHintSeen.${p.accountId}`;
-  const botHint = (() => {
-    try {
-      return localStorage.getItem(hintKey) !== '1';
-    } catch {
-      return false;
-    }
-  })();
   const openBot = () => {
     playSound('click');
-    try {
-      localStorage.setItem(hintKey, '1');
-    } catch {
-      // Storage blocked: the hint simply shows again next time.
-    }
     setInfo('tanibot');
   };
+  /** TaniBot dot: green ON, grey OFF / not active, yellow when it can no longer buy (budget or daily limit). */
+  const tb = p.tanibot;
+  const botDot = !tb || !tb.enabled || tb.status !== 'ready' ? 'off' : tb.alert ? 'warn' : 'on';
+  const botDotTitle = botDot === 'on' ? 'TaniBot is on' : botDot === 'warn' ? (tb?.alert === 'low' ? 'TaniBot: budget almost empty' : "TaniBot: today's limit reached") : 'TaniBot is off';
+  const botIcon = (
+    <span class="bot-icon" title={botDotTitle}>
+      <TaniBotHead version={botVersion(p.title)} scale={1} />
+      <i class={`bot-dot bot-dot-${botDot}`} aria-label={botDotTitle} />
+    </span>
+  );
 
   const xpFrom = p.nextTitle ? xpFloor(p.xp) : p.xp;
   const xpPct = p.nextTitle ? Math.round(((p.xp - xpFrom) / (p.nextTitle.xp - xpFrom)) * 100) : 100;
@@ -483,7 +479,6 @@ export function App() {
       big={wide}
       immersive={immersive}
       onBot={openBot}
-      botHint={botHint}
     />
   );
   const panelFor = (t: SideTab) =>
@@ -562,6 +557,9 @@ export function App() {
           <aside class="hud hud-drawer" aria-label="Menu" aria-hidden={!drawerOpen} inert={!drawerOpen}>
             <div class="drawer-head">
               <span>Menu</span>
+              <button class="icon-btn drawer-bot" onClick={openBot} aria-label={`Open TaniBot (${botDotTitle})`} title={botDotTitle}>
+                {botIcon}
+              </button>
               <button class="icon-btn drawer-close" onClick={() => (playSound('click'), setDrawerOpen(false))} aria-label="Close the menu" title="Close the menu (enjoy the garden)">
                 {'>'}
               </button>
@@ -590,6 +588,10 @@ export function App() {
                   <span>{tabLabels[t]}</span>
                 </button>
               ))}
+              <button class="rail-btn rail-bot" onClick={openBot} title={botDotTitle}>
+                {botIcon}
+                <span>TaniBot</span>
+              </button>
             </nav>
           )}
         </>
@@ -611,6 +613,10 @@ export function App() {
             {(['garden', 'storage', 'shop', 'market', 'village'] as Tab[]).map((t) => (
               <TabButton key={t} tab={t} current={tab} set={(x) => (playSound('click'), setTab(x))} icon={tabIcons[t]} label={tabLabels[t]} />
             ))}
+            <button class="tab tab-bot" onClick={openBot} aria-label={botDotTitle}>
+              <span class="tab-icon">{botIcon}</span>
+              <span>TaniBot</span>
+            </button>
           </nav>
         </>
       )}

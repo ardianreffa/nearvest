@@ -88,11 +88,12 @@ try {
       await clickText('Start farming');
       await waitFor(`!!document.querySelector('.plots')`, 'garden');
       await waitFor(`!document.body.innerText.includes('Creating your NEAR account')`, 'account', 60000);
-      await sleep(800); await screenshot('garden-hint');
-      console.log('hint shown:', await evaluate(`!!document.querySelector('.bot-hint')`));
       await evaluate(`document.querySelectorAll('.plot')[0].click()`);
-      await sleep(300);
-      await clickText('Durian', '.seed-btn');
+      await sleep(800); await screenshot('seed-cards');
+      console.log('asleep bubble:', await evaluate(`document.querySelector('.bot-hint')?.innerText`), '| chip:', await evaluate(`document.querySelector('.bot-status')?.innerText`), '| zzz:', await evaluate(`!!document.querySelector('.bot-zzz')`));
+      console.log('TaniBot shortcut:', await evaluate(`!!document.querySelector('.rail-bot, .tab-bot, .drawer-bot')`), '| dot:', await evaluate(`document.querySelector('.bot-dot')?.className`));
+      console.log('seed cards:', await evaluate(`[...document.querySelectorAll('.seed-card')].map(c => c.innerText.replace(/\\n/g, ' / ')).join(' || ')`));
+      await clickText('Durian', '.seed-card');
       await waitFor(`!!document.querySelector('.plot .tree')`, 'planted');
       await clickText('Water');
       await waitFor(bodyHas('Watered today'), 'watered');
@@ -112,11 +113,22 @@ try {
         return JSON.stringify({ overlaps: hits, cutOff: cut, scroll: bar.scrollHeight > bar.clientHeight + 1 });
       })()`);
       console.log('plot panel:', overlap);
+      // Switch TaniBot on (fake chain) and watch the garden.
       await evaluate(`document.querySelector('.bot-click').click()`);
-      await waitFor(`!!document.querySelector('[aria-label="TaniBot"]')`, 'TaniBot window');
+      await waitFor(bodyHas('Activate TaniBot'), 'activate panel');
+      await clickText('Activate TaniBot');
+      await waitFor(bodyHas('Wallet and budget'), 'bot ready', 60000);
       await clickText('Close');
-      await sleep(400);
-      console.log('hint after opening TaniBot:', await evaluate(`!!document.querySelector('.bot-hint')`));
+      await waitFor(`document.querySelector('.bot-status')?.innerText === 'ON'`, 'ON chip', 30000);
+      const tagOverlap = await evaluate(`(() => { const c = document.querySelector('.bot-status').getBoundingClientRect(); return [...document.querySelectorAll('.plot-status, .badge, .bot-hint')].some(e => { const r = e.getBoundingClientRect(); return r.width && c.left < r.right && r.left < c.right && c.top < r.bottom && r.top < c.bottom; }); })()`);
+      console.log('ON chip overlaps a timer/bubble:', tagOverlap, '| dot:', await evaluate(`document.querySelector('.bot-dot')?.className`));
+      await sleep(400); await screenshot('bot-on');
+      // The short action bubble ("Watered 1 tree.") appears after TaniBot's next action, then fades away.
+      await waitFor(`!!document.querySelector('.bot-hint-flash')`, 'action bubble', 150000);
+      console.log('action bubble:', await evaluate(`document.querySelector('.bot-hint-flash').innerText`));
+      await sleep(300); await screenshot('bot-bubble');
+      await sleep(5000);
+      console.log('bubble gone after ~4 s:', await evaluate(`!document.querySelector('.bot-hint-flash') || getComputedStyle(document.querySelector('.bot-hint-flash')).opacity === '0'`));
     });
     throw Object.assign(new Error('layout done'), { done: true });
   }

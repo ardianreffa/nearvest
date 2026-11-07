@@ -8,6 +8,7 @@ import { TreePixels } from './art/trees';
 import { leafBurst } from './fx';
 import { Pixels, Sprite } from './sprites';
 import { formatDuration } from './ui';
+import { useEffect, useRef, useState } from 'preact/hooks';
 
 export type ActionKind = 'plant' | 'water' | 'harvest' | 'fertilize' | 'chop';
 
@@ -104,11 +105,9 @@ interface Props {
   /** Full-window garden with whole-pixel scale (laptop / PC). */
   immersive?: Immersive;
   onBot?: () => void;
-  /** Shows "Tap me!" above TaniBot until the player opens its window once. */
-  botHint?: boolean;
 }
 
-export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive, onBot, botHint }: Props) {
+export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive, onBot }: Props) {
   // Trees use the same pixel size as the backdrop: 2 on phones, 3 on the wide
   // layout, k in the immersive layout.
   const px = immersive ? immersive.k : big ? 3 : 2;
@@ -119,6 +118,12 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const version = botVersion(state.player.title);
   const bx = botX(selected, lane);
   const working = fx !== null;
+  const tb = state.player.tanibot;
+  const on = !!tb && tb.enabled && tb.status === 'ready';
+  /** Not active, switched off or failed: TaniBot sleeps and asks to be switched on. */
+  const asleep = !on;
+  const askOn = !tb || tb.status === 'failed' || (tb.status === 'ready' && !tb.enabled);
+  const flash = useActionBubble(on, tb?.last ?? null);
 
   return (
     <div
@@ -176,14 +181,36 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           <Drone version={version} scale={px} class="idle-drone d1" />
           {version === 2 && <Drone version={version} scale={px} class="idle-drone d2" />}
         </div>
-        {botHint && (
+        {askOn ? (
           <button class="bot-hint" onClick={onBot}>
-            Tap me! I can water, harvest and sell for you.
+            Turn me on! I'll water, harvest and sell for you automatically.
           </button>
+        ) : (
+          flash && (
+            <button class="bot-hint bot-hint-flash" onClick={onBot} key={flash.id}>
+              {flash.text}
+            </button>
+          )
         )}
-        <button class="bot-click" onClick={onBot} aria-label="TaniBot: open its log and settings" title="TaniBot: log and settings">
-          <TaniBot version={version} scale={botScale} working={working} />
+        <button
+          class={`bot-click${asleep ? ' asleep' : ''}`}
+          onClick={onBot}
+          aria-label={`TaniBot is ${on ? 'on' : 'off'}: open its log and settings`}
+          title="TaniBot: log and settings"
+        >
+          <TaniBot version={version} scale={botScale} working={working && on} />
+          {asleep && (
+            <span class="bot-zzz" aria-hidden="true">
+              <i>z</i>
+              <i>z</i>
+              <i>z</i>
+            </span>
+          )}
         </button>
+        <span class={`bot-status ${on ? 'on' : 'off'}`} aria-hidden="true">
+          <i />
+          {on ? 'ON' : 'OFF'}
+        </span>
         {fx?.kind === 'harvest' && (
           <div class="basket" key={fx.id}>
             <Pixels rows={BASKET} palette={{ H: '#9A7438', h: '#C9A35A' }} scale={px} />
@@ -279,4 +306,25 @@ function ActionEffect({ fx, from, to, version, px }: { fx: SceneFx; from: number
         </div>
       );
   }
+}
+
+/**
+ * While TaniBot is ON: a short bubble about its latest action ("Harvested 1
+ * Durian!"), at most once a minute, gone after about 4 seconds. Actions that
+ * already happened before the page was opened are not shown.
+ */
+function useActionBubble(on: boolean, last: { id: number; text: string; at: number } | null): { id: number; text: string } | null {
+  const [bubble, setBubble] = useState<{ id: number; text: string } | null>(null);
+  const seen = useRef<{ id: number | null; shownAt: number }>({ id: last?.id ?? null, shownAt: 0 });
+  useEffect(() => {
+    if (!on || !last || last.id === seen.current.id) return;
+    seen.current.id = last.id;
+    const now = Date.now();
+    if (now - seen.current.shownAt < 60_000) return;
+    seen.current.shownAt = now;
+    setBubble({ id: last.id, text: last.text });
+    const t = setTimeout(() => setBubble(null), 4000);
+    return () => clearTimeout(t);
+  }, [on, last?.id]);
+  return on ? bubble : null;
 }

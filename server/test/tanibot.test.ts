@@ -327,3 +327,26 @@ describe('TaniBot quick reactions (demo gardens)', () => {
     assert.equal(w.game.state(p.id).plots[0].tree!.wateredToday, false);
   });
 });
+
+describe('TaniBot at a glance (garden state)', () => {
+  it('shows ON/OFF, a budget warning and the latest action for the bubble', async () => {
+    const w = makeWorld();
+    const p = await garden(w);
+    assert.equal(w.game.state(p.id).player.tanibot, null, 'not active yet');
+    w.tanibot.setup(p.id, { dailyLimit: 10, budget: 20 });
+    await w.worker.drain();
+    w.game.plant(p.id, 0, seedOf(w, p.id, 'durian'));
+    w.tanibot.run(p.id); // waters, buys 8 of 10 -> today's limit nearly used
+    let s = w.game.state(p.id).player.tanibot!;
+    assert.equal(s.enabled, true);
+    assert.equal(s.alert, 'limit');
+    assert.match(s.last!.text, /Fertilized the Durian!|Bought 1 Fertilizer!|Watered/);
+
+    w.tanibot.settings(p.id, { enabled: false });
+    s = w.game.state(p.id).player.tanibot!;
+    assert.equal(s.enabled, false);
+
+    w.tanibot.withdraw(p.id, 10); // budget 12 -> 2
+    assert.equal(w.game.state(p.id).player.tanibot!.alert, 'low');
+  });
+});
