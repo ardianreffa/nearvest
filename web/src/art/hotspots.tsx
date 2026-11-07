@@ -17,6 +17,8 @@ type Spot = 'shop' | 'market' | 'village' | 'friends' | 'arena';
 
 interface SpotInfo {
   box: [number, number, number, number];
+  /** Where the pin points (art px): above the building, or on its body (the tall tower). */
+  pin: [number, number];
   /** Pin name (laptop) and its short form (phones). */
   name: string;
   short: string;
@@ -28,50 +30,92 @@ interface SpotInfo {
 }
 
 const SPOTS: Record<Spot, SpotInfo> = {
-  shop: { box: [28, 63, 26, 27], name: 'Shop', short: 'Shop', label: 'Village Shop: seeds and fertilizer', icon: 'seedPacket', open: 'shop' },
-  market: { box: [107, 67, 24, 14], name: 'Market', short: 'Market', label: "Mr. Darto's Market", icon: 'darto', open: 'market' },
-  village: { box: [155, 11, 24, 40], name: 'Village Stats', short: 'Stats', label: 'Farm tower: Village Stats', icon: 'bolt', open: 'village' },
-  friends: { box: [196, 56, 42, 37], name: 'Friends', short: 'Friends', label: 'Visit friends: coming soon', icon: 'sprout', open: null },
-  arena: { box: [99, 51, 35, 16], name: 'Arena', short: 'Arena', label: 'Arena: 1v1 duels for PANEN, coming soon', icon: 'sparkle', open: null },
+  shop: { box: [28, 63, 26, 27], pin: [41, 63], name: 'Shop', short: 'Shop', label: 'Village Shop: seeds and fertilizer', icon: 'seedPacket', open: 'shop' },
+  // The house with the solar roof between the Shop and the middle (the middle house is often
+  // behind the plot 2 tree).
+  market: { box: [76, 58, 21, 16], pin: [86.5, 58], name: 'Market', short: 'Market', label: "Mr. Darto's Market", icon: 'darto', open: 'market' },
+  village: { box: [155, 11, 24, 40], pin: [167, 30], name: 'Village Stats', short: 'Stats', label: 'Farm tower: Village Stats', icon: 'bolt', open: 'village' },
+  friends: { box: [196, 56, 42, 37], pin: [217, 56], name: 'Friends', short: 'Friends', label: 'Visit friends: coming soon', icon: 'sprout', open: null },
+  arena: { box: [99, 51, 35, 16], pin: [116.5, 51], name: 'Arena', short: 'Arena', label: 'Arena: 1v1 duels for PANEN, coming soon', icon: 'sparkle', open: null },
 };
 const IDS = Object.keys(SPOTS) as Spot[];
+/** Whole-number scales so every pin icon is about 16 px and stays sharp. */
+const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2, sparkle: 2, darto: 1, sprout: 1 };
 
 /** Things a pin or bubble must never cover or hide under. */
 const OBSTACLES =
-  '.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .topbar, .toasts, .bot-spot .tanibot, .bot-hint, .badge, .plot-art, .soil';
+  '.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .topbar, .toasts, .bot-spot .tanibot, .bot-hint, .bot-status, .badge, .plot-art, .soil, .garden-sheet';
+
+/** Where the train runs (art px boxes just above the rail): pins stay clear of it. */
+const RAIL_BAND: [number, number, number, number][] = [
+  [118, 54, 27, 11],
+  [145, 50, 20, 10],
+  [165, 46, 20, 10],
+  [185, 43, 15, 9],
+  [200, 41, 15, 8],
+  [215, 40, 12, 8],
+];
 
 const canHover = () => typeof matchMedia === 'function' && matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 type Rect = { left: number; top: number; right: number; bottom: number };
 const overlaps = (a: Rect, b: Rect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
-/** The visible part of the scene: on screen, left of an open side menu. */
+/** The phone's safe area at the top (notch / status bar), in px. */
+let safeProbe: HTMLElement | null = null;
+function safeAreaTop(): number {
+  if (!safeProbe) {
+    safeProbe = document.createElement('div');
+    safeProbe.style.cssText = 'position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top, 0px)';
+    document.body.appendChild(safeProbe);
+  }
+  return parseFloat(getComputedStyle(safeProbe).paddingTop) || 0;
+}
+
+/**
+ * The visible part of the scene: on screen, left of an open side menu, and below the safe line
+ * at the top (under the top HUD and the phone's safe area).
+ */
 function visibleArea(host: HTMLElement): Rect {
   const scene = (host.closest('.scene') ?? host).getBoundingClientRect();
+  const safeTop = safeAreaTop();
+  let top = Math.max(scene.top, safeTop);
+  for (const el of document.querySelectorAll('.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys')) {
+    const r = el.getBoundingClientRect();
+    if (r.height && r.bottom > top && r.top < scene.top + scene.height / 3) top = Math.max(top, r.bottom);
+  }
+  top += 8;
   let right = Math.min(scene.right, window.innerWidth);
   for (const el of document.querySelectorAll('.hud-drawer, .hud-rail')) {
     const r = el.getBoundingClientRect();
     if (r.width && r.left < right && r.right > scene.left && r.left > scene.left + scene.width / 2) right = Math.min(right, r.left);
   }
-  return { left: Math.max(scene.left, 0) + 4, top: Math.max(scene.top, 0) + 4, right: right - 4, bottom: Math.min(scene.bottom, window.innerHeight) - 4 };
+  return { left: Math.max(scene.left, 0) + 4, top, right: right - 4, bottom: Math.min(scene.bottom, window.innerHeight) - 4 };
 }
 
-function obstacleRects(): Rect[] {
-  return [...document.querySelectorAll(OBSTACLES)].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0);
+function obstacleRects(host: HTMLElement): Rect[] {
+  const hr = host.getBoundingClientRect();
+  const rail = RAIL_BAND.map(([x, y, w, h]) => ({
+    left: hr.left + (x / 240) * hr.width,
+    top: hr.top + (y / 135) * hr.height,
+    right: hr.left + ((x + w) / 240) * hr.width,
+    bottom: hr.top + ((y + h) / 135) * hr.height,
+  }));
+  return [...[...document.querySelectorAll(OBSTACLES)].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0), ...rail];
 }
 
 /**
  * Places `el` (absolutely positioned in `host`) near the art point (x, y): above it first, then
  * nudged sideways or a little lower, so it is fully visible and covers nothing important.
  */
-function place(el: HTMLElement, host: HTMLElement, x: number, y: number, area: Rect, obstacles: Rect[], below = false) {
+function place(el: HTMLElement, host: HTMLElement, x: number, y: number, area: Rect, obstacles: Rect[], below = false, onBody = false) {
   const hr = host.getBoundingClientRect();
   const w = el.offsetWidth;
   const h = el.offsetHeight;
   const ax = hr.left + (x / 240) * hr.width;
   const ay = hr.top + (y / 135) * hr.height;
   const dxs = [0, -16, 16, -32, 32, -56, 56, -88, 88, -128, 128];
-  const dys = below ? [6, 24, 44] : [-h - 4, -h - 18, 2, 18];
+  const dys = below ? [6, 24, 44] : onBody ? [-h / 2, -h / 2 - 16, -h / 2 + 16, -h / 2 + 32] : [-h - 4, -h - 18, 2, 18];
   let best: { l: number; t: number } | null = null;
   for (const dy of dys) {
     for (const dx of dxs) {
@@ -127,13 +171,13 @@ export function Hotspots({ onPlace, account }: { onPlace: (p: Place) => void; ac
       const h = host.current;
       if (!h) return;
       const area = visibleArea(h);
-      const obstacles = obstacleRects();
+      const obstacles = obstacleRects(h);
       const placed: Rect[] = [];
       for (const id of IDS) {
         const el = pins.current[id];
         if (!el) continue;
-        const [x, y, w] = SPOTS[id].box;
-        place(el, h, x + w / 2, y, area, [...obstacles, ...placed]);
+        const [x, y] = SPOTS[id].pin;
+        place(el, h, x, y, area, [...obstacles, ...placed], false, id === 'village');
         placed.push(el.getBoundingClientRect());
       }
       if (bubble && bubbleEl.current) {
@@ -195,7 +239,7 @@ export function Hotspots({ onPlace, account }: { onPlace: (p: Place) => void; ac
             aria-hidden="true"
           >
             <span class="pin-icon">
-              <Sprite name={s.icon} scale={1} />
+              <Sprite name={s.icon} scale={ICON_SCALE[s.icon] ?? 1} />
             </span>
             <span class="pin-name">{lit && canHover() ? s.label : s.name}</span>
             <span class="pin-short">{s.short}</span>

@@ -7203,30 +7203,37 @@ button.chip:focus-visible {
 }
 
 
-/* Place pins: always visible over each hotspot (icon + short name), bobbing gently. */
+/* Place pins: always visible over each hotspot (icon + short name), bobbing gently.
+   Dark, almost solid chip with a clear mint edge and a soft neon glow, so it reads on the day,
+   dusk and night village alike. Whole-pixel sizes keep Tiny5 sharp. */
 .place-pin {
   position: absolute;
   z-index: 4;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 7px 3px 4px;
+  gap: 5px;
+  padding: 4px 9px 4px 5px;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
-  color: #fff6dc;
-  background: rgba(20, 14, 8, 0.62);
-  border: 1px solid rgba(201, 152, 84, 0.75);
+  color: #ffffff;
+  text-shadow: 1px 1px 0 #000;
+  background: rgba(6, 18, 13, 0.9);
+  border: 2px solid rgba(0, 236, 151, 0.85);
   border-radius: var(--r-pill);
   corner-shape: var(--corner);
-  box-shadow: inset 0 0 0 1px rgba(0, 236, 151, 0.2), 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 1px #000, 0 0 8px 1px rgba(0, 236, 151, 0.55), 0 3px 8px rgba(0, 0, 0, 0.45);
   cursor: pointer;
   pointer-events: auto;
-  opacity: 0.88;
   animation: pin-bob 3.2s ease-in-out infinite;
-  transition: transform 0.15s ease-out, opacity 0.15s, box-shadow 0.15s;
+  transition: transform 0.15s ease-out, box-shadow 0.15s;
+}
+
+.place-pin.soon {
+  border-color: rgba(34, 211, 238, 0.85);
+  box-shadow: 0 0 0 1px #000, 0 0 8px 1px rgba(34, 211, 238, 0.5), 0 3px 8px rgba(0, 0, 0, 0.45);
 }
 
 @keyframes pin-bob {
@@ -7243,19 +7250,16 @@ button.chip:focus-visible {
   overflow: hidden;
 }
 
-.place-pin .pin-icon svg {
-  max-width: 16px;
-  max-height: 16px;
-}
 
 .place-pin .pin-short {
   display: none;
 }
 
 .place-pin .pin-soon {
-  padding: 1px 4px;
-  font-size: 9px;
+  padding: 2px 4px;
+  font-size: 10px;
   color: #062b33;
+  text-shadow: none;
   background: var(--cyan);
   border-radius: var(--r-btn);
   corner-shape: var(--corner);
@@ -7287,23 +7291,24 @@ button.chip:focus-visible {
   }
 }
 
-/* Phones: a smaller pin, the icon and the short name. */
+/* Phones: a smaller pin (icon + short name), with an invisible touch area of at least 44 px. */
 @media (max-width: 1023px) {
   .place-pin {
-    gap: 2px;
-    padding: 2px 5px 2px 3px;
-    font-size: 9px;
+    gap: 3px;
+    padding: 3px 7px 3px 4px;
+    font-size: 11px;
   }
 
-  .place-pin .pin-icon {
-    width: 12px;
-    height: 12px;
+  .place-pin::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: 44px;
+    transform: translate(-50%, -50%);
   }
 
-  .place-pin .pin-icon svg {
-    max-width: 12px;
-    max-height: 12px;
-  }
 
   .place-pin .pin-name {
     display: none;
@@ -7314,8 +7319,8 @@ button.chip:focus-visible {
   }
 
   .place-pin .pin-soon {
-    font-size: 7px;
-    padding: 1px 2px;
+    font-size: 8px;
+    padding: 1px 3px;
   }
 }
 
@@ -7328,19 +7333,10 @@ button.chip:focus-visible {
 /* Big screens: pins a little larger so they read at 1920 px. */
 @media (min-width: 1600px) {
   .place-pin {
-    font-size: 13px;
-    padding: 4px 9px 4px 5px;
+    font-size: 15px;
+    padding: 5px 11px 5px 6px;
   }
 
-  .place-pin .pin-icon {
-    width: 20px;
-    height: 20px;
-  }
-
-  .place-pin .pin-icon svg {
-    max-width: 20px;
-    max-height: 20px;
-  }
 }
 
 
