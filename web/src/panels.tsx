@@ -112,7 +112,7 @@ export function Shop({ state, config, act, busy }: { state: GameState; config: S
           const species = id.startsWith('seed_') ? (id.slice(5) as 'mango' | 'rambutan' | 'durian') : null;
           const canAfford = state.player.balance >= item.price;
           return (
-            <li key={id}>
+            <li key={id} class={`shop-${id}`}>
               {species ? <FruitIcon species={species} /> : <Sprite name="fertilizer" scale={3} />}
               <span class="grow">{item.name}</span>
               <button class="btn btn-small" disabled={busy || !canAfford} onClick={() => act('/api/shop/buy', { item: id, qty: 1 }, `Bought ${item.name}`)}>

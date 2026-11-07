@@ -88,9 +88,13 @@ export interface GameState {
   /** $PANEN Season: Mr. Darto's sale rewards are divided by `divisor`. */
   season: { number: number; divisor: number; rewardPercent: number };
   activity: Activity[];
+  /** New gardens: the current tutorial step (null when finished or skipped). */
+  tutorial: { step: TutorialStep; index: number; total: number } | null;
   /** Try as Judge gardens only: the 5-step tour (null for everyone else). */
   judgeTour: { step: JudgeStep; done: boolean; txStatus: 'pending' | 'done' | 'failed' | null; txUrl: string | null }[] | null;
 }
+
+export type TutorialStep = 'welcome' | 'plant' | 'water' | 'buy_fertilizer' | 'fertilize' | 'checkin' | 'harvest' | 'sell' | 'tanibot';
 
 export type JudgeStep = 'harvest' | 'sell' | 'shop' | 'tanibot' | 'village';
 

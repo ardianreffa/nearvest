@@ -5,7 +5,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { api, nearblocksAccount, type GameState, type ServerConfig, type VillageStats } from './api';
 import { DartoFace } from './art/darto';
-import { TaniBotHead } from './art/tanibot';
+import { TaniBot, TaniBotHead } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import { Sprite } from './sprites';
 import { Coin, formatPanen } from './ui';
@@ -16,12 +16,15 @@ export function Modal({
   children,
   closeLabel = 'Got it',
   class: cls,
+  actions,
 }: {
   title: string;
   onClose: () => void;
   children: ComponentChildren;
   closeLabel?: string;
   class?: string;
+  /** Replaces the single close button (e.g. Back / Next). */
+  actions?: ComponentChildren;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -39,105 +42,168 @@ export function Modal({
         </header>
         <div class="info-body">{children}</div>
         <div class="dialog-actions info-actions">
-          <button class="btn btn-mint" onClick={onClose}>
-            {closeLabel}
-          </button>
+          {actions ?? (
+            <button class="btn btn-mint" onClick={onClose}>
+              {closeLabel}
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-interface Step {
-  icon: ComponentChildren;
+interface Page {
   title: string;
-  text: ComponentChildren;
+  art: ComponentChildren;
+  points: { icon: ComponentChildren; text: ComponentChildren }[];
 }
 
-const STEPS: Step[] = [
+const PAGES: Page[] = [
   {
-    icon: <TaniBotHead tier="seedling" scale={1} />,
-    title: 'Log in',
-    text: 'Sign in with Google or with your NEAR wallet. Google: no wallet needed, the game creates your NEAR testnet account (name.nearvest.testnet) and pays all fees. NEAR wallet: your garden lives in your own account; the game pays the fees too, only the one-time Shop setup is paid by your wallet (a tiny testnet fee).',
+    title: 'Your farm on NEAR',
+    art: (
+      <>
+        <TreePixels species="mango" stage="fruiting" quality="common" scale={2} />
+        <TaniBot tier="seedling" scale={1} effects={false} />
+        <TreePixels species="durian" stage="tree" quality="rare" scale={2} />
+      </>
+    ),
+    points: [
+      {
+        icon: <Sprite name="seedPacket" scale={2} />,
+        text: (
+          <>
+            <b>Sign in with Google</b>: the game creates your NEAR testnet account (<i>name.nearvest.testnet</i>) and pays every fee. No wallet needed.
+          </>
+        ),
+      },
+      {
+        icon: <Sprite name="bolt" scale={2} />,
+        text: (
+          <>
+            <b>Or with your NEAR wallet</b>: your garden lives in your own account. The game pays the fees; only the one-time Shop setup costs a tiny testnet fee.
+          </>
+        ),
+      },
+      {
+        icon: <Sprite name="sparkle" scale={2} />,
+        text: (
+          <>
+            <b>Demo mode</b>: 1 game day = 1 minute, so you see the whole loop in a few minutes. Testnet tokens have no real value.
+          </>
+        ),
+      },
+    ],
   },
   {
-    icon: <Sprite name="seedPacket" scale={3} />,
-    title: 'Check in every day',
-    text: 'Get 5 PANEN and a free Mango seed each day. Day 7 of a streak doubles the PANEN and adds a Gold seed.',
+    title: 'Grow',
+    art: (
+      <>
+        <TreePixels species="mango" stage="seed" quality="common" scale={2} />
+        <TreePixels species="mango" stage="sprout" quality="common" scale={2} />
+        <TreePixels species="mango" stage="tree" quality="common" scale={2} />
+        <TreePixels species="mango" stage="fruiting" quality="common" scale={2} />
+      </>
+    ),
+    points: [
+      { icon: <Sprite name="seedPacket" scale={2} />, text: <><b>Check in every day</b>: 5 PANEN and a free Mango seed. Day 7 of a streak: double PANEN and a Gold seed.</> },
+      { icon: <Sprite name="sprout" scale={2} />, text: <><b>Plant</b>: a Tree NFT is born in your account. It changes on chain as it grows: seed, sprout, tree, fruiting, old.</> },
+      { icon: <Sprite name="droplet" scale={2} />, text: <><b>Water</b>: trees only grow while watered (one watering lasts a game day). <b>Fertilizer</b>: 1.5x speed and a better chance of Rare or Gold fruit.</> },
+      { icon: <Sprite name="mango" scale={2} />, text: <><b>Harvest</b>: fruit and XP. Titles go from Seedling to Legend. Old trees drop a superior seed, then become Memorial Trees.</> },
+    ],
   },
   {
-    icon: <TreePixels species="mango" stage="sprout" quality="common" scale={1} />,
-    title: 'Plant: a Tree NFT is born',
-    text: 'Pick an empty plot and plant a seed. A Tree NFT is minted to your account on NEAR. It changes as the tree grows: seed, sprout, tree, fruiting, old.',
+    title: 'Earn and spend $PANEN',
+    art: (
+      <>
+        <DartoFace scale={2} />
+        <Coin scale={5} />
+        <Sprite name="fire" scale={5} />
+      </>
+    ),
+    points: [
+      { icon: <DartoFace scale={1} />, text: <><b>Sell to Mr. Darto</b>: he buys fruit and seeds at a daily price (Rare x2, Gold x5). The PANEN is minted to your account.</> },
+      { icon: <Sprite name="fire" scale={2} />, text: <><b>Shop</b>: seeds and fertilizer. Every PANEN you spend there is burned forever.</> },
+      { icon: <Coin scale={2} />, text: <><b>Seasons</b>: harvest rewards halve as more PANEN exists (on testnet at 2,000 / 5,000 / 10,000). No team share, no pre-mint.</> },
+      { icon: <Sprite name="bolt" scale={2} />, text: <><b>Share on X</b>: big moments (first harvest, a new title, TaniBot evolving) make a card you can post.</> },
+    ],
   },
   {
-    icon: <Sprite name="droplet" scale={3} />,
-    title: 'Water',
-    text: 'Trees only grow while watered. One watering lasts one game day.',
-  },
-  {
-    icon: <Sprite name="fertilizer" scale={3} />,
-    title: 'Fertilize (optional)',
-    text: '1.5x growth speed for a day and a better chance of Rare or Gold fruit on the next harvest.',
-  },
-  {
-    icon: <TreePixels species="mango" stage="fruiting" quality="common" scale={1} />,
-    title: 'Harvest',
-    text: 'Ripe fruit goes to your Storage and gives XP. Old trees drop a superior seed for the next generation, then become Memorial Trees.',
-  },
-  {
-    icon: <DartoFace scale={1} />,
-    title: 'Sell to Mr. Darto: earn PANEN',
-    text: 'Mr. Darto buys fruit (and seeds) at a daily price. The PANEN is minted to your NEAR account. Rare pays x2, Gold x5.',
-  },
-  {
-    icon: <Sprite name="fire" scale={3} />,
-    title: 'Shop: PANEN is burned',
-    text: 'Buy seeds and fertilizer in the Shop. Every PANEN you spend there is burned forever.',
-  },
-  {
-    icon: <Sprite name="sparkle" scale={3} />,
-    title: 'Level up',
-    text: 'XP from harvests raises your title: Seedling, Farmhand, Farmer, Orchard Master, Durian King, Legend. Farmhand unlocks plot 3; Farmer upgrades TaniBot.',
-  },
-  {
-    icon: <Sprite name="bolt" scale={3} />,
-    title: 'Share on X',
-    text: 'Big moments (first harvest, first Gold tree, a new title...) make a share card you can post.',
+    title: 'TaniBot, your AI farmer',
+    art: (
+      <>
+        <TaniBot tier="seedling" scale={1} effects={false} />
+        <TaniBot tier="farmer" scale={1} effects={false} />
+        <TaniBot tier="legend" scale={1} effects={false} />
+      </>
+    ),
+    points: [
+      { icon: <TaniBotHead tier="seedling" scale={0.55} still />, text: <><b>Its own NEAR wallet</b> with a budget you give it. You can take the budget back at any time.</> },
+      { icon: <Sprite name="lock" scale={2} />, text: <><b>A daily spending limit enforced by the PANEN contract</b>: TaniBot can only burn PANEN for Shop purchases, never send it anywhere.</> },
+      { icon: <Sprite name="droplet" scale={2} />, text: <><b>Works while you sleep</b>: waters, harvests, sells and buys fertilizer (a NEAR AI brain, checked by the game rules). Every action is in its Log with the transaction.</> },
+      { icon: <Sprite name="sparkle" scale={2} />, text: <><b>Evolves with your title</b>: six looks from Seedling to Legend, with drones and auras.</> },
+    ],
   },
 ];
 
+/** "How to play": 4 short pages with Back / Next / Skip and page dots. */
 export function HowToPlay({ onClose }: { onClose: () => void }) {
+  const [page, setPage] = useState(0);
+  const p = PAGES[page];
+  const last = page === PAGES.length - 1;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') setPage((n) => Math.min(PAGES.length - 1, n + 1));
+      if (e.key === 'ArrowLeft') setPage((n) => Math.max(0, n - 1));
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   return (
-    <Modal title="How to play" onClose={onClose}>
-      <p class="info-lead">
-        Grow fruit trees in the solarpunk village of Tandur. Each tree is a living NFT on NEAR; its fruit earns $PANEN. Goal: build the best
-        orchard and rise from Seedling to Legend.
-      </p>
-      <ol class="steps">
-        {STEPS.map((s, i) => (
-          <li key={s.title}>
-            <span class="step-icon">{s.icon}</span>
-            <span>
-              <b>
-                {i + 1}. {s.title}
-              </b>
-              <span class="step-text">{s.text}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
-      <div class="info-box">
-        <b>How do I get a Tree NFT?</b> Plant any seed: the NFT is minted to your own NEAR account right away. You start with a Rare Durian
-        seed, and get a Mango seed every day.
+    <Modal
+      title="How to play"
+      onClose={onClose}
+      class="howto-dialog"
+      actions={
+        <>
+          {!last && (
+            <button class="btn btn-small howto-skip" onClick={onClose}>
+              Skip
+            </button>
+          )}
+          <span class="howto-dots" aria-label={`Page ${page + 1} of ${PAGES.length}`}>
+            {PAGES.map((x, i) => (
+              <button key={x.title} class={`howto-dot${i === page ? ' active' : ''}`} onClick={() => setPage(i)} aria-label={`Page ${i + 1}: ${x.title}`} />
+            ))}
+          </span>
+          {page > 0 && (
+            <button class="btn" onClick={() => setPage(page - 1)}>
+              Back
+            </button>
+          )}
+          <button class="btn btn-mint" onClick={() => (last ? onClose() : setPage(page + 1))}>
+            {last ? "Let's farm!" : 'Next'}
+          </button>
+        </>
+      }
+    >
+      <div class="howto-page" key={page}>
+        <div class="howto-art" aria-hidden="true">
+          {p.art}
+        </div>
+        <h3 class="howto-title">
+          {page + 1}. {p.title}
+        </h3>
+        <ul class="howto-points">
+          {p.points.map((pt, i) => (
+            <li key={i}>
+              <span class="howto-icon">{pt.icon}</span>
+              <span>{pt.text}</span>
+            </li>
+          ))}
+        </ul>
       </div>
-      <div class="info-box">
-        <b>How do I get PANEN?</b> 50 PANEN welcome pack, 5 PANEN per daily check-in, and selling fruit or seeds to Mr. Darto.
-      </div>
-      <div class="info-box soon">
-        <b>Coming soon: TaniBot, your AI farmer.</b> TaniBot gets its own wallet and a daily budget, and tends your garden while you sleep.
-      </div>
-      <p class="muted small">Demo mode: 1 game day = 1 minute, so you can see everything in a few minutes. Runs on NEAR testnet.</p>
     </Modal>
   );
 }

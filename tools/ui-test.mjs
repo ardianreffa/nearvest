@@ -8,6 +8,8 @@
 // Market rows (needs an EXISTING dev garden with fruit; fake-chain server): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --market=<devUser> [width] [height]
 // Fullscreen layout at several screen sizes (EXISTING dev garden): node tools/ui-test.mjs <outDir> --fullscreen=<devUser>
 // TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> NEXT_XP=<xp> to raise its XP live; UI_URL=...?record=1 checks that no share card opens): node tools/ui-test.mjs <outDir> --tiers=<devUser>
+// Tutorial on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tutorial=<newDevUser> [w] [h]
+// How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
@@ -308,6 +310,97 @@ try {
       console.log('idle moments seen:', [...seen].join(', '));
     });
     throw Object.assign(new Error('motion done'), { done: true });
+  }
+  if (name.startsWith('--tutorial=')) {
+    await step('Tutorial on a NEW dev garden: TaniBot guides the whole loop', async () => {
+      const user = name.slice('--tutorial='.length);
+      const coach = () => evaluate(`(() => { const c = document.querySelector('.coach'); return c ? c.className.replace('coach coach-', '') + ' | ' + (c.querySelector('.coach-progress')?.innerText ?? '') + ' | ' + c.querySelector('.coach-text').innerText : 'no coach'; })()`);
+      const glow = () => evaluate(`[...document.querySelectorAll('*')].filter(e => getComputedStyle(e).animationName === 'tut-glow').map(e => e.className.split(' ').slice(0, 2).join('.')).join(', ') || 'none'`);
+      const waitStep = (id, ms = 30000) => waitFor(`!!document.querySelector('.coach-${id}')`, `tutorial step ${id}`, ms);
+      const shot = async (label) => {
+        console.log(`${label}: ${await coach()} | glowing: ${await glow()}`);
+        await screenshot(`tut-${label}`);
+      };
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(bodyHas('Welcome to Tandur'), 'create screen');
+      await typeInto('.create input:not([type=checkbox])', user);
+      await clickText('Start farming');
+      await waitStep('welcome');
+      await sleep(400); await shot('welcome');
+      console.log('turn-on nudge during the tutorial (expect false):', await evaluate(`!!document.querySelector('.bot-nudge')`));
+      await clickText("Let's go", '.coach button');
+      await waitStep('plant');
+      await clickText('Show me', '.coach button');
+      await sleep(400); await shot('plant');
+      await waitFor(`!document.body.innerText.includes('Creating your NEAR account')`, 'account', 60000);
+      await evaluate(`document.querySelectorAll('.plot')[0].click()`);
+      await sleep(200);
+      await evaluate(`document.querySelector('.plot-empty .seed-row > *').click()`);
+      await waitStep('water');
+      await clickText('Show me', '.coach button');
+      await sleep(400); await shot('water');
+      await evaluate(`document.querySelector('.act-water').click()`);
+      await waitStep('buy_fertilizer');
+      await sleep(300); await shot('buy_fertilizer');
+      await clickText('Open the Shop', '.coach button');
+      await waitFor(`!!document.querySelector('.shop-fertilizer button')`, 'shop');
+      await sleep(400); await shot('shop-open');
+      await evaluate(`document.querySelector('.shop-fertilizer button').click()`);
+      await waitStep('fertilize');
+      await clickText('Show me', '.coach button');
+      await sleep(400); await shot('fertilize');
+      await evaluate(`document.querySelector('.act-fertilize').click()`);
+      await waitStep('checkin');
+      await sleep(300); await shot('checkin');
+      await clickText('Open check-in', '.coach button');
+      await waitFor(`!!document.querySelector('.checkin-dialog')`, 'check-in window');
+      await clickText('Check in', '.checkin-dialog button');
+      await waitStep('harvest');
+      await evaluate(`[...document.querySelectorAll('.checkin-dialog button')].find(b => b.innerText === 'Close')?.click()`);
+      await clickText('Show me', '.coach button');
+      await sleep(400); await shot('harvest-wait');
+      // Keep it watered until ripe (first tree: about 3 minutes, faster with fertilizer).
+      await waitFor(`(() => { const w = document.querySelector('.act-water'); if (w && !w.disabled) w.click(); const h = document.querySelector('.act-harvest'); return !!h && !h.disabled; })()`, 'ripe fruit', 300000);
+      await sleep(300); await shot('harvest');
+      await evaluate(`document.querySelector('.act-harvest').click()`);
+      await waitStep('sell');
+      await sleep(400); await shot('sell');
+      await clickText('Open the Market', '.coach button');
+      await waitFor(`!!document.querySelector('.market-row:not(.empty) .sell-go')`, 'market');
+      await sleep(300); await shot('market-open');
+      await evaluate(`document.querySelector('.market-row:not(.empty) .sell-go').click()`);
+      await waitStep('tanibot');
+      await sleep(400); await shot('tanibot');
+      console.log('share card while the tutorial runs (expect false):', await evaluate(`!!document.querySelector('.share-card')`));
+      await clickText('Activate TaniBot', '.coach button');
+      await waitFor(`[...document.querySelectorAll('.tanibot-dialog button')].some(b => b.innerText === 'Activate TaniBot')`, 'TaniBot window with Activate');
+      await sleep(300); await screenshot('tut-tanibot-window');
+      await clickText('Activate TaniBot', '.tanibot-dialog button');
+      await waitFor(`!document.querySelector('.coach')`, 'tutorial finished', 30000);
+      await sleep(2500);
+      console.log('tutorial finished; share cards after it (first harvest card expected):', await evaluate(`[...document.querySelectorAll('h2')].map(h => h.innerText).filter(t => t.startsWith('Share:')).join(' | ') || 'none'`));
+      await screenshot('tut-done');
+      console.log('horizontal overflow:', await evaluate(`document.documentElement.scrollWidth > window.innerWidth`));
+    });
+    throw Object.assign(new Error('tutorial done'), { done: true });
+  }
+  if (name === '--howto') {
+    await step('How to play: 4 pages', async () => {
+      await clickText('How to play');
+      await waitFor(`!!document.querySelector('.howto-dialog')`, 'how to play');
+      for (let i = 1; i <= 4; i++) {
+        await sleep(400);
+        console.log(`page ${i}:`, await evaluate(`document.querySelector('.howto-title').innerText + ' | buttons: ' + [...document.querySelectorAll('.howto-dialog .info-actions .btn')].map(b => b.innerText).join(' / ')`));
+        await screenshot(`howto-${i}`);
+        if (i < 4) await clickText('Next', '.howto-dialog button');
+      }
+      await clickText('Back', '.howto-dialog button');
+      await sleep(300);
+      console.log('after Back:', await evaluate(`document.querySelector('.howto-title').innerText`));
+      console.log('fits without page scroll:', await evaluate(`(() => { const b = document.querySelector('.howto-dialog .info-body'); return b.scrollHeight <= b.clientHeight + 1; })()`));
+    });
+    throw Object.assign(new Error('howto done'), { done: true });
   }
   if (name === '--judge') {
     await step('Try as Judge: one click, then the 5-step tour', async () => {

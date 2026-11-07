@@ -331,6 +331,12 @@ export function createApp(deps: AppDeps) {
     if (game.isJudge(id)) game.judgeStep(id, step);
   };
 
+  // Tutorial: "Let's go" (start) or skip.
+  app.post('/api/tutorial', async (c) => {
+    game.tutorialAction(playerId(c), (await body(c)).action);
+    return c.json({ state: game.state(playerId(c)) });
+  });
+
   // The viewing steps of the Judge tour (TaniBot Log, Village Stats) are reported by the web.
   app.post('/api/judge/step', async (c) => {
     const step = (await body(c)).step;

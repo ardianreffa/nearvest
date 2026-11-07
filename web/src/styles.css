@@ -6242,3 +6242,272 @@ button.chip:focus-visible {
 .avatar-bot.locked {
   background: #3a3f4b;
 }
+
+/* =====================================================================
+   How to play (help.tsx): 4 pages, Back / Next / Skip, page dots
+   ===================================================================== */
+
+.howto-page {
+  animation: howto-in 180ms ease-out;
+}
+
+@keyframes howto-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+.howto-art {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 16px;
+  min-height: 96px;
+  padding: 12px 8px 8px;
+  background: linear-gradient(#bde8f5, #e8f7e1 70%, #8a6a45 70%, #6b4a2f);
+  border: 2px solid #000;
+  border-radius: var(--r-panel);
+  corner-shape: var(--corner);
+  overflow: hidden;
+}
+
+.howto-art > * {
+  flex: none;
+}
+
+.howto-dialog .info-body .howto-title {
+  margin: 12px 0 6px;
+  font-size: 18px;
+}
+
+.howto-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.howto-points li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.howto-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 36px;
+  overflow: hidden;
+  background: #0f2a1e;
+  border: 2px solid #000;
+  border-radius: var(--r-btn);
+  corner-shape: var(--corner);
+}
+
+.howto-dialog .info-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.howto-dots {
+  display: flex;
+  gap: 6px;
+  margin-right: auto;
+  margin-left: 4px;
+}
+
+.howto-skip + .howto-dots {
+  margin-left: 0;
+}
+
+.howto-dot {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  background: #c9b98f;
+  border: 2px solid #000;
+  cursor: pointer;
+}
+
+.howto-dot.active {
+  background: var(--mint);
+}
+
+/* Laptop: bigger text, wider window. */
+@media (min-width: 1024px) {
+  .howto-dialog {
+    max-width: 680px;
+  }
+
+  .howto-dialog .howto-points li {
+    font-size: 17px;
+  }
+
+  .howto-dialog .info-body .howto-title {
+    font-size: 24px;
+  }
+
+  .howto-icon {
+    flex-basis: 44px;
+    height: 44px;
+  }
+
+  .howto-art {
+    min-height: 128px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .howto-page {
+    animation: none;
+  }
+}
+
+/* =====================================================================
+   Tutorial (tutorial.tsx): TaniBot's coach bubble and the glowing target
+   ===================================================================== */
+
+.coach {
+  display: flex;
+  align-items: flex-end;
+  color: #1b1b2f;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: #fffaf0;
+  border: 2px solid #000;
+  box-shadow: 0 0 0 3px var(--mint), 4px 4px 0 rgba(0, 0, 0, 0.35);
+  border-radius: var(--r-panel);
+  corner-shape: var(--corner);
+  animation: coach-in 220ms ease-out;
+}
+
+@keyframes coach-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.coach-bot {
+  flex: none;
+  animation: coach-hover 2.4s ease-in-out infinite;
+}
+
+@keyframes coach-hover {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.coach-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.coach-progress {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--leaf-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.coach-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.coach-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.coach-skip {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Laptop, menu open: the coach sits at the top of the menu (it stays while panels scroll). */
+.drawer-coach {
+  flex: none;
+  padding: 8px 12px 0;
+}
+
+.drawer-coach .coach {
+  margin: 0;
+}
+
+/* Laptop, menu closed: the coach floats at the top centre of the garden. */
+.coach-hud {
+  position: fixed;
+  z-index: 12;
+  top: var(--edge, 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(440px, calc(100vw - 2 * 480px));
+  min-width: 300px;
+}
+
+.coach-hud .coach {
+  margin: 0;
+}
+
+.coach-hud .coach-text {
+  font-size: 15px;
+}
+
+/* The target of the current step glows and pulses. */
+.shell[data-tut='plant'] .plots > .plot:first-child,
+.shell[data-tut='plant'] .plot-empty .seed-row > *,
+.shell[data-tut='water'] .act-water:not(:disabled),
+.shell[data-tut='buy_fertilizer'] .tab-shop,
+.shell[data-tut='buy_fertilizer'] .rail-shop,
+.shell[data-tut='buy_fertilizer'] .shop-fertilizer button,
+.shell[data-tut='fertilize'] .act-fertilize:not(:disabled),
+.shell[data-tut='checkin'] .chip-checkin.ready,
+.shell[data-tut='harvest'] .act-harvest:not(:disabled),
+.shell[data-tut='sell'] .tab-market,
+.shell[data-tut='sell'] .rail-market,
+.shell[data-tut='sell'] .sell-go:not(:disabled),
+.shell[data-tut='harvest'] .act-water:not(:disabled),
+.shell[data-tut='tanibot'] .tab-bot,
+.shell[data-tut='tanibot'] .rail-bot,
+.shell[data-tut='tanibot'] .drawer-bot {
+  position: relative;
+  z-index: 1;
+  animation: tut-glow 1.2s ease-in-out infinite;
+}
+
+@keyframes tut-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px var(--gold), 0 0 10px 2px rgba(245, 197, 66, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 0 4px #fff3c4, 0 0 18px 6px rgba(245, 197, 66, 0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach,
+  .coach-bot {
+    animation: none;
+  }
+
+  .shell[data-tut] .plots > .plot:first-child {
+    animation: none;
+  }
+}

@@ -284,14 +284,14 @@ function PlotPanel({
         </p>
       )}
       <div class="actions">
-        <button class="btn btn-cyan" disabled={busy || t.wateredToday} onClick={() => act('/api/water', plot, 'Watered!')}>
+        <button class="btn btn-cyan act-water" disabled={busy || t.wateredToday} onClick={() => act('/api/water', plot, 'Watered!')}>
           <Sprite name="droplet" scale={2} /> {t.wateredToday ? 'Watered today' : 'Water'}
         </button>
-        <button class="btn" disabled={busy || t.isFertilized || fertilizer < 1} onClick={() => act('/api/fertilize', plot, 'Fertilized!')}>
+        <button class="btn act-fertilize" disabled={busy || t.isFertilized || fertilizer < 1} onClick={() => act('/api/fertilize', plot, 'Fertilized!')}>
           <Sprite name="fertilizer" scale={2} /> Fertilize ({fertilizer})
         </button>
         <button
-          class="btn btn-gold"
+          class="btn btn-gold act-harvest"
           disabled={busy || !t.ready}
           onClick={() => void harvest()}
         >

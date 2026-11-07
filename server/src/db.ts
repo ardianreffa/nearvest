@@ -197,6 +197,9 @@ CREATE TABLE IF NOT EXISTS judge_steps (
 );
 `;
 
+/** tutorial_step value of a finished (or skipped) tutorial. */
+export const TUTORIAL_DONE = 100;
+
 export function openDb(path: string): DB {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
@@ -218,6 +221,8 @@ function migrate(db: DB): void {
   if (!has('bots', 'last_ai_at')) db.exec('ALTER TABLE bots ADD COLUMN last_ai_at INTEGER NOT NULL DEFAULT 0');
   if (!has('players', 'google_sub')) db.exec('ALTER TABLE players ADD COLUMN google_sub TEXT');
   if (!has('players', 'avatar')) db.exec("ALTER TABLE players ADD COLUMN avatar TEXT NOT NULL DEFAULT 'farmer_hat'");
+  // Tutorial step (game.ts TUTORIAL_STEPS); gardens made before the tutorial existed count as done.
+  if (!has('players', 'tutorial_step')) db.exec(`ALTER TABLE players ADD COLUMN tutorial_step INTEGER NOT NULL DEFAULT ${TUTORIAL_DONE}`);
   // Judge gardens: TaniBot waits for the judge's first harvest (at most until this time).
   if (!has('bots', 'hold_until')) db.exec('ALTER TABLE bots ADD COLUMN hold_until INTEGER NOT NULL DEFAULT 0');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS players_google_sub ON players (google_sub)');

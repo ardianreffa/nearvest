@@ -2,7 +2,7 @@
 
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type JudgeStep, type Quality, type ServerConfig, type Species } from './api';
+import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
 import { TaniBot, TaniBotHead, tierOf, tierRank } from './art/tanibot';
 import { getAudioPrefs, initAudio, onAudioPrefsChange, playSound, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
@@ -19,6 +19,7 @@ import { Profile } from './profile';
 import { TaniBotWindow } from './tanibot';
 import { GoogleButton } from './google';
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
+import { Coach } from './tutorial';
 import { Avatar } from './art/avatars';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
@@ -157,8 +158,9 @@ export function App() {
   /** Applies new state: chain flash for landed jobs, level-up fanfare for a new title. */
   const applyState = useCallback(
     (s: GameState) => {
-      // Judge gardens: share cards wait until the Judge tour is complete, then come one by one.
-      holdShareCards(!!s.judgeTour && !s.judgeTour.every((t) => t.done));
+      // Judge gardens: share cards wait until the Judge tour is complete; new gardens until the
+      // tutorial is over. Then they come one by one.
+      holdShareCards((!!s.judgeTour && !s.judgeTour.every((t) => t.done)) || !!s.tutorial);
       const done = s.activity.filter((a) => a.status === 'done');
       if (seenDone.current === null) {
         seenDone.current = new Set(done.map((a) => a.id));
@@ -595,8 +597,44 @@ export function App() {
     </>
   );
 
+  // Tutorial coach (TaniBot): "Show me" opens the place of the step.
+  const tutorialGo = (step: TutorialStep) => {
+    const side = (t: SideTab) => (wide ? openSide(t) : setTab(t));
+    if (step === 'buy_fertilizer') side('shop');
+    else if (step === 'sell') side('market');
+    else if (step === 'checkin') setInfo('checkin');
+    else if (!wide) setTab('garden');
+    // Bring the glowing target into view (e.g. the fertilizer below the Shop picture on phones).
+    const target: Partial<Record<TutorialStep, string>> = {
+      plant: '.plot-empty .seed-row > *',
+      water: '.act-water',
+      buy_fertilizer: '.shop-fertilizer button',
+      fertilize: '.act-fertilize',
+      harvest: '.act-harvest',
+      sell: '.sell-go:not(:disabled)',
+    };
+    const sel = target[step];
+    if (sel) window.setTimeout(() => document.querySelector(sel)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250);
+  };
+  const tutorialAction = (action: 'start' | 'skip') =>
+    api<{ state: GameState }>('POST', '/api/tutorial', { action })
+      .then((r) => applyState(r.state))
+      .catch((e) => toast({ kind: 'error', text: e instanceof Error ? e.message : String(e) }));
+  const coach = state.tutorial && (
+    <Coach
+      tutorial={state.tutorial}
+      onStart={() => (playSound('click'), void tutorialAction('start'))}
+      onSkip={() => void tutorialAction('skip')}
+      onGo={(step) => (playSound('click'), tutorialGo(step))}
+      onActivate={openBot}
+    />
+  );
+
   return (
-    <main class={`shell${wide ? ' wide immersive' : ''}${wide && drawerOpen ? ' drawer-open' : ''}`}>
+    <main
+      class={`shell${wide ? ' wide immersive' : ''}${wide && drawerOpen ? ' drawer-open' : ''}`}
+      data-tut={state.tutorial?.step}
+    >
       {wide ? (
         <>
           {garden}
@@ -610,6 +648,8 @@ export function App() {
             </div>
             <div class="hud-capsule hud-sys">{muteButton}</div>
           </header>
+          {/* Tutorial coach: in the open menu, or floating at the top centre when the menu is closed. */}
+          {coach && !drawerOpen && <div class="coach-hud">{coach}</div>}
 
           <aside class="hud hud-drawer" aria-label="Menu" aria-hidden={!drawerOpen} inert={!drawerOpen}>
             <div class="drawer-head">
@@ -621,6 +661,7 @@ export function App() {
                 {'>'}
               </button>
             </div>
+            {coach && <div class="drawer-coach">{coach}</div>}
             <div class="drawer-scroll">
               <nav class="side-tabs" aria-label="Panels">
                 {(['storage', 'shop', 'market', 'village'] as SideTab[]).map((t) => (
@@ -633,7 +674,7 @@ export function App() {
           {!drawerOpen && (
             <nav class="hud hud-rail" aria-label="Open the menu">
               {(['storage', 'shop', 'market', 'village'] as SideTab[]).map((t) => (
-                <button key={t} class="rail-btn" onClick={() => (playSound('click'), openSide(t))} title={tabLabels[t]}>
+                <button key={t} class={`rail-btn rail-${t}`} onClick={() => (playSound('click'), openSide(t))} title={tabLabels[t]}>
                   {tabIcons[t]}
                   <span>{tabLabels[t]}</span>
                 </button>
@@ -653,7 +694,10 @@ export function App() {
           </header>
           {chips}
           {notices}
-          <div class="content">{tab === 'garden' ? garden : panelFor(tab)}</div>
+          <div class="content">
+            {coach}
+            {tab === 'garden' ? garden : panelFor(tab)}
+          </div>
           <nav class="tabs">
             {(['garden', 'storage', 'shop', 'market', 'village'] as Tab[]).map((t) => (
               <TabButton key={t} tab={t} current={tab} set={(x) => (playSound('click'), setTab(x))} icon={tabIcons[t]} label={tabLabels[t]} />
@@ -732,7 +776,7 @@ function xpFloor(xp: number): number {
 
 function TabButton({ tab, current, set, icon, label }: { tab: Tab; current: Tab; set: (t: Tab) => void; icon: ComponentChildren; label: string }) {
   return (
-    <button class={`tab${tab === current ? ' active' : ''}`} onClick={() => set(tab)} aria-current={tab === current ? 'page' : undefined}>
+    <button class={`tab tab-${tab}${tab === current ? ' active' : ''}`} onClick={() => set(tab)} aria-current={tab === current ? 'page' : undefined}>
       <span class="tab-icon">{icon}</span>
       <span>{label}</span>
     </button>

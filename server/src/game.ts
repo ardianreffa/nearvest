@@ -5,7 +5,7 @@ import { KeyPair } from 'near-api-js';
 import { dayIndex, dayLengthMs, msUntilNextDay } from './clock.ts';
 import { encryptSecret } from './crypto.ts';
 import { allPrices, greeting, type DartoPrice } from './darto.ts';
-import { fromMicro, toMicro, tx, type DB } from './db.ts';
+import { fromMicro, toMicro, tx, TUTORIAL_DONE, type DB } from './db.ts';
 import { enqueue, enqueueTreeUpdate } from './chain/worker.ts';
 import { UNITS_PER_MICRO } from './chain/types.ts';
 import { burnDelegateHash, verifySignature } from './wallet.ts';
@@ -95,6 +95,7 @@ export interface PlayerRow {
   google_sub: string | null;
   avatar: string;
   demo: number;
+  tutorial_step: number;
   balance_micro: number;
   xp: number;
   checkin_day: number | null;
@@ -133,6 +134,14 @@ interface TreeRow {
   synced_stage: string | null;
   status: string;
 }
+
+/**
+ * The tutorial for new gardens (TaniBot guides): the player learns the loop by hand first,
+ * then meets TaniBot right after the first manual harvest. A step is done as soon as its goal
+ * is reached, in any order (e.g. a check-in before the tutorial asks for it).
+ */
+export const TUTORIAL_STEPS = ['welcome', 'plant', 'water', 'buy_fertilizer', 'fertilize', 'checkin', 'harvest', 'sell', 'tanibot'] as const;
+export type TutorialStep = (typeof TUTORIAL_STEPS)[number];
 
 /** Try as Judge: starting XP (Farmhand, third plot open) and PANEN. */
 export const JUDGE_XP = 60;
@@ -302,6 +311,8 @@ export class Game {
           now,
         );
       const id = Number(res.lastInsertRowid);
+      // New gardens start the tutorial; judge gardens have the Judge tour instead.
+      this.db.prepare('UPDATE players SET tutorial_step = ? WHERE id = ?').run(user.provider === 'judge' ? TUTORIAL_DONE : 0, id);
       if (!wallet) enqueue(this.db, id, { kind: 'create_account', name, publicKey }, now);
 
       if (fromIp < WELCOME_PACKS_PER_IP_PER_DAY) {
@@ -355,6 +366,52 @@ export class Game {
       const top = JUDGE_PANEN - fromMicro(this.getPlayer(p.id).balance_micro);
       if (top > 0) this.earn(p.id, p.account_id, 'judge', top, 'Try as Judge starter PANEN');
     });
+  }
+
+  /** Whether the goal of a tutorial step is reached already. */
+  private tutorialGoal(p: PlayerRow, step: TutorialStep): boolean {
+    const one = (sql: string) => !!this.db.prepare(sql).get(p.id);
+    switch (step) {
+      case 'welcome':
+        return false; // only the player's "Let's go" ends it
+      case 'plant':
+        return one('SELECT 1 FROM trees WHERE player_id = ?');
+      case 'water':
+        return one('SELECT 1 FROM trees WHERE player_id = ? AND water_day IS NOT NULL');
+      case 'buy_fertilizer':
+        return one("SELECT 1 FROM items WHERE player_id = ? AND item = 'fertilizer' AND qty > 0") || one('SELECT 1 FROM trees WHERE player_id = ? AND fert_until > 0');
+      case 'fertilize':
+        return one('SELECT 1 FROM trees WHERE player_id = ? AND fert_until > 0');
+      case 'checkin':
+        return p.checkin_day !== null;
+      case 'harvest':
+        return one('SELECT 1 FROM trees WHERE player_id = ? AND (harvest_count > 0 OR status = \'dead\')');
+      case 'sell':
+        return one('SELECT 1 FROM sales WHERE player_id = ?');
+      case 'tanibot':
+        return one('SELECT 1 FROM bots WHERE player_id = ?');
+    }
+  }
+
+  /** The current tutorial step (moves past steps whose goal is reached); null when finished. */
+  tutorial(playerId: number): { step: TutorialStep; index: number; total: number } | null {
+    const p = this.getPlayer(playerId);
+    let i = p.tutorial_step;
+    while (i < TUTORIAL_STEPS.length && this.tutorialGoal(p, TUTORIAL_STEPS[i])) i++;
+    if (i >= TUTORIAL_STEPS.length) i = TUTORIAL_DONE;
+    if (i !== p.tutorial_step) this.db.prepare('UPDATE players SET tutorial_step = ? WHERE id = ?').run(i, p.id);
+    return i === TUTORIAL_DONE ? null : { step: TUTORIAL_STEPS[i], index: i, total: TUTORIAL_STEPS.length };
+  }
+
+  /** "Let's go" on the welcome step, or skip the whole tutorial (also "Later" at the TaniBot step). */
+  tutorialAction(playerId: number, action: unknown): void {
+    const p = this.getPlayer(playerId);
+    if (action === 'skip') {
+      this.db.prepare('UPDATE players SET tutorial_step = ? WHERE id = ?').run(TUTORIAL_DONE, p.id);
+      return;
+    }
+    if (action !== 'start') throw new GameError('Unknown tutorial action');
+    if (p.tutorial_step === 0) this.db.prepare('UPDATE players SET tutorial_step = 1 WHERE id = ?').run(p.id);
   }
 
   /** Whether this garden was made by Try as Judge. */
@@ -1100,6 +1157,8 @@ export class Game {
       darto: this.dartoPrices(demo),
       season: this.seasonInfo(),
       activity: this.activity(p.id),
+      /** New gardens: the current tutorial step (null when finished or skipped). */
+      tutorial: this.tutorial(p.id),
       /** Try as Judge gardens only: the 5-step tour. */
       judgeTour: signIn === 'judge' ? this.judgeTour(p.id) : null,
     };

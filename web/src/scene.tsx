@@ -83,7 +83,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const on = !!tb && tb.enabled && tb.status === 'ready';
   /** Not active, switched off or failed: TaniBot sleeps and asks to be switched on. */
   const asleep = !on;
-  const askOn = !tb || tb.status === 'failed' || (tb.status === 'ready' && !tb.enabled);
+  // During the tutorial TaniBot's coach bubble does the talking (no "Turn me on" nudge).
+  const askOn = !state.tutorial && (!tb || tb.status === 'failed' || (tb.status === 'ready' && !tb.enabled));
   const flash = useActionBubble(on, tb?.last ?? null);
   const nudge = useTurnOnNudge(askOn, state);
   const motion = useBotMotion(bx, on, working, selected);
