@@ -86,6 +86,15 @@ try {
       await waitFor(`!!document.querySelector('[aria-label="Profile"]')`, 'profile window');
       await sleep(400); await screenshot('profile');
       console.log('profile:', await evaluate(`document.querySelector('[aria-label="Profile"]').innerText.replace(/\\n+/g, ' | ')`));
+      await clickText('Change avatar');
+      await sleep(300); await screenshot('avatar-grid');
+      await evaluate(`document.querySelector('.avatar-choice[title="Durian"]').click()`);
+      await waitFor(`document.querySelector('.who-btn .avatar svg title')?.textContent === 'Durian'`, 'durian avatar in the top bar');
+      await sleep(300); await screenshot('avatar-durian');
+      await clickText('Change avatar');
+      await evaluate(`document.querySelector('.avatar-choice[title="Farmer"]').click()`);
+      await waitFor(`document.querySelector('.who-btn .avatar svg title')?.textContent === 'Farmer'`, 'farmer avatar back');
+      console.log('avatar change: ok');
       await evaluate(`document.querySelector('[aria-label="Profile"] .info-body').scrollTop = 9999`);
       await sleep(300); await screenshot('profile-bottom');
       await clickText('Close');

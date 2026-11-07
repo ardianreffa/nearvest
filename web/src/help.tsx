@@ -10,7 +10,19 @@ import { TreePixels } from './art/trees';
 import { Sprite } from './sprites';
 import { Coin, formatPanen } from './ui';
 
-export function Modal({ title, onClose, children, closeLabel = 'Got it' }: { title: string; onClose: () => void; children: ComponentChildren; closeLabel?: string }) {
+export function Modal({
+  title,
+  onClose,
+  children,
+  closeLabel = 'Got it',
+  class: cls,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ComponentChildren;
+  closeLabel?: string;
+  class?: string;
+}) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -18,7 +30,7 @@ export function Modal({ title, onClose, children, closeLabel = 'Got it' }: { tit
   }, [onClose]);
   return (
     <div class="dialog-backdrop" role="presentation" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div class="dialog panel info-dialog" role="dialog" aria-modal="true" aria-label={title}>
+      <div class={`dialog panel info-dialog${cls ? ` ${cls}` : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <header class="panel-head">
           <h2>{title}</h2>
           <button class="icon-btn info-close" onClick={onClose} aria-label="Close">

@@ -104,6 +104,11 @@ export function rollFruitQuality(treeQuality: Quality, fertilized: boolean, roll
   return 'common';
 }
 
+/** Profile avatars (pixel art drawn in web/src/art/avatars.tsx). Stored on the game server, not on chain. */
+export const AVATARS = ['farmer_hat', 'farmer_hijab', 'solarpunk', 'grandpa', 'mango', 'rambutan', 'durian', 'tanibot'] as const;
+export type AvatarId = (typeof AVATARS)[number];
+export const DEFAULT_AVATAR: AvatarId = 'farmer_hat';
+
 export const TITLES: { name: string; xp: number }[] = [
   { name: 'Seedling', xp: 0 },
   { name: 'Farmhand', xp: 50 },

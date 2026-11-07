@@ -15,6 +15,8 @@ import { Market, Shop, Storage, Village } from './panels';
 import { Sprite } from './sprites';
 import { signShopBurn, walletProof } from './wallet';
 import { Profile } from './profile';
+import { GoogleButton } from './google';
+import { Avatar } from './art/avatars';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
 type Tab = 'garden' | 'storage' | 'shop' | 'market' | 'village';
@@ -482,9 +484,7 @@ export function App() {
 
   const who = (
     <button class="who who-btn" onClick={() => (playSound('click'), setInfo('profile'))} title="Your profile" aria-label={`${p.name}: open your profile`}>
-      <span class="head-bot">
-        <TaniBotHead version={botVersion(p.title)} scale={wide ? 2 : 1} />
-      </span>
+      <Avatar id={p.avatar} size={wide ? 48 : 32} />
       <div>
         <div class="name">{p.name}</div>
         <div class="title-line">
@@ -700,7 +700,14 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
         How to play
       </button>
 
-      <GoogleButton clientId={config.googleClientId} onLoggedIn={onLoggedIn} onError={setError} />
+      <GoogleButton
+        clientId={config.googleClientId}
+        onCredential={async (credential) => {
+          const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/google', { credential });
+          onLoggedIn(res.token, res.player);
+        }}
+        onError={setError}
+      />
       <button class="btn btn-wallet" onClick={walletLogin} disabled={busy}>
         Connect NEAR Wallet
       </button>
@@ -724,56 +731,6 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
     </main>
     </div>
   );
-}
-
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (o: { client_id: string; callback: (r: { credential: string }) => void }) => void;
-          renderButton: (el: HTMLElement, o: Record<string, unknown>) => void;
-        };
-      };
-    };
-  }
-}
-
-/** "Sign in with Google" (Google Identity Services). Shows a placeholder until a Client ID is configured. */
-function GoogleButton({ clientId, onLoggedIn, onError }: { clientId: string | null; onLoggedIn: (t: string, s: GameState | null) => void; onError: (m: string) => void }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!clientId || !ref.current) return;
-    const render = () => {
-      window.google!.accounts.id.initialize({
-        client_id: clientId,
-        callback: async ({ credential }) => {
-          try {
-            const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/google', { credential });
-            onLoggedIn(res.token, res.player);
-          } catch (e) {
-            onError(e instanceof Error ? e.message : String(e));
-          }
-        },
-      });
-      window.google!.accounts.id.renderButton(ref.current!, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', locale: 'en' });
-    };
-    if (window.google) return render();
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client?hl=en';
-    script.async = true;
-    script.onload = render;
-    document.head.appendChild(script);
-  }, [clientId]);
-
-  if (!clientId) {
-    return (
-      <button class="btn btn-google" disabled title="Google login is being set up">
-        Sign in with Google (coming soon)
-      </button>
-    );
-  }
-  return <div class="google-slot" ref={ref} />;
 }
 
 function CreateGarden({ onCreated, onLogout }: { onCreated: (s: GameState) => void; onLogout: () => void }) {

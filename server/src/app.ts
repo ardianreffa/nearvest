@@ -119,6 +119,9 @@ export function createApp(deps: AppDeps) {
     const { credential } = await body(c);
     if (typeof credential !== 'string') throw new GameError('Missing Google credential');
     const identity = await verifyGoogleCredential(credential, config.googleClientId, { keys: deps.googleKeys, nowMs: now() });
+    // A Google account linked to a wallet garden signs in to that garden.
+    const linked = game.getPlayerByGoogle(identity.subject);
+    if (linked) return c.json({ token: openSession(db, linked.user_id, now()), player: game.state(linked.id) });
     const { token, userId } = login(db, identity, now());
     const p = game.getPlayerByUser(userId);
     return c.json({ token, player: p ? game.state(p.id) : null });
@@ -180,6 +183,22 @@ export function createApp(deps: AppDeps) {
     const pid = playerId(c);
     const accountId = await verifyWalletProof(db, chain, config.factoryAccountId, await body(c), now());
     game.linkWallet(pid, accountId);
+    return c.json(game.state(pid));
+  });
+
+  // "Link Google account" for wallet gardens: then Google sign-in opens this garden too.
+  app.post('/api/google/link', async (c) => {
+    const pid = playerId(c);
+    const { credential } = await body(c);
+    if (typeof credential !== 'string') throw new GameError('Missing Google credential');
+    const identity = await verifyGoogleCredential(credential, config.googleClientId, { keys: deps.googleKeys, nowMs: now() });
+    game.linkGoogle(pid, identity.subject);
+    return c.json(game.state(pid));
+  });
+
+  app.post('/api/avatar', async (c) => {
+    const pid = playerId(c);
+    game.setAvatar(pid, (await body(c)).avatar);
     return c.json(game.state(pid));
   });
 

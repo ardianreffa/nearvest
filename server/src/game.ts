@@ -11,6 +11,7 @@ import { UNITS_PER_MICRO } from './chain/types.ts';
 import { burnDelegateHash, verifySignature } from './wallet.ts';
 import {
   advance,
+  AVATARS,
   CHECKIN_DAY7_MULTIPLIER,
   CHECKIN_PANEN,
   DEMO_STREAK_GRACE_DAYS,
@@ -89,6 +90,9 @@ export interface PlayerRow {
   key_nonce: number;
   /** NEAR wallet that can sign in to this garden (wallet players: their own account). */
   wallet_account_id: string | null;
+  /** Google account linked to a wallet garden. */
+  google_sub: string | null;
+  avatar: string;
   demo: number;
   balance_micro: number;
   xp: number;
@@ -180,6 +184,30 @@ export class Game {
     return (this.db.prepare('SELECT * FROM players WHERE wallet_account_id = ?').get(accountId) as unknown as PlayerRow) ?? null;
   }
 
+  /** The wallet garden a Google account was linked to, if any. */
+  getPlayerByGoogle(sub: string): PlayerRow | null {
+    return (this.db.prepare('SELECT * FROM players WHERE google_sub = ?').get(sub) as unknown as PlayerRow) ?? null;
+  }
+
+  /** Links a verified Google account to a wallet garden. One Google account = one garden. */
+  linkGoogle(playerId: number, sub: string): void {
+    const p = this.getPlayer(playerId);
+    if (p.custody !== 'wallet') throw new GameError('This garden already signs in with Google');
+    if (p.google_sub === sub) return;
+    if (p.google_sub) throw new GameError('This garden is already linked to a Google account', 409, { code: 'garden_linked' });
+    const own = this.db
+      .prepare("SELECT 1 FROM players p JOIN users u ON u.id = p.user_id WHERE u.provider = 'google' AND u.subject = ?")
+      .get(sub);
+    if (own) throw new GameError('This Google account already has its own garden', 409, { code: 'google_has_garden' });
+    if (this.getPlayerByGoogle(sub)) throw new GameError('This Google account is already linked to another garden', 409, { code: 'google_linked' });
+    this.db.prepare('UPDATE players SET google_sub = ? WHERE id = ?').run(sub, p.id);
+  }
+
+  setAvatar(playerId: number, avatar: unknown): void {
+    if (typeof avatar !== 'string' || !(AVATARS as readonly string[]).includes(avatar)) throw new GameError('Unknown avatar');
+    this.db.prepare('UPDATE players SET avatar = ? WHERE id = ?').run(avatar, this.getPlayer(playerId).id);
+  }
+
   /** Links a proven NEAR wallet to a Google/dev garden. One wallet = one garden. */
   linkWallet(playerId: number, accountId: string): void {
     const p = this.getPlayer(playerId);
@@ -216,6 +244,9 @@ export class Game {
     if (!user) throw new GameError('Please sign in', 401);
     // Wallet players bring their own account; everyone else gets <name>.<suffix>, created by the game.
     const wallet = user.provider === 'near';
+    if (user.provider === 'google' && this.getPlayerByGoogle(user.subject)) {
+      throw new GameError('This Google account is already linked to another garden', 409, { code: 'google_linked' });
+    }
     let accountId = `${name}.${this.d.accountSuffix}`;
     let publicKey = '';
     let secretEnc = '';
@@ -880,6 +911,8 @@ export class Game {
         custody: p.custody,
         walletAccountId: p.wallet_account_id,
         /** How the garden's owner signs in: 'google', 'near' (wallet garden) or 'dev'. */
+        googleLinked: p.google_sub !== null,
+        avatar: p.avatar,
         signIn: (this.db.prepare('SELECT provider FROM users WHERE id = ?').get(p.user_id) as { provider: string } | undefined)?.provider ?? 'dev',
         demo,
         balance: fromMicro(p.balance_micro),

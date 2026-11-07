@@ -1,6 +1,7 @@
 // Dev-only art gallery (http://localhost:5173/preview.html). Not part of the production build.
 import { render } from 'preact';
 import { Backdrop } from './art/backdrop';
+import { Avatar, AVATAR_IDS, AVATARS } from './art/avatars';
 import { DartoFigure, HoverCart } from './art/darto';
 import { ShopStall } from './art/shop';
 import { Drone, TaniBot } from './art/tanibot';
@@ -16,6 +17,15 @@ const PHASES = [6 / 24, 10.67 / 24, 11.33 / 24, 18 / 24];
 function Gallery() {
   return (
     <main class="preview">
+      <h2>Profile avatars</h2>
+      <div class="preview-row">
+        {AVATAR_IDS.map((id) => (
+          <div key={id} class="preview-cell">
+            <Avatar id={id} size={96} />
+            <small>{AVATARS[id].name}</small>
+          </div>
+        ))}
+      </div>
       <h2>Trees</h2>
       {SPECIES.map((s) => (
         <div class="preview-row" key={s}>

@@ -58,6 +58,10 @@ export interface GameState {
     walletAccountId: string | null;
     /** How the owner signs in: Google, NEAR wallet (wallet garden) or local dev login. */
     signIn: 'google' | 'near' | 'dev';
+    /** Wallet gardens: a Google account is linked (Google sign-in opens this garden too). */
+    googleLinked: boolean;
+    /** Profile avatar id (web/src/art/avatars.tsx). */
+    avatar: string;
     demo: boolean;
     balance: number;
     xp: number;

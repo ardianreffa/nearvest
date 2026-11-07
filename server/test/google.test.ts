@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import { before, describe, it } from 'node:test';
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTVerifyGetKey } from 'jose';
+import { KeyPair } from 'near-api-js';
+import { LOGIN_MESSAGE, nep413Hash } from '../src/wallet.ts';
 import { makeWorld, START } from './helpers.ts';
 
 const CLIENT_ID = 'test-client.apps.googleusercontent.com';
@@ -120,5 +122,79 @@ describe('Google login', () => {
     assert.equal(off.status, 404);
     const on = await call(world(true).app, 'POST', '/auth/dev', undefined, { username: 'tester' });
     assert.equal(on.status, 200);
+  });
+});
+
+/** A wallet garden for alice.testnet (NEP-413 login on the fake chain). Returns its session token. */
+async function walletGarden(w: ReturnType<typeof world>, accountId = 'alice.testnet', name = 'alice') {
+  const key = KeyPair.fromRandom('ed25519');
+  w.chain.addAccessKey(accountId, key.getPublicKey().toString(), 'FullAccess');
+  const { nonce } = (await call(w.app, 'POST', '/auth/near/challenge')).json;
+  const hash = nep413Hash(LOGIN_MESSAGE, Buffer.from(nonce, 'base64'), 'nearvest.testnet');
+  const signature = Buffer.from(key.sign(hash).signature).toString('base64');
+  const login = await call(w.app, 'POST', '/auth/near', undefined, { accountId, publicKey: key.getPublicKey().toString(), signature, nonce });
+  await call(w.app, 'POST', '/api/player', login.json.token, { name });
+  return login.json.token as string;
+}
+
+describe('Link Google account (wallet gardens)', () => {
+  it('links; afterwards Google sign-in opens the same wallet garden', async () => {
+    const w = world();
+    const token = await walletGarden(w);
+    const linked = await call(w.app, 'POST', '/api/google/link', token, { credential: await googleToken({ sub: 'g-alice' }) });
+    assert.equal(linked.status, 200);
+    assert.equal(linked.json.player.googleLinked, true);
+
+    const viaGoogle = await call(w.app, 'POST', '/auth/google', undefined, { credential: await googleToken({ sub: 'g-alice' }) });
+    assert.equal(viaGoogle.status, 200);
+    assert.equal(viaGoogle.json.player.player.name, 'alice');
+    assert.equal(viaGoogle.json.player.player.accountId, 'alice.testnet');
+    // That session cannot start a second garden.
+    assert.equal((await call(w.app, 'POST', '/api/player', viaGoogle.json.token, { name: 'alice2' })).status, 409);
+  });
+
+  it('a Google account that already has its own garden is refused', async () => {
+    const w = world();
+    const g = await call(w.app, 'POST', '/auth/google', undefined, { credential: await googleToken({ sub: 'g-sari' }) });
+    await call(w.app, 'POST', '/api/player', g.json.token, { name: 'sari' });
+    const token = await walletGarden(w);
+    const res = await call(w.app, 'POST', '/api/google/link', token, { credential: await googleToken({ sub: 'g-sari' }) });
+    assert.equal(res.status, 409);
+    assert.equal(res.json.code, 'google_has_garden');
+    assert.match(res.json.error, /already has its own garden/);
+  });
+
+  it('a Google account linked to another garden is refused', async () => {
+    const w = world();
+    const alice = await walletGarden(w, 'alice.testnet', 'alice');
+    const bob = await walletGarden(w, 'bob.testnet', 'bob');
+    await call(w.app, 'POST', '/api/google/link', alice, { credential: await googleToken({ sub: 'g-shared' }) });
+    const res = await call(w.app, 'POST', '/api/google/link', bob, { credential: await googleToken({ sub: 'g-shared' }) });
+    assert.equal(res.status, 409);
+    assert.equal(res.json.code, 'google_linked');
+    assert.match(res.json.error, /already linked to another garden/);
+  });
+
+  it('only wallet gardens can link Google, and the token is checked', async () => {
+    const w = world();
+    const g = await call(w.app, 'POST', '/auth/google', undefined, { credential: await googleToken({ sub: 'g-sari' }) });
+    await call(w.app, 'POST', '/api/player', g.json.token, { name: 'sari' });
+    assert.equal((await call(w.app, 'POST', '/api/google/link', g.json.token, { credential: await googleToken({ sub: 'g-other' }) })).status, 400);
+    const token = await walletGarden(w);
+    const expired = await call(w.app, 'POST', '/api/google/link', token, { credential: await googleToken({ sub: 'g-alice', expIn: -120 }) });
+    assert.equal(expired.status, 401);
+  });
+});
+
+describe('Profile avatar', () => {
+  it('defaults to the farmer with the hat, can be changed, and rejects unknown ids', async () => {
+    const w = world(true);
+    const { json } = await call(w.app, 'POST', '/auth/dev', undefined, { username: 'tester' });
+    const created = await call(w.app, 'POST', '/api/player', json.token, { name: 'tester' });
+    assert.equal(created.json.player.avatar, 'farmer_hat');
+    const changed = await call(w.app, 'POST', '/api/avatar', json.token, { avatar: 'durian' });
+    assert.equal(changed.json.player.avatar, 'durian');
+    assert.equal((await call(w.app, 'GET', '/api/me', json.token)).json.player.avatar, 'durian');
+    assert.equal((await call(w.app, 'POST', '/api/avatar', json.token, { avatar: 'my-photo.png' })).status, 400);
   });
 });
