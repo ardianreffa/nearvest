@@ -1,5 +1,8 @@
 // Dev-only art gallery (http://localhost:5173/preview.html). Not part of the production build.
 import { render } from 'preact';
+import { useEffect, useState } from 'preact/hooks';
+import { drawCard, type Moment } from './share';
+import type { GameState } from './api';
 import { Backdrop } from './art/backdrop';
 import { Avatar, AVATAR_IDS, AVATARS } from './art/avatars';
 import { EVOLUTION_PALETTE, TANIBOT_EVOLUTIONS, type EvolutionId } from './art/tanibot-evolutions';
@@ -78,9 +81,42 @@ function HoleCheck() {
   );
 }
 
+/** Every share card, drawn with a sample player (title from the URL: ?title=Farmer, default Legend). */
+function ShareCards() {
+  const title = new URLSearchParams(location.search).get('title') ?? 'Legend';
+  const state = {
+    player: { name: 'sari', title, xp: 4100, balance: 186, accountId: 'sari.nearvest.testnet' },
+    plots: [{ tree: {} }, { tree: {} }, { tree: null }],
+  } as unknown as GameState;
+  const moments: Moment[] = [
+    { kind: 'first_harvest', species: 'mango', quality: 'common' },
+    { kind: 'first_gold', species: 'durian', quality: 'gold' },
+    { kind: 'evolved', title },
+    { kind: 'streak7' },
+    { kind: 'title', title },
+    { kind: 'legend' },
+    { kind: 'profile' },
+  ];
+  const [urls, setUrls] = useState<string[]>([]);
+  useEffect(() => {
+    void Promise.all(moments.map((m) => drawCard(m, state).then((c) => c.toDataURL('image/png')))).then(setUrls);
+  }, []);
+  return (
+    <>
+      <h2>Share cards ({title})</h2>
+      <div class="preview-row share-cards" style={{ flexWrap: 'wrap', gap: '12px' }}>
+        {urls.map((u, i) => (
+          <img key={i} src={u} width={600} height={315} alt={moments[i].kind} />
+        ))}
+      </div>
+    </>
+  );
+}
+
 function Gallery() {
   return (
     <main class="preview">
+      <ShareCards />
       <h2>Tree looks (6 seeds per species, fruiting and young tree)</h2>
       {SPECIES.map((sp) => (
         <div class="preview-row tree-looks" key={sp} style={{ background: '#cfe9f5', padding: '8px', alignItems: 'flex-end', gap: '10px' }}>

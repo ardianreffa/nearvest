@@ -312,6 +312,22 @@ try {
     });
     throw Object.assign(new Error('motion done'), { done: true });
   }
+  if (name.startsWith('--cards=')) {
+    await step('share card dialog (EXISTING dev garden; opens a preview card, no post)', async () => {
+      await typeInto('#dev-user', name.slice('--cards='.length));
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      if (MOBILE) await clickText('Village', '.tab'); else await evaluate(`[...document.querySelectorAll('.rail-btn, .side-tabs button')].find(b => b.textContent.includes('Village'))?.click()`);
+      await waitFor(`!!document.querySelector('.share-preview > summary')`, 'village');
+      await evaluate(`document.querySelector('.share-preview > summary').click()`);
+      await clickText('TaniBot evolved', '.share-preview button');
+      await waitFor(`!!document.querySelector('.share-card img')`, 'card image', 15000);
+      await sleep(500); await screenshot('card-dialog');
+      console.log('card image size:', await evaluate(`(() => { const i = document.querySelector('.share-card img'); return i.naturalWidth + 'x' + i.naturalHeight + ' shown ' + Math.round(i.getBoundingClientRect().width) + 'px'; })()`), '| buttons:', await evaluate(`[...document.querySelectorAll('.share-dialog button, .share-dialog a.btn, [aria-label^="Share"] button')].map(b => b.innerText).join(' / ')`));
+    });
+    throw Object.assign(new Error('cards done'), { done: true });
+  }
   if (name.startsWith('--scene=')) {
     await step('garden scene (EXISTING dev garden; add ?time=day|dusk|night to UI_URL)', async () => {
       await typeInto('#dev-user', name.slice('--scene='.length));

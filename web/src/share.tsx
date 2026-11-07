@@ -6,9 +6,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { GameState, Quality, Species } from './api';
 import { DARTO_IDLE, DARTO_PALETTE } from './art/darto-sprite';
-import { botSprite, TIER_TITLE, tierOf } from './art/tanibot';
+import { botSprite, TIER_TITLE, tierOf, type Tier } from './art/tanibot';
 import { treePalette, treeRows } from './art/trees';
-import { BASE_PALETTE, SPRITES } from './sprites';
 import { withArticle } from './text';
 import { formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
@@ -186,15 +185,119 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   return lines;
 }
 
+/** The still version of each tier's aura (as in the game), drawn behind TaniBot. */
+function drawAura(ctx: CanvasRenderingContext2D, tier: Tier, x: number, y: number, r: number) {
+  if (tier === 'durian_king') {
+    // A golden durian: round glow with spikes of light.
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = 'rgba(255, 206, 84, 0.55)';
+    for (let i = 0; i < 16; i++) {
+      ctx.rotate((Math.PI * 2) / 16);
+      ctx.beginPath();
+      ctx.moveTo(-r * 0.12, -r * 0.55);
+      ctx.lineTo(0, -r * 1.08);
+      ctx.lineTo(r * 0.12, -r * 0.55);
+      ctx.fill();
+    }
+    ctx.restore();
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r * 0.85);
+    g.addColorStop(0, 'rgba(255, 236, 160, 0.95)');
+    g.addColorStop(0.55, 'rgba(245, 197, 66, 0.6)');
+    g.addColorStop(1, 'rgba(245, 197, 66, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.85, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (tier === 'legend') {
+    // A white-cyan circle of light with a soft outer ring.
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    g.addColorStop(0.45, 'rgba(186, 250, 255, 0.8)');
+    g.addColorStop(0.85, 'rgba(34, 211, 238, 0.35)');
+    g.addColorStop(1, 'rgba(34, 211, 238, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(220, 255, 255, 0.8)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.08, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    // Earlier titles: a soft mint glow so TaniBot stands out from the village.
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(0, 236, 151, 0.35)');
+    g.addColorStop(1, 'rgba(0, 236, 151, 0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** Legend's halo above the hat. */
+function drawHalo(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number) {
+  ctx.save();
+  ctx.shadowColor = 'rgba(34, 211, 238, 0.9)';
+  ctx.shadowBlur = 14;
+  ctx.strokeStyle = '#F0FFFF';
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, rx * 0.26, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** A 7-day calendar with every day ticked and day 7 in gold (streak card). */
+function drawCalendar(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const cell = 46;
+  const w = cell * 4 + 18;
+  const h = cell * 2 + 70;
+  ctx.fillStyle = '#FFFAF0';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = '#1B1B2F';
+  ctx.fillRect(x, y, w, 6);
+  ctx.fillRect(x, y + h - 6, w, 6);
+  ctx.fillRect(x, y, 6, h);
+  ctx.fillRect(x + w - 6, y, 6, h);
+  ctx.fillStyle = '#E5484D';
+  ctx.fillRect(x + 6, y + 6, w - 12, 34);
+  for (let d = 0; d < 7; d++) {
+    const cx = x + 9 + (d % 4) * cell;
+    const cy = y + 52 + Math.floor(d / 4) * cell;
+    ctx.fillStyle = d === 6 ? '#F5C542' : '#BBF7D0';
+    ctx.fillRect(cx + 3, cy + 3, cell - 6, cell - 6);
+    ctx.fillStyle = d === 6 ? '#7A4A00' : '#0B8F5F';
+    // A pixel check mark.
+    ctx.fillRect(cx + 12, cy + 22, 6, 6);
+    ctx.fillRect(cx + 18, cy + 28, 6, 6);
+    ctx.fillRect(cx + 24, cy + 22, 6, 6);
+    ctx.fillRect(cx + 30, cy + 16, 6, 6);
+  }
+}
+
 export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
   canvas.width = CARD_W;
   canvas.height = CARD_H;
   const ctx = canvas.getContext('2d')!;
   ctx.imageSmoothingEnabled = false;
+  // The card is drawn once: make sure both pixel fonts are loaded first.
+  try {
+    await Promise.all([document.fonts.load('44px "Pixelify Sans"'), document.fonts.load('32px Tiny5')]);
+  } catch {
+    // Fonts blocked: the browser's fallback font is used.
+  }
   await document.fonts?.ready;
 
-  // Background: the village, darkened on the right for the text.
+  // Layout: one margin on every side; TaniBot stands on the left-third line with its feet on the
+  // village ground; the moment's object stands behind / beside it; text in the right column.
+  const M = 56;
+  const GROUND = 478; // top of the soil in the background below (row 104 of 135, drawn at 5x)
+
+  // Background: the village, a little darker towards the text column.
   try {
     const bg = await loadImage('/assets/bg/bg-day.png');
     const scale = Math.max(CARD_W / bg.width, CARD_H / bg.height);
@@ -204,8 +307,9 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
     ctx.fillRect(0, 0, CARD_W, CARD_H);
   }
   const shade = ctx.createLinearGradient(0, 0, CARD_W, 0);
-  shade.addColorStop(0, 'rgba(6, 20, 14, 0.15)');
-  shade.addColorStop(0.45, 'rgba(6, 20, 14, 0.75)');
+  shade.addColorStop(0, 'rgba(6, 20, 14, 0.2)');
+  shade.addColorStop(0.42, 'rgba(6, 20, 14, 0.45)');
+  shade.addColorStop(0.55, 'rgba(6, 20, 14, 0.82)');
   shade.addColorStop(1, 'rgba(6, 20, 14, 0.9)');
   ctx.fillStyle = shade;
   ctx.fillRect(0, 0, CARD_W, CARD_H);
@@ -217,53 +321,91 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   ctx.fillRect(0, 0, 8, CARD_H);
   ctx.fillRect(CARD_W - 8, 0, 8, CARD_H);
 
-  // Hero art on the left.
-  // The TaniBot of the player's title, in the detailed (116x128) version drawn at half scale.
-  const bot = botSprite(tierOf(s.player.title), true);
-  const drawBot = (x: number, y: number, scale: number) => drawRows(ctx, bot.rows, bot.palette, x, y, scale / 2);
+  // TaniBot of the player's title: the detailed 116x128 sprite at 3 px per pixel (348x384).
+  const tier: Tier = m.kind === 'legend' ? 'legend' : m.kind === 'evolved' || m.kind === 'title' ? tierOf(m.title ?? s.player.title) : tierOf(s.player.title);
+  const bot = botSprite(tier, true);
+  const BOT_SCALE = 3;
+  const botW = bot.rows[0].length * BOT_SCALE;
+  const botH = bot.rows.length * BOT_SCALE;
+  // Feet: the last row with pixels.
+  const feetRow = bot.rows.length - 1 - [...bot.rows].reverse().findIndex((r) => /[^.]/.test(r));
+  const botCx = CARD_W / 3;
+  const botX = Math.round(botCx - botW / 2);
+  const botY = GROUND + 6 - (feetRow + 1) * BOT_SCALE;
+  const centre = { x: botCx, y: botY + botH * 0.56 };
+
+  // The moment's object, behind / beside TaniBot (a bit smaller).
   if (m.kind === 'first_gold' || m.kind === 'first_harvest') {
     const species = m.species ?? 'mango';
-    drawRows(ctx, treeRows(species, 'fruiting'), treePalette(species, 'fruiting'), 40, 150, 10);
+    const T = 6; // 32x40 tree -> 192x240, beside TaniBot
+    const tx = M - 4;
+    const ty = GROUND + 4 - 37 * T;
     if (m.kind === 'first_gold') {
-      ctx.fillStyle = 'rgba(245, 197, 66, 0.35)';
-      for (const [x, y] of [[70, 170], [330, 200], [200, 140], [300, 420]]) ctx.fillRect(x, y, 14, 14);
+      const glow = ctx.createRadialGradient(tx + 16 * T, ty + 14 * T, 10, tx + 16 * T, ty + 14 * T, 170);
+      glow.addColorStop(0, 'rgba(255, 220, 110, 0.75)');
+      glow.addColorStop(1, 'rgba(255, 220, 110, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(tx - 60, ty - 60, 32 * T + 120, 40 * T + 60);
     }
-    drawBot(300, 330, 4);
+    drawRows(ctx, treeRows(species, 'fruiting'), treePalette(species, 'fruiting'), tx, ty, T);
+    if (m.kind === 'first_gold') {
+      ctx.fillStyle = '#FFF3B0';
+      for (const [x, y] of [[tx + 20, ty + 40], [tx + 190, ty + 20], [tx + 110, ty - 14], [tx + 210, ty + 150]]) {
+        ctx.fillRect(x, y + 6, 18, 6);
+        ctx.fillRect(x + 6, y, 6, 18);
+      }
+    }
+  } else if (m.kind === 'streak7') {
+    drawCalendar(ctx, M, GROUND - 250);
   } else if (m.kind === 'profile') {
-    drawBot(50, 150, 6);
-  } else {
-    drawBot(70, 130, 7);
+    drawRows(ctx, DARTO_IDLE, DARTO_PALETTE, M - 10, GROUND + 6 - DARTO_IDLE.length * 4, 4);
   }
-  if (m.kind === 'streak7') drawRows(ctx, SPRITES.seedPacket, BASE_PALETTE, 380, 420, 12);
-  if (m.kind === 'profile') drawRows(ctx, DARTO_IDLE.slice(0, 30), DARTO_PALETTE, 380, 380, 5);
 
-  // Text on the right.
+  // Tier aura behind TaniBot.
+  drawAura(ctx, tier, centre.x, centre.y, botW * 0.62);
+  // Shadow on the ground, then TaniBot.
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
+  ctx.beginPath();
+  ctx.ellipse(botCx, GROUND + 4, botW * 0.36, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+  drawRows(ctx, bot.rows, bot.palette, botX, botY, BOT_SCALE);
+  if (tier === 'legend') drawHalo(ctx, botCx, botY + 4, botW * 0.27);
+  if (m.kind === 'evolved' || m.kind === 'title' || m.kind === 'legend') {
+    ctx.fillStyle = '#FFF3B0';
+    for (const [x, y] of [[botX - 10, botY + 60], [botX + botW - 6, botY + 30], [botX + botW + 4, botY + 220], [botX - 24, botY + 250]]) {
+      ctx.fillRect(x, y + 7, 21, 7);
+      ctx.fillRect(x + 7, y, 7, 21);
+    }
+  }
+
+  // Text in the right column, left-aligned, same margin as everywhere.
   const { headline, sub } = texts(m, s);
-  const left = 560;
-  const width = CARD_W - left - 60;
+  const left = Math.round(CARD_W * 0.56);
+  const width = CARD_W - left - M;
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#00EC97';
   ctx.font = '44px "Pixelify Sans", sans-serif';
-  ctx.fillText('NEARvest', left, 70);
+  ctx.fillText('NEARvest', left, M);
   ctx.fillStyle = '#F5C542';
-  ctx.font = '62px Tiny5, monospace';
-  let y = 150;
+  ctx.font = '58px Tiny5, monospace';
+  let y = M + 76;
   for (const line of wrap(ctx, headline, width)) {
     ctx.fillText(line, left, y);
-    y += 70;
+    y += 66;
   }
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = '34px Tiny5, monospace';
-  y += 14;
+  ctx.font = '32px Tiny5, monospace';
+  y += 12;
   for (const line of wrap(ctx, sub, width)) {
     ctx.fillText(line, left, y);
-    y += 42;
+    y += 40;
   }
+  ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#A7F3D0';
-  ctx.font = '28px Tiny5, monospace';
-  ctx.fillText(`${s.player.accountId}`, left, CARD_H - 140);
+  ctx.font = '26px Tiny5, monospace';
+  ctx.fillText(`${s.player.accountId}`, left, CARD_H - M - 40);
   ctx.fillStyle = '#FFFFFF';
-  ctx.fillText('Grow. Harvest. Own.  ·  on NEAR', left, CARD_H - 96);
+  ctx.fillText('Grow. Harvest. Own.  ·  on NEAR', left, CARD_H - M);
   return canvas;
 }
 
