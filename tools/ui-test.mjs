@@ -7,7 +7,7 @@
 // TaniBot motion (jets, landing, idle moments) on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --motion=<newDevUsername> [width] [height]
 // Market rows (needs an EXISTING dev garden with fruit; fake-chain server): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --market=<devUser> [width] [height]
 // Fullscreen layout at several screen sizes (EXISTING dev garden): node tools/ui-test.mjs <outDir> --fullscreen=<devUser>
-// TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> to raise its XP live): node tools/ui-test.mjs <outDir> --tiers=<devUser>
+// TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> NEXT_XP=<xp> to raise its XP live; UI_URL=...?record=1 checks that no share card opens): node tools/ui-test.mjs <outDir> --tiers=<devUser>
 // TaniBot window on a NEW dev garden (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
@@ -77,7 +77,7 @@ const realClick = async (x, y) => { for (const type of ['mousePressed', 'mouseRe
 
 try {
   await step('open login', async () => {
-    await send('Page.navigate', { url: UI_URL + '/' });
+    await send('Page.navigate', { url: UI_URL.includes('?') ? UI_URL : UI_URL + '/' });
     await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
     await sleep(800); await screenshot('login');
     await realClick(5, 5); // a real pointer event unlocks audio
@@ -166,7 +166,7 @@ try {
       if (process.env.FAKE_DB && process.env.NEXT_XP) {
         const { DatabaseSync } = await import('node:sqlite');
         const db = new DatabaseSync(process.env.FAKE_DB);
-        db.prepare('UPDATE players SET xp = ? WHERE name = ?').run(Number(process.env.NEXT_XP), user);
+        db.prepare("UPDATE players SET xp = ? WHERE name = ? OR user_id = (SELECT id FROM users WHERE provider = 'dev' AND subject = ?)").run(Number(process.env.NEXT_XP), user, user);
         db.close();
         await waitFor(`!!document.querySelector('.bot-spot.evolving')`, 'evolution moment', 20000);
         await sleep(500); await screenshot('evolving-flash');
@@ -174,6 +174,10 @@ try {
         await sleep(2600);
         console.log('after evolution:', await info());
         await screenshot('evolved');
+        // The share card opens ~2.6 s after the moment (not with ?record=1 in UI_URL).
+        await sleep(1500);
+        console.log('share card open:', await evaluate(`!!document.querySelector('.share-card')`), '| toast:', await evaluate(`[...document.querySelectorAll('.toast')].map(t => t.innerText).join(' | ')`));
+        await screenshot('after-moment');
       }
       // Avatars: TaniBot heads unlock with titles.
       await evaluate(`document.querySelector('.who-btn').click()`);

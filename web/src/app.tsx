@@ -7,6 +7,7 @@ import { TaniBot, TaniBotHead, tierOf, tierRank } from './art/tanibot';
 import { getAudioPrefs, initAudio, onAudioPrefsChange, playSound, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
 import { HowToPlay, Modal, PanenInfo } from './help';
+import { RECORD_MODE } from './record';
 import { ShareHost, shareMomentOnce } from './share';
 import { burnAt, coinsToBalance, confetti, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
@@ -179,9 +180,12 @@ export function App() {
         floatText(`${s.player.title}!`, 'mint', window.innerWidth / 2, window.innerHeight / 3);
         toast({ kind: 'info', text: evolved ? `New title: ${s.player.title}! TaniBot evolved.` : `New title: ${s.player.title}!` });
         const id = s.player.accountId;
-        if (s.player.title === 'Legend') shareMomentOnce(id, { kind: 'legend' }, 2600);
-        else if (evolved) shareMomentOnce(id, { kind: 'evolved', title: s.player.title }, 2600);
-        else shareMomentOnce(id, { kind: 'title', title: s.player.title }, 2600);
+        // ?record=1 (demo recording, record.ts): no share card on this moment.
+        if (!RECORD_MODE) {
+          if (s.player.title === 'Legend') shareMomentOnce(id, { kind: 'legend' }, 2600);
+          else if (evolved) shareMomentOnce(id, { kind: 'evolved', title: s.player.title }, 2600);
+          else shareMomentOnce(id, { kind: 'title', title: s.player.title }, 2600);
+        }
       }
       lastTitle.current = s.player.title;
       setState(s);
