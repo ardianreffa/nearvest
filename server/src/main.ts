@@ -11,6 +11,7 @@ import { loadConfig } from './config.ts';
 import { openDb } from './db.ts';
 import { Game } from './game.ts';
 import { TaniBotService } from './tanibot.ts';
+import { AiMeter, NearAiBrain } from './brain.ts';
 
 const config = loadConfig();
 const db = openDb(config.databasePath);
@@ -56,7 +57,20 @@ try {
   console.warn('Could not read the Season from the chain yet:', err instanceof Error ? err.message : err);
 }
 
+// TaniBot's AI brain only when TANIBOT_AI=on (credits are limited: call limit + dollar brake).
+const meter = new AiMeter(db, { maxCallsPerDay: config.tanibotAiMaxCallsPerDay, budgetUsd: config.tanibotAiBudgetUsd }, (m) => console.log(m));
+const brain = config.tanibotAi ? new NearAiBrain({ apiKey: config.nearAiApiKey, model: config.tanibotAiModel }) : null;
+{
+  const t = meter.totals(systemNow());
+  console.log(
+    `[ai] TaniBot brain: ${brain ? `NEAR AI (${brain.model}), max ${config.tanibotAiMaxCallsPerDay} calls/day, brake US$${config.tanibotAiBudgetUsd}` : 'simple rules (TANIBOT_AI=off)'}` +
+      ` | used so far: ${t.callsTotal} calls, US$${t.costTotal.toFixed(6)} (today ${t.callsToday} calls)`,
+  );
+}
+
 const tanibot = new TaniBotService({
+  brain,
+  meter,
   db,
   game,
   chain,
@@ -70,17 +84,19 @@ const tanibot = new TaniBotService({
 worker.start();
 // TaniBot: every 5 seconds, run the bots that are due (3x/day; demo every 2 minutes)
 // and, in demo gardens, react to newly ripe or dry trees within about 10 seconds.
+let ticking = false;
 setInterval(() => {
-  try {
-    tanibot.tick();
-  } catch (err) {
-    console.warn('TaniBot tick failed:', err instanceof Error ? err.message : err);
-  }
+  if (ticking) return; // an AI round can take a few seconds
+  ticking = true;
+  tanibot
+    .tick()
+    .catch((err) => console.warn('TaniBot tick failed:', err instanceof Error ? err.message : err))
+    .finally(() => (ticking = false));
 }, 5_000);
 // Sync tree stages to the NFTs every 20 seconds.
 setInterval(() => game.syncStages(), 20_000);
 
-const app = createApp({ db, game, chain, config, now: systemNow, tanibot, tanibotAi: config.tanibotAi });
+const app = createApp({ db, game, chain, config, now: systemNow, tanibot });
 serve({ fetch: app.fetch, port: config.port, hostname: '127.0.0.1' }, (info) => {
   console.log(`NEARvest server on http://127.0.0.1:${info.port} (chain: ${config.chainMode}, dev login: ${config.devLogin})`);
 });

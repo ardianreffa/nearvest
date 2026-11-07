@@ -6,6 +6,7 @@ import { ChainWorker } from '../src/chain/worker.ts';
 import { openDb } from '../src/db.ts';
 import { Game } from '../src/game.ts';
 import { TaniBotService } from '../src/tanibot.ts';
+import { AiMeter, type AiLimits, type Brain } from '../src/brain.ts';
 
 /** 2026-11-07 01:00 UTC (08:00 WIB), one hour after the village day began. */
 export const START = Date.UTC(2026, 10, 7, 1, 0, 0);
@@ -13,7 +14,9 @@ export const MINUTE = 60_000;
 export const HOUR = 60 * MINUTE;
 export const DAY = 24 * HOUR;
 
-export function makeWorld(opts: { random?: number; demo?: boolean; googleClientId?: string; googleKeys?: JWTVerifyGetKey; devLogin?: boolean } = {}) {
+export function makeWorld(
+  opts: { random?: number; demo?: boolean; googleClientId?: string; googleKeys?: JWTVerifyGetKey; devLogin?: boolean; brain?: Brain; aiLimits?: AiLimits } = {},
+) {
   const db = openDb(':memory:');
   const chain = new FakeChain();
   const clock = { t: START };
@@ -40,7 +43,10 @@ export function makeWorld(opts: { random?: number; demo?: boolean; googleClientI
     onSeasonDivisor: (d) => (game.seasonDivisor = d),
   });
   chain.now = now;
+  const meter = new AiMeter(db, opts.aiLimits ?? { maxCallsPerDay: 30, budgetUsd: 8 });
   const tanibot = new TaniBotService({
+    brain: opts.brain ?? null,
+    meter,
     db,
     game,
     chain,
@@ -78,7 +84,7 @@ export function makeWorld(opts: { random?: number; demo?: boolean; googleClientI
     );
     return game.createPlayer(userId, name, ip);
   };
-  return { db, chain, game, worker, app, clock, now, advance, masterKey, newPlayer, rng, tanibot };
+  return { db, chain, game, worker, app, clock, now, advance, masterKey, newPlayer, rng, tanibot, meter };
 }
 
 export const UNIT = 10n ** 18n;

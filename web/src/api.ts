@@ -89,7 +89,7 @@ export interface TaniBotLogEntry {
   id: number;
   action: string;
   reason: string;
-  brain: string;
+  brain: 'rules' | 'ai';
   at: number;
   txStatus: 'pending' | 'done' | 'failed' | null;
   txUrl: string | null;
@@ -113,6 +113,8 @@ export interface TaniBotView {
 export interface TaniBotResponse {
   bot: TaniBotView | null;
   brain: 'rules' | 'ai';
+  /** NEAR AI model when the AI brain is on. */
+  model: string | null;
   defaults: { dailyLimit: number; budget: number; maxDailyLimit: number };
   walletCalls?: { receiverId: string; method: string; args: Record<string, unknown>; deposit: string }[] | null;
   state?: GameState;

@@ -26,6 +26,11 @@ export interface Config {
   tanibotAi: boolean;
   /** NEAR AI Cloud API key (only needed when tanibotAi is on). */
   nearAiApiKey: string;
+  tanibotAiModel: string;
+  /** Most AI calls per UTC day for the whole game. */
+  tanibotAiMaxCallsPerDay: number;
+  /** Total dollar brake: no more AI calls once the estimated cost reaches this. */
+  tanibotAiBudgetUsd: number;
 }
 
 function env(name: string, fallback?: string): string {
@@ -80,6 +85,9 @@ export function loadConfig(): Config {
       .filter(Boolean),
     tanibotAi: bool('TANIBOT_AI', false),
     nearAiApiKey: env('NEAR_AI_API_KEY', ''),
+    tanibotAiModel: env('TANIBOT_AI_MODEL', 'Qwen/Qwen3-VL-30B-A3B-Instruct'),
+    tanibotAiMaxCallsPerDay: Number(env('TANIBOT_AI_MAX_CALLS_PER_DAY', '30')),
+    tanibotAiBudgetUsd: Number(env('TANIBOT_AI_BUDGET_USD', '8')),
   };
   const wanted = bool('DEV_LOGIN', false);
   config.devLogin = devLoginAllowed(wanted, config.webOrigins);

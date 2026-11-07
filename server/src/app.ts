@@ -29,8 +29,6 @@ export interface AppDeps {
   config: Pick<Config, 'devLogin' | 'googleClientId' | 'webOrigins' | 'panenContractId' | 'pohonContractId' | 'networkId' | 'factoryAccountId'>;
   now: () => number;
   tanibot: TaniBotService;
-  /** TANIBOT_AI: true = NEAR AI Cloud brain, false = simple rules. */
-  tanibotAi?: boolean;
   /** Google's signing keys; tests pass a fake key set. Default: Google's live keys. */
   googleKeys?: JWTVerifyGetKey;
 }
@@ -210,7 +208,7 @@ export function createApp(deps: AppDeps) {
     }
     return {
       bot: tanibot.view(pid),
-      brain: deps.tanibotAi ? 'ai' : 'rules',
+      ...tanibot.brainInfo(),
       defaults: { dailyLimit: DEFAULT_BOT_DAILY_LIMIT, budget: DEFAULT_BOT_BUDGET, maxDailyLimit: MAX_BOT_DAILY_LIMIT },
     };
   };

@@ -18,7 +18,8 @@ import { fromMicro, toMicro, tx, type DB } from './db.ts';
 import { Game, GameError } from './game.ts';
 import { enqueue } from './chain/worker.ts';
 import type { Chain } from './chain/types.ts';
-import { SHOP_ITEMS, SPECIES, type Quality, type Species } from './rules.ts';
+import { SHOP_ITEMS, SPECIES, SPECIES_LIST, type Quality, type Species } from './rules.ts';
+import type { AiMeter, Brain, BrainAction, BrainInput } from './brain.ts';
 
 export const BOT_STYLES = ['thrifty', 'balanced', 'turbo'] as const;
 export type BotStyle = (typeof BOT_STYLES)[number];
@@ -36,6 +37,8 @@ export const DEMO_BOT_INTERVAL_MS = 2 * 60_000;
  * handled within about this time (rules only, never the AI).
  */
 export const QUICK_REACTION_MS = 10_000;
+/** Demo gardens call the AI brain at most this often (other rounds use the rules). */
+export const DEMO_AI_INTERVAL_MS = 10 * 60_000;
 /** An identical Log line (without a transaction) is not repeated within this time. */
 const SAME_LOG_WINDOW_MS: Record<string, number> = { water: 3 * 60_000, default: 10 * 60_000 };
 
@@ -56,6 +59,7 @@ interface BotRow {
   spent_micro: number;
   next_run_at: number;
   empty_notice_day: number | null;
+  last_ai_at: number;
   created_at: number;
 }
 
@@ -68,6 +72,10 @@ export interface TaniBotDeps {
   factoryAccountId: string;
   panenContractId: string;
   explorerTxUrl: string;
+  /** AI brain (TANIBOT_AI=on). Without it TaniBot uses its simple rules. */
+  brain?: Brain | null;
+  /** Counts AI calls and costs; enforces the daily call limit and the dollar brake. */
+  meter?: AiMeter | null;
 }
 
 /** Next scheduled run after `nowMs`. */
@@ -115,7 +123,7 @@ export class TaniBotService {
   /** Last quick reaction per player: when, and what it saw (to skip repeats). */
   private quick = new Map<number, { at: number; sig: string; acted: boolean }>();
 
-  log(playerId: number, action: string, reason: string, jobId: number | null = null): void {
+  log(playerId: number, action: string, reason: string, jobId: number | null = null, brain: 'rules' | 'ai' = 'rules'): void {
     if (jobId === null) {
       // No spam: skip a line identical to a recent one (water 3 minutes, notices 10 minutes).
       const window = SAME_LOG_WINDOW_MS[action] ?? SAME_LOG_WINDOW_MS.default;
@@ -126,7 +134,7 @@ export class TaniBotService {
     }
     this.db
       .prepare('INSERT INTO bot_log (player_id, action, reason, job_id, brain, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(playerId, action, reason, jobId, 'rules', this.d.now());
+      .run(playerId, action, reason, jobId, brain, this.d.now());
   }
 
   /** Latest chain job of this player created after `afterId` (the proof of an action). */
@@ -322,7 +330,8 @@ export class TaniBotService {
       status: b.status,
       enabled: b.enabled === 1,
       style: b.style,
-      brain: 'rules' as const,
+      brain: (this.d.brain ? 'ai' : 'rules') as 'ai' | 'rules',
+      model: this.d.brain?.model ?? null,
       budget: fromMicro(b.budget_micro),
       dailyLimit: fromMicro(b.daily_limit_micro),
       spentToday: fromMicro(spent),
@@ -343,14 +352,15 @@ export class TaniBotService {
   // ---------- Schedule ----------
 
   /** Runs every bot that is due. Called every few seconds by the server. */
-  tick(): number {
+  async tick(): Promise<number> {
     const now = this.d.now();
     const due = this.db
       .prepare("SELECT player_id FROM bots WHERE status = 'ready' AND enabled = 1 AND next_run_at <= ?")
       .all(now) as { player_id: number }[];
     for (const { player_id } of due) {
       try {
-        this.run(player_id);
+        if (this.aiAllowed(player_id, now)) await this.runAi(player_id);
+        else this.run(player_id);
       } catch (err) {
         this.log(player_id, 'notice', `Something went wrong this round, I will try again later. (${err instanceof Error ? err.message : err})`);
       }
@@ -389,7 +399,7 @@ export class TaniBotService {
       if (last && last.sig === sig && !last.acted) continue;
       let acted = false;
       try {
-        acted = this.run(player_id, true) > 0;
+        acted = this.run(player_id, 'quick') > 0;
       } catch (err) {
         this.log(player_id, 'notice', `Something went wrong, I will try again later. (${err instanceof Error ? err.message : err})`);
       }
@@ -399,14 +409,201 @@ export class TaniBotService {
     return n;
   }
 
+  // ---------- Brain: NEAR AI (suggests) + the game rules (decide what is allowed) ----------
+
+  brainInfo(): { brain: 'ai' | 'rules'; model: string | null } {
+    return { brain: this.d.brain ? 'ai' : 'rules', model: this.d.brain?.model ?? null };
+  }
+
+  /** AI only for scheduled rounds: normal gardens every round (3x/day), demo gardens at most every 10 minutes. */
+  private aiAllowed(playerId: number, now: number): boolean {
+    if (!this.d.brain || !this.d.meter) return false;
+    const b = this.mustRow(playerId);
+    const demo = this.d.game.getPlayer(playerId).demo === 1;
+    if (demo && now - b.last_ai_at < DEMO_AI_INTERVAL_MS) return false;
+    const blocked = this.d.meter.blocked(now);
+    if (blocked) {
+      this.log(playerId, 'notice', `I used my simple rules this round because ${blocked}.`);
+      return false;
+    }
+    return true;
+  }
+
+  /** What the AI sees: no secrets, only the garden, prices, budget and style. */
+  private brainInput(playerId: number): BrainInput {
+    const b = this.mustRow(playerId);
+    const st = this.d.game.state(playerId);
+    const day = this.limitDay();
+    const spent = b.spent_day === day ? b.spent_micro : 0;
+    return {
+      style: b.style,
+      budget: fromMicro(b.budget_micro),
+      budgetLeftToday: fromMicro(Math.max(0, b.daily_limit_micro - spent)),
+      fertilizerInStorage: this.d.game.itemCount(playerId, 'fertilizer'),
+      trees: st.plots
+        .filter((x) => x.tree)
+        .map((x) => ({
+          plot: x.plot + 1,
+          species: x.tree!.species,
+          quality: x.tree!.quality,
+          stage: x.tree!.stage,
+          ripe: x.tree!.ready,
+          watered: x.tree!.wateredToday,
+          fertilized: x.tree!.isFertilized,
+        })),
+      fruits: st.fruits.filter((f) => f.qty > 0).map((f) => ({ species: f.species, quality: f.quality, qty: f.qty })),
+      darto: st.darto.prices.map((p) => ({ species: p.species, price: p.price, normal: p.base })),
+      shop: { fertilizer: SHOP_ITEMS.fertilizer.price },
+    };
+  }
+
+  /**
+   * One round decided by the AI. Every suggestion is checked against the game
+   * rules (and the contract limits); invalid ones are ignored. A broken answer
+   * or a timeout falls back to the simple rules. Afterwards a safety net still
+   * waters dry trees and harvests ripe ones the AI missed.
+   */
+  async runAi(playerId: number): Promise<number> {
+    const brain = this.d.brain!;
+    const meter = this.d.meter!;
+    const now = this.d.now();
+    this.db.prepare('UPDATE bots SET last_ai_at = ? WHERE player_id = ?').run(now, playerId);
+    let result;
+    try {
+      result = await brain.decide(this.brainInput(playerId));
+      meter.record(this.d.now(), { playerId, model: brain.model, ok: true, tokensIn: result.tokensIn, tokensOut: result.tokensOut, costUsd: result.costUsd });
+    } catch (err) {
+      const e = err as Error & { tokensIn?: number; tokensOut?: number; costUsd?: number };
+      const why = e.name === 'TimeoutError' || /abort|timeout/i.test(e.message) ? 'it took too long' : e.message;
+      meter.record(this.d.now(), { playerId, model: brain.model, ok: false, tokensIn: e.tokensIn ?? 0, tokensOut: e.tokensOut ?? 0, costUsd: e.costUsd ?? 0, error: why });
+      this.log(playerId, 'notice', `My AI brain did not answer properly (${why}), so I used my simple rules this round.`);
+      return this.run(playerId);
+    }
+    return this.executeAi(playerId, result.decision.actions, result.decision.malformed, result.decision.summary);
+  }
+
+  private executeAi(playerId: number, actions: BrainAction[], malformed: number, summary: string): number {
+    const game = this.d.game;
+    const b = this.mustRow(playerId);
+    let done = 0;
+    let aiDone = 0;
+    let bought = false;
+    let buyFailed = false;
+    const ignored: string[] = [];
+    if (malformed > 0) ignored.push(`${malformed} unreadable`);
+    const plotOf = (n: number) => {
+      const p = game.state(playerId).plots[n - 1];
+      return p && !p.locked ? p : null;
+    };
+    /** Runs one checked action; logs it with the AI's reason; a game error means the suggestion was not allowed. */
+    const doIt = (a: BrainAction, fn: () => string): boolean => {
+      const before = this.lastJobId();
+      try {
+        const fact = fn();
+        this.log(playerId, a.action, `${a.reason.replace(/[.!]?$/, '.')} ${fact}`, this.jobSince(playerId, before), 'ai');
+        done++;
+        aiDone++;
+        return true;
+      } catch (err) {
+        if (!(err instanceof GameError)) throw err;
+        ignored.push(`${a.action} (${err.message})`);
+        return false;
+      }
+    };
+    const buyFertilizer = (a: BrainAction): boolean => {
+      if (b.style === 'thrifty') return ignored.push('buy (Thrifty never buys)'), false;
+      if (bought) return ignored.push('buy (at most one purchase per round)'), false;
+      if (buyFailed) return false; // already explained once this round
+      bought = doIt({ ...a, action: 'buy' } as BrainAction, () => {
+        const r = game.botBuy(playerId, 'fertilizer', 1, this.limitDay());
+        return `Bought 1 Fertilizer for ${r.costPanen} PANEN from my budget (burned on chain).`;
+      });
+      buyFailed = !bought;
+      return bought;
+    };
+
+    for (const a of actions) {
+      if (a.action === 'harvest' || a.action === 'water' || a.action === 'fertilize') {
+        const plot = plotOf(a.plot);
+        const t = plot?.tree;
+        if (!plot || !t) {
+          ignored.push(`${a.action} on plot ${a.plot} (no tree)`);
+          continue;
+        }
+        if (a.action === 'harvest') {
+          if (!t.ready) {
+            ignored.push(`harvest on plot ${a.plot} (not ripe)`);
+            continue;
+          }
+          doIt(a, () => {
+            const r = game.harvest(playerId, plot.plot);
+            return r.kind === 'fruit'
+              ? `Harvested 1 ${qualityName[r.quality]} ${label(r.species)} on plot ${a.plot} (+${r.xp} XP).`
+              : `The old ${label(r.species)} tree on plot ${a.plot} gave its superior seed.`;
+          });
+        } else if (a.action === 'water') {
+          doIt(a, () => (game.water(playerId, plot.plot), `Watered ${label(t.species)} on plot ${a.plot}.`));
+        } else {
+          if (b.style === 'thrifty') {
+            ignored.push('fertilize (Thrifty never fertilizes)');
+            continue;
+          }
+          if (game.itemCount(playerId, 'fertilizer') < 1 && !buyFertilizer(a)) continue;
+          doIt(a, () => (game.fertilize(playerId, plot.plot), `Fertilized ${label(t.species)} on plot ${a.plot}.`));
+        }
+      } else if (a.action === 'buy') {
+        if (a.item !== 'fertilizer' || a.qty !== 1) {
+          ignored.push(`buy ${a.qty} ${a.item} (only 1 fertilizer per round)`);
+          continue;
+        }
+        if (game.itemCount(playerId, 'fertilizer') > 0) {
+          ignored.push('buy (fertilizer already in storage)');
+          continue;
+        }
+        buyFertilizer(a);
+      } else if (a.action === 'sell') {
+        if (a.quality !== 'common' || !SPECIES_LIST.includes(a.species as Species)) {
+          ignored.push(`sell ${a.quality} ${a.species} (only Common fruit; Rare and Gold are your call)`);
+          continue;
+        }
+        const st = game.state(playerId);
+        const have = st.fruits.find((f) => f.species === a.species && f.quality === 'common')?.qty ?? 0;
+        const price = st.darto.prices.find((p) => p.species === a.species)!;
+        const qty = Math.min(a.qty, have);
+        if (qty < 1) {
+          ignored.push(`sell ${a.species} (none in storage)`);
+          continue;
+        }
+        doIt(a, () => {
+          const r = game.sell(playerId, a.species as Species, 'common', qty, price.price);
+          return `Sold ${qty} Common ${label(a.species as Species)} at ${price.price} (normal ${price.base}) for ${r.expectedPanen} PANEN, paid to you.`;
+        });
+      }
+    }
+
+    if (ignored.length > 0) {
+      this.log(playerId, 'ignored', `I ignored ${ignored.length} AI suggestion${ignored.length > 1 ? 's' : ''} that the game rules do not allow: ${ignored.join('; ')}.`, null, 'ai');
+    }
+    // Safety net: whatever the AI missed, dry trees are watered and ripe trees harvested.
+    done += this.run(playerId, 'safety');
+    // The AI's own summary only when its actions really happened (it can be wrong about the garden).
+    if (summary && aiDone > 0) this.log(playerId, 'summary', summary, null, 'ai');
+    if (done === 0) this.log(playerId, 'check', 'Checked the garden: nothing to do right now.', null, 'ai');
+    return done;
+  }
+
   // ---------- Brain: simple rules (fallback when the AI is off or fails) ----------
 
   /**
-   * One round of work. Returns the number of actions taken.
-   * `quick` (demo reactions between rounds): harvest, water and sell only, no
-   * shopping and no "nothing to do" line.
+   * One round of work with the simple rules. Returns the number of actions taken.
+   * - 'full': a scheduled round.
+   * - 'quick' (demo reactions between rounds): harvest, water and sell only, no
+   *   shopping and no "nothing to do" line.
+   * - 'safety' (after an AI round): only harvest and water what the AI missed.
    */
-  run(playerId: number, quick = false): number {
+  run(playerId: number, mode: 'full' | 'quick' | 'safety' = 'full'): number {
+    const quick = mode !== 'full';
+    const prefix = mode === 'safety' ? 'Safety net: ' : '';
     const b = this.mustRow(playerId);
     const game = this.d.game;
     let done = 0;
@@ -415,7 +612,7 @@ export class TaniBotService {
       try {
         const reason = fn();
         if (reason) {
-          this.log(playerId, action, reason, this.jobSince(playerId, before));
+          this.log(playerId, action, prefix + reason, this.jobSince(playerId, before));
           done++;
         }
       } catch (err) {
@@ -451,7 +648,7 @@ export class TaniBotService {
       }
     }
     if (watered.length > 0) {
-      this.log(playerId, 'water', `Watered ${watered.length === 1 ? 'a dry tree' : `${watered.length} dry trees`}: ${watered.join(', ')}. Watering is free and happens off-chain.`);
+      this.log(playerId, 'water', `${prefix}Watered ${watered.length === 1 ? 'a dry tree' : `${watered.length} dry trees`}: ${watered.join(', ')}. Watering is free and happens off-chain.`);
       done += watered.length;
     }
 
@@ -486,7 +683,7 @@ export class TaniBotService {
 
     // 4. Sell Common fruit when Mr. Darto pays well. Rare and Gold fruit are the player's call.
     const st = game.state(playerId);
-    for (const f of st.fruits) {
+    for (const f of mode === 'safety' ? [] : st.fruits) {
       if (f.quality !== 'common' || f.qty < 1) continue;
       const price = st.darto.prices.find((x) => x.species === f.species);
       if (!price) continue;
@@ -499,7 +696,7 @@ export class TaniBotService {
       });
     }
     const keep = st.fruits.filter((f) => f.quality !== 'common' && f.qty > 0);
-    if (keep.length > 0 && done > 0) {
+    if (keep.length > 0 && done > 0 && mode !== 'safety') {
       this.log(playerId, 'keep', `I kept your ${keep.map((f) => `${f.qty} ${qualityName[f.quality]} ${label(f.species)}`).join(', ')}: special fruit is your decision.`);
     }
 

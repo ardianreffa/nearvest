@@ -204,25 +204,25 @@ describe('TaniBot schedule', () => {
   it('runs when due, waits until the next slot, and not at all when switched off', async () => {
     const w = makeWorld();
     const p = await readyBot(w);
-    assert.equal(w.tanibot.tick(), 1, 'first run right after activation');
-    assert.equal(w.tanibot.tick(), 0);
+    assert.equal((await w.tanibot.tick()), 1, 'first run right after activation');
+    assert.equal((await w.tanibot.tick()), 0);
     w.advance(5 * HOUR); // START is 01:00 UTC -> 06:00 UTC
-    assert.equal(w.tanibot.tick(), 1);
+    assert.equal((await w.tanibot.tick()), 1);
     w.tanibot.settings(p.id, { enabled: false });
     w.advance(DAY);
-    assert.equal(w.tanibot.tick(), 0);
+    assert.equal((await w.tanibot.tick()), 0);
     w.tanibot.settings(p.id, { enabled: true });
-    assert.equal(w.tanibot.tick(), 1);
+    assert.equal((await w.tanibot.tick()), 1);
   });
 
   it('demo gardens run every 2 minutes, not every game minute', async () => {
     const w = makeWorld({ demo: true });
     await readyBot(w);
-    assert.equal(w.tanibot.tick(), 1);
+    assert.equal((await w.tanibot.tick()), 1);
     w.advance(MINUTE);
-    assert.equal(w.tanibot.tick(), 0);
+    assert.equal((await w.tanibot.tick()), 0);
     w.advance(DEMO_BOT_INTERVAL_MS - MINUTE);
-    assert.equal(w.tanibot.tick(), 1);
+    assert.equal((await w.tanibot.tick()), 1);
   });
 });
 
@@ -297,14 +297,14 @@ describe('TaniBot quick reactions (demo gardens)', () => {
     const p = await readyBot(w);
     w.game.plant(p.id, 0, seedOf(w, p.id, 'durian'));
     w.tanibot.settings(p.id, { style: 'thrifty' });
-    assert.equal(w.tanibot.tick(), 1, 'first round');
+    assert.equal((await w.tanibot.tick()), 1, 'first round');
     assert.equal(w.game.state(p.id).plots[0].tree!.wateredToday, true);
 
     // A new demo day (1 minute): the tree is dry again; the next round is still 1 minute away.
     w.advance(MINUTE);
     assert.equal(w.game.state(p.id).plots[0].tree!.wateredToday, false);
     w.advance(5_000);
-    w.tanibot.tick();
+    await w.tanibot.tick();
     assert.equal(w.game.state(p.id).plots[0].tree!.wateredToday, true, 'watered by a quick reaction');
 
     // Quick reactions never shop or write "nothing to do" lines.
@@ -319,11 +319,11 @@ describe('TaniBot quick reactions (demo gardens)', () => {
     const w = makeWorld();
     const p = await readyBot(w);
     w.game.plant(p.id, 0, seedOf(w, p.id, 'durian'));
-    w.tanibot.tick();
+    await w.tanibot.tick();
     // Same day, between rounds: make the tree dry.
     w.db.prepare('UPDATE trees SET water_day = NULL WHERE player_id = ?').run(p.id);
     w.advance(10_000);
-    assert.equal(w.tanibot.tick(), 0);
+    assert.equal((await w.tanibot.tick()), 0);
     assert.equal(w.game.state(p.id).plots[0].tree!.wateredToday, false);
   });
 });

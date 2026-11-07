@@ -29,6 +29,8 @@ const ACTION_ICON: Record<string, string> = {
   notice: '!',
   switch: 'o',
   style: '>',
+  ignored: 'x',
+  summary: '=',
 };
 
 function timeOf(ms: number): string {
@@ -143,7 +145,16 @@ export function TaniBotWindow({
             TaniBot works while you are away: it waters, harvests, sells and buys fertilizer from its own budget. Its only key can burn
             PANEN for Shop purchases; the PANEN contract enforces the daily limit, so it can never spend more or send coins anywhere.
           </p>
-          <p class="small muted">Brain: {(data?.brain ?? 'rules') === 'ai' ? 'NEAR AI Cloud' : 'simple rules (AI is off)'}</p>
+          <p class="small muted">
+            Brain:{' '}
+            {data?.brain === 'ai' ? (
+              <>
+                <b>NEAR AI</b> ({data.model}). The game checks every AI decision against the rules; simple rules take over if the AI fails.
+              </>
+            ) : (
+              'simple rules (AI is off)'
+            )}
+          </p>
         </div>
       </div>
 
@@ -261,7 +272,13 @@ export function TaniBotWindow({
                     {ACTION_ICON[l.action] ?? '.'}
                   </span>
                   <span class="grow">
-                    <span class="bot-log-time">{timeOf(l.at)}</span> {l.reason}
+                    <span class="bot-log-time">{timeOf(l.at)}</span>{' '}
+                    {l.brain === 'ai' && (
+                      <span class="ai-tag" title="Decided by the NEAR AI brain">
+                        AI
+                      </span>
+                    )}{' '}
+                    {l.reason}
                   </span>
                   {l.txUrl ? (
                     <a href={l.txUrl} target="_blank" rel="noreferrer">

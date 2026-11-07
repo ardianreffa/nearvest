@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS bots (
   spent_micro INTEGER NOT NULL DEFAULT 0,
   next_run_at INTEGER NOT NULL DEFAULT 0,
   empty_notice_day INTEGER,        -- last day the "budget is empty" notice was logged
+  last_ai_at INTEGER NOT NULL DEFAULT 0, -- last AI brain call (demo gardens: at most every 10 minutes)
   created_at INTEGER NOT NULL
 );
 
@@ -169,6 +170,21 @@ CREATE TABLE IF NOT EXISTS bot_log (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS bot_log_player ON bot_log(player_id, id);
+
+-- Every call to TaniBot's AI brain (NEAR AI Cloud), for the call limit and the dollar brake.
+CREATE TABLE IF NOT EXISTS ai_usage (
+  id INTEGER PRIMARY KEY,
+  created_at INTEGER NOT NULL,
+  day INTEGER NOT NULL,            -- UTC day
+  player_id INTEGER,
+  model TEXT NOT NULL,
+  ok INTEGER NOT NULL,
+  tokens_in INTEGER NOT NULL,
+  tokens_out INTEGER NOT NULL,
+  cost_usd REAL NOT NULL,          -- estimate from the model's price list
+  error TEXT
+);
+CREATE INDEX IF NOT EXISTS ai_usage_day ON ai_usage(day);
 `;
 
 export function openDb(path: string): DB {
@@ -188,6 +204,7 @@ function migrate(db: DB): void {
   if (!has('players', 'custody')) db.exec("ALTER TABLE players ADD COLUMN custody TEXT NOT NULL DEFAULT 'server'");
   if (!has('players', 'key_nonce')) db.exec('ALTER TABLE players ADD COLUMN key_nonce INTEGER NOT NULL DEFAULT 0');
   if (!has('players', 'wallet_account_id')) db.exec('ALTER TABLE players ADD COLUMN wallet_account_id TEXT');
+  if (!has('bots', 'last_ai_at')) db.exec('ALTER TABLE bots ADD COLUMN last_ai_at INTEGER NOT NULL DEFAULT 0');
   if (!has('players', 'google_sub')) db.exec('ALTER TABLE players ADD COLUMN google_sub TEXT');
   if (!has('players', 'avatar')) db.exec("ALTER TABLE players ADD COLUMN avatar TEXT NOT NULL DEFAULT 'farmer_hat'");
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS players_google_sub ON players (google_sub)');

@@ -3688,3 +3688,16 @@ button.balance:focus-visible {
     font-size: 11px;
   }
 }
+
+/* Log lines decided by the NEAR AI brain. */
+.ai-tag {
+  display: inline-block;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 4px;
+  margin-right: 2px;
+  color: #fff;
+  background: var(--purple);
+  border-radius: 3px;
+  vertical-align: 1px;
+}
