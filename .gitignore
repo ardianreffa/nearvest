@@ -52,3 +52,6 @@ submission*.json
 server/data/
 *.sqlite-wal
 *.sqlite-shm
+
+# Local backups (old contract wasm for rollback)
+backups/
