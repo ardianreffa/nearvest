@@ -94,6 +94,11 @@ Never call these "seasons": Season is the PANEN halving.
 **11. Login page: TaniBot evolution journey** (Fri 13 Nov, Ardian 2026-11-07)
 - The login page shows all six TaniBots in a row (Seedling, Farmhand, Farmer, Orchard Master, Durian King, Legend) as the "evolution journey", each with a light idle animation (hover / blink).
 
+**12. Village animals, new version** (Fri 13 Nov polish, only if there is time; Ardian 2026-11-07)
+- The first code-drawn animals (2026-11-07) were too small to read and were removed.
+- New version: still-pose sprites from ChatGPT (water buffalo, paddy ducks, chicken, mouse-deer), converted with tools/pixelize/cutout.py; the movement (walking, pecking, peeking out of a bush) done in code.
+- Big enough to read on phones and laptops; behind the plots, never taking a click; home at night; reduced-motion safe.
+
 ## Bonus
 
 **4. Pests** (only if time)
