@@ -435,22 +435,20 @@ export function Village({ state, config, onBot }: { state: GameState; config: Se
             Share my farmer card
           </button>
         </div>
-        {state.player.demo && (
-          <>
-            <p class="muted small">Demo mode: try every card now.</p>
-            <div class="share-buttons">
-              {(['first_harvest', 'first_gold', 'evolved', 'streak7', 'title', 'legend'] as MomentKind[]).map((k) => (
-                <button
-                  key={k}
-                  class="btn btn-small"
-                  onClick={() => openShare({ kind: k, species: k === 'first_gold' ? 'durian' : 'mango', quality: k === 'first_gold' ? 'gold' : 'common', title: k === 'title' ? 'Orchard Master' : undefined })}
-                >
-                  {MOMENT_LABELS[k]}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        <details class="share-preview">
+          <summary class="btn btn-small">Preview share cards ▾</summary>
+          <div class="share-buttons">
+            {(['first_harvest', 'first_gold', 'evolved', 'streak7', 'title', 'legend'] as MomentKind[]).map((k) => (
+              <button
+                key={k}
+                class="btn btn-small"
+                onClick={() => openShare({ kind: k, species: k === 'first_gold' ? 'durian' : 'mango', quality: k === 'first_gold' ? 'gold' : 'common', title: k === 'title' ? 'Orchard Master' : undefined })}
+              >
+                {MOMENT_LABELS[k]}
+              </button>
+            ))}
+          </div>
+        </details>
       </Panel>
       <Panel title="Your on-chain log">
         <p class="muted small">

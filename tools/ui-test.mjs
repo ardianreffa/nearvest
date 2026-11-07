@@ -335,6 +335,8 @@ try {
       await clickText('Harvest');
       await waitFor(`(document.querySelector('.chip-judge')?.innerText ?? '').includes('1/5')`, 'harvest step', 20000);
       console.log('after harvest:', await tour());
+      await sleep(3500);
+      console.log('share card during the tour (expect false):', await evaluate(`!!document.querySelector('.share-card')`));
       // 2. Sell to Mr. Darto.
       await go('Open the Market');
       await waitFor(`!!document.querySelector('.market-row:not(.empty) .sell-go')`, 'market');
@@ -360,9 +362,20 @@ try {
       await waitFor(bodyHas('PANEN ever minted'), 'village stats', 30000);
       await sleep(1500); await screenshot('village');
       await waitFor(`(document.querySelector('.chip-judge')?.innerText ?? '').includes('5/5')`, 'all steps', 20000);
+      await sleep(3000);
+      console.log('share cards after 5/5 (expect a card):', await evaluate(`document.querySelector('.share-dialog h2, .share-card') ? [...document.querySelectorAll('h2')].map(h => h.innerText).filter(t => t.startsWith('Share')).join(' | ') : 'none'`));
+      await evaluate(`[...document.querySelectorAll('button')].filter(b => b.innerText === 'Close' && b.closest('.dialog')?.innerText.includes('Share:')).forEach(b => b.click())`);
+      await sleep(400);
       await openTour();
       await waitFor(`!document.querySelector('.judge-dialog').innerText.includes('Sending to NEAR')`, 'all transactions landed', 90000);
       await sleep(500); await screenshot('tour-done');
+      await evaluate(`document.querySelector('.judge-dialog')?.closest('.dialog')?.querySelector('button')?.click()`);
+      await sleep(300);
+      await evaluate(`document.querySelector('.share-preview')?.scrollIntoView({ block: 'center' })`);
+      await sleep(300); await screenshot('share-preview');
+      await evaluate(`document.querySelector('.share-preview > summary')?.click()`);
+      await sleep(300); await screenshot('share-preview-open');
+      console.log('preview buttons:', await evaluate(`[...document.querySelectorAll('.share-preview button')].map(b => b.innerText).join(' / ')`));
       console.log('tour:', await tour(), '|', await evaluate(`[...document.querySelectorAll('.judge-step')].map(l => (l.classList.contains('done') ? 'DONE ' : 'todo ') + l.querySelector('b').innerText + ' ' + (l.querySelector('.judge-proof a')?.href ?? l.querySelector('.judge-proof')?.innerText ?? '')).join(' | ')`));
       const overflow = await evaluate(`document.documentElement.scrollWidth > window.innerWidth`);
       console.log('horizontal overflow:', overflow);

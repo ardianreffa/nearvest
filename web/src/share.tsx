@@ -42,6 +42,24 @@ export function openShare(m: Moment): void {
   for (const l of listeners) l(m);
 }
 
+/** Moments waiting while cards are held (Judge tour or tutorial running); null = not holding. */
+let held: Moment[] | null = null;
+
+/**
+ * Holds new share cards (e.g. until a judge finishes the Judge tour). Releasing opens the held
+ * cards one after another (the dialog shows them one at a time).
+ */
+export function holdShareCards(hold: boolean): void {
+  if (hold) {
+    held ??= [];
+    return;
+  }
+  if (!held) return;
+  const waiting = held;
+  held = null;
+  if (waiting.length) window.setTimeout(() => waiting.forEach(openShare), 1200);
+}
+
 function seenKey(accountId: string) {
   return `nearvest.moments.${accountId}`;
 }
@@ -62,7 +80,11 @@ export function shareMomentOnce(accountId: string, m: Moment, delayMs = 1600): v
   } catch {
     // Storage blocked: the moment may be offered again next visit.
   }
-  window.setTimeout(() => openShare(m), delayMs);
+  if (held) {
+    held.push(m);
+    return;
+  }
+  window.setTimeout(() => (held ? held.push(m) : openShare(m)), delayMs);
 }
 
 // ---------- Texts ----------

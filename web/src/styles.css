@@ -6191,3 +6191,22 @@ button.chip:focus-visible {
     width: 100%;
   }
 }
+
+/* Village: the share card previews fold into one small button. */
+.share-preview {
+  margin-top: 8px;
+}
+
+.share-preview > summary {
+  display: inline-flex;
+  list-style: none;
+  cursor: pointer;
+}
+
+.share-preview > summary::-webkit-details-marker {
+  display: none;
+}
+
+.share-preview[open] > summary {
+  margin-bottom: 8px;
+}

@@ -8,7 +8,7 @@ import { getAudioPrefs, initAudio, onAudioPrefsChange, playSound, setAudioPrefs,
 import { useFullscreen } from './fullscreen';
 import { HowToPlay, Modal, PanenInfo } from './help';
 import { RECORD_MODE } from './record';
-import { ShareHost, shareMomentOnce } from './share';
+import { holdShareCards, ShareHost, shareMomentOnce } from './share';
 import { burnAt, coinsToBalance, confetti, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
 import { immersiveLayout } from './scene';
@@ -157,6 +157,8 @@ export function App() {
   /** Applies new state: chain flash for landed jobs, level-up fanfare for a new title. */
   const applyState = useCallback(
     (s: GameState) => {
+      // Judge gardens: share cards wait until the Judge tour is complete, then come one by one.
+      holdShareCards(!!s.judgeTour && !s.judgeTour.every((t) => t.done));
       const done = s.activity.filter((a) => a.status === 'done');
       if (seenDone.current === null) {
         seenDone.current = new Set(done.map((a) => a.id));
