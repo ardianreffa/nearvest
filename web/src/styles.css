@@ -6588,7 +6588,7 @@ button.chip:focus-visible {
 .shell[data-tut='water'] .act-water:not(:disabled),
 .shell[data-tut='buy_fertilizer'] .tab-shop,
 .shell[data-tut='buy_fertilizer'] .rail-shop,
-.shell[data-tut='buy_fertilizer'] .shop-fertilizer button,
+.shell[data-tut='buy_fertilizer'] .shop-fertilizer .shop-buy,
 .shell[data-tut='fertilize'] .act-fertilize:not(:disabled),
 .shell[data-tut='checkin'] .chip-checkin.ready,
 .shell[data-tut='harvest'] .act-harvest:not(:disabled),

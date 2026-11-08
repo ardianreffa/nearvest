@@ -128,7 +128,7 @@ export function Shop({ state, config, act, busy }: { state: GameState; config: S
                 {item.name}
                 {id === 'fertilizer' ? <> <Info k="fertilizer" label="Fertilizer" /></> : <> <Info k="unknownSeed" label="seed quality" /></>}
               </span>
-              <button class="btn btn-small" disabled={busy || !canAfford} onClick={() => act('/api/shop/buy', { item: id, qty: 1 }, `Bought ${item.name}`)}>
+              <button class="btn btn-small shop-buy" disabled={busy || !canAfford} onClick={() => act('/api/shop/buy', { item: id, qty: 1 }, `Bought ${item.name}`)}>
                 <Coin /> {item.price}
               </button>
             </li>

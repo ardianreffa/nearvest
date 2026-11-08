@@ -4,12 +4,40 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0f2a1e" />
-    <meta name="description" content="NEARvest: a pixel farming game on NEAR where your tree is a living NFT and an AI farmer tends it while you sleep." />
-    <title>NEARvest</title>
+    <title>NEARvest - Grow. Harvest. Own.</title>
+    <meta name="description" content="A pixel farming game on NEAR where your tree is a living NFT and an AI farmer tends it while you sleep. Free to play on testnet." />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/favicon-16.png" type="image/png" sizes="16x16" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="NEARvest" />
+    <meta property="og:title" content="NEARvest - Grow. Harvest. Own." />
+    <meta property="og:description" content="A pixel farming game on NEAR where your tree is a living NFT and an AI farmer tends it while you sleep. Free to play on testnet." />
+    <meta property="og:url" content="https://nearvest-six.vercel.app/" />
+    <meta property="og:image" content="https://nearvest-six.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="NEARvest: the pixel village of Tandur with TaniBot. Grow. Harvest. Own." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NEARvest - Grow. Harvest. Own." />
+    <meta name="twitter:description" content="A pixel farming game on NEAR where your tree is a living NFT and an AI farmer tends it while you sleep. Free to play on testnet." />
+    <meta name="twitter:image" content="https://nearvest-six.vercel.app/og-image.png" />
+    <script>
+      // Signed-in players, and old links with game options (?record=1, ?time=, ?bg=, ?judge=1),
+      // go straight to the game at /play.
+      (function () {
+        try {
+          var q = new URLSearchParams(location.search);
+          var game = ['record', 'time', 'bg', 'judge'].some(function (k) { return q.has(k); });
+          if (game || localStorage.getItem('nearvest.token')) location.replace('/play' + location.search + location.hash);
+        } catch (e) {}
+      })();
+    </script>
   </head>
-  <body>
+  <body class="lp-body">
     <div id="app"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/landing.tsx"></script>
   </body>
 </html>

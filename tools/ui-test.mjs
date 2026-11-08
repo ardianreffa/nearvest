@@ -30,7 +30,13 @@ const W = Number(process.argv[4] ?? 390), H = Number(process.argv[5] ?? 844);
 const MOBILE = W < 1024;
 mkdirSync(out, { recursive: true });
 const PORT = 9333;
-const UI_URL = process.env.UI_URL ?? 'http://localhost:5173';
+const UI_URL_RAW = process.env.UI_URL ?? 'http://localhost:5173';
+// The game lives at /play (/ is the landing page): a bare site address points at /play.
+const UI_URL = (() => {
+  const u = new URL(UI_URL_RAW);
+  if (u.pathname === '/' || u.pathname === '') u.pathname = '/play';
+  return u.toString().replace(/\/play\/$/, '/play');
+})();
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
   '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${out}/profile`,
   '--no-first-run', '--no-default-browser-check', `--window-size=${W},${H}`, 'about:blank',
@@ -89,7 +95,7 @@ const realClick = async (x, y) => { for (const type of ['mousePressed', 'mouseRe
 
 try {
   await step('open login', async () => {
-    await send('Page.navigate', { url: UI_URL.includes('?') ? UI_URL : UI_URL + '/' });
+    await send('Page.navigate', { url: UI_URL });
     await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
     await sleep(800); await screenshot('login');
     await realClick(5, 5); // a real pointer event unlocks audio
@@ -592,9 +598,9 @@ try {
       await waitStep('buy_fertilizer');
       await sleep(300); await shot('buy_fertilizer');
       await clickText('Open the Shop', '.coach button');
-      await waitFor(`!!document.querySelector('.shop-fertilizer button')`, 'shop');
+      await waitFor(`!!document.querySelector('.shop-fertilizer .shop-buy')`, 'shop');
       await sleep(400); await shot('shop-open');
-      await evaluate(`document.querySelector('.shop-fertilizer button').click()`);
+      await evaluate(`document.querySelector('.shop-fertilizer .shop-buy').click()`);
       await waitStep('fertilize');
       await clickText('Show me', '.coach button');
       await sleep(400); await shot('fertilize');
@@ -702,7 +708,7 @@ try {
       // 3. Buy in the Shop (burn).
       await go('Open the Shop');
       await waitFor(`[...document.querySelectorAll('.shop li')].some(l => l.textContent.includes('Fertilizer'))`, 'shop');
-      await evaluate(`[...document.querySelectorAll('.shop li')].find(l => l.textContent.includes('Fertilizer')).querySelector('button').click()`);
+      await evaluate(`[...document.querySelectorAll('.shop li')].find(l => l.textContent.includes('Fertilizer')).querySelector('.shop-buy').click()`);
       await waitFor(bodyHas('Bought'), 'bought', 20000);
       // 4. TaniBot's Log.
       await go('Open TaniBot');
@@ -842,14 +848,14 @@ try {
       await sleep(300);
     });
     await step('privacy and terms pages (opened directly by URL)', async () => {
-      const base = UI_URL.replace(/\/?(\?.*)?$/, '');
+      const base = new URL(UI_URL).origin;
       for (const page of ['privacy', 'terms']) {
         await send('Page.navigate', { url: `${base}/${page}` });
         await waitFor(`document.readyState === 'complete' && !!document.querySelector('h1')`, page);
         console.log(page + ':', await evaluate(`document.title + ' | ' + document.querySelector('h1').innerText + ' | contact ' + (document.body.innerText.match(/[a-z0-9.]+@gmail[.]com/) || ['none'])[0] + ' | page scrolls sideways: ' + (document.documentElement.scrollWidth > innerWidth)`));
         await sleep(300); await screenshot(page);
       }
-      await send('Page.navigate', { url: UI_URL.includes('?') ? UI_URL : UI_URL + '/' });
+      await send('Page.navigate', { url: UI_URL });
       await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen again');
     });
     await step('NEAR wallet picker', async () => {
@@ -912,7 +918,7 @@ try {
   });
   await step('shop: buy fertilizer', async () => {
     await clickText('Shop', '.tab'); await sleep(300);
-    await evaluate(`(() => { const li = [...document.querySelectorAll('.shop li')].find(l => l.textContent.includes('Fertilizer')); li.querySelector('button').click(); return true; })()`);
+    await evaluate(`(() => { const li = [...document.querySelectorAll('.shop li')].find(l => l.textContent.includes('Fertilizer')); li.querySelector('.shop-buy').click(); return true; })()`);
     await waitFor(bodyHas('Bought Fertilizer'), 'bought');
     await sleep(300); await screenshot('shop');
   });

@@ -657,7 +657,7 @@ export function App() {
     const target: Partial<Record<TutorialStep, string>> = {
       plant: '.plot-empty .seed-row > *',
       water: '.act-water',
-      buy_fertilizer: '.shop-fertilizer button',
+      buy_fertilizer: '.shop-fertilizer .shop-buy',
       fertilize: '.act-fertilize',
       harvest: '.act-harvest',
       sell: '.sell-go:not(:disabled)',
@@ -911,6 +911,16 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
       setBusy(false);
     }
   };
+
+  // The landing page's "Try as Judge" opens /play?judge=1: make the judge garden right away.
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    if (!q.has('judge')) return;
+    q.delete('judge');
+    history.replaceState(null, '', location.pathname + (q.toString() ? `?${q}` : '') + location.hash);
+    void judgeLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div class="login-page">

@@ -1,0 +1,557 @@
+/* Landing page (src/landing.tsx). The first screen is exactly one screen high on phones and
+   laptops: the code sky, the v3 village, TaniBot on the grass, the logo and the two big buttons. */
+
+.lp-body {
+  background: #0f2a1e;
+  color: #f4ead2;
+}
+
+.lp-hero {
+  position: relative;
+  height: 100svh;
+  min-height: 520px;
+  overflow: hidden;
+  background: #b5e3f7;
+}
+
+.lp-sky {
+  position: absolute;
+  inset: 0;
+}
+
+.lp-sky {
+  pointer-events: none;
+}
+
+/* The code sky keeps its 240x135 shape (sun, clouds and birds are not stretched on tall phones). */
+.lp-sky .sky {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 240 / 135;
+}
+
+.lp-village {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 100%;
+  min-width: calc(100svh * 240 / 135 * 0.82);
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* The hero text sits in the sky above the village. */
+.lp-hero-top {
+  position: absolute;
+  top: max(24px, 4svh);
+  left: 50%;
+  width: min(760px, calc(100% - 32px));
+  transform: translateX(-50%);
+  text-align: center;
+  text-shadow: 0 2px 0 rgba(6, 20, 14, 0.55), 0 0 18px rgba(6, 20, 14, 0.35);
+}
+
+.lp-logo {
+  margin: 0;
+  font-size: clamp(54px, 9vw, 104px);
+  line-height: 1;
+  color: #00ec97;
+  -webkit-text-stroke: 2px #0b3b27;
+  text-shadow: 0 5px 0 #0b3b27, 0 0 24px rgba(0, 236, 151, 0.35);
+}
+
+.lp-tagline {
+  margin: 10px 0 0;
+  font-family: var(--font-title);
+  font-size: clamp(26px, 3.2vw, 40px);
+  font-weight: 700;
+  color: #f5c542;
+  -webkit-text-stroke: 1px #3b2a00;
+}
+
+.lp-lead {
+  margin: 12px auto 0;
+  max-width: 600px;
+  font-family: var(--font-text);
+  font-size: clamp(17px, 1.6vw, 21px);
+  line-height: 1.45;
+  color: #fff;
+}
+
+.lp-sky-bots {
+  display: none;
+}
+
+/* TaniBot on the grass. */
+.lp-hero-bot {
+  position: absolute;
+  left: 22%;
+  bottom: calc(100vw * 135 / 240 * 0.13);
+  animation: lp-bob 2.6s ease-in-out infinite;
+}
+
+.lp-cta {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100vw * 135 / 240 * 0.06);
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+  width: min(620px, calc(100% - 32px));
+}
+
+.lp-cta .btn {
+  min-width: 240px;
+  min-height: 64px;
+  padding: 0 28px;
+  font-size: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.lp-cta-note {
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-text);
+  font-size: 15px;
+  color: #fff;
+  text-shadow: 0 1px 0 #000, 0 0 8px rgba(0, 0, 0, 0.6);
+}
+
+.lp-more {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  font-size: 22px;
+  color: #fff;
+  text-decoration: none;
+  text-shadow: 0 1px 0 #000;
+  animation: lp-bob 1.8s ease-in-out infinite;
+}
+
+/* Two drones cross the sky now and then. */
+.lp-drone {
+  position: absolute;
+  left: -60px;
+  animation: lp-fly 22s linear infinite;
+}
+
+.lp-drone.d1 {
+  top: 22%;
+}
+
+.lp-drone.d2 {
+  top: 34%;
+  animation-delay: -11s;
+  animation-duration: 27s;
+}
+
+@keyframes lp-fly {
+  to {
+    transform: translateX(calc(100vw + 120px));
+  }
+}
+
+@keyframes lp-bob {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Phones: the upright village; TaniBot on the left of the grass, the buttons side by side. */
+@media (max-width: 1023px) {
+  .lp-village {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .lp-hero-bot {
+    left: 6%;
+    bottom: calc(100vw * 1.5 * 0.135);
+  }
+
+  .lp-hero-bot .tanibot {
+    transform: scale(0.62);
+    transform-origin: bottom left;
+  }
+
+  .lp-cta {
+    bottom: 14px;
+    gap: 10px;
+  }
+
+  .lp-cta .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 56px;
+    padding: 0 10px;
+    font-size: 19px;
+  }
+
+  .lp-cta-note {
+    font-size: 13px;
+  }
+
+  .lp-lead {
+    font-size: 17px;
+  }
+
+  /* The tall phone sky: the six TaniBots in a row, bobbing one after another. */
+  .lp-sky-bots {
+    position: absolute;
+    left: 0;
+    right: 0;
+    /* Just above the village's highest rooftops (the art starts 100vw * 1.5 above the bottom,
+       its sky is the top 40%). */
+    top: calc(100svh - 100vw * 1.5 * 0.6 - 22vw);
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 2px;
+    transform: translateY(-100%);
+  }
+
+  .lp-sky-bots span {
+    animation: lp-bob 2.4s ease-in-out infinite;
+  }
+
+  .lp-sky-bots .tanibot {
+    transform: scale(0.9);
+  }
+
+  /* The sky above the art (tall phones) continues in the horizon colour. */
+  .lp-hero {
+    background: #b5e3f7;
+  }
+
+  .lp-more {
+    display: none;
+  }
+}
+
+/* ---------- Sections below the first screen ---------- */
+
+.lp-main {
+  width: min(1080px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 40px 0 24px;
+}
+
+.lp-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  margin: 0 0 28px;
+  padding: 24px;
+  color: #1b1b2f;
+  background: #f6efd9;
+  border: 3px solid #1b1b2f;
+  box-shadow: 0 0 0 3px #00ec97, 6px 6px 0 rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+}
+
+.lp-section:nth-of-type(even) .lp-art-box {
+  order: 2;
+}
+
+.lp-section h2 {
+  margin: 0 0 10px;
+  font-family: var(--font-title);
+  font-size: clamp(24px, 3vw, 32px);
+  color: #1e5a38;
+}
+
+.lp-text p,
+.lp-list li {
+  font-size: 17px !important;
+  line-height: 1.55 !important;
+}
+
+.lp-wide {
+  grid-column: 1 / -1;
+}
+
+.lp-small {
+  font-size: 14px !important;
+  color: #5b5546;
+}
+
+.lp-art-box {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  min-height: 200px;
+  padding: 12px;
+  background: linear-gradient(#b5e3f7 0 62%, #4caf6a 62% 100%);
+  border: 3px solid #1b1b2f;
+  border-radius: 8px;
+  image-rendering: pixelated;
+}
+
+.lp-trees {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.lp-bots {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 4px 14px;
+  justify-content: center;
+}
+
+.lp-bots figure {
+  margin: 0;
+  text-align: center;
+}
+
+.lp-bots figcaption {
+  font-size: 12px;
+  color: #1b1b2f;
+}
+
+.lp-panen {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+}
+
+.lp-darto {
+  height: auto;
+  max-height: 210px;
+  width: auto;
+}
+
+.lp-coins {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 20px;
+}
+
+.lp-list {
+  margin: 0;
+  padding-left: 20px;
+  font-family: var(--font-text);
+}
+
+.lp-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.lp-steps li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 10px;
+  text-align: center;
+  background: #fffaf0;
+  border: 2px solid #b89a5e;
+  border-radius: 8px;
+  counter-increment: step;
+}
+
+.lp-steps li b {
+  font-size: 20px;
+  color: #1e5a38;
+}
+
+.lp-steps li b::before {
+  content: counter(step) '. ';
+}
+
+.lp-steps li span {
+  font-family: var(--font-text);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.lp-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 6px 0 12px;
+}
+
+.lp-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 8px;
+  color: #f4ead2;
+  text-decoration: none;
+  background: #143826;
+  border: 3px solid #1b1b2f;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 2px rgba(0, 236, 151, 0.35);
+}
+
+.lp-stat b {
+  font-size: clamp(30px, 4vw, 44px);
+  color: #00ec97;
+}
+
+.lp-stat span {
+  font-size: 16px;
+}
+
+.lp-stat i {
+  font-style: normal;
+  font-family: var(--font-text);
+  font-size: 12px;
+  color: #a7f3d0;
+}
+
+.lp-stat:hover {
+  box-shadow: inset 0 0 0 2px #00ec97, 0 0 14px rgba(0, 236, 151, 0.45);
+}
+
+.lp-tech {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-text);
+  font-size: 16px;
+}
+
+.lp-tech li {
+  padding: 10px 12px;
+  background: #fffaf0;
+  border: 2px solid #b89a5e;
+  border-radius: 8px;
+}
+
+.lp-tech b {
+  font-family: 'Tiny5', monospace;
+  color: #0b6b86;
+}
+
+.lp-roadmap {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-text);
+  font-size: 16px;
+}
+
+.lp-roadmap li {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 2px dashed #d8c99c;
+}
+
+.lp-roadmap li:last-child {
+  border-bottom: 0;
+}
+
+.lp-roadmap b {
+  flex: none;
+  width: 64px;
+  font-family: 'Tiny5', monospace;
+  color: #1e5a38;
+}
+
+.lp-roadmap li.done b::after {
+  content: ' ✓';
+  color: #0b8f5f;
+}
+
+.lp-final {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 20px;
+  margin: 40px 0 16px;
+}
+
+.lp-final .btn {
+  min-height: 64px;
+  padding: 0 32px;
+  font-size: 24px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.lp-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 22px;
+  padding: 22px 16px 32px;
+  font-family: var(--font-text);
+  font-size: 15px;
+  color: #9fc4ae;
+  border-top: 3px solid #143826;
+}
+
+.lp-footer a {
+  color: #bff5dd;
+}
+
+.lp-footer span {
+  width: 100%;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .lp-section {
+    grid-template-columns: 1fr;
+    padding: 18px;
+    gap: 16px;
+  }
+
+  .lp-section:nth-of-type(even) .lp-art-box {
+    order: 0;
+  }
+
+  .lp-steps,
+  .lp-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Three 128 px trees do not fit a 390 px phone: draw them at 3/4 size (zoom keeps the layout). */
+  .lp-trees {
+    zoom: 0.72;
+  }
+
+  .lp-art-box {
+    overflow: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-sky-bots span,
+  .lp-hero-bot,
+  .lp-more,
+  .lp-drone {
+    animation: none;
+  }
+
+  .lp-drone {
+    display: none;
+  }
+}
