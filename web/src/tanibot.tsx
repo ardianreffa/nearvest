@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { api, type BotStyle, type GameState, type ServerConfig, type TaniBotLogEntry, type TaniBotResponse, type TaniBotView } from './api';
 import { TaniBot, tierOf } from './art/tanibot';
 import { Modal } from './help';
+import { Info } from './info';
 import { Panel } from './ui';
 import { formatDuration } from './ui';
 import { walletFunctionCalls } from './wallet';
@@ -323,6 +324,9 @@ export function TaniBotWindow({
                   : 'Switched off: TaniBot rests.'}
               </span>
             </div>
+            <p class="small info-line">
+              <b>Working style</b> <Info k="styles" label="the working style" />
+            </p>
             <div class="bot-styles" role="radiogroup" aria-label="Working style">
               {STYLES.map((s) => (
                 <button key={s.id} role="radio" aria-checked={bot.style === s.id} class={`bot-style${bot.style === s.id ? ' selected' : ''}`} disabled={busy} onClick={() => settings({ style: s.id })}>
@@ -333,7 +337,7 @@ export function TaniBotWindow({
             </div>
             <div class="bot-autoplant" role="radiogroup" aria-label="Auto-plant">
               <span class="small">
-                <b>Auto-plant</b>
+                <b>Auto-plant</b> <Info k="autoPlant" label="Auto-plant" />
               </span>
               {(
                 [
@@ -357,11 +361,15 @@ export function TaniBotWindow({
                   {bot.accountId}
                 </a>
               </dd>
-              <dt>Budget</dt>
+              <dt>
+                Budget <Info k="budget" label="TaniBot's budget" />
+              </dt>
               <dd>
                 <CountNumber value={bot.budget} /> PANEN
               </dd>
-              <dt>Today</dt>
+              <dt>
+                Today <Info k="dailyLimit" label="the daily limit" />
+              </dt>
               <dd>
                 {bot.spentToday} of {bot.dailyLimit} PANEN spent (limit set in the contract)
               </dd>
@@ -371,9 +379,11 @@ export function TaniBotWindow({
               <button class="btn btn-small btn-mint" disabled={working || (!wallet && amount > p.balance)} onClick={addBudget}>
                 {label('add', 'Add budget')}
               </button>
+              <Info k="addBudget" label="Add budget" />
               <button class="btn btn-small" disabled={working || bot.budget < 1} onClick={takeBack}>
                 {label('back', 'Take back')}
               </button>
+              <Info k="takeBack" label="Take back" />
             </div>
             {wallet && <p class="small muted">Your wallet confirms budget changes (a tiny testnet fee).</p>}
           </Panel>

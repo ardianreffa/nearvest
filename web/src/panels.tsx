@@ -8,6 +8,7 @@ import { MarketBackdrop, ShopBackdrop } from './art/scenes';
 import { MOMENT_LABELS, openShare, type MomentKind } from './share';
 import { ShopStall } from './art/shop';
 import { Sprite } from './sprites';
+import { Info, type InfoKey } from './info';
 import { clampQty, saleTotal, seasonPayout, stepQty } from './qty';
 import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QtyPicker, QualityTag, QUALITY_NAME, SPECIES_NAME, type SeedGroup } from './ui';
 
@@ -26,7 +27,14 @@ export function Storage({ state, config, act, busy, goSell }: { state: GameState
   const full = state.seedSlots.used >= state.seedSlots.max;
   return (
     <>
-      <Panel title="Seeds" right={<span class={`small ${full ? 'slots-full' : 'muted'}`}>{state.seedSlots.used}/{state.seedSlots.max} slots</span>}>
+      <Panel
+        title="Seeds"
+        right={
+          <span class={`small ${full ? 'slots-full' : 'muted'}`}>
+            {state.seedSlots.used}/{state.seedSlots.max} slots <Info k="seedStorage" label="seed storage" />
+          </span>
+        }
+      >
         {full && (
           <p class="notice-inline">Storage is full. Plant, sell (to Mr. Darto) or discard seeds to make room. New seeds wait on your old trees until there is space.</p>
         )}
@@ -88,7 +96,9 @@ export function Storage({ state, config, act, busy, goSell }: { state: GameState
         <ul class="list">
           <li>
             <Sprite name="fertilizer" scale={3} />
-            <span class="grow">Fertilizer</span>
+            <span class="grow">
+              Fertilizer <Info k="fertilizer" label="Fertilizer" />
+            </span>
             <b>x{fertilizer}</b>
           </li>
         </ul>
@@ -105,7 +115,7 @@ export function Shop({ state, config, act, busy }: { state: GameState; config: S
         <ShopStall scale={2} />
       </div>
       <p class="burn-note">
-        <Sprite name="fire" scale={2} /> Every PANEN you spend here is burned forever.
+        <Sprite name="fire" scale={2} /> Every PANEN you spend here is burned forever. <Info k="burned" label="burned PANEN" />
       </p>
       <ul class="list shop">
         {Object.entries(config.shop).map(([id, item]) => {
@@ -114,7 +124,10 @@ export function Shop({ state, config, act, busy }: { state: GameState; config: S
           return (
             <li key={id} class={`shop-${id}`}>
               {species ? <FruitIcon species={species} /> : <Sprite name="fertilizer" scale={3} />}
-              <span class="grow">{item.name}</span>
+              <span class="grow">
+                {item.name}
+                {id === 'fertilizer' ? <> <Info k="fertilizer" label="Fertilizer" /></> : <> <Info k="unknownSeed" label="seed quality" /></>}
+              </span>
               <button class="btn btn-small" disabled={busy || !canAfford} onClick={() => act('/api/shop/buy', { item: id, qty: 1 }, `Bought ${item.name}`)}>
                 <Coin /> {item.price}
               </button>
@@ -197,7 +210,8 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
           Prices change every day and never drop below the seed price. Rare pays x2, Gold x5.{' '}
           {state.season.divisor > 1
             ? `Season ${state.season.number}: harvest rewards ${formatPanen(state.season.rewardPercent)}%. The amount on Sell is what you receive.`
-            : 'The amount on Sell is what you receive.'}
+            : 'The amount on Sell is what you receive.'}{' '}
+          <Info k="season" label="Seasons" />
         </p>
       </Panel>
       {seedGroups.length > 0 && (
@@ -401,6 +415,7 @@ export function Village({ state, config, onBot }: { state: GameState; config: Se
             <Stat
               wide
               label={`Season ${stats.panen.season}`}
+              info="season"
               value={`Harvest rewards: ${formatPanen(100 / stats.panen.rewardDivisor)}%`}
               note={
                 stats.panen.nextSeasonAt
@@ -409,9 +424,9 @@ export function Village({ state, config, onBot }: { state: GameState; config: Se
               }
             />
             <Stat label="PANEN ever minted" value={formatPanen(stats.panen.totalMinted)} />
-            <Stat label="PANEN burned" value={formatPanen(stats.panen.totalBurned)} accent="burn" />
+            <Stat label="PANEN burned" value={formatPanen(stats.panen.totalBurned)} accent="burn" info="burned" />
             <Stat label="In circulation" value={formatPanen(stats.panen.circulatingSupply)} />
-            <Stat label="Tree NFTs" value={String(stats.treeNfts)} />
+            <Stat label="Tree NFTs" value={String(stats.treeNfts)} info="treeNft" />
             <Stat label="Farmers" value={String(stats.village.players)} />
             <Stat label="Harvests" value={String(stats.village.harvests)} />
             <Stat label="Fruits sold" value={String(stats.village.fruitsSold)} />
@@ -477,10 +492,13 @@ export function Village({ state, config, onBot }: { state: GameState; config: Se
   );
 }
 
-function Stat({ label, value, note, accent, wide }: { label: string; value: string; note?: string; accent?: string; wide?: boolean }) {
+function Stat({ label, value, note, accent, wide, info }: { label: string; value: string; note?: string; accent?: string; wide?: boolean; info?: InfoKey }) {
   return (
     <div class={`stat${accent ? ` stat-${accent}` : ''}${wide ? ' stat-wide' : ''}`}>
-      <span class="stat-label">{label}</span>
+      <span class="stat-label">
+        {label}
+        {info && <> <Info k={info} label={label} /></>}
+      </span>
       <span class="stat-value">{value}</span>
       {note && <span class="stat-note">{note}</span>}
     </div>

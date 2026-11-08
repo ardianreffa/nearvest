@@ -7,6 +7,7 @@ import { floatText } from './fx';
 import { phoneLayout } from './layout';
 import { bgVersion, villageFor } from './art/village';
 import { seasonPayout } from './qty';
+import { Info } from './info';
 import { GardenScene, type ActionKind, type Immersive, type SceneFx } from './scene';
 import { Sprite } from './sprites';
 import {
@@ -295,7 +296,10 @@ export function CheckinBanner({ state, act, ask, busy, elapsed = 0 }: { state: G
       <button class="btn btn-mint" disabled={!c.available || busy} onClick={() => void checkin()}>
         {c.available ? `Check in · day ${c.nextCalendarDay}` : `✓ Checked in · streak ${c.streak} · next in ${formatDuration(state.clock.msUntilNextDay - elapsed)}`}
       </button>
-      {state.player.demo && <p class="checkin-note">Demo mode: your streak keeps going if you miss up to 10 minutes.</p>}
+      <p class="checkin-note">
+        Streak: {c.streak} {c.streak === 1 ? 'day' : 'days'} <Info k="streak" label="the check-in streak" />
+        {state.player.demo && <> · Demo mode: your streak keeps going if you miss up to 10 minutes.</>}
+      </p>
     </div>
   );
 }
@@ -497,7 +501,7 @@ function PlotPanel({
                 Harvests {t.harvestCount}/{t.maxHarvests}
               </span>
               <span>Age {t.ageDays}d</span>
-              <span class="muted">{t.tokenId ? `NFT #${t.tokenId}` : 'minting NFT...'}</span>
+              <span class="muted">{t.tokenId ? `NFT #${t.tokenId}` : 'minting NFT...'} <Info k="treeNft" label="the Tree NFT" /></span>
             </div>
             <p class="muted small">{statusText}</p>
             {t.isFertilized && t.fertMsLeft - elapsed > 0 && (
@@ -510,7 +514,7 @@ function PlotPanel({
             )}
             {t.stage !== 'old' && (
               <p class="odds-line small">
-                Next harvest: <OddsLine odds={t.nextHarvestOdds} />
+                Next harvest: <OddsLine odds={t.nextHarvestOdds} /> <Info k="nextHarvest" label="the next harvest quality" />
               </p>
             )}
             {chop}
@@ -524,7 +528,7 @@ function PlotPanel({
     <Panel
       class={bar ? 'plot-bar' : undefined}
       title={`${QUALITY_NAME[t.quality]} ${SPECIES_NAME[t.species]}`}
-      right={<span class="muted small">{t.tokenId ? `NFT #${t.tokenId}` : 'minting NFT...'}</span>}
+      right={<span class="muted small">{t.tokenId ? `NFT #${t.tokenId}` : 'minting NFT...'} <Info k="treeNft" label="the Tree NFT" /></span>}
     >
       <div class="tree-info">
         <span>{STAGE_NAME[t.stage]}</span>
@@ -555,7 +559,7 @@ function PlotPanel({
       )}
       {t.stage !== 'old' && (
         <p class="odds-line small">
-          Next harvest: <OddsLine odds={t.nextHarvestOdds} />
+          Next harvest: <OddsLine odds={t.nextHarvestOdds} /> <Info k="nextHarvest" label="the next harvest quality" />
         </p>
       )}
       <div class="actions">

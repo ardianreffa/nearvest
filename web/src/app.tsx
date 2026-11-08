@@ -22,6 +22,7 @@ import { GoogleButton } from './google';
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Coach } from './tutorial';
 import { predict } from './optimistic';
+import { Info } from './info';
 import { seasonPayout } from './qty';
 import { Avatar } from './art/avatars';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
@@ -634,6 +635,7 @@ export function App() {
         Day {state.clock.farmDay}
         {p.demo && <span class="chip-demo">Demo</span>}
       </span>
+      {p.demo && <Info k="demo" label="Demo mode" />}
       <JudgeTourChip state={state} onOpen={() => (playSound('click'), setInfo('judge'))} />
     </div>
   );

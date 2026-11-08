@@ -8299,3 +8299,93 @@ button.chip:focus-visible {
   -webkit-mask-image: linear-gradient(to top, #000 calc(var(--cut) - 6 * var(--k, 1) * 1px), transparent var(--cut));
   mask-image: linear-gradient(to top, #000 calc(var(--cut) - 6 * var(--k, 1) * 1px), transparent var(--cut));
 }
+
+/* Info (i) buttons and their bubble (info.tsx). The button looks small but has a 44 px touch area. */
+.info-i {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin: 0 2px;
+  padding: 0;
+  vertical-align: middle;
+  font: 700 12px/1 'Tiny5', monospace;
+  color: #fff;
+  background: #0b6b86;
+  border: 2px solid #1b1b2f;
+  border-radius: 50%;
+  cursor: pointer;
+  flex: none;
+}
+
+.info-i::after {
+  content: '';
+  position: absolute;
+  inset: -13px;
+}
+
+.info-i:hover,
+.info-i.open {
+  background: var(--cyan);
+  color: #1b1b2f;
+}
+
+.info-i:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.info-bubble {
+  position: fixed;
+  z-index: 60;
+  width: max-content;
+  max-width: min(290px, calc(100vw - 16px));
+  padding: 10px 34px 10px 12px;
+  color: #1b1b2f;
+  background: #fffaf0;
+  border: 2px solid #1b1b2f;
+  border-radius: 8px;
+  box-shadow: 0 0 0 2px var(--cyan), 0 6px 18px rgba(0, 0, 0, 0.35);
+  animation: info-in 140ms ease-out;
+}
+
+.info-bubble p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+}
+
+.info-bubble-x {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: #5b5546;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+@keyframes info-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .info-bubble {
+    animation: none;
+  }
+}
+
+.info-line {
+  margin: 8px 0 4px;
+}

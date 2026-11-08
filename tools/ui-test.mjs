@@ -10,6 +10,7 @@
 // Fullscreen layout at several screen sizes (EXISTING dev garden): node tools/ui-test.mjs <outDir> --fullscreen=<devUser>
 // TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> NEXT_XP=<xp> to raise its XP live; UI_URL=...?record=1 checks that no share card opens): node tools/ui-test.mjs <outDir> --tiers=<devUser>
 // Village train frames, hotspot hit test and hover (EXISTING dev garden, no changes): node tools/ui-test.mjs <outDir> --train=<devUser> [w] [h]
+// Info (i) bubbles in every panel of an EXISTING dev garden (fake-chain server): node tools/ui-test.mjs <outDir> --info=<devUser> [w] [h]
 // Garden scene of an EXISTING dev garden (no changes): UI_URL='http://localhost:5173/?time=dusk' node tools/ui-test.mjs <outDir> --scene=<devUser> [w] [h]
 //   PINS=1 checks the pins and (phones) the sheet; it always reports the garden (mounds, plots and village in view, TaniBot clear of other plots and labels).
 //   Add &bg=v1 to UI_URL for the first village. REDUCED_MOTION=1 emulates prefers-reduced-motion.
@@ -375,6 +376,68 @@ try {
       await screenshot('after-market');
     });
     throw Object.assign(new Error('train done'), { done: true });
+  }
+  if (name.startsWith('--info=')) {
+    await step('info (i) bubbles in every panel (EXISTING dev garden with a tree and TaniBot)', async () => {
+      await typeInto('#dev-user', name.slice('--info='.length));
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      await sleep(800);
+      // Click every (i) visible now, check its bubble, close it with its x.
+      const checkAll = async (where) => {
+        // With a window open only its own (i) buttons count (the rest is behind it).
+        const pick = `[...(document.querySelector('.dialog-backdrop .dialog') || document).querySelectorAll('.info-i')].filter(b => b.getClientRects().length && getComputedStyle(b).visibility !== 'hidden')`;
+        const n = await evaluate(pick + '.length');
+        const out = [];
+        for (let i = 0; i < n; i++) {
+          const r = await evaluate(`(async () => {
+            const b = ${pick}[${i}];
+            b.scrollIntoView({ block: 'center' });
+            await new Promise(r => setTimeout(r, 150));
+            b.click();
+            await new Promise(r => setTimeout(r, 250));
+            const bub = document.querySelector('.info-bubble');
+            if (!bub) return 'NO BUBBLE (' + b.getAttribute('aria-label') + ')';
+            const q = bub.getBoundingClientRect();
+            const inside = q.left >= 0 && q.top >= 0 && q.right <= innerWidth && q.bottom <= innerHeight;
+            const text = bub.innerText.replace('×', '').trim();
+            const words = text.split(' ').length;
+            return b.getAttribute('aria-label').replace('What is ', '').replace('?', '') + ': ' + words + ' words' + (inside ? '' : ' OUTSIDE-SCREEN');
+          })()`);
+          if (i === 0) await screenshot(`info-${where}`);
+          await evaluate(`document.querySelector('.info-bubble-x')?.click()`);
+          await sleep(150);
+          out.push(r);
+        }
+        console.log(`info in ${where} (${n}):`, out.join(' | ') || 'none', '| bubble left open:', await evaluate(`!!document.querySelector('.info-bubble')`));
+      };
+      await checkAll('garden');
+      if (MOBILE) {
+        await evaluate(`document.querySelector('.sheet-toggle')?.click()`);
+        await sleep(400);
+        await checkAll('plot-sheet');
+        await evaluate(`document.querySelector('.sheet-toggle')?.click()`);
+      }
+      for (const tab of ['Storage', 'Shop', 'Market', 'Village']) {
+        if (MOBILE) await evaluate(`[...document.querySelectorAll('.tabs .tab')].find(t => t.innerText.includes(${JSON.stringify(tab)}))?.click()`);
+        else await evaluate(`[...document.querySelectorAll('.rail-btn, .side-tabs .tab')].find(t => t.innerText.includes(${JSON.stringify(tab)}))?.click()`);
+        await sleep(900);
+        await checkAll(tab.toLowerCase());
+      }
+      if (MOBILE) await evaluate(`[...document.querySelectorAll('.tabs .tab')].find(t => t.innerText.includes('Garden'))?.click()`);
+      await sleep(400);
+      await evaluate(`document.querySelector('.bot-click').click()`);
+      await sleep(1200);
+      await checkAll('tanibot');
+      // Esc and a tap outside close the bubble too.
+      await evaluate(`[...document.querySelectorAll('.info-i')].find(b => b.getClientRects().length)?.click()`);
+      await sleep(200);
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+      await sleep(200);
+      console.log('Esc closes the bubble:', await evaluate(`!document.querySelector('.info-bubble')`));
+    });
+    throw Object.assign(new Error('info done'), { done: true });
   }
   if (name.startsWith('--scene=')) {
     await step('garden scene (EXISTING dev garden; add ?time=day|dusk|night to UI_URL)', async () => {
