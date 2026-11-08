@@ -442,8 +442,21 @@ export function App() {
       <main class="shell center">
         <TaniBot tier="seedling" scale={2} />
         <h1>NEARvest</h1>
-        <p class="error-text">{fatal}</p>
-        <p class="muted small">Start the server with "npm run dev" in the server folder, then reload.</p>
+        {import.meta.env.DEV ? (
+          // Developers: the real error and how to start the local server.
+          <>
+            <p class="error-text">{fatal}</p>
+            <p class="muted small">Start the server with "npm run dev" in the server folder, then reload.</p>
+          </>
+        ) : (
+          // Players: a friendly message and a way to try again (no technical details).
+          <>
+            <p class="error-text">Can't reach the game server right now. Please try again in a moment.</p>
+            <button class="btn btn-mint" onClick={() => location.reload()}>
+              Try again
+            </button>
+          </>
+        )}
       </main>
     );
   }
