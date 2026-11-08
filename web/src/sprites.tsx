@@ -1,7 +1,7 @@
 // Original pixel art drawn in code (no external assets needed).
 // Each sprite is a grid of characters; each character maps to a palette color.
 
-const PALETTE: Record<string, string> = {
+export const PALETTE: Record<string, string> = {
   g: '#2E7D4F', // leaf
   G: '#4CAF6A', // light leaf
   d: '#1E5A38', // dark leaf / stem

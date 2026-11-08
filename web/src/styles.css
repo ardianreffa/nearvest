@@ -8435,91 +8435,435 @@ p b,
 }
 
 /* =====================================================================
-   Font pairs (title + reading text) and bigger reading text. All fonts are self-hosted
-   (src/fonts.css, OFL). Dev builds compare the pairs with ?font=a|b|c:
-     a: Pixelify Sans titles + Inter (the current look, larger text)
-     b: Silkscreen titles (bold pixel) + Nunito (rounded, friendly)
-     c: Bungee titles (chunky game titles) + Plus Jakarta Sans (designed in Indonesia)
-   Buttons, HUD labels, tags and numbers keep Tiny5 (clear pixel digits).
+   TYPOGRAPHY (2026-11-08, Ardian): one modular scale, ratio sqrt(golden ratio) = 1.272,
+   so every second step is x1.618:  13 . 16 . 20 . 26 . 33 . 42 . 54 . 68 px.
+     --fs-sm   13  small notes, labels, tags          (text font)
+     --fs-body 16  reading text                       (text font)
+     --fs-h3   20  panel titles, sub headings          (Bungee)
+     --fs-h2   26  window titles, section titles       (Bungee)
+     --fs-h1   42  page titles                         (Bungee)
+     --fs-hero 68  the NEARVEST logo                   (Bungee, up to 104 on big screens)
+   Line heights: text 1.5, titles 1.15. Spacing steps 8 . 13 . 21 px (Fibonacci).
+   Titles: Bungee (heavy). Reading text: --font-text (pixel candidates in dev with ?font=a|b|c;
+   --text-k evens out their different sizes). Buttons, HUD labels and numbers: Tiny5.
    ===================================================================== */
 :root {
-  --font-title: 'Pixelify Sans', ui-monospace, monospace;
-  --font-text: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fs-sm: 13px;
+  --fs-body: 16px;
+  --fs-h3: 20px;
+  --fs-h2: 26px;
+  --fs-h1: 42px;
+  --fs-hero: 68px;
+  --lh-text: 1.5;
+  --lh-title: 1.15;
+  --sp-1: 8px;
+  --sp-2: 13px;
+  --sp-3: 21px;
+  --font-title: 'Bungee', 'Tiny5', system-ui, sans-serif;
+  --text-k: 1;
+}
+
+/* Pixel reading-font candidates (dev builds: ?font=a|b|c). */
+:root[data-font='a'] {
+  --font-text: 'DotGothic16', 'Tiny5', monospace;
+  --text-k: 1.06;
 }
 
 :root[data-font='b'] {
-  --font-title: 'Silkscreen', ui-monospace, monospace;
-  --font-text: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-text: 'VT323', 'Tiny5', monospace;
+  --text-k: 1.36;
 }
 
 :root[data-font='c'] {
-  --font-title: 'Bungee', system-ui, sans-serif;
-  --font-text: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-text: 'Pixelify Sans', 'Tiny5', monospace;
+  --text-k: 1.04;
 }
 
+/* Titles: Bungee everywhere (logo included). */
 h1,
+h2,
+h3,
 .logo,
 .drawer-head,
-.info-body h3 {
-  font-family: var(--font-title);
-}
-
-/* Pairs b and c: section titles too (their digits are clear, unlike Pixelify Sans). */
-:root[data-font='b'] h2,
-:root[data-font='b'] h3,
-:root[data-font='c'] h2,
-:root[data-font='c'] h3 {
+.info-body h3,
+.howto-title,
+.sheet-toggle h2 {
   font-family: var(--font-title);
   font-weight: 400;
-  letter-spacing: 0.02em;
+  line-height: var(--lh-title);
+  letter-spacing: 0.01em;
 }
 
-:root[data-font='b'] h2,
-:root[data-font='b'] h3 {
-  font-weight: 700;
+.logo {
+  font-size: clamp(54px, 13vw, 84px);
 }
 
-/* Bigger reading text (phones and laptops). The sizes win over the older per-panel ones. */
-p:not(.tagline):not(.speech):not(.odds-line):not(.account-preview),
+.panel-head h2,
+.plot-bar > .panel-head h2,
+.plot-sheet.plain .panel-head h2,
+.sheet-toggle h2 {
+  font-size: var(--fs-h3) !important;
+}
+
+.dialog > .panel-head h2,
+.info-dialog > .panel-head h2,
+.share-dialog > .panel-head h2 {
+  font-size: var(--fs-h2) !important;
+}
+
+.info-body h3,
+.howto-title,
+.lp-section h2 {
+  font-size: var(--fs-h3) !important;
+}
+
+.lp-section h2 {
+  font-size: var(--fs-h2) !important;
+}
+
+/* Reading text: one size, one line height. */
+p:where(:not(.tagline, .speech, .odds-line, .account-preview)),
 .login-points li,
 .howto-points li,
-.info-body li {
-  font-size: 16px !important;
-  line-height: 1.5 !important;
+.info-body li,
+.lp-list li,
+.lp-lead,
+.coach-text,
+.share-text,
+.info-bubble p {
+  font-family: var(--font-text);
+  font-size: calc(var(--fs-body) * var(--text-k)) !important;
+  line-height: var(--lh-text) !important;
+  letter-spacing: 0;
 }
 
+/* Small notes and labels (one step down). */
 p.small:not(.odds-line),
 p.muted.small,
+.small,
 .seed-note,
 .checkin-note,
 .stat-note,
+.stat-label,
 .bot-style span,
-.notice {
-  font-size: 14px !important;
-  line-height: 1.45 !important;
+.notice,
+.tree-info,
+.odds-line,
+.profile-facts dt,
+.profile-facts dd,
+.bot-log .grow,
+.lp-small,
+.lp-cta-note,
+.lp-steps li span,
+.lp-stat i {
+  font-family: var(--font-text);
+  font-size: calc(var(--fs-sm) * var(--text-k)) !important;
+  line-height: var(--lh-text) !important;
 }
 
+/* The TaniBot log reads like text: body size. */
 .bot-log .grow {
-  font-size: 15px;
-  line-height: 1.45;
+  font-size: calc(var(--fs-body) * var(--text-k) * 0.9) !important;
 }
 
-.info-bubble p {
-  font-size: 16px !important;
-  line-height: 1.5 !important;
+/* Bold words inside text stay in the text font (pixel fonts have one weight: no fake bold). */
+p b,
+li b,
+.small b {
+  font-family: inherit;
+  font-weight: 400;
+  color: var(--leaf-dark);
 }
 
+.login-points li b,
+.lp-list li b {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* Buttons and HUD labels: Tiny5 at two sizes. */
+.btn {
+  font-family: 'Tiny5', monospace;
+  font-size: var(--fs-body);
+}
+
+.btn-small {
+  font-size: var(--fs-sm);
+}
+
+/* Even spacing inside panels and windows. */
+.panel-head {
+  margin-bottom: var(--sp-2);
+}
+
+.panel > p + p,
+.info-body > p + p {
+  margin-top: var(--sp-1);
+}
+
+.lp-section h2 {
+  margin-bottom: var(--sp-2);
+}
+
+/* =====================================================================
+   PIXEL BOXES: every panel, window, card, button, chip, tooltip and box has stepped pixel corners
+   (two steps of --n) and a pixel shadow inside its bottom and right edge. The corners are cut with
+   clip-path, so the border must be at least 2 x --n thick for a clean stepped outline; outer
+   shadows and rings (they would be cut) are replaced by inner ones.
+   ===================================================================== */
+.panel,
+.btn,
+.toast,
+.chip,
+.hud,
+.hud-capsule,
+.coach,
+.seed-card,
+.stat,
+.login-points,
+.info-bubble,
+.market-row,
+.bot-style,
+.list li,
+.lp-section,
+.lp-stat,
+.lp-steps li,
+.lp-tech li,
+.lp-art-box,
+.share-card,
+.checkin,
+.calendar .cal-day,
+.judge-entry,
+.sheet-help {
+  --n: 2px;
+  border-radius: 0 !important;
+  corner-shape: square;
+  clip-path: polygon(
+    0 calc(var(--n) * 2),
+    var(--n) calc(var(--n) * 2),
+    var(--n) var(--n),
+    calc(var(--n) * 2) var(--n),
+    calc(var(--n) * 2) 0,
+    calc(100% - var(--n) * 2) 0,
+    calc(100% - var(--n) * 2) var(--n),
+    calc(100% - var(--n)) var(--n),
+    calc(100% - var(--n)) calc(var(--n) * 2),
+    100% calc(var(--n) * 2),
+    100% calc(100% - var(--n) * 2),
+    calc(100% - var(--n)) calc(100% - var(--n) * 2),
+    calc(100% - var(--n)) calc(100% - var(--n)),
+    calc(100% - var(--n) * 2) calc(100% - var(--n)),
+    calc(100% - var(--n) * 2) 100%,
+    calc(var(--n) * 2) 100%,
+    calc(var(--n) * 2) calc(100% - var(--n)),
+    var(--n) calc(100% - var(--n)),
+    var(--n) calc(100% - var(--n) * 2),
+    0 calc(100% - var(--n) * 2)
+  );
+}
+
+/* Big frames: 3 px steps and a 6 px border. */
+.panel,
+.hud,
+.lp-section,
+.coach {
+  --n: 3px;
+}
+
+.panel {
+  border: 6px solid var(--bamboo-a) !important;
+  border-image: none !important;
+  box-shadow: inset 0 0 0 2px #1b1b2f, inset -5px -6px 0 rgba(42, 25, 12, 0.22) !important;
+}
+
+/* Windows and the HUD frames: dark wood outline. */
+.hud {
+  border-width: 6px !important;
+  box-shadow: inset -5px -6px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Buttons: dark outline, light top edge, darker bottom/right edge (pressed: flipped). */
+.btn {
+  border: 4px solid #1b1b2f !important;
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.45), inset -3px -5px 0 rgba(0, 0, 0, 0.22) !important;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 3px 4px 0 rgba(0, 0, 0, 0.25) !important;
+}
+
+.btn-small {
+  --n: 2px;
+  border-width: 4px !important;
+}
+
+.seed-card,
+.stat,
+.market-row,
+.bot-style,
+.list li,
+.lp-stat,
+.lp-steps li,
+.lp-tech li,
+.lp-art-box,
+.login-points,
+.checkin,
+.judge-entry,
+.sheet-help {
+  border-width: 4px !important;
+  border-style: solid !important;
+  box-shadow: inset -3px -4px 0 rgba(0, 0, 0, 0.12) !important;
+}
+
+.bot-style.selected {
+  border-color: var(--mint) !important;
+  box-shadow: inset 0 0 0 2px #0b8f5f, inset -3px -4px 0 rgba(0, 0, 0, 0.12) !important;
+}
+
+.toast,
+.coach,
 .info-bubble {
-  max-width: min(320px, calc(100vw - 16px));
+  border: 4px solid #1b1b2f !important;
+  box-shadow: inset 0 0 0 2px var(--cyan), inset -4px -5px 0 rgba(0, 0, 0, 0.18) !important;
 }
 
-/* The laptop action bar is short: its notes stay one size smaller. */
-.hud-bar p,
-.hud-bar .muted {
-  font-size: 14px !important;
+.coach {
+  border-width: 6px !important;
+  box-shadow: inset 0 0 0 3px var(--mint), inset -5px -6px 0 rgba(0, 0, 0, 0.18) !important;
 }
 
-.hud-bar p.small,
-.hud-bar .muted.small {
-  font-size: 13px !important;
+.chip,
+.hud-capsule {
+  border-width: 4px !important;
+  box-shadow: inset -3px -4px 0 rgba(0, 0, 0, 0.25) !important;
+}
+
+.calendar .cal-day {
+  --n: 1px;
+}
+
+.share-card {
+  --n: 3px;
+  border: 6px solid #1b1b2f;
+}
+
+/* Tutorial highlight on clipped boxes: the glow pulses inside (an outer glow would be cut). */
+.shell[data-tut] .btn,
+.shell[data-tut] .seed-card {
+  animation-name: tut-glow-inner !important;
+}
+
+@keyframes tut-glow-inner {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 3px var(--gold), inset 0 0 10px 2px rgba(245, 197, 66, 0.7);
+  }
+  50% {
+    box-shadow: inset 0 0 0 4px #fff3c4, inset 0 0 16px 6px rgba(245, 197, 66, 0.95);
+  }
+}
+
+/* Bullets: small pixel squares instead of dots. */
+.login-points,
+.info-body ul,
+.lp-list,
+.howto-points {
+  list-style: none;
+  padding-left: 0;
+}
+
+.login-points li,
+.info-body ul li,
+.lp-list li {
+  position: relative;
+  padding-left: 20px;
+}
+
+.login-points li::before,
+.info-body ul li::before,
+.lp-list li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: calc(0.75em - 4px);
+  width: 8px;
+  height: 8px;
+  background: var(--mint);
+  box-shadow: 2px 2px 0 #0b3b27;
+}
+
+.info-body ul li::before,
+.lp-list li::before {
+  background: #2e7d4f;
+  box-shadow: 2px 2px 0 #1b1b2f;
+}
+
+/* Seeds of an empty plot (garden.tsx SeedRow): one row; when it does not fit it scrolls with arrows. */
+.seed-row-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.seed-row-wrap > .seed-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.seed-row-wrap > .seed-row::-webkit-scrollbar {
+  display: none;
+}
+
+.plot-bar .seed-row-wrap .seed-card.compact {
+  flex: none;
+  width: 96px;
+  max-width: none;
+}
+
+.seed-arrow {
+  flex: none;
+  width: 34px;
+  height: 44px;
+  padding: 0;
+  font: 400 24px/1 'Tiny5', monospace;
+  color: #1b1b2f;
+  background: var(--gold);
+  border: 4px solid #1b1b2f;
+  cursor: pointer;
+  clip-path: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
+}
+
+/* TaniBot's speech bubble and the hotspot bubble: stepped corners too; the bubble's tail (below,
+   in the middle) stays inside the clip shape. */
+.bot-hint,
+.hs-bubble {
+  --n: 2px;
+  border-radius: 0 !important;
+  corner-shape: square;
+  clip-path: polygon(
+    0 calc(var(--n) * 2), var(--n) calc(var(--n) * 2), var(--n) var(--n), calc(var(--n) * 2) var(--n), calc(var(--n) * 2) 0,
+    calc(100% - var(--n) * 2) 0, calc(100% - var(--n) * 2) var(--n), calc(100% - var(--n)) var(--n), calc(100% - var(--n)) calc(var(--n) * 2), 100% calc(var(--n) * 2),
+    100% calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n) * 2) calc(100% - var(--n)), calc(100% - var(--n) * 2) 100%,
+    calc(50% + 7px) 100%, 50% calc(100% + 8px), calc(50% - 7px) 100%,
+    calc(var(--n) * 2) 100%, calc(var(--n) * 2) calc(100% - var(--n)), var(--n) calc(100% - var(--n)), var(--n) calc(100% - var(--n) * 2), 0 calc(100% - var(--n) * 2)
+  );
+}
+
+/* Phone plot sheet (at most ~20% of the screen): its one-line note uses the small size. */
+.plot-sheet .buy-link,
+.plot-sheet .sheet-status ~ p,
+.hud-bar .buy-link {
+  font-size: calc(var(--fs-sm) * var(--text-k)) !important;
+  line-height: 1.35 !important;
+  margin: 4px 0 0 !important;
 }

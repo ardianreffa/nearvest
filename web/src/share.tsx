@@ -5,8 +5,9 @@
 
 import { useEffect, useState } from 'preact/hooks';
 import type { GameState, Quality, Species } from './api';
-import { DARTO_IDLE, DARTO_PALETTE } from './art/darto-sprite';
 import { botSprite, TIER_TITLE, tierOf, type Tier } from './art/tanibot';
+import { AVATARS, type AvatarId } from './art/avatars';
+import { PALETTE } from './sprites';
 import { treePalette, treeRows } from './art/trees';
 import { hourOf, lockedFraction, phaseOf } from './art/backdrop';
 import { celestial, skyBands, SKY_BAND } from './art/sky-colors';
@@ -181,7 +182,9 @@ function texts(m: Moment, s: GameState): { headline: string; sub: string; post: 
       const trees = s.plots.filter((x) => x.tree).length;
       return {
         headline: `${p.name}`,
-        sub: `${p.title} · ${p.xp} XP · ${formatPanen(p.balance)} PANEN · ${trees} tree${trees === 1 ? '' : 's'}`,
+        // Non-breaking spaces inside each part: a line never starts with "·" or leaves a part alone.
+        // The title on its own line, the numbers together on the next (never a lone "· 1 tree").
+        sub: `${p.title}\n${[`${p.xp} XP`, `${formatPanen(p.balance)} PANEN`, `${trees} tree${trees === 1 ? '' : 's'}`].map((t) => t.replace(/ /g, '\u00a0')).join(' · ')}`,
         post: `Meet my farm in NEARvest: ${p.title}, ${p.xp} XP and ${trees} living Tree NFT${trees === 1 ? '' : 's'}. Come grow with me. ${TAGS}`,
       };
     }
@@ -221,9 +224,12 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 /** Wraps text to lines that fit `maxWidth`. */
 function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  // A "\n" starts a new line.
+  if (text.includes('\n')) return text.split('\n').flatMap((part) => wrap(ctx, part, maxWidth));
   const lines: string[] = [];
   let line = '';
-  for (const word of text.split(' ')) {
+  // "a · b": the dot stays with the part after it (no line starts or ends with a lone "·").
+  for (const word of text.replace(/ · /g, ' ·\u00a0').split(' ')) {
     const next = line ? `${line} ${word}` : word;
     if (ctx.measureText(next).width > maxWidth && line) {
       lines.push(line);
@@ -335,7 +341,7 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   ctx.imageSmoothingEnabled = false;
   // The card is drawn once: make sure both pixel fonts are loaded first.
   try {
-    await Promise.all([document.fonts.load('68px "Pixelify Sans"'), document.fonts.load('32px Tiny5')]);
+    await Promise.all([document.fonts.load('62px Bungee'), document.fonts.load('32px Tiny5')]);
   } catch {
     // Fonts blocked: the browser's fallback font is used.
   }
@@ -443,19 +449,40 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
     }
   } else if (m.kind === 'streak7') {
     drawCalendar(ctx, M, GROUND - 250);
-  } else if (m.kind === 'profile') {
-    drawRows(ctx, DARTO_IDLE, DARTO_PALETTE, M - 10, GROUND + 6 - DARTO_IDLE.length * 4, 4);
   }
 
-  // Tier aura behind TaniBot.
-  drawAura(ctx, tier, centre.x, centre.y, botW * 0.62);
+  // Tier aura behind TaniBot. Legend: a circle of light big enough to hold the whole robot.
+  const feetY = botY + (feetRow + 1) * BOT_SCALE;
+  if (tier === 'legend') {
+    const hatTop = botY + bot.rows.findIndex((r) => /[^.]/.test(r)) * BOT_SCALE;
+    drawAura(ctx, tier, botCx, (hatTop + feetY) / 2, ((feetY - hatTop) / 2) * 1.12);
+  } else drawAura(ctx, tier, centre.x, centre.y, botW * 0.62);
+  if (m.kind === 'profile') {
+    // The player's own avatar (the one picked in the Profile), framed like a profile photo.
+    const art = AVATARS[(s.player.avatar in AVATARS ? s.player.avatar : 'farmer_hat') as AvatarId];
+    const rows = art.hdRows ?? art.rows;
+    const size = 176;
+    const px = Math.floor(size / rows[0].length);
+    const side = px * rows[0].length;
+    const ax = M - 26;
+    const ay = GROUND - side - 24;
+    ctx.fillStyle = '#1B1B2F';
+    ctx.fillRect(ax - 8, ay - 8, side + 16, side + 16);
+    ctx.fillStyle = art.tier ? '#CDEFF7' : '#F6EFD9';
+    ctx.fillRect(ax, ay, side, side);
+    drawRows(ctx, rows, { ...PALETTE, ...art.palette }, ax, ay, px);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fillRect(ax - 8 + side + 16, ay, 6, side + 16);
+    ctx.fillRect(ax, ay - 8 + side + 16, side + 10, 6);
+  }
   // Shadow on the ground, then TaniBot.
   ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
   ctx.beginPath();
   ctx.ellipse(botCx, GROUND + 4, botW * 0.36, 12, 0, 0, Math.PI * 2);
   ctx.fill();
   drawRows(ctx, bot.rows, bot.palette, botX, botY, BOT_SCALE);
-  if (tier === 'legend') drawHalo(ctx, botCx, botY + 4, botW * 0.27);
+  // Legend's halo floats just above the hat's tip (never across it).
+  if (tier === 'legend') drawHalo(ctx, botCx, botY + bot.rows.findIndex((r) => /[^.]/.test(r)) * BOT_SCALE - 22, botW * 0.24);
   if (m.kind === 'evolved' || m.kind === 'title' || m.kind === 'legend') {
     ctx.fillStyle = '#FFF3B0';
     for (const [x, y] of [[botX - 10, botY + 60], [botX + botW - 6, botY + 30], [botX + botW + 4, botY + 220], [botX - 24, botY + 250]]) {
@@ -470,14 +497,14 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   const width = CARD_W - left - M;
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#00EC97';
-  ctx.font = '68px "Pixelify Sans", sans-serif';
-  ctx.fillText('NEARvest', left, M - 6);
+  ctx.font = '62px Bungee, sans-serif';
+  ctx.fillText('NEARVEST', left, M - 4);
   ctx.fillStyle = '#F5C542';
-  ctx.font = '66px Tiny5, monospace';
-  let y = M + 92;
+  ctx.font = '50px Bungee, sans-serif';
+  let y = M + 88;
   for (const line of wrap(ctx, headline.toUpperCase(), width)) {
     ctx.fillText(line, left, y);
-    y += 70;
+    y += 58;
   }
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '32px Tiny5, monospace';

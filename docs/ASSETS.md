@@ -65,7 +65,9 @@ Credits (copy into README): music "Apple Cider" by Zane Little Music; sound effe
 | Tiny5 (buttons, HUD labels and numbers) | Google Fonts | SIL Open Font License 1.1 |
 | Pixelify Sans (headings) | Google Fonts | SIL Open Font License 1.1 |
 | Inter (long text: explanations, notes, logs, info bubbles, How to play, Privacy / Terms) | Google Fonts | SIL Open Font License 1.1 |
-| Nunito, Plus Jakarta Sans, Silkscreen, Bungee (font pair candidates b / c, `?font=b|c` in dev builds) | Google Fonts | SIL Open Font License 1.1 |
+| **Bungee** (all titles and the NEARVEST logo, chosen by Ardian 2026-11-08) | Google Fonts | SIL Open Font License 1.1 |
+| DotGothic16, VT323, Pixelify Sans (pixel reading-font candidates a / b / c, `?font=a|b|c` in dev builds; Ardian picks one) | Google Fonts | SIL Open Font License 1.1 |
+| Nunito, Plus Jakarta Sans, Silkscreen (earlier candidates, not used; files can be removed after the choice) | Google Fonts | SIL Open Font License 1.1 |
 | **All fonts are self-hosted** in `web/public/assets/fonts/` (latin subset woff2 files downloaded from Google Fonts on 2026-11-08; `web/src/fonts.css`), no request to Google at runtime | | OFL 1.1 allows bundling and redistribution with the game |
 
 ## Modified and AI-generated assets

@@ -338,6 +338,46 @@ function OddsLine({ odds }: { odds: Record<Quality, number> }) {
   );
 }
 
+/**
+ * The seeds of an empty plot in one row. When they do not fit (laptop action bar with many kinds),
+ * the row scrolls sideways and shows clear arrow buttons at its ends.
+ */
+function SeedRow({ children }: { children: preact.ComponentChildren }) {
+  const row = useRef<HTMLDivElement>(null);
+  const [ends, setEnds] = useState({ left: false, right: false });
+  const update = () => {
+    const r = row.current;
+    if (!r) return;
+    const left = r.scrollLeft > 2;
+    const right = r.scrollLeft + r.clientWidth < r.scrollWidth - 2;
+    // Only a real change re-renders (this runs after every render).
+    setEnds((e) => (e.left === left && e.right === right ? e : { left, right }));
+  };
+  useLayoutEffect(() => {
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  });
+  const go = (dir: number) => row.current?.scrollBy({ left: dir * row.current.clientWidth * 0.8, behavior: 'smooth' });
+  return (
+    <div class="seed-row-wrap">
+      {ends.left && (
+        <button class="seed-arrow left" onClick={() => go(-1)} aria-label="Show earlier seeds">
+          ‹
+        </button>
+      )}
+      <div class="seed-row" role="list" aria-label="Your seeds" ref={row} onScroll={update}>
+        {children}
+      </div>
+      {ends.right && (
+        <button class="seed-arrow right" onClick={() => go(1)} aria-label="Show more seeds">
+          ›
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PlotPanel({
   state,
   config,
@@ -395,17 +435,17 @@ function PlotPanel({
         {groups.length === 0 ? (
           <p class="muted">You have no seeds.</p>
         ) : (
-          <div class="seed-row" role="list" aria-label="Your seeds">
+          <SeedRow>
             {groups.map((g) => (
               <SeedCard
                 key={g.key}
                 group={g}
-                compact={sheet}
+                compact={sheet || bar}
                 disabled={busy}
                 onPick={() => act('/api/plant', { plot: plotIndex, seedId: g.ids[0] }, `Planted ${SPECIES_NAME[g.species]}!`)}
               />
             ))}
-          </div>
+          </SeedRow>
         )}
         {/* Phones: the long note waits behind the "?" button. */}
         {(!sheet || help) && <p class="seed-note">Tap a seed to plant it: a Tree NFT is minted to your account. {SEED_ODDS_TEXT}</p>}
