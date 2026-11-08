@@ -64,6 +64,7 @@ Credits (copy into README): music "Apple Cider" by Zane Little Music; sound effe
 |---|---|---|
 | Tiny5 (text and numbers) | Google Fonts | SIL Open Font License 1.1 |
 | Pixelify Sans (headings) | Google Fonts | SIL Open Font License 1.1 |
+| Inter (long text: explanations, notes, logs, info bubbles, How to play, Privacy / Terms) | Google Fonts | SIL Open Font License 1.1 |
 
 ## Modified and AI-generated assets
 

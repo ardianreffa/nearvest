@@ -8389,3 +8389,38 @@ button.chip:focus-visible {
 .info-line {
   margin: 8px 0 4px;
 }
+
+/* =====================================================================
+   Reading font: explanations, descriptions, notes, logs, tooltips, the How to play pages and the
+   coach use Inter (easy to read in long text). Titles, subtitles, buttons, HUD labels, tags and
+   numbers keep the pixel fonts (Tiny5, Pixelify Sans). Dialogue (Mr. Darto's speech) stays pixel.
+   ===================================================================== */
+:root {
+  --font-text: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+p:not(.tagline):not(.speech):not(.odds-line):not(.account-preview),
+.login-points li,
+.howto-points li,
+.info-body li,
+.bot-log .grow,
+.bot-style span,
+.stat-note,
+.notice,
+.info-bubble p,
+.share-text {
+  font-family: var(--font-text);
+  letter-spacing: 0;
+}
+
+/* Inter is a little wider than Tiny5: keep long text comfortable, not cramped. */
+p:not(.tagline):not(.speech):not(.odds-line):not(.account-preview) {
+  line-height: 1.45;
+}
+
+/* Words in bold inside a sentence stay in the same font (bold Inter). */
+p b,
+.howto-points li b,
+.login-points li b {
+  font-weight: 700;
+}
