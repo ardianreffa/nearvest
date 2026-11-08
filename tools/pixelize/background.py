@@ -7,6 +7,13 @@
 # With a key colour (--key FF00FF, a magenta sky to cut out): key pixels and the magenta
 # fringe that the AI paints on the edges of trees and roofs are left out of every cell;
 # a cell that is mostly key becomes transparent, the others take the dominant non-key colour.
+# High quality mode (hq=True, pixelize.py --hq, used from village v3 on):
+# - smooth first: each cell takes the per-channel median of its dominant colour group (no noise);
+# - pink fringe: soft magenta-ish pixels within 3 px of the key are cut out too, and pinkish
+#   edge cells next to the cut-out sky are dropped;
+# - palette: median cut, then the cell colours furthest from the palette are added (small bright
+#   details such as red fruit keep their colour) and refined with a few k-means steps;
+# - no dithering; single stray pixels that are close to the colour around them are cleaned up.
 import collections, json
 from png import write_png
 
@@ -28,6 +35,108 @@ def keyish(p, key):
         return False
     r, g, b = p[0], p[1], p[2]
     return dist(p, key) < 9000 or (r > 120 and b > 110 and g < 0.6 * min(r, b) and abs(r - b) < 110)
+
+
+def pinkish(p):
+    """Soft magenta fringe (anti-aliased sky edge): red and blue clearly above green and close to each
+    other (pink), or a dark outline mixed with magenta (violet: blue far above green, red not below it)."""
+    r, g, b = p[0], p[1], p[2]
+    return (r - g > 35 and b - g > 35 and abs(r - b) < 80) or (b - g > 60 and r >= g - 10 and b > r)
+
+
+def fringe_mask(w, h, px, key, ox=0, oy=0):
+    """Key pixels plus pinkish pixels within 3 px of them (source coordinates of the crop)."""
+    strong = [[keyish(px[oy + y][ox + x], key) for x in range(w)] for y in range(h)]
+    near = [[False] * w for _ in range(h)]
+    R = 3
+    for y in range(h):
+        row = strong[y]
+        for x in range(w):
+            if row[x]:
+                for yy in range(max(0, y - R), min(h, y + R + 1)):
+                    nr = near[yy]
+                    for xx in range(max(0, x - R), min(w, x + R + 1)):
+                        nr[xx] = True
+    full = [[False] * (ox + w) for _ in range(oy + h)]
+    for y in range(h):
+        for x in range(w):
+            if strong[y][x] or (near[y][x] and pinkish(px[oy + y][ox + x])):
+                full[oy + y][ox + x] = True
+    return full
+
+
+def dominant_hq(px, x0, y0, x1, y1, mask=None):
+    """Median colour of the dominant coarse colour group (smooths the AI noise before quantizing)."""
+    bins = collections.defaultdict(list)
+    masked = total = 0
+    for y in range(y0, y1):
+        row = px[y]
+        mrow = mask[y] if mask is not None else None
+        for x in range(x0, x1):
+            total += 1
+            if mrow is not None and mrow[x]:
+                masked += 1
+                continue
+            p = row[x]
+            bins[(p[0] >> 4, p[1] >> 4, p[2] >> 4)].append(p)
+    if mask is not None and (masked * 2 >= total or not bins):
+        return None
+    best = max(bins.values(), key=len)
+    # merge neighbouring bins that are nearly as big (a colour on a bin border)
+    k0 = next(k for k, v in bins.items() if v is best)
+    group = list(best)
+    for k, v in bins.items():
+        if v is not best and max(abs(k[i] - k0[i]) for i in range(3)) == 1 and len(v) * 2 >= len(best):
+            group += v
+    n = len(group)
+    return tuple(sorted(p[i] for p in group)[n // 2] for i in range(3))
+
+
+def palette_hq(cells, n):
+    """Median cut + furthest colours + k-means, on a histogram of the cell colours."""
+    hist = collections.Counter(c for line in cells for c in line if c is not None)
+    cols = list(hist)
+    extra = max(8, n // 6)
+    pal = median_cut(list(hist.elements()), n - extra)
+    near = {c: min(dist(c, p) for p in pal) for c in cols}
+    for _ in range(extra):
+        # the colour worst served by the palette, weighted a little by how often it occurs
+        c = max(cols, key=lambda c: near[c] * min(hist[c], 12))
+        if near[c] < 900:
+            break
+        pal.append(c)
+        for k in cols:
+            d = dist(k, c)
+            if d < near[k]:
+                near[k] = d
+    for _ in range(5):
+        sums = [[0, 0, 0, 0] for _ in pal]
+        for c in cols:
+            i = min(range(len(pal)), key=lambda j: dist(c, pal[j]))
+            m = hist[c]
+            s = sums[i]
+            s[0] += c[0] * m; s[1] += c[1] * m; s[2] += c[2] * m; s[3] += m
+        pal = [tuple(round(s[i] / s[3]) for i in range(3)) if s[3] else pal[j] for j, s in enumerate(sums)]
+    return list(dict.fromkeys(pal))
+
+
+def despeckle(img, w, h, limit=5600):
+    """A pixel unlike all 8 neighbours, close to the colour most of them share, takes that colour."""
+    out = [line[:] for line in img]
+    fixed = 0
+    for y in range(1, h - 1):
+        for x in range(1, w - 1):
+            p = img[y][x]
+            if p[3] == 0:
+                continue
+            nb = [img[y + dy][x + dx] for dy in (-1, 0, 1) for dx in (-1, 0, 1) if dy or dx]
+            if any(q[3] == 0 for q in nb) or p in nb:
+                continue
+            m, k = collections.Counter(nb).most_common(1)[0]
+            if k >= 5 and dist(p, m) < limit:
+                out[y][x] = m
+                fixed += 1
+    return out, fixed
 
 
 def dominant(px, x0, y0, x1, y1, key=None, mask=None):
@@ -67,11 +176,18 @@ def median_cut(colors, n):
     return [tuple(sum(c[i] for c in b) // len(b) for i in range(3)) for b in boxes if b]
 
 
-def pixelize_background(w, h, px, rows, ncolors, out, key=None, mask=None, crop=None, cols=None):
+def pixelize_background(w, h, px, rows, ncolors, out, key=None, mask=None, crop=None, cols=None, hq=False):
     """`mask[y][x]` = True for background pixels (cut out); `crop` = (x0, y0, x1, y1) source box."""
     ox, oy = (crop[0], crop[1]) if crop else (0, 0)
     if crop:
         w, h = crop[2] - crop[0], crop[3] - crop[1]
+    if hq and key is not None:
+        fm = fringe_mask(w, h, px, key, ox, oy)
+        if mask is None:
+            mask = fm
+        else:
+            mask = [[mask[y][x] or fm[y][x] for x in range(len(mask[0]))] for y in range(len(mask))]
+        key = None
     cell = h / rows
     cols = cols or int(round(w / cell))
     cellw = w / cols
@@ -80,12 +196,24 @@ def pixelize_background(w, h, px, rows, ncolors, out, key=None, mask=None, crop=
         line = []
         for q in range(cols):
             x0, y0 = ox + q * cellw, oy + r * cell
-            line.append(dominant(px, int(x0 + cellw * 0.2), int(y0 + cell * 0.2),
-                                 max(int(x0 + cellw * 0.8), int(x0 + cellw * 0.2) + 1),
-                                 max(int(y0 + cell * 0.8), int(y0 + cell * 0.2) + 1), key, mask))
+            box = (int(x0 + cellw * 0.2), int(y0 + cell * 0.2),
+                   max(int(x0 + cellw * 0.8), int(x0 + cellw * 0.2) + 1),
+                   max(int(y0 + cell * 0.8), int(y0 + cell * 0.2) + 1))
+            line.append(dominant_hq(px, *box, mask) if hq else dominant(px, *box, key, mask))
         cells.append(line)
 
-    pal = median_cut([c for line in cells for c in line if c is not None], ncolors)
+    if hq:
+        # pinkish cells on the edge of the cut-out sky are fringe as well
+        for r in range(rows):
+            for q in range(cols):
+                c = cells[r][q]
+                if c is not None and pinkish(c) and any(
+                        0 <= r + dr < rows and 0 <= q + dq < cols and cells[r + dr][q + dq] is None
+                        for dr, dq in ((-1, 0), (1, 0), (0, -1), (0, 1))):
+                    cells[r][q] = None
+        pal = palette_hq(cells, ncolors)
+    else:
+        pal = median_cut([c for line in cells for c in line if c is not None], ncolors)
     # Snap only the single closest palette color to each GDD color, so shades
     # (sky gradient, foliage) are kept and the GDD colors appear exactly.
     snapped = {}
@@ -103,6 +231,9 @@ def pixelize_background(w, h, px, rows, ncolors, out, key=None, mask=None, crop=
         return cache[c]
 
     img = [[(0, 0, 0, 0) if c is None else near(c) + (255,) for c in line] for line in cells]
+    if hq:
+        img, fixed = despeckle(img, cols, rows)
+        print(f'cleaned {fixed} stray pixels')
     write_png(f'{out}/bg.png', cols, rows, img)
     Z = 4
     big = []
