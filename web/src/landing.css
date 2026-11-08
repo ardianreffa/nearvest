@@ -174,9 +174,10 @@
     width: 100%;
   }
 
+  /* On the grass just above the buttons and their notes. */
   .lp-hero-bot {
-    left: 6%;
-    bottom: calc(100vw * 1.5 * 0.135);
+    left: 4%;
+    bottom: 168px;
   }
 
   .lp-hero-bot .tanibot {
@@ -554,4 +555,23 @@
   .lp-drone {
     display: none;
   }
+}
+
+.lp-device-note {
+  margin-top: -8px;
+  opacity: 0.9;
+}
+
+/* The notes under the buttons sit on a dark strip, readable over the grass. */
+.lp-cta-note {
+  width: auto;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 4px 10px;
+  background: rgba(6, 20, 14, 0.72);
+  text-shadow: none;
+}
+
+.lp-device-note {
+  margin-top: -10px;
 }

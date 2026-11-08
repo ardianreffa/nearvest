@@ -117,6 +117,14 @@ function Gallery() {
   return (
     <main class="preview">
       <ShareCards />
+      <h2 id="tree-stages">Every tree state (seed, sprout, tree, fruiting, old) x quality, per species</h2>
+      {SPECIES.map((sp) => (
+        <div class="preview-row tree-stages" key={`st-${sp}`} style={{ background: '#cfe9f5', padding: '8px', alignItems: 'flex-end', gap: '10px' }}>
+          {(['seed', 'sprout', 'tree', 'fruiting', 'old'] as const).flatMap((st) =>
+            (['common', 'rare', 'gold'] as const).map((q) => <TreePixels key={`${st}-${q}`} species={sp} stage={st} quality={q} scale={3} seed={`${sp}-${st}`} />),
+          )}
+        </div>
+      ))}
       <h2>Tree looks (6 seeds per species, fruiting and young tree)</h2>
       {SPECIES.map((sp) => (
         <div class="preview-row tree-looks" key={sp} style={{ background: '#cfe9f5', padding: '8px', alignItems: 'flex-end', gap: '10px' }}>

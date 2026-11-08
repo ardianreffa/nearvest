@@ -39,7 +39,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  /* Tiny5 for text and numbers (clear digits); Pixelify Sans for headings. */
+  /* Tiny5 for labels and numbers (clear digits); Bungee titles and DotGothic16 text: see TYPOGRAPHY. */
   font-family: 'Tiny5', ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 15px;
   line-height: 1.35;
@@ -71,10 +71,10 @@ h2,
   font-weight: 700;
 }
 
-/* Pixelify Sans only where there are no digits (its 2 and 5 look like 8 and S). */
+/* Titles and the logo: Bungee (see TYPOGRAPHY at the end). */
 h1,
 .logo {
-  font-family: 'Pixelify Sans', ui-monospace, monospace;
+  font-family: var(--font-title);
 }
 
 /* Dark outline so small icons stay visible on colored buttons and badges. */
@@ -2902,7 +2902,7 @@ input:focus-visible {
   align-items: center;
   justify-content: space-between;
   padding: 6px 8px 6px 12px;
-  font-family: 'Pixelify Sans', sans-serif;
+  font-family: var(--font-title);
   font-size: 18px;
   border-bottom: 2px solid rgba(201, 152, 84, 0.55);
 }
@@ -3267,7 +3267,7 @@ input:focus-visible {
 
 .info-body h3 {
   margin: 12px 0 4px;
-  font-family: 'Pixelify Sans', sans-serif;
+  font-family: var(--font-title);
   font-size: 16px;
   color: var(--leaf-dark);
 }
@@ -4185,7 +4185,7 @@ button.balance:focus-visible {
   top: 0;
   right: -6px;
   pointer-events: none;
-  font-family: 'Pixelify Sans', sans-serif;
+  font-family: var(--font-title);
   font-weight: 700;
   color: #e0f2fe;
   text-shadow: 1px 1px 0 #1b1b2f;
@@ -8396,11 +8396,11 @@ button.chip:focus-visible {
 
 /* =====================================================================
    Reading font: explanations, descriptions, notes, logs, tooltips, the How to play pages and the
-   coach use Inter (easy to read in long text). Titles, subtitles, buttons, HUD labels, tags and
-   numbers keep the pixel fonts (Tiny5, Pixelify Sans). Dialogue (Mr. Darto's speech) stays pixel.
+   coach use DotGothic16 (a readable pixel font). Buttons, HUD labels, tags and numbers: Tiny5.
+   Titles: Bungee. Dialogue (Mr. Darto's speech) stays Tiny5.
    ===================================================================== */
 :root {
-  --font-text: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-text: 'DotGothic16', 'Tiny5', monospace;
 }
 
 p:not(.tagline):not(.speech):not(.odds-line):not(.account-preview),
@@ -8444,8 +8444,8 @@ p b,
      --fs-h1   42  page titles                         (Bungee)
      --fs-hero 68  the NEARVEST logo                   (Bungee, up to 104 on big screens)
    Line heights: text 1.5, titles 1.15. Spacing steps 8 . 13 . 21 px (Fibonacci).
-   Titles: Bungee (heavy). Reading text: --font-text (pixel candidates in dev with ?font=a|b|c;
-   --text-k evens out their different sizes). Buttons, HUD labels and numbers: Tiny5.
+   Titles: Bungee (heavy). Reading text: DotGothic16 (--font-text, x --text-k).
+   Buttons, HUD labels and numbers: Tiny5. No sans-serif text anywhere.
    ===================================================================== */
 :root {
   --fs-sm: 13px;
@@ -8459,24 +8459,10 @@ p b,
   --sp-1: 8px;
   --sp-2: 13px;
   --sp-3: 21px;
-  --font-title: 'Bungee', 'Tiny5', system-ui, sans-serif;
-  --text-k: 1;
-}
-
-/* Pixel reading-font candidates (dev builds: ?font=a|b|c). */
-:root[data-font='a'] {
+  --font-title: 'Bungee', 'Tiny5', monospace;
+  /* Reading text: DotGothic16 (Ardian's choice, 2026-11-08), a little larger than its 16 px grid. */
   --font-text: 'DotGothic16', 'Tiny5', monospace;
   --text-k: 1.06;
-}
-
-:root[data-font='b'] {
-  --font-text: 'VT323', 'Tiny5', monospace;
-  --text-k: 1.36;
-}
-
-:root[data-font='c'] {
-  --font-text: 'Pixelify Sans', 'Tiny5', monospace;
-  --text-k: 1.04;
 }
 
 /* Titles: Bungee everywhere (logo included). */
@@ -8866,4 +8852,178 @@ li b,
   font-size: calc(var(--fs-sm) * var(--text-k)) !important;
   line-height: 1.35 !important;
   margin: 4px 0 0 !important;
+}
+
+/* Notifications (toast.tsx): one thin line under the HUD, placed by JS (top / left / width). */
+.toasts {
+  position: static;
+  transform: none;
+  width: auto;
+  max-width: none;
+}
+
+.toasts > .toast {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  min-height: 0;
+  padding: 0 10px;
+  font-family: 'Tiny5', monospace;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+  text-decoration: none;
+  color: #1b1b2f;
+  background: rgba(255, 250, 240, 0.95);
+  border: 3px solid #1b1b2f !important;
+  box-shadow: inset -2px -3px 0 rgba(0, 0, 0, 0.15) !important;
+  --n: 2px;
+  animation: toast-in 160ms steps(3);
+  pointer-events: auto;
+  cursor: default;
+}
+
+.toasts > a.toast {
+  cursor: pointer;
+}
+
+.toasts > .toast-chain,
+.toasts > .toast-success {
+  color: var(--mint);
+  background: rgba(10, 29, 20, 0.94);
+  border-color: var(--mint) !important;
+}
+
+.toasts > .toast-error {
+  background: #ffe1e1;
+}
+
+.toast-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast-more {
+  flex: none;
+  padding: 2px 5px;
+  font-size: 11px;
+  color: #1b1b2f;
+  background: var(--gold);
+}
+
+.toast-tx {
+  flex: none;
+  color: var(--cyan);
+  text-decoration: underline;
+}
+
+.toasts > .toast .toast-check {
+  width: 16px;
+  height: 16px;
+  font-size: 11px;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toasts > .toast {
+    animation: none;
+  }
+}
+
+/* v3 phones: TaniBot beside the selected plot. The spot makes no stacking layer of its own, so the
+   trees and their labels (plots, z 3) draw in front of TaniBot's body, while its speech bubble and
+   ON/OFF chip stay on top. */
+.stage .bot-spot.bot-beside {
+  z-index: auto;
+}
+
+.bot-spot.bot-beside .bot-click {
+  z-index: 2;
+}
+
+.bot-spot.bot-beside .bot-hint,
+.bot-spot.bot-beside .bot-status {
+  z-index: 7;
+}
+
+/* Quantity slider (sell picker): a pixel track and a big square handle, clear on phones (Safari). */
+.qty-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 32px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.qty-slider::-webkit-slider-runnable-track {
+  height: 10px;
+  background: #fffaf0;
+  border: 3px solid #1b1b2f;
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.18);
+}
+
+.qty-slider::-moz-range-track {
+  height: 4px;
+  background: #fffaf0;
+  border: 3px solid #1b1b2f;
+}
+
+.qty-slider::-moz-range-progress {
+  height: 4px;
+  background: var(--mint);
+}
+
+.qty-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 26px;
+  margin-top: -11px;
+  background: var(--gold);
+  border: 3px solid #1b1b2f;
+  border-radius: 0;
+  box-shadow: inset -3px -4px 0 rgba(0, 0, 0, 0.22), inset 2px 2px 0 rgba(255, 255, 255, 0.5);
+}
+
+.qty-slider::-moz-range-thumb {
+  width: 16px;
+  height: 20px;
+  background: var(--gold);
+  border: 3px solid #1b1b2f;
+  border-radius: 0;
+}
+
+.qty-slider:focus-visible::-webkit-slider-thumb {
+  outline: 3px solid var(--cyan);
+}
+
+.qty-slider:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Phones held sideways: the plot sheet follows the garden (scroll down to it) instead of sitting
+   on top of it, and shows all its buttons. */
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 1023px) {
+  .garden-sheet {
+    position: static;
+  }
+
+  .plot-sheet.closed,
+  .plot-sheet.plain,
+  .plot-sheet.open {
+    max-height: none;
+    overflow: visible;
+  }
 }

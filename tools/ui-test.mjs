@@ -84,6 +84,15 @@ const typeInto = (selector, value) => evaluate(`(() => {
   const el = document.querySelector(${JSON.stringify(selector)});
   el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
 const bodyHas = (t) => `!!document.body && document.body.innerText.includes(${JSON.stringify(t)})`;
+/** One notice at most, one thin line, never over TaniBot, the plots, the bottom panel, tabs, menu or a window. */
+const TOAST_CHECK = `(() => {
+  const ts = [...document.querySelectorAll('.toasts > .toast')].filter(t => getComputedStyle(t).visibility !== 'hidden');
+  if (!ts.length) return 'none showing';
+  const t = ts[0].getBoundingClientRect();
+  const hit = (q) => q.width && t.left < q.right && q.left < t.right && t.top < q.bottom && q.top < t.bottom;
+  const over = ['.bot-spot .tanibot', '.plot-art', '.soil', '.garden-sheet', '.hud-bar', '.tabs', '.hud-drawer', '.hud-rail', '.dialog-backdrop > *', '.hud-top .hud-capsule', '.topbar', '.hud-chips'].filter(sel => [...document.querySelectorAll(sel)].some(e => hit(e.getBoundingClientRect())));
+  return ts.length + ' showing | ' + Math.round(t.height) + 'px high | "' + ts[0].innerText.replace(/\\n/g, ' ') + '" | covers: ' + (over.join(', ') || 'nothing');
+})()`;
 const step = async (label, fn) => { console.log('==', label); await fn(); };
 
 await send('Page.enable'); await send('Runtime.enable'); await send('Log.enable');
@@ -131,10 +140,15 @@ try {
         // Phones: toasts sit above the plot sheet, never on it.
         await waitFor(`!!document.querySelector('.toast')`, 'toast', 15000).catch(() => {});
         console.log('toast above the sheet:', await evaluate(`(() => { const t = [...document.querySelectorAll('.toast')].pop(); const s = document.querySelector('.plot-sheet'); if (!t || !s) return 'no toast'; return t.getBoundingClientRect().bottom <= s.getBoundingClientRect().top + 1; })()`));
+        console.log('toast:', await evaluate(TOAST_CHECK));
         await screenshot('toast');
       }
       await clickText('Water');
       await waitFor(`[...document.querySelectorAll('.act-water')].some(b => /Watered/.test(b.innerText))`, 'watered');
+      // The chain notices of plant + water arrive now: still one thin line, covering nothing.
+      await waitFor(`!!document.querySelector('.toast-chain')`, 'chain notice', 20000).catch(() => {});
+      console.log('toast after chain jobs:', await evaluate(TOAST_CHECK));
+      await screenshot('toast-chain');
       await sleep(1500); await screenshot('plot-panel');
       const overlap = await evaluate(`(() => {
         const bar = document.querySelector('.hud-bar .panel') || document.querySelector('.garden-screen .panel');
@@ -556,6 +570,33 @@ try {
       }
       // Phones: the art fills the scene's width (no blurred sides).
       if (MOBILE) console.log('art width:', await evaluate(`(() => { const a = document.querySelector('.bg-art').getBoundingClientRect(); return Math.round(a.left) + '..' + Math.round(a.right) + ' of ' + innerWidth + ' | blurred sides: ' + !!document.querySelector('.bg-blur'); })()`));
+      // TaniBot fully in view (not cut by the scene's edge or the plot sheet) and drawn behind the
+      // other trees and labels (what is on top at points of them is never TaniBot).
+      console.log('TaniBot view:', await evaluate(`(() => {
+        const b = document.querySelector('.bot-spot .tanibot'); if (!b) return 'no TaniBot';
+        const r = b.getBoundingClientRect(); const box = (document.querySelector('.phone-scene-box') || document.querySelector('.scene')).getBoundingClientRect();
+        const sheet = document.querySelector('.garden-sheet, .hud-bar')?.getBoundingClientRect();
+        const floor = Math.min(box.bottom, sheet ? sheet.top : Infinity, innerHeight);
+        const cut = r.top < box.top - 1 || r.bottom > floor + 1 || r.left < box.left - 1 || r.right > box.right + 1;
+        const sel = document.querySelector('.plot.selected');
+        const others = [...document.querySelectorAll('.plot')].filter(p => p !== sel).flatMap(p => [...p.querySelectorAll('.plot-art .tree, .badge, .empty-hint')]);
+        let hidden = 0;
+        for (const o of others) { const q = o.getBoundingClientRect(); for (let x = q.left + 2; x < q.right; x += 4) for (let y = q.top + 2; y < q.bottom; y += 4) { const all = document.elementsFromPoint(x, y); if (all[0] && b.contains(all[0]) && all.some(z => o.contains(z) && z !== o)) hidden++; } }
+        return (cut ? 'CUT (' + Math.round(r.top) + '..' + Math.round(r.bottom) + ', visible to ' + Math.round(floor) + ')' : 'fully visible') + ' | over other trees/labels: ' + (hidden ? 'YES ' + hidden + ' points' : 'no');
+      })()`));
+      // Fonts: every visible text uses Bungee, DotGothic16 or Tiny5 (no sans-serif anywhere).
+      console.log('fonts:', await evaluate(`(() => {
+        const ok = ['Bungee', 'DotGothic16', 'Tiny5'];
+        const bad = new Map();
+        const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        for (let n; (n = walk.nextNode()); ) {
+          if (!n.textContent.trim()) continue;
+          const el = n.parentElement; if (!el || !el.getClientRects().length) continue;
+          const first = getComputedStyle(el).fontFamily.split(',')[0].replace(/["']/g, '').trim();
+          if (!ok.includes(first)) bad.set(first + ' <' + el.tagName.toLowerCase() + '.' + (el.className || '').toString().split(' ')[0] + '>', 1);
+        }
+        return bad.size ? 'OTHER FONTS: ' + [...bad.keys()].slice(0, 8).join(', ') : 'only Bungee / DotGothic16 / Tiny5';
+      })()`));
       // Any sky element bigger than 3 game pixels drawn as a plain box (no picture inside, solid fill)?
       console.log('plain boxes in the sky:', await evaluate(`(() => { const art = document.querySelector('.bg-art').getBoundingClientRect(); const px = art.width / 240; return [...document.querySelectorAll('.sky *, .bg-fx > *')].filter(e => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); if (r.width < 3 * px || r.height < 3 * px || e.querySelector('svg, img') || e.tagName === 'svg' || e.closest('svg')) return false; const solid = cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundImage === 'none' && cs.clipPath === 'none' && cs.borderRadius === '0px'; return solid && parseFloat(cs.opacity) > 0.05; }).map(e => e.className).join(', ') || 'none'; })()`));
       console.log('sky layers (day / dusk / night opacity):', await evaluate(`['.sky-day', '.sky-dusk', '.sky-night'].map(s => getComputedStyle(document.querySelector(s)).opacity).join(' / ')`), '| phase:', await evaluate(`document.querySelector('.scene').className`));
@@ -703,6 +744,9 @@ try {
       await evaluate(`(() => { const r = document.querySelector('.market-row:not(.empty)'); r.querySelector('.sell-max').click(); })()`);
       await sleep(200);
       await evaluate(`document.querySelector('.market-row:not(.empty) .sell-go').click()`);
+      // Demo days last a minute: if Mr. Darto's price changed meanwhile, accept the new price.
+      await waitFor(`(${bodyHas('Sold')}) || [...document.querySelectorAll('.dialog button')].some(b => /^Sell for/.test(b.innerText))`, 'sold or new price', 30000).catch(() => {});
+      if (await clickText('Sell for', '.dialog button')) console.log('new day: sold at the new price');
       await waitFor(bodyHas('Sold'), 'sold', 20000);
       await sleep(400); await screenshot('sold');
       // 3. Buy in the Shop (burn).

@@ -14,10 +14,4 @@ for (const rel of ['dns-prefetch', 'preconnect']) {
   document.head.appendChild(link);
 }
 
-// Dev builds: ?font=a|b|c switches the font pair (styles.css, "Font pairs") to compare them.
-if (import.meta.env.DEV) {
-  const f = new URLSearchParams(location.search).get('font');
-  if (f === 'a' || f === 'b' || f === 'c') document.documentElement.dataset.font = f;
-}
-
 render(<App />, document.getElementById('app')!);

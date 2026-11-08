@@ -35,8 +35,12 @@ const LANE_STAGE: Lane = { left: 0, width: 100, botOffset: 18 };
 const LANE_V2: Lane = { left: 0, width: 100, botOffset: 16 };
 /** v2 phone: TaniBot stands on the grass in front of (below) the selected plot. */
 const LANE_PHONE: Lane = { left: 0, width: 100, botOffset: 6 };
-/** v3 phone: the bigger TaniBot stands a little closer to its plot, clear of the next mound. */
-const LANE_PHONE3: Lane = { left: 0, width: 100, botOffset: 4 };
+/**
+ * v3 phone: TaniBot stands on the grass right beside the selected plot, in the gap between two
+ * mounds (half a plot to the side), its feet on the mounds' baseline. The trees and their labels
+ * are drawn in front of it, so it never hides them.
+ */
+const LANE_PHONE3: Lane = { left: 0, width: 100, botOffset: 50 / 3 };
 
 /** Horizontal center of a plot in % of the scene (or stage) width. */
 function plotCenter(plot: number, lane: Lane): number {
@@ -90,7 +94,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const px = phone ? phone.spritePx : immersive ? immersive.k : big ? 3 : 2;
   // TaniBot: half the tree pixel on v1 laptops; smaller on v2 so it never covers the next
   // plot; its 58 px size on phones (it stands on the grass in front of the selected plot).
-  const botScale = phone ? (village?.moundArt ? 1.5 : 1) : immersive ? Math.max(1, Math.round(immersive.k / (v2 ? 3 : 2))) : big ? 2 : 1;
+  const botScale = phone ? (village?.moundArt ? 1.25 : 1) : immersive ? Math.max(1, Math.round(immersive.k / (v2 ? 3 : 2))) : big ? 2 : 1;
   const lane = phone && village?.moundArt ? LANE_PHONE3 : phone && v2 ? LANE_PHONE : v2 ? LANE_V2 : immersive ? LANE_STAGE : LANE_NORMAL;
   const moundArt = !!village?.moundArt;
   const mound = moundArt ? MOUND_ART : village?.key === 'v2-phone' ? MOUND.phone : village?.mounds ? MOUND.web : null;
@@ -203,12 +207,14 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         </span>
       )}
       <div
-        class={`bot-spot tier-${tier} ${motion.cls}${evolving ? ' evolving' : ''}${phone && v2 ? ' bot-front' : ''}`}
+        class={`bot-spot tier-${tier} ${motion.cls}${evolving ? ' evolving' : ''}${phone && v2 && !village?.moundArt ? ' bot-front' : ''}${phone && village?.moundArt ? ' bot-beside' : ''}`}
         style={{
           left: `${bx}%`,
           '--bot-w': `${TANIBOT_W * botScale}px`,
           // Phones: on the grass in front of the plots (its head just under the mounds).
-          ...(phone && v2 ? { bottom: `${-(phone.village.h - phone.village.bedRow - 0.5) * phone.k}px` } : {}),
+          ...(phone && v2 && !village?.moundArt ? { bottom: `${-(phone.village.h - phone.village.bedRow - 0.5) * phone.k}px` } : {}),
+          // v3 phones: feet on the mounds' baseline (a little in front of it).
+          ...(phone && village?.moundArt ? { bottom: `${-1.5 * phone.k}px` } : {}),
         }}
       >
         {on && (

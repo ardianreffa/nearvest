@@ -147,8 +147,18 @@ function canopy(g: Grid, blobs: Blob[], scale: number, offsetY: number, sparse: 
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       if (!inside(x + 0.5, y + 0.5)) continue;
-      if (sparse && (x * 7 + y * 13) % 5 === 0) continue; // old trees lose leaves
       const edge = !inside(x - 0.5, y + 0.5) || !inside(x + 1.5, y + 0.5) || !inside(x + 0.5, y - 0.5) || !inside(x + 0.5, y + 1.5);
+      if (sparse) {
+        // Old trees lose leaves at the crown's ragged edge (irregular clumps, never a regular
+        // pattern of holes, which looked like a broken, striped picture) and get dry patches inside.
+        const h = (((x * 73856093) ^ (y * 19349663) ^ ((x + y) * 83492791)) >>> 0) % 100;
+        const nearEdge = edge || !inside(x - 1.5, y + 0.5) || !inside(x + 2.5, y + 0.5) || !inside(x + 0.5, y - 1.5);
+        if (nearEdge && h < 38) continue;
+        if (!edge && h < 10) {
+          g[y][x] = 'd';
+          continue;
+        }
+      }
       if (edge) {
         g[y][x] = 'o';
         continue;

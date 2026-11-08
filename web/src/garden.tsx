@@ -204,7 +204,10 @@ function PhoneGarden({
   const { w, h } = useWindowSize();
   const version = bgVersion();
   const v1 = version === 'v1';
-  const base = phoneLayout(w, h, villageFor(version === 'v1' ? 'v3' : version, true));
+  // Phones held sideways (landscape): the wide village (as on laptops), its top sky cut off, so the
+  // garden is not taller than the screen.
+  const upright = villageFor(version === 'v1' ? 'v3' : version, true);
+  const base = phoneLayout(w, h, w > h ? { ...villageFor(version === 'v1' ? 'v3' : version, false), shownFrom: 50, moundArt: upright.moundArt } : upright);
   const sceneBox = useRef<HTMLDivElement>(null);
   const sheetBox = useRef<HTMLDivElement>(null);
   // The scene grows into any room left between the top bar and the sheet, so the sheet always
@@ -217,7 +220,9 @@ function PhoneGarden({
       const sb = sheetBox.current;
       const tabs = document.querySelector('.tabs');
       if (!p || !sb || !tabs) return;
-      const room = tabs.getBoundingClientRect().top - 8 - sb.getBoundingClientRect().height - (p.getBoundingClientRect().top + window.scrollY) - 8;
+      // Landscape: the sheet sits below the garden (the page scrolls), so the garden takes the room above the tabs.
+      const landscape = window.innerWidth > window.innerHeight;
+      const room = tabs.getBoundingClientRect().top - 8 - (landscape ? 0 : sb.getBoundingClientRect().height) - (p.getBoundingClientRect().top + window.scrollY) - 8;
       setExtra((e) => {
         const next = Math.max(0, Math.round(room - base.sceneH));
         return Math.abs(next - e) > 2 ? next : e;

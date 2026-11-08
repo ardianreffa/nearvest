@@ -68,6 +68,7 @@ function Hero() {
           Try as Judge
         </a>
         <span class="lp-cta-note">Sign in with Google or a NEAR wallet. No fees, testnet.</span>
+        <span class="lp-cta-note lp-device-note">Plays on phones and laptops. For the best view, use Chrome on a laptop.</span>
       </div>
       <a class="lp-more" href="#trees" aria-label="See how it works">
         ▼

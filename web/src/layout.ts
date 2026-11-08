@@ -137,7 +137,9 @@ export function phoneLayout(width: number, height: number, village: Village = V3
       stageBottom: (v.h - v.bedRow) * k,
       village: v,
       sceneW: Math.round(width),
-      sceneH: Math.round((v.h - v.shownFrom) * k),
+      // Landscape phones (wide art): start small; the garden grows into the room left above the
+      // plot sheet, showing the bottom of the village (plots, grass, houses) first.
+      sceneH: Math.round(v.w > v.h ? Math.min((v.h - v.shownFrom) * k, height * 0.45) : (v.h - v.shownFrom) * k),
       spritePx: Math.max(2, Math.round(k)),
     };
   }

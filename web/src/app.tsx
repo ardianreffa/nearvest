@@ -23,6 +23,7 @@ import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Coach } from './tutorial';
 import { predict } from './optimistic';
 import { Info } from './info';
+import { ToastStrip, useToasts } from './toast';
 import { seasonPayout } from './qty';
 import { Avatar } from './art/avatars';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
@@ -30,12 +31,6 @@ import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from '.
 type Tab = 'garden' | 'storage' | 'shop' | 'market' | 'village';
 type SideTab = Exclude<Tab, 'garden'>;
 
-interface Toast {
-  id: number;
-  text: string;
-  kind: 'info' | 'error' | 'chain' | 'success';
-  link?: string;
-}
 
 interface Dialog {
   message: string;
@@ -120,7 +115,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>('garden');
   const [sideTab, setSideTab] = useState<SideTab>('storage');
   const [busy, setBusy] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const { toast, shown: toastShown, dismiss: dismissToast } = useToasts();
   const [flash, setFlash] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -143,11 +138,6 @@ export function App() {
 
   useEffect(() => onAudioPrefsChange(setAudio), []);
 
-  const toast = useCallback((t: Omit<Toast, 'id'>) => {
-    const id = Math.random();
-    setToasts((list) => [...list.slice(-1), { ...t, id }]);
-    setTimeout(() => setToasts((list) => list.filter((x) => x.id !== id)), t.kind === 'chain' || t.kind === 'success' ? 6000 : 3500);
-  }, []);
 
   /** Dialog with several choices; resolves to the chosen value, or null for Cancel. */
   const choose = useCallback(
@@ -762,27 +752,7 @@ export function App() {
       )}
 
       {flash > 0 && <div class="chain-flash" key={flash} aria-hidden="true" />}
-      <div class="toasts" role="status" aria-live="polite">
-        {toasts.map((t) => (
-          <div key={t.id} class={`toast toast-${t.kind}`}>
-            {t.kind === 'chain' && <Sprite name="bolt" scale={2} />}
-            {t.kind === 'success' && (
-              <b class="toast-check" aria-hidden="true">
-                ✓
-              </b>
-            )}
-            <span>
-              {t.kind === 'chain' ? 'On NEAR: ' : ''}
-              {t.text}
-            </span>
-            {t.link && (
-              <a href={t.link} target="_blank" rel="noreferrer">
-                view tx
-              </a>
-            )}
-          </div>
-        ))}
-      </div>
+      <ToastStrip shown={toastShown} dismiss={dismissToast} />
       {dialogView}
       {infoView}
       {info === 'checkin' && (
