@@ -1,20 +1,23 @@
 // Garden backdrop, in layers (back to front):
 //   1. the sky, drawn in code (sky.tsx): pixel colour bands, sun, moon, clouds, birds, stars...
-//   2. the village of Tandur: three AI images (ChatGPT, made at Ardian's request, see
-//      docs/ASSETS.md) with the sky cut out: day, dusk and night, the same drawing, cross-faded
-//      from the village clock;
-//   3. moving parts: the monorail train along its rail, the two wind turbine rotors;
-//   4. code effects: volcano smoke, geothermal steam, waterfalls, lanterns, holograms, the
-//      Arena's mint ring, passing delivery drones, fireflies;
-//   5. hotspots with always-visible pins (hotspots.tsx): Shop stall, Market (the small house in
-//      the middle), the farm tower, a friend's house, the Arena.
-// All coordinates are art pixels of the 240x135 phone image (the laptop image is 480x270).
+//   2. the village of Tandur (village.ts): AI images (ChatGPT, made at Ardian's request, see
+//      docs/ASSETS.md) with the sky cut out, in day / dusk / night versions of the same drawing,
+//      cross-faded from the village clock. v2 = the symmetric village (a wide image for laptops,
+//      an upright one for phones); v1 = the first village (dev builds: ?bg=v1);
+//   3. moving parts: the monorail train along its rail, the turbine rotors;
+//   4. code effects: volcano smoke, waterfalls, lanterns, holograms, the Arena's mint ring,
+//      passing delivery drones, fireflies; v2 also has Mr. Darto at his stand and a little robot;
+//   5. hotspots with always-visible pins (hotspots.tsx): Shop, Market, Village Stats, Friends,
+//      Arena.
+// All coordinates are game pixels of the village's grid (village.ts).
 
 import { Drone } from './tanibot';
-import { Train, TRAIN_CLIP } from './train';
+import { Train } from './train';
 import { Hotspots, type Place } from './hotspots';
-import { at, SkyBack, SkyBands, SkyFront } from './sky';
+import { SkyBack, SkyBands, SkyFront } from './sky';
 import { skyBands } from './sky-colors';
+import { boxIn, V1, type Village } from './village';
+import { VillageDarto, VillageRobot } from './village-life';
 
 export type Phase = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -61,48 +64,33 @@ export function lockedFraction(search: string): number | null {
   return Number.isFinite(hour) && hour >= 0 && hour < 24 ? ((hour - 7 + 24) % 24) / 24 : null;
 }
 
-// Effects as they sit in the new village image.
-const LANTERNS = [
-  [19, 56, 5, 6],
-  [83, 77, 4, 5],
-  [184, 69, 5, 6],
-];
-const HOLOGRAMS = [
-  [20, 71, 9, 13],
-  [172, 67, 8, 13],
-  [223, 74, 11, 14],
-];
-const FALLS = [
-  [115, 91, 5, 6],
-  [142, 82, 4, 5],
-  [158, 88, 5, 9],
-  [209, 94, 6, 3],
-];
-/** Volcano smoke (big puffs) and the geothermal station's steam (small). */
-const SMOKE = [
-  { x: 108, y: 13, d: 0 },
-  { x: 111, y: 13, d: 1.3 },
-  { x: 106, y: 13, d: 2.6 },
-  { x: 110, y: 13, d: 3.9 },
-  { x: 117, y: 31, d: 0.6, small: true },
-  { x: 117, y: 31, d: 2.4, small: true },
-  { x: 124, y: 33, d: 1.5, small: true },
-  { x: 124, y: 33, d: 3.3, small: true },
-];
-
-/** Wind turbine rotors on the two poles on the right (hub positions), turning at their own pace. */
-const ROTORS = [
-  { x: 207.5, y: 25, size: 15, speed: 7 },
-  { x: 228, y: 33, size: 13, speed: 9.5 },
-];
-
 /**
- * `hd` uses the 480x270 versions (laptop immersive mode, drawn at a whole or half number of
- * px per pixel); phones use the 240x135 ones. `onPlace` opens a panel from a hotspot.
+ * `hd` uses the twice-as-detailed images (laptops, and every v2 village); v1 phones use the
+ * 240x135 ones. `onPlace` opens a panel from a hotspot. `skyTop` (phones): the game row at the
+ * top of the visible scene, where the sky's sun, moon and clouds are drawn.
  */
-export function Backdrop({ fraction, blurFill = false, hd = false, onPlace, account }: { fraction: number; blurFill?: boolean; hd?: boolean; onPlace?: (p: Place) => void; account?: string }) {
-  const suf = hd ? '-hd' : '';
-  const src = (v: string) => `/assets/bg/village-${v}${suf}.png`;
+export function Backdrop({
+  fraction,
+  blurFill = false,
+  hd = false,
+  onPlace,
+  account,
+  village = V1,
+  skyTop,
+}: {
+  fraction: number;
+  blurFill?: boolean;
+  hd?: boolean;
+  onPlace?: (p: Place) => void;
+  account?: string;
+  village?: Village;
+  skyTop?: number;
+}) {
+  const v = village;
+  const v2 = v.key !== 'v1';
+  const at = (x: number, y: number, w: number, h: number) => boxIn(v, x, y, w, h);
+  const src = (light: 'day' | 'dusk' | 'night') => v.src(light, hd);
+  const rotorSrc = hd || v2 ? '/assets/bg/rotor-hd.png' : '/assets/bg/rotor.png';
   const hour = hourOf(fraction);
   const { night, dusk, tint } = skyMix(fraction);
   const vars = {
@@ -111,68 +99,78 @@ export function Backdrop({ fraction, blurFill = false, hd = false, onPlace, acco
     '--day': ((1 - dusk) * (1 - night)).toFixed(3),
     '--tint': tint.toFixed(3),
   };
+  // The 240x135 sky (sun, moon, clouds, birds, stars) keeps its shape: on the upright phone
+  // village it is drawn in a box from the top of the visible scene.
+  const skyH = (v.w * 135) / 240;
+  const skyBox = v.key === 'v2-phone' ? at(0, skyTop ?? v.h - skyH * 1.6, v.w, skyH) : at(0, 0, v.w, v.h);
 
   return (
-    <div class="backdrop" style={vars} aria-hidden={onPlace ? undefined : 'true'}>
+    <div class={`backdrop village-${v.key}`} style={vars} aria-hidden={onPlace ? undefined : 'true'}>
+      {/* v2: the sky's colour bands fill the whole scene, so the art (whose sky is transparent) never shows a seam. */}
+      {v2 && <SkyBands hour={hour} />}
       {blurFill && (
         // Full-window layout: whatever the sharp art does not cover shows a blurred copy of it.
         <div class="bg-blur">
-          <SkyBands hour={hour} />
+          {!v2 && <SkyBands hour={hour} />}
           <img src={src('day')} alt="" />
           <img class="bg-img-dusk" src={src('dusk')} alt="" />
           <img class="bg-img-night" src={src('night')} alt="" />
         </div>
       )}
-      {/* Above the art on phones: the top band of the sky. */}
-      <div class="bg-sky-fill" style={{ background: skyBands(hour)[0] }} />
+      {/* v1 phones: above the art, the top band of the sky. */}
+      {!v2 && <div class="bg-sky-fill" style={{ background: skyBands(hour)[0] }} />}
 
-      <div class="bg-art">
-        <SkyBack hour={hour} />
+      <div class="bg-art" style={{ aspectRatio: `${v.w} / ${v.h}`, '--art-w': String(v.w) }}>
+        <div class="sky-box" style={skyBox}>
+          <SkyBack hour={hour} bands={!v2} />
+        </div>
         <img class="bg-img" src={src('day')} alt="" />
         <img class="bg-img bg-img-dusk" src={src('dusk')} alt="" />
         <img class="bg-img bg-img-night" src={src('night')} alt="" />
 
         <div class="bg-fx">
-          {ROTORS.map((r, i) => (
+          {v.rotors.map((r, i) => (
             <span key={i} class="rotor" style={{ ...at(r.x - r.size / 2, r.y - r.size / 2, r.size, r.size), animationDuration: `${r.speed}s` }}>
-              <img src={`/assets/bg/rotor${suf}.png`} alt="" />
+              <img src={rotorSrc} alt="" />
             </span>
           ))}
-          <div class="train-clip" style={at(TRAIN_CLIP.x, TRAIN_CLIP.y, TRAIN_CLIP.w, TRAIN_CLIP.h)}>
-            <Train hd={hd} />
-          </div>
-          {SMOKE.map((s, i) => (
+          {v.rail && (
+            <div class="train-clip" style={at(v.rail.clip.x, v.rail.clip.y, v.rail.clip.w, v.rail.clip.h)}>
+              <Train hd={hd} rail={v.rail} />
+            </div>
+          )}
+          {v.smoke.map((s, i) => (
             <i key={i} class={`puff${s.small ? ' small' : ''}`} style={{ ...at(s.x, s.y, s.small ? 2 : 4, s.small ? 2 : 4), animationDelay: `${s.d}s` }} />
           ))}
-          {FALLS.map(([x, y, w, h], i) => (
+          {v.falls.map(([x, y, w, h], i) => (
             <i key={i} class="fall" style={{ ...at(x, y, w, h), animationDelay: `${i * 0.15}s` }} />
           ))}
-          {HOLOGRAMS.map(([x, y, w, h], i) => (
+          {v.holograms.map(([x, y, w, h], i) => (
             <i key={i} class="holo" style={{ ...at(x, y, w, h), animationDelay: `${i * 0.9}s` }} />
           ))}
-          {LANTERNS.map(([x, y, w, h], i) => (
+          {v.lanterns.map(([x, y, w, h], i) => (
             <i key={i} class="lamp" style={{ ...at(x - 2, y - 2, w + 4, h + 4), animationDelay: `${i * 0.7}s` }} />
           ))}
-          <i class="arena-ring" style={at(100, 54, 33, 6)} />
+          {v.arenaRing && <i class="arena-ring" style={at(...v.arenaRing)} />}
+          <VillageDarto v={v} />
+          <VillageRobot v={v} />
           {/* Quadcopters crossing the sky, each with a small shadow sliding over the fields. */}
-          <div class="flyby f1">
-            <span style={at(0, 30, 10, 5)}>
-              <Drone scale={1} class="mini" />
-            </span>
-            <i class="flyby-shadow" style={at(2, 102, 6, 1.5)} />
-          </div>
-          <div class="flyby f2">
-            <span style={at(0, 22, 10, 5)}>
-              <Drone scale={1} class="mini" />
-            </span>
-            <i class="flyby-shadow" style={at(2, 99, 6, 1.5)} />
-          </div>
+          {v.flyby.map(([sky, field], i) => (
+            <div key={i} class={`flyby f${i + 1}`}>
+              <span style={at(0, sky, 10, 5)}>
+                <Drone scale={1} class="mini" />
+              </span>
+              <i class="flyby-shadow" style={at(2, field, 6, 1.5)} />
+            </div>
+          ))}
         </div>
-        <SkyFront />
+        <div class="sky-box" style={skyBox}>
+          <SkyFront />
+        </div>
         <div class="bg-night-shade" />
-        {onPlace && <Hotspots onPlace={onPlace} account={account} />}
+        {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} />}
       </div>
-      {blurFill && <div class="bg-soil-ext" />}
+      {blurFill && <div class="bg-soil-ext" style={{ background: v.groundExt }} />}
 
       <div class="bg-tint" />
     </div>

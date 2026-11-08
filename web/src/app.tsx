@@ -11,7 +11,8 @@ import { RECORD_MODE } from './record';
 import { holdShareCards, ShareHost, shareMomentOnce } from './share';
 import { burnAt, coinsToBalance, confetti, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
-import { immersiveLayout } from './scene';
+import { laptopLayout } from './scene';
+import { bgVersion } from './art/village';
 import { Market, Shop, Storage, Village } from './panels';
 import { Sprite } from './sprites';
 import { signShopBurn, walletProof } from './wallet';
@@ -513,7 +514,7 @@ export function App() {
   };
   const goShop = () => (wide ? openSide('shop') : setTab('shop'));
   const goSell = () => (wide ? openSide('market') : setTab('market'));
-  const immersive = wide ? immersiveLayout(win.width, win.height, drawerOpen ? DRAWER_W : RAIL_W, BAR_H) : undefined;
+  const immersive = wide ? laptopLayout(win.width, win.height, drawerOpen ? DRAWER_W : RAIL_W, BAR_H, bgVersion()) : undefined;
   const garden = (
     <Garden
       state={state}

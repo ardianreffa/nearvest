@@ -1,15 +1,15 @@
-// Full-window (immersive) garden layout for laptops and PCs. Pure math, unit-tested in web/test/layout.test.ts.
+// Garden layouts: the full-window (immersive) garden on laptops and PCs, and the phone garden.
+// Pure math, unit-tested in web/test/layout.test.ts.
+
+import { V1, V2_PHONE, V2_WEB, type Village } from './art/village.ts';
 
 export const ART_W = 240;
 export const ART_H = 135;
-/** Art rows: grass ends at 103, the beds sit on rows 104-110. */
-const SOIL_TOP_ROW = 104;
-const BED_ROWS = 7;
 
 export interface Immersive {
   /**
-   * CSS px per pixel of the 240x135 art grid (trees and plots use it). The
-   * laptop backdrop is the 480x270 HD image at k / 2 px per pixel (a whole or half step).
+   * CSS px per game pixel (trees, plots and TaniBot use it). The backdrop images are twice as
+   * detailed and drawn at k / 2 px per image pixel (a whole or half step).
    */
   k: number;
   artLeft: number;
@@ -17,60 +17,117 @@ export interface Immersive {
   stageLeft: number;
   stageRight: number;
   stageBottom: number;
+  /** The village art drawn (grid size and positions of everything in it). */
+  village: Village;
 }
 
+/** Room the side menu leaves on the right: its width plus its margin and a small gap. */
+const sideRoom = (drawerWidth: number) => drawerWidth + 16;
+
 /**
- * Picks the pixel scale for a full-window garden: cover the window when that
- * crops at most 20% of the width, otherwise fit it (the rest is filled with a
- * blurred copy of the backdrop). The plots get a stage that avoids the open
- * drawer and the action bar.
+ * Picks the pixel scale for a full-window garden.
  *
- * The HD backdrop (480x270) scales in half steps (3, 3.5, 4 ...), so k (the
- * 240-grid scale of trees, plots and TaniBot) is always a whole number. Half
- * steps let 16:10 screens such as 1440x900 (fullscreen) be covered at 3.5x
- * instead of shrinking to 3x with blurred bars; on retina screens (2 device
- * pixels per CSS pixel) a half step is still pixel-exact.
+ * v2 (the symmetric village): the biggest whole-number scale at which the whole village (Shop
+ * to the Friends house) fits left of the side menu (open drawer or icon rail) and the towers
+ * fit under the top of the window, with the plots above the action bar. The art is placed so
+ * the village sits in the free room; any spare room shows the sky or a blurred copy.
+ *
+ * v1 (the first village, ?bg=v1): cover the window when that crops at most 20% of the width,
+ * otherwise fit it (the rest is filled with a blurred copy of the backdrop). The HD backdrop
+ * (480x270) scales in half steps (3, 3.5, 4 ...), so k is always a whole number; on retina
+ * screens a half step is still pixel-exact.
  */
-export function immersiveLayout(width: number, height: number, drawerWidth: number, barHeight: number): Immersive {
-  const hdW = ART_W * 2;
-  const hdH = ART_H * 2;
+export function immersiveLayout(width: number, height: number, drawerWidth: number, barHeight: number, village: Village = V1): Immersive {
+  const v = village;
+  const bedBottomRows = v.h - v.bedRow;
+  const lift = (k: number) => Math.max(0, barHeight + 16 - bedBottomRows * k);
+
+  if (v.focus) {
+    const f = v.focus;
+    const freeLeft = 0;
+    const freeRight = width - sideRoom(drawerWidth);
+    let k = 2;
+    for (let t = 2; t <= 16; t++) {
+      const fitsW = (f.x1 - f.x0) * t <= freeRight - freeLeft;
+      const fitsH = (v.h - f.top) * t + lift(t) <= height - 24;
+      if (fitsW && fitsH) k = t;
+    }
+    const artW = v.w * k;
+    const lo = freeLeft - f.x0 * k;
+    const hi = freeRight - f.x1 * k;
+    // The village in the middle of the free room, then nudged so the art covers the window's
+    // left edge and reaches the side menu (an open drawer hides everything behind it).
+    const coverRight = drawerWidth > 100 ? freeRight : width;
+    let artLeft = Math.round(Math.min(hi, Math.max(lo, (freeLeft + freeRight) / 2 - ((f.x0 + f.x1) / 2) * k)));
+    if (artLeft > 0) artLeft = Math.max(lo, 0);
+    if (artLeft + artW < coverRight && artLeft < 0) artLeft = Math.min(hi, 0, coverRight - artW);
+    const artBottom = lift(k);
+    return {
+      k,
+      artLeft,
+      artBottom,
+      stageLeft: artLeft + v.stage[0] * k,
+      stageRight: width - (artLeft + v.stage[1] * k),
+      stageBottom: artBottom + bedBottomRows * k,
+      village: v,
+    };
+  }
+
+  const hdW = v.w * 2;
+  const hdH = v.h * 2;
   const half = (n: number) => n / 2;
   const cover = half(Math.ceil(2 * Math.max(width / hdW, height / hdH)));
   const fit = Math.max(1, half(Math.floor(2 * Math.min(width / hdW, height / hdH))));
   const hdScale = (hdW * cover - width) / width <= 0.2 ? cover : fit;
   const k = hdScale * 2;
-  const artW = ART_W * k;
+  const artW = v.w * k;
   const artLeft = Math.round((width - artW) / 2);
-  const bedBottom = (ART_H - SOIL_TOP_ROW - BED_ROWS) * k;
+  const bedBottom = bedBottomRows * k;
   // Lift the art if the action bar would cover the beds (the soil continues below).
-  const artBottom = Math.max(0, barHeight + 16 - bedBottom);
+  const artBottom = lift(k);
   const margin = Math.round(artW * 0.11);
   const stageLeft = Math.max(24, artLeft + margin);
   const stageRight = Math.max(drawerWidth > 0 ? drawerWidth + 36 : 24, width - (artLeft + artW) + margin);
-  return { k, artLeft, artBottom, stageLeft, stageRight, stageBottom: artBottom + bedBottom };
+  return { k, artLeft, artBottom, stageLeft, stageRight, stageBottom: artBottom + bedBottom, village: v };
 }
 
-/** Phone garden: the scene box and the art inside it (wider than the screen, panned sideways). */
+/** The laptop layout of the village version in use. */
+export function laptopLayout(width: number, height: number, drawerWidth: number, barHeight: number, version: 'v1' | 'v2'): Immersive {
+  return immersiveLayout(width, height, drawerWidth, barHeight, version === 'v1' ? V1 : V2_WEB);
+}
+
+/** Phone garden: the scene box (as wide as the screen) and the upright art inside it. */
 export interface PhoneZoom extends Immersive {
   sceneW: number;
   sceneH: number;
 }
 
+/** Game rows the phone scene always shows: from just above the towers to the bottom. */
+export const PHONE_SHOWN_FROM = 66;
+/** Room above and below the phone scene: top HUD, the plot sheet (at most 25%), the tab bar. */
+const phoneRoom = (height: number) => height - 130 - Math.round(height * 0.25) - 68 - 16;
+
 /**
- * Phones (below 1024 px): a "game first" garden. The scene takes about 55% of the screen height
- * and the art is drawn at a whole-number scale (3 px per pixel on most phones, so trees are 3 px
- * per tree pixel). The art is wider than the screen: the scene box is as wide as the art and the
- * page pans it sideways (the selected plot is scrolled into view).
+ * Phones (below 1024 px): the upright village fits the screen's width at a whole-number scale
+ * (3 px per game pixel on 360 - 440 px phones), with the whole village and all three plots in
+ * view at once (no panning). The art sits on the scene's bottom edge; the scene grows to fill
+ * the room above the sheet, showing more sky.
  */
-export function phoneLayout(width: number, height: number): PhoneZoom {
-  // Room left for the top HUD (about 120 px), the sheet (about 25%) and the tabs (about 70 px):
-  // the scale is the biggest whole number whose art fits in about 53% of the height.
-  const k = Math.min(4, Math.max(2, Math.floor((height * 0.53) / ART_H)));
-  const sceneH = Math.max(ART_H * k, Math.round(height * 0.5));
-  const artW = ART_W * k;
-  const sceneW = Math.max(artW, Math.round(width));
-  const artLeft = Math.round((sceneW - artW) / 2);
-  const bedBottom = (ART_H - SOIL_TOP_ROW - BED_ROWS) * k;
-  const margin = Math.round(artW * 0.11);
-  return { k, artLeft, artBottom: 0, stageLeft: artLeft + margin, stageRight: sceneW - artLeft - artW + margin, stageBottom: bedBottom, sceneW, sceneH };
+export function phoneLayout(width: number, height: number, village: Village = V2_PHONE): PhoneZoom {
+  const v = village;
+  const shown = v.h - PHONE_SHOWN_FROM;
+  const k = Math.min(6, Math.max(2, Math.min(Math.floor(width / v.w), Math.floor(phoneRoom(height) / shown))));
+  const artW = v.w * k;
+  const artLeft = Math.round((width - artW) / 2);
+  return {
+    k,
+    artLeft,
+    artBottom: 0,
+    stageLeft: artLeft + v.stage[0] * k,
+    stageRight: width - (artLeft + v.stage[1] * k),
+    stageBottom: (v.h - v.bedRow) * k,
+    village: v,
+    sceneW: Math.round(width),
+    sceneH: shown * k,
+  };
 }

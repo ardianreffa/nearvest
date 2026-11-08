@@ -74,12 +74,12 @@ export function SkyBands({ hour }: { hour: number }) {
   return <div class="sky-bands" style={{ background: skyBackground(skyBands(hour)) }} />;
 }
 
-/** Everything behind the village. */
-export function SkyBack({ hour }: { hour: number }) {
+/** Everything behind the village (`bands` = false: the colour bands are drawn by the scene). */
+export function SkyBack({ hour, bands = true }: { hour: number; bands?: boolean }) {
   const { sun, moon } = celestial(hour);
   return (
     <div class="sky" aria-hidden="true">
-      <SkyBands hour={hour} />
+      {bands && <SkyBands hour={hour} />}
       <div class="sky-night">
         {STARS.map((s, i) => (
           <i key={i} class={`star${s.big ? ' big' : ''}`} style={{ ...at(s.x, s.y, s.big ? 1.5 : 1, s.big ? 1.5 : 1), animationDelay: `${s.d}s` }} />

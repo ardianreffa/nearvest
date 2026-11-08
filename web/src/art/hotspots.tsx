@@ -1,6 +1,6 @@
-// Clickable places in the village backdrop (art pixels of the 240x135 image), each with a
-// small pin that is always visible (icon + short name, gently bobbing), so players know
-// which buildings can be opened.
+// Clickable places in the village backdrop (game pixels of the village's grid, village.ts),
+// each with a small pin that is always visible (icon + short name, gently bobbing), so players
+// know which buildings can be opened.
 // Laptop (a mouse): hovering a place or its pin lights the building's outline, enlarges the
 // pin and shows the full label; a click opens it. Phone (touch): the first tap shows a bubble
 // with an "Open" button. Places that are not built yet (garden visits, the Arena) say "Soon".
@@ -10,15 +10,11 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Sprite, type SpriteName } from '../sprites';
-import { at } from './sky';
+import { boxIn, V1, type Box, type Spot, type Village } from './village';
 
 export type Place = 'shop' | 'market' | 'village';
-type Spot = 'shop' | 'market' | 'village' | 'friends' | 'arena';
 
 interface SpotInfo {
-  box: [number, number, number, number];
-  /** Where the pin points (art px): above the building, or on its body (the tall tower). */
-  pin: [number, number];
   /** Pin name (laptop) and its short form (phones). */
   name: string;
   short: string;
@@ -30,13 +26,11 @@ interface SpotInfo {
 }
 
 const SPOTS: Record<Spot, SpotInfo> = {
-  shop: { box: [28, 63, 26, 27], pin: [41, 63], name: 'Shop', short: 'Shop', label: 'Village Shop: seeds and fertilizer', icon: 'seedPacket', open: 'shop' },
-  // The house with the solar roof between the Shop and the middle (the middle house is often
-  // behind the plot 2 tree).
-  market: { box: [76, 58, 21, 16], pin: [86.5, 58], name: 'Market', short: 'Market', label: "Mr. Darto's Market", icon: 'darto', open: 'market' },
-  village: { box: [155, 11, 24, 40], pin: [167, 30], name: 'Village Stats', short: 'Stats', label: 'Farm tower: Village Stats', icon: 'bolt', open: 'village' },
-  friends: { box: [196, 56, 42, 37], pin: [217, 56], name: 'Friends', short: 'Friends', label: 'Visit friends: coming soon', icon: 'sprout', open: null },
-  arena: { box: [99, 51, 35, 16], pin: [116.5, 51], name: 'Arena', short: 'Arena', label: 'Arena: 1v1 duels for PANEN, coming soon', icon: 'sparkle', open: null },
+  shop: { name: 'Shop', short: 'Shop', label: 'Village Shop: seeds and fertilizer', icon: 'seedPacket', open: 'shop' },
+  market: { name: 'Market', short: 'Market', label: "Mr. Darto's Market", icon: 'darto', open: 'market' },
+  village: { name: 'Village Stats', short: 'Stats', label: 'Farm towers: Village Stats', icon: 'bolt', open: 'village' },
+  friends: { name: 'Friends', short: 'Friends', label: 'Visit friends: coming soon', icon: 'sprout', open: null },
+  arena: { name: 'Arena', short: 'Arena', label: 'Arena: 1v1 duels for PANEN, coming soon', icon: 'sparkle', open: null },
 };
 const IDS = Object.keys(SPOTS) as Spot[];
 /** Whole-number scales so every pin icon is about 16 px and stays sharp. */
@@ -46,8 +40,8 @@ const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2
 const OBSTACLES =
   '.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .topbar, .toasts, .bot-spot .tanibot, .bot-hint, .bot-status, .badge, .plot-art, .soil, .garden-sheet';
 
-/** Where the train runs (art px boxes just above the rail): pins stay clear of it. */
-const RAIL_BAND: [number, number, number, number][] = [
+/** Where the first village's train runs (boxes just above the rail): pins stay clear of it. */
+const RAIL_BAND_V1: Box[] = [
   [118, 54, 27, 11],
   [145, 50, 20, 10],
   [165, 46, 20, 10],
@@ -55,6 +49,19 @@ const RAIL_BAND: [number, number, number, number][] = [
   [200, 41, 15, 8],
   [215, 40, 12, 8],
 ];
+
+/** Boxes just above a village's rail (where the train runs). */
+function railBand(v: Village): Box[] {
+  if (v.key === 'v1') return RAIL_BAND_V1;
+  if (!v.rail) return [];
+  const [[x0, y0], [x1, y1]] = [v.rail.points[0], v.rail.points[v.rail.points.length - 1]];
+  const boxes: Box[] = [];
+  for (let x = Math.max(x0, v.rail.clip.x); x < x1; x += 12) {
+    const top = Math.min(y0 + ((y1 - y0) * (x - x0)) / (x1 - x0), y0 + ((y1 - y0) * (x + 12 - x0)) / (x1 - x0));
+    boxes.push([x, top - 6, 12, 7]);
+  }
+  return boxes;
+}
 
 const canHover = () => typeof matchMedia === 'function' && matchMedia('(hover: hover) and (pointer: fine)').matches;
 
@@ -77,8 +84,7 @@ function safeAreaTop(): number {
  * at the top (under the top HUD and the phone's safe area).
  */
 function visibleArea(host: HTMLElement): Rect {
-  // Phones: the visible part is the panning box, not the (wider) scene inside it.
-  const scene = (host.closest('.scene-pan') ?? host.closest('.scene') ?? host).getBoundingClientRect();
+  const scene = (host.closest('.scene') ?? host).getBoundingClientRect();
   const safeTop = safeAreaTop();
   let top = Math.max(scene.top, safeTop);
   for (const el of document.querySelectorAll('.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys')) {
@@ -94,13 +100,13 @@ function visibleArea(host: HTMLElement): Rect {
   return { left: Math.max(scene.left, 0) + 4, top, right: right - 4, bottom: Math.min(scene.bottom, window.innerHeight) - 4 };
 }
 
-function obstacleRects(host: HTMLElement): Rect[] {
+function obstacleRects(host: HTMLElement, v: Village): Rect[] {
   const hr = host.getBoundingClientRect();
-  const rail = RAIL_BAND.map(([x, y, w, h]) => ({
-    left: hr.left + (x / 240) * hr.width,
-    top: hr.top + (y / 135) * hr.height,
-    right: hr.left + ((x + w) / 240) * hr.width,
-    bottom: hr.top + ((y + h) / 135) * hr.height,
+  const rail = railBand(v).map(([x, y, w, h]) => ({
+    left: hr.left + (x / v.w) * hr.width,
+    top: hr.top + (y / v.h) * hr.height,
+    right: hr.left + ((x + w) / v.w) * hr.width,
+    bottom: hr.top + ((y + h) / v.h) * hr.height,
   }));
   return [...[...document.querySelectorAll(OBSTACLES)].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0), ...rail];
 }
@@ -109,12 +115,12 @@ function obstacleRects(host: HTMLElement): Rect[] {
  * Places `el` (absolutely positioned in `host`) near the art point (x, y): above it first, then
  * nudged sideways or a little lower, so it is fully visible and covers nothing important.
  */
-function place(el: HTMLElement, host: HTMLElement, x: number, y: number, area: Rect, obstacles: Rect[], below = false, onBody = false) {
+function place(el: HTMLElement, host: HTMLElement, v: Village, x: number, y: number, area: Rect, obstacles: Rect[], below = false, onBody = false) {
   const hr = host.getBoundingClientRect();
   const w = el.offsetWidth;
   const h = el.offsetHeight;
-  const ax = hr.left + (x / 240) * hr.width;
-  const ay = hr.top + (y / 135) * hr.height;
+  const ax = hr.left + (x / v.w) * hr.width;
+  const ay = hr.top + (y / v.h) * hr.height;
   const dxs = [0, -16, 16, -32, 32, -56, 56, -88, 88, -128, 128];
   const dys = below ? [6, 24, 44] : onBody ? [-h / 2, -h / 2 - 16, -h / 2 + 16, -h / 2 + 32] : [-h - 4, -h - 18, 2, 18];
   let best: { l: number; t: number } | null = null;
@@ -137,7 +143,8 @@ function place(el: HTMLElement, host: HTMLElement, x: number, y: number, area: R
   el.style.top = `${best!.t - hr.top}px`;
 }
 
-export function Hotspots({ onPlace, account }: { onPlace: (p: Place) => void; account?: string }) {
+export function Hotspots({ onPlace, account, village = V1 }: { onPlace: (p: Place) => void; account?: string; village?: Village }) {
+  const v = village;
   const [bubble, setBubble] = useState<Spot | null>(null);
   const [hover, setHover] = useState<Spot | null>(null);
   const [hint, setHint] = useState(false);
@@ -172,39 +179,29 @@ export function Hotspots({ onPlace, account }: { onPlace: (p: Place) => void; ac
       const h = host.current;
       if (!h) return;
       const area = visibleArea(h);
-      const obstacles = obstacleRects(h);
+      const obstacles = obstacleRects(h, v);
       const placed: Rect[] = [];
       for (const id of IDS) {
         const el = pins.current[id];
         if (!el) continue;
-        const [x, y] = SPOTS[id].pin;
-        // Phones pan the village: a pin whose building is out of view waits until it scrolls in.
-        const hr = h.getBoundingClientRect();
-        const ax = hr.left + (x / 240) * hr.width;
-        const inView = ax > area.left - 12 && ax < area.right + 12;
-        el.style.visibility = inView ? '' : 'hidden';
-        if (!inView) continue;
-        place(el, h, x, y, area, [...obstacles, ...placed], false, id === 'village');
+        const { pin: [x, y], onBody } = v.spots[id];
+        place(el, h, v, x, y, area, [...obstacles, ...placed], false, !!onBody);
         placed.push(el.getBoundingClientRect());
       }
       if (bubble && bubbleEl.current) {
-        const [x, y, w, bh] = SPOTS[bubble].box;
-        const below = y < 30;
-        place(bubbleEl.current, h, x + w / 2, below ? y + bh : y, area, obstacles.filter((o) => !bubbleEl.current!.contains(document.elementFromPoint(o.left + 1, o.top + 1))), below);
+        const [x, y, w, bh] = v.spots[bubble].box;
+        const below = y < v.h * 0.22;
+        place(bubbleEl.current, h, v, x + w / 2, below ? y + bh : y, area, obstacles.filter((o) => !bubbleEl.current!.contains(document.elementFromPoint(o.left + 1, o.top + 1))), below);
       }
     };
     layout();
     window.addEventListener('resize', layout);
-    // Phones: re-place the pins while the village is panned sideways.
-    const pan = host.current?.closest('.scene-pan');
-    pan?.addEventListener('scroll', layout, { passive: true });
     const t = setInterval(layout, 1000);
     return () => {
       window.removeEventListener('resize', layout);
-      pan?.removeEventListener('scroll', layout);
       clearInterval(t);
     };
-  }, [bubble, hover]);
+  }, [bubble, hover, v]);
 
   const tap = (id: Spot) => {
     const s = SPOTS[id];
@@ -224,7 +221,7 @@ export function Hotspots({ onPlace, account }: { onPlace: (p: Place) => void; ac
           <button
             key={id}
             class={`hotspot hs-${id}${lit ? ' active' : ''}`}
-            style={at(...s.box)}
+            style={boxIn(v, ...v.spots[id].box)}
             onClick={() => tap(id)}
             onMouseEnter={() => setHover(id)}
             onMouseLeave={() => setHover((h) => (h === id ? null : h))}

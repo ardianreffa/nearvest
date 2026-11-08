@@ -31,6 +31,10 @@ interface Lane {
 }
 const LANE_NORMAL: Lane = { left: 11, width: 78, botOffset: 14 };
 const LANE_STAGE: Lane = { left: 0, width: 100, botOffset: 18 };
+/** v2 laptop: TaniBot stands in the grass between two plots, clear of both mounds. */
+const LANE_V2: Lane = { left: 0, width: 100, botOffset: 16 };
+/** v2 phone: TaniBot stands on the grass in front of (below) the selected plot. */
+const LANE_PHONE: Lane = { left: 0, width: 100, botOffset: 6 };
 
 /** Horizontal center of a plot in % of the scene (or stage) width. */
 function plotCenter(plot: number, lane: Lane): number {
@@ -44,8 +48,9 @@ function botX(plot: number, lane: Lane): number {
 
 // ---------- Immersive layout (laptop / PC): web/src/layout.ts ----------
 
-export { ART_H, ART_W, immersiveLayout, type Immersive } from './layout';
+export { ART_H, ART_W, immersiveLayout, laptopLayout, type Immersive } from './layout';
 import type { Immersive, PhoneZoom } from './layout';
+import { Mound, MOUND } from './art/mound';
 
 /** Dev builds only: ?time=day / dusk / night locks the village clock (screenshots and video). */
 const TIME_LOCKED = import.meta.env.DEV && typeof location !== 'undefined' ? lockedFraction(location.search) : null;
@@ -76,11 +81,16 @@ interface Props {
 
 export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive: wideLayout, onBot, onPlace, phone }: Props) {
   const immersive = wideLayout ?? phone;
-  // Trees use the same pixel size as the backdrop: 2 on phones, 3 on the wide
-  // layout, k in the immersive layout.
+  const village = immersive?.village;
+  const v2 = !!village && village.key !== 'v1';
+  // Trees use the game pixel size: 2 on v1 phones, 3 on the wide layout, k in the immersive
+  // layouts (laptop and v2 phones).
   const px = immersive ? immersive.k : big ? 3 : 2;
-  const botScale = immersive ? Math.max(1, Math.round(immersive.k / 2)) : big ? 2 : 1;
-  const lane = immersive ? LANE_STAGE : LANE_NORMAL;
+  // TaniBot: half the tree pixel on v1 laptops; smaller on v2 so it never covers the next
+  // plot; its 58 px size on phones (it stands on the grass in front of the selected plot).
+  const botScale = phone ? 1 : immersive ? Math.max(1, Math.round(immersive.k / (v2 ? 3 : 2))) : big ? 2 : 1;
+  const lane = phone && v2 ? LANE_PHONE : v2 ? LANE_V2 : immersive ? LANE_STAGE : LANE_NORMAL;
+  const mound = village?.key === 'v2-phone' ? MOUND.phone : village?.mounds ? MOUND.web : null;
   // Dev builds: ?time=day / dusk / night locks the village clock (screenshots and video).
   const fraction = TIME_LOCKED ?? 1 - Math.max(0, state.clock.msUntilNextDay - elapsed) / state.clock.dayLengthMs;
   const phase = phaseOf(fraction);
@@ -112,12 +122,22 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
               '--k': String(immersive.k),
               '--art-left': `${immersive.artLeft}px`,
               '--art-bottom': `${immersive.artBottom}px`,
+              '--art-w': String(immersive.village.w),
+              ...(mound ? { '--soil-h': `${mound.h * immersive.k}px` } : {}),
               ...(phone ? { width: `${phone.sceneW}px`, height: `${phone.sceneH}px` } : {}),
             }
           : undefined
       }
     >
-      <Backdrop fraction={fraction} blurFill={!!immersive && !phone} hd={!!immersive} onPlace={onPlace} account={state.player.accountId} />
+      <Backdrop
+        fraction={fraction}
+        blurFill={!!immersive && (!phone || phone.sceneW > phone.village.w * phone.k)}
+        hd={!!immersive}
+        onPlace={onPlace}
+        account={state.player.accountId}
+        village={village}
+        skyTop={phone ? Math.max(0, phone.village.h - phone.sceneH / phone.k) : undefined}
+      />
 
       <Stage immersive={immersive}>
       <div class="plots">
@@ -132,7 +152,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
             >
               <div class={`plot-art${p.tree?.isFertilized && p.tree.fertMsLeft - elapsed > 0 ? ' fertilized' : ''}`}>
                 {p.locked ? (
-                  <Sprite name="lock" scale={px * 2} title="Locked" />
+                  <Sprite name="lock" scale={mound ? px : px * 2} title="Locked" />
                 ) : p.tree ? (
                   <TreePixels species={p.tree.species} stage={p.tree.stage} quality={p.tree.quality} scale={px} seed={p.tree.tokenId ?? p.tree.id} />
                 ) : (
@@ -153,7 +173,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
                   </span>
                 )}
               </div>
-              <div class="soil">
+              <div class={`soil${mound ? ' mound' : ''}${p.tree?.isWatered ? ' watered' : ''}`}>
+                {mound && <Mound size={mound} scale={px} kind={p.locked ? 'locked' : p.tree?.isWatered ? 'wet' : 'dry'} />}
                 {fx?.kind === 'plant' && fx.plot === p.plot && <span class="soil-glow" key={fx.id} />}
               </div>
             </button>
@@ -168,7 +189,15 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           <i />
         </span>
       )}
-      <div class={`bot-spot tier-${tier} ${motion.cls}${evolving ? ' evolving' : ''}`} style={{ left: `${bx}%`, '--bot-w': `${TANIBOT_W * botScale}px` }}>
+      <div
+        class={`bot-spot tier-${tier} ${motion.cls}${evolving ? ' evolving' : ''}${phone && v2 ? ' bot-front' : ''}`}
+        style={{
+          left: `${bx}%`,
+          '--bot-w': `${TANIBOT_W * botScale}px`,
+          // Phones: on the grass in front of the plots (its head just under the mounds).
+          ...(phone && v2 ? { bottom: `${-(phone.village.h - phone.village.bedRow - 0.5) * phone.k}px` } : {}),
+        }}
+      >
         {on && (
           <span class="bot-jet" aria-hidden="true">
             <b />

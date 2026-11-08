@@ -1359,7 +1359,8 @@ button {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(76px + env(safe-area-inset-bottom));
+  /* Phones' Garden: above the plot sheet (PhoneGarden sets --sheet-room). */
+  bottom: var(--sheet-room, calc(76px + env(safe-area-inset-bottom)));
   width: calc(100% - 32px);
   max-width: 398px;
   display: flex;
@@ -2711,7 +2712,7 @@ input:focus-visible {
 }
 
 .immersive-scene .bg-art {
-  width: calc(240px * var(--k));
+  width: calc(var(--art-w, 240) * var(--k) * 1px);
   left: var(--art-left);
   bottom: var(--art-bottom);
   transform: none;
@@ -7363,21 +7364,20 @@ button.chip:focus-visible {
   gap: 8px;
 }
 
-.scene-pan {
-  /* Edge to edge on the phone; only this box scrolls sideways, never the page. */
+.phone-scene-box {
+  /* Edge to edge on the phone; the whole village fits (no sideways panning). */
   margin: 0 -16px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  touch-action: pan-x pan-y;
+  overflow: clip;
   border-top: var(--px) solid #000;
   border-bottom: var(--px) solid #000;
   box-shadow: 0 0 18px rgba(0, 236, 151, 0.18);
 }
 
-.scene-pan::-webkit-scrollbar {
-  display: none;
+.phone-scene-box.v1 {
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .scene.phone-scene {
@@ -7520,4 +7520,364 @@ button.chip:focus-visible {
 
 .plot-sheet.plain .panel-head h2 {
   font-size: 17px;
+}
+
+
+/* =====================================================================
+   v2 village (art/village.ts): sky box, soil mounds, Mr. Darto at his stand, the little robot.
+   ===================================================================== */
+
+.sky-box {
+  position: absolute;
+  pointer-events: none;
+}
+
+.village-v2-web > .sky-bands,
+.village-v2-phone > .sky-bands {
+  z-index: 0;
+}
+
+/* Plots: a pixel mound of soil on the grass instead of a wooden bed. */
+.soil.mound {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  display: flex;
+  justify-content: center;
+}
+
+.soil.mound::after {
+  content: none;
+}
+
+.soil.mound svg {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.soil.mound .mound-front {
+  z-index: 2;
+}
+
+.plot.selected .soil.mound,
+.plot.locked.selected .soil.mound {
+  border: 0;
+  box-shadow: none;
+}
+
+.plot.selected .soil.mound svg {
+  filter: drop-shadow(0 calc(var(--px) * -1) 0 var(--mint)) drop-shadow(0 0 6px var(--mint));
+}
+
+.plot.selected .soil.mound .mound-front {
+  filter: drop-shadow(0 var(--px) 0 var(--mint)) drop-shadow(0 0 6px rgba(0, 236, 151, 0.8));
+}
+
+/* Fertilized: a soft green glow that breathes. */
+.plot-art.fertilized + .soil.mound .mound-back {
+  animation: mound-fert 1.6s steps(4) infinite;
+}
+
+@keyframes mound-fert {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 3px #8fe36b);
+  }
+  50% {
+    filter: drop-shadow(0 0 9px #b6ed08);
+  }
+}
+
+.plot.selected .plot-art.fertilized + .soil.mound .mound-back {
+  animation: none;
+  filter: drop-shadow(0 calc(var(--px) * -1) 0 var(--mint)) drop-shadow(0 0 8px #b6ed08);
+}
+
+.immersive-scene .plot.locked .soil.mound {
+  background: none;
+}
+
+/* Phones: TaniBot stands on the grass in front of the selected plot. */
+.stage .bot-spot.bot-front {
+  z-index: 4;
+}
+
+/* Mr. Darto at his fruit stand: idle, with a short wave every 9 seconds. */
+.village-darto,
+.village-robot {
+  position: absolute;
+  pointer-events: none;
+}
+
+.village-darto svg {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.village-darto .vd-wave {
+  opacity: 0;
+  animation: vd-wave 9s steps(1) infinite;
+}
+
+.village-darto .vd-idle {
+  animation: vd-idle 9s steps(1) infinite;
+}
+
+@keyframes vd-wave {
+  0%,
+  82% {
+    opacity: 0;
+  }
+  83%,
+  97% {
+    opacity: 1;
+  }
+}
+
+@keyframes vd-idle {
+  0%,
+  82% {
+    opacity: 1;
+  }
+  83%,
+  97% {
+    opacity: 0;
+  }
+}
+
+/* The little robot near the Friends house: floats, blinks, waves now and then;
+   at night it drifts home to the door and dims. */
+.village-robot {
+  transform: translateX(calc(var(--night) * var(--home-dx)));
+  opacity: calc(1 - 0.6 * var(--night));
+  transition:
+    transform 1.2s steps(8),
+    opacity 1s linear;
+}
+
+.vr-body {
+  position: absolute;
+  inset: 0;
+  animation: vr-float 3s steps(2) infinite;
+}
+
+.vr-body > svg,
+.vr-arm,
+.vr-arm svg {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  image-rendering: pixelated;
+}
+
+.vr-body > svg {
+  top: 0;
+}
+
+.vr-arm svg {
+  top: 0;
+  height: 100%;
+}
+
+.vr-shut {
+  opacity: 0;
+  animation: vr-blink 4.2s steps(1) infinite;
+}
+
+.vr-jets {
+  animation: vr-jets 0.5s steps(2) infinite;
+}
+
+.vr-arm-up {
+  opacity: 0;
+  animation: vr-wave 7s steps(1) infinite;
+}
+
+.vr-arm-down {
+  animation: vr-wave-down 7s steps(1) infinite;
+}
+
+@keyframes vr-float {
+  50% {
+    transform: translateY(-8%);
+  }
+}
+
+@keyframes vr-blink {
+  0%,
+  94% {
+    opacity: 0;
+  }
+  95%,
+  98% {
+    opacity: 1;
+  }
+}
+
+@keyframes vr-jets {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes vr-wave {
+  0%,
+  80% {
+    opacity: 0;
+  }
+  81%,
+  84%,
+  89%,
+  92% {
+    opacity: 1;
+  }
+  85%,
+  88%,
+  93% {
+    opacity: 0;
+  }
+}
+
+@keyframes vr-wave-down {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  81%,
+  84%,
+  89%,
+  92% {
+    opacity: 0;
+  }
+  85%,
+  88%,
+  93% {
+    opacity: 1;
+  }
+}
+
+/* At night the robot rests at the door: no waving, slow float. */
+.phase-night .vr-arm-up {
+  animation: none;
+}
+
+.phase-night .vr-arm-down {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .village-darto .vd-wave,
+  .village-darto .vd-idle,
+  .vr-body,
+  .vr-shut,
+  .vr-jets,
+  .vr-arm-up,
+  .vr-arm-down {
+    animation: none;
+  }
+
+  .village-robot {
+    transition: none;
+  }
+}
+
+/* Phones: smaller tree labels and "Plant" hints on the upright village. */
+.phone-scene .badge {
+  font-size: 12px;
+  padding: 1px 6px;
+}
+
+.phone-scene .empty-hint {
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+/* Mounds at dusk and night: darker, like the village around them. */
+.phase-dusk .soil.mound svg {
+  filter: brightness(0.85) sepia(0.15);
+}
+
+.phase-night .soil.mound svg {
+  filter: brightness(0.6) saturate(0.85);
+}
+
+.phase-night .plot.selected .soil.mound svg {
+  filter: brightness(0.6) saturate(0.85) drop-shadow(0 calc(var(--px) * -1) 0 var(--mint)) drop-shadow(0 0 6px var(--mint));
+}
+
+.phase-dusk .plot.selected .soil.mound svg {
+  filter: brightness(0.85) drop-shadow(0 calc(var(--px) * -1) 0 var(--mint)) drop-shadow(0 0 6px var(--mint));
+}
+
+/* Phones: an empty plot's seeds are one row of small cards (the note is behind "?"). */
+.plot-sheet.plain {
+  max-height: 25vh;
+}
+
+.plot-sheet.plain .panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plot-sheet.plain .panel-head h2 {
+  flex: 1;
+}
+
+.plot-sheet .seed-row {
+  grid-auto-columns: max-content;
+  gap: 6px;
+  padding: 0 2px 4px;
+}
+
+.plot-sheet .seed-card {
+  flex-direction: row;
+  gap: 6px;
+  min-height: 44px;
+  padding: 4px 8px 4px 4px;
+}
+
+.plot-sheet .seed-card-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.plot-sheet .seed-card-icon svg {
+  width: 20px;
+  height: auto;
+}
+
+.plot-sheet .seed-card-name {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.plot-sheet .seed-q {
+  font-size: 10px;
+  padding: 2px 5px;
+}
+
+.plot-sheet .seed-card-from {
+  display: none;
+}
+
+.plot-sheet .seed-note {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+/* Under a lifted art: the ground continues, darker at dusk and night like the village. */
+.bg-soil-ext::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 14, 40, calc(var(--night) * 0.55 + var(--dusk) * 0.15));
 }

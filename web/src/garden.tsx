@@ -5,6 +5,7 @@ import type { Place } from './art/hotspots';
 import type { GameState, Quality, ServerConfig } from './api';
 import { floatText } from './fx';
 import { phoneLayout } from './layout';
+import { bgVersion } from './art/village';
 import { seasonPayout } from './qty';
 import { GardenScene, type ActionKind, type Immersive, type SceneFx } from './scene';
 import { Sprite } from './sprites';
@@ -144,8 +145,9 @@ function useWindowSize() {
 }
 
 /**
- * Phones: "game first". The zoomed garden fills about 55% of the screen and pans sideways (the
- * selected plot scrolls into view); the selected plot's panel is a compact sheet above the tabs.
+ * Phones: "game first". The upright village fits the screen's width with the whole village and
+ * all three plots in view (no panning); the selected plot's panel is a compact sheet above the
+ * tabs. Dev builds with ?bg=v1 show the first village in the classic phone scene.
  */
 function PhoneGarden({
   state,
@@ -171,16 +173,17 @@ function PhoneGarden({
   hint: boolean;
 }) {
   const { w, h } = useWindowSize();
+  const v1 = bgVersion() === 'v1';
   const base = phoneLayout(w, h);
-  const pan = useRef<HTMLDivElement>(null);
+  const sceneBox = useRef<HTMLDivElement>(null);
   const sheetBox = useRef<HTMLDivElement>(null);
-  const first = useRef(true);
   // The scene grows into any room left between the top bar and the sheet, so the sheet always
   // sits right above the tab bar (the art stays at the bottom; more sky shows above it).
   const [extra, setExtra] = useState(0);
   useLayoutEffect(() => {
+    if (v1) return;
     const fit = () => {
-      const p = pan.current;
+      const p = sceneBox.current;
       const sb = sheetBox.current;
       const tabs = document.querySelector('.tabs');
       if (!p || !sb || !tabs) return;
@@ -189,28 +192,20 @@ function PhoneGarden({
         const next = Math.max(0, Math.round(room - base.sceneH));
         return Math.abs(next - e) > 2 ? next : e;
       });
+      // Toasts sit above the sheet, not on it.
+      document.documentElement.style.setProperty('--sheet-room', `${Math.round(window.innerHeight - sb.getBoundingClientRect().top + 8)}px`);
     };
     fit();
     const t = setInterval(fit, 1000);
     return () => clearInterval(t);
   });
+  useEffect(() => () => document.documentElement.style.removeProperty('--sheet-room'), []);
   const zoom = { ...base, sceneH: base.sceneH + extra };
-
-  // Keep the selected plot in view (smoothly, unless the player prefers less motion).
-  useEffect(() => {
-    const el = pan.current;
-    if (!el) return;
-    const stageW = zoom.sceneW - zoom.stageLeft - zoom.stageRight;
-    const centre = zoom.stageLeft + (stageW * (selected + 0.5)) / 3;
-    const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollTo({ left: Math.max(0, centre - el.clientWidth / 2), behavior: first.current || reduce ? 'auto' : 'smooth' });
-    first.current = false;
-  }, [selected, zoom.sceneW, zoom.stageLeft, zoom.stageRight]);
 
   return (
     <div class="garden-screen phone-garden">
-      <div class="scene-pan" ref={pan} style={{ height: `${zoom.sceneH}px` }}>
-        <GardenScene state={state} selected={selected} onSelect={onSelect} elapsed={elapsed} fx={fx} big={big} phone={zoom} onBot={onBot} onPlace={onPlace} />
+      <div class={`phone-scene-box${v1 ? ' v1' : ''}`} ref={sceneBox}>
+        <GardenScene state={state} selected={selected} onSelect={onSelect} elapsed={elapsed} fx={fx} big={big} phone={v1 ? undefined : zoom} onBot={onBot} onPlace={onPlace} />
       </div>
       <div class="garden-sheet" ref={sheetBox}>
         {sheet}
@@ -353,7 +348,17 @@ function PlotPanel({
   if (!p.tree) {
     const groups = groupSeeds(state.seeds, true);
     return (
-      <Panel title={`Plot ${plotIndex + 1} · empty`} class={`plot-empty${bar ? ' plot-bar' : ''}${sheet ? ' plot-sheet plain' : ''}`}>
+      <Panel
+        title={`Plot ${plotIndex + 1} · empty`}
+        class={`plot-empty${bar ? ' plot-bar' : ''}${sheet ? ' plot-sheet plain' : ''}`}
+        right={
+          sheet && (
+            <button class="icon-btn sheet-help-btn" onClick={() => setHelp(!help)} aria-label="How planting works" aria-expanded={help}>
+              ?
+            </button>
+          )
+        }
+      >
         {groups.length === 0 ? (
           <p class="muted">You have no seeds.</p>
         ) : (
@@ -368,7 +373,8 @@ function PlotPanel({
             ))}
           </div>
         )}
-        <p class="seed-note">Tap a seed to plant it: a Tree NFT is minted to your account. {SEED_ODDS_TEXT}</p>
+        {/* Phones: the long note waits behind the "?" button. */}
+        {(!sheet || help) && <p class="seed-note">Tap a seed to plant it: a Tree NFT is minted to your account. {SEED_ODDS_TEXT}</p>}
       </Panel>
     );
   }

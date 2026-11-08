@@ -1,38 +1,32 @@
-// The monorail train: three cars (locomotive, middle, rear) that follow the curved rail on their own, like a real
-// articulated train. Nothing is rotated freely (that makes pixel art jagged): each car comes
-// in a few pre-tilted pixel-art versions (0, 5, 10 and 15 degrees) made by shifting each pixel
-// column up a whole number of pixels (a clean stair-step slope), and every car picks the
-// version closest to the rail's slope where it is. Positions snap to the pixel grid.
+// The monorail train: three cars (locomotive, middle, rear) that follow the rail on their own,
+// like a real articulated train. Nothing is rotated freely (that makes pixel art jagged): each
+// car comes in a few pre-tilted pixel-art versions (0, 5, 10 and 15 degrees) made by shifting
+// each pixel column up a whole number of pixels (a clean stair-step slope), and every car picks
+// the version closest to the rail's slope where it is. Positions snap to the pixel grid.
 // One run every 2 minutes, with a gentle start and stop (ease in and out).
+// The first village (v1): left to right at one size. The v2 village: the train comes in from
+// the right edge, gets a little smaller as it rolls away toward the middle (perspective) and
+// fades out at the end of the rail; the next run comes from the right again.
 
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { Pixels } from '../sprites';
 import { TRAIN_CARS } from './train-sprite';
-
-/** Top of the rail (where the wheels run), art px, from its left end to behind the palm. */
-const RAIL: [number, number][] = [
-  [123.5, 63.5],
-  [145, 58.5],
-  [165, 55],
-  [185, 51.5],
-  [200, 49],
-  [215, 47.5],
-  [228, 46.8],
-];
-/** The train shows only on the rail: from its left end to the palm on the right. */
-export const TRAIN_CLIP = { x: 122, y: 28, w: 103, h: 40 };
+import type { Rail } from './village';
 
 const ANGLES = [0, 5, 10, 15];
 const CYCLE_MS = 120_000;
 const RUN_MS = 18_000;
 const FIRST_RUN_MS = 15_000;
+/** v2: size at the far end of the rail, and the part of the rail where the train fades out. */
+const FAR_SIZE = 0.6;
+const FADE_FROM = 0.78;
 
-function railAt(x: number): { y: number; deg: number } {
+function railAt(rail: [number, number][], x: number): { y: number; deg: number } {
   let i = 0;
-  if (x >= RAIL[RAIL.length - 1][0]) i = RAIL.length - 2;
-  else while (i < RAIL.length - 2 && RAIL[i + 1][0] < x) i++;
-  const [x0, y0] = RAIL[i];
-  const [x1, y1] = RAIL[i + 1];
+  if (x >= rail[rail.length - 1][0]) i = rail.length - 2;
+  else while (i < rail.length - 2 && rail[i + 1][0] < x) i++;
+  const [x0, y0] = rail[i];
+  const [x1, y1] = rail[i + 1];
   const slope = (y1 - y0) / (x1 - x0);
   return { y: y0 + slope * (x - x0), deg: (-Math.atan(slope) * 180) / Math.PI };
 }
@@ -45,11 +39,12 @@ interface Tilted {
 
 const tiltCache = new Map<string, Tilted>();
 
-/** A car tilted up to the right by `deg`, in whole-pixel column steps. */
-function tilt(rows: string[], deg: number, key: string): Tilted {
-  const k = `${key}-${deg}`;
+/** A car tilted up to the right by `deg`, in whole-pixel column steps (optionally mirrored first). */
+function tilt(source: string[], deg: number, key: string, mirror = false): Tilted {
+  const k = `${key}-${deg}-${mirror ? 'm' : ''}`;
   const hit = tiltCache.get(k);
   if (hit) return hit;
+  const rows = mirror ? source.map((r) => [...r].reverse().join('')) : source;
   const h = rows.length;
   const w = rows[0].length;
   const t = Math.tan((deg * Math.PI) / 180);
@@ -87,7 +82,7 @@ function runTime(sinceMount: number): number | null {
   return inCycle < RUN_MS ? inCycle : null;
 }
 
-export function Train({ hd }: { hd: boolean }) {
+export function Train({ hd, rail }: { hd: boolean; rail: Rail }) {
   const [t, setT] = useState<number | null>(null);
   const mounted = useRef(performance.now());
 
@@ -110,6 +105,7 @@ export function Train({ hd }: { hd: boolean }) {
   }, []);
 
   if (t === null) return null;
+  const clip = rail.clip;
   const res = hd ? 'hd' : 'sd';
   const day = TRAIN_CARS[`${res}_day`];
   const night = TRAIN_CARS[`${res}_night`];
@@ -118,27 +114,43 @@ export function Train({ hd }: { hd: boolean }) {
   const order = ['front', 'mid', 'rear'] as const;
   const lens = order.map((c) => day[c][0].length / per);
   const trainLen = lens.reduce((a, b) => a + b, 0);
-  const start = TRAIN_CLIP.x - 1;
-  const end = TRAIN_CLIP.x + TRAIN_CLIP.w + trainLen + 1;
-  const head = start + (end - start) * ease(Math.min(1, t / RUN_MS));
+  const u = ease(Math.min(1, t / RUN_MS));
+  const leftward = rail.toward === 'left';
+  const railStart = rail.points[0][0];
+  const railEnd = rail.points[rail.points.length - 1][0];
   const snap = (v: number) => Math.round(v * per) / per;
 
+  // v1: the head runs from the left edge of the clip until the whole train has left on the right.
+  // v2: the head runs from just outside the right edge until the last car has faded out at the
+  // far end of the rail.
+  const leftEnd = railStart - trainLen * FAR_SIZE - 1;
+  const head = leftward ? clip.x + clip.w + 1 - (clip.x + clip.w + 1 - leftEnd) * u : clip.x - 1 + (clip.w + trainLen + 2) * u;
+
   const cars = order.map((which, i) => {
-    const centre = head - lens.slice(0, i).reduce((a, b) => a + b, 0) - lens[i] / 2;
-    const { y, deg } = railAt(centre);
+    // How far along the rail (0 = near end, 1 = far end) and the size there.
+    const along = leftward ? (railEnd - Math.max(head, railStart)) / (railEnd - railStart) : 0;
+    const size = leftward ? 1 - (1 - FAR_SIZE) * Math.min(1, Math.max(0, along)) : 1;
+    const behind = lens.slice(0, i).reduce((a, b) => a + b, 0) * size;
+    const centre = leftward ? head + behind + (lens[i] * size) / 2 : head - behind - lens[i] / 2;
+    const { y, deg } = railAt(rail.points, centre);
     const a = ANGLES.reduce((best, v) => (Math.abs(v - deg) < Math.abs(best - deg) ? v : best), 0);
-    const d = tilt(day[which], a, `${res}-day-${which}`);
-    const n = tilt(night[which], a, `${res}-night-${which}`);
-    const w = d.rows[0].length / per;
-    const h = d.rows.length / per;
-    const left = snap(centre - w / 2) - TRAIN_CLIP.x;
-    const top = snap(y - d.base / per) - TRAIN_CLIP.y;
+    const d = tilt(day[which], a, `${res}-day-${which}`, leftward);
+    const n = tilt(night[which], a, `${res}-night-${which}`, leftward);
+    const w = (d.rows[0].length / per) * size;
+    const h = (d.rows.length / per) * size;
+    const left = snap(centre - w / 2) - clip.x;
+    const top = snap(y - (d.base / per) * size) - clip.y;
+    // v2: fades out over the last part of the rail (by where this car is).
+    const carAlong = leftward ? (railEnd - centre) / (railEnd - railStart) : 0;
+    const fade = leftward ? Math.min(1, Math.max(0, (1 - carAlong) / (1 - FADE_FROM))) : 1;
     const box = {
-      left: `${(left / TRAIN_CLIP.w) * 100}%`,
-      top: `${(top / TRAIN_CLIP.h) * 100}%`,
-      width: `${(w / TRAIN_CLIP.w) * 100}%`,
-      height: `${(h / TRAIN_CLIP.h) * 100}%`,
+      left: `${(left / clip.w) * 100}%`,
+      top: `${(top / clip.h) * 100}%`,
+      width: `${(w / clip.w) * 100}%`,
+      height: `${(h / clip.h) * 100}%`,
+      opacity: fade < 1 ? fade.toFixed(2) : undefined,
     };
+    if (fade <= 0) return null;
     return (
       <span key={which} class={`train-car car-${which}`} data-angle={a} style={box}>
         <Pixels rows={d.rows} palette={day.palette} scale={1} />
