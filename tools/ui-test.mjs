@@ -10,6 +10,8 @@
 // TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> NEXT_XP=<xp> to raise its XP live; UI_URL=...?record=1 checks that no share card opens): node tools/ui-test.mjs <outDir> --tiers=<devUser>
 // Village train frames, hotspot hit test and hover (EXISTING dev garden, no changes): node tools/ui-test.mjs <outDir> --train=<devUser> [w] [h]
 // Garden scene of an EXISTING dev garden (no changes): UI_URL='http://localhost:5173/?time=dusk' node tools/ui-test.mjs <outDir> --scene=<devUser> [w] [h]
+//   PINS=1 checks the pins and (phones) the sheet; it always reports the garden (mounds, plots and village in view, TaniBot clear of other plots and labels).
+//   Add &bg=v1 to UI_URL for the first village. REDUCED_MOTION=1 emulates prefers-reduced-motion.
 // Tutorial on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tutorial=<newDevUser> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
@@ -116,6 +118,12 @@ try {
       await sleep(400);
       await clickText('Durian', '.seed-card');
       await waitFor(`!!document.querySelector('.plot .tree')`, 'planted');
+      if (MOBILE) {
+        // Phones: toasts sit above the plot sheet, never on it.
+        await waitFor(`!!document.querySelector('.toast')`, 'toast', 15000).catch(() => {});
+        console.log('toast above the sheet:', await evaluate(`(() => { const t = [...document.querySelectorAll('.toast')].pop(); const s = document.querySelector('.plot-sheet'); if (!t || !s) return 'no toast'; return t.getBoundingClientRect().bottom <= s.getBoundingClientRect().top + 1; })()`));
+        await screenshot('toast');
+      }
       await clickText('Water');
       await waitFor(`[...document.querySelectorAll('.act-water')].some(b => /Watered/.test(b.innerText))`, 'watered');
       await sleep(1500); await screenshot('plot-panel');
@@ -395,13 +403,30 @@ try {
           console.log('sheet closed:', await evaluate(`(() => { const s = document.querySelector('.plot-sheet'); const r = s.getBoundingClientRect(); const tabs = document.querySelector('.tabs').getBoundingClientRect(); return Math.round(100 * r.height / innerHeight) + '% of the screen | gap to tabs ' + Math.round(tabs.top - r.bottom) + 'px | buttons ' + [...s.querySelectorAll('.actions .btn')].map(b => b.innerText.trim()).join(' / '); })()`));
         }
         if (MOBILE) {
-          // Phones: pan the village to the right end and report the pins again.
-          await evaluate(`(() => { const p = document.querySelector('.scene-pan'); p.scrollLeft = p.scrollWidth; })()`);
-          await sleep(600);
-          console.log('pins after panning right:', await evaluate(`[...document.querySelectorAll('.place-pin')].filter(p => getComputedStyle(p).visibility !== 'hidden').map(p => p.innerText.replace(/\\n/g, ' ')).join(' | ')`), '| page scrolls sideways:', await evaluate(`document.documentElement.scrollWidth > innerWidth || scrollX !== 0`));
-          await screenshot('pins-panned');
+          // Phones: no panning; every pin is visible at once and the page never scrolls sideways.
+          console.log('pins visible:', await evaluate(`[...document.querySelectorAll('.place-pin')].filter(p => getComputedStyle(p).visibility !== 'hidden' && p.getBoundingClientRect().right <= innerWidth && p.getBoundingClientRect().left >= 0).length`), 'of 5 | page scrolls sideways:', await evaluate(`document.documentElement.scrollWidth > innerWidth || scrollX !== 0`), '| scene box scrolls:', await evaluate(`(() => { const b = document.querySelector('.phone-scene-box'); return b ? b.scrollWidth > b.clientWidth + 1 : 'no box'; })()`));
         }
       }
+      // The garden itself: mounds, the whole village and all plots in view, TaniBot clear of the
+      // other plots and of the tree labels, pin touch areas.
+      console.log('garden:', await evaluate(`(() => {
+        const scene = document.querySelector('.scene').getBoundingClientRect();
+        const plots = [...document.querySelectorAll('.plot')];
+        const sel = document.querySelector('.plot.selected');
+        const bot = document.querySelector('.bot-spot .tanibot')?.getBoundingClientRect();
+        const hit = (a, b) => a && b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        const others = plots.filter(p => p !== sel).flatMap(p => [...p.querySelectorAll('.soil:not(.mound), .soil.mound .mound-back, .plot-art .tree, .plot-art > svg, .empty-hint')]).map(e => Object.assign(e.getBoundingClientRect().toJSON(), { what: (e.getAttribute('class') || e.tagName).split(' ')[0] })).filter(r => r.width);
+        const labels = [...document.querySelectorAll('.badge')].map(e => e.getBoundingClientRect());
+        const art = document.querySelector('.bg-art').getBoundingClientRect();
+        const pin = document.querySelector('.place-pin');
+        const touch = pin ? getComputedStyle(pin, '::after') : null;
+        return 'mounds ' + document.querySelectorAll('.soil.mound').length
+          + ' | plots in view ' + plots.filter(p => { const r = p.querySelector('.soil').getBoundingClientRect(); return r.left >= scene.left - 1 && r.right <= scene.right + 1 && r.bottom <= scene.bottom + 1; }).length + '/3'
+          + ' | village width in view ' + (art.left >= scene.left - 1 && art.right <= scene.right + 1 ? 'all' : Math.round(100 * (Math.min(art.right, scene.right) - Math.max(art.left, scene.left)) / art.width) + '%')
+          + ' | TaniBot covers other plots: ' + (others.filter(r => hit(bot, r)).map(r => 'YES (' + r.what + ')').join(' ') || 'no')
+          + ' | TaniBot covers labels: ' + (labels.some(r => hit(bot, r)) ? 'YES' : 'no')
+          + (touch && ${MOBILE} ? ' | pin touch area ' + touch.width + ' x ' + touch.height : '');
+      })()`));
       // Any sky element bigger than 3 game pixels drawn as a plain box (no picture inside, solid fill)?
       console.log('plain boxes in the sky:', await evaluate(`(() => { const art = document.querySelector('.bg-art').getBoundingClientRect(); const px = art.width / 240; return [...document.querySelectorAll('.sky *, .bg-fx > *')].filter(e => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); if (r.width < 3 * px || r.height < 3 * px || e.querySelector('svg, img') || e.tagName === 'svg' || e.closest('svg')) return false; const solid = cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundImage === 'none' && cs.clipPath === 'none' && cs.borderRadius === '0px'; return solid && parseFloat(cs.opacity) > 0.05; }).map(e => e.className).join(', ') || 'none'; })()`));
       console.log('sky layers (day / dusk / night opacity):', await evaluate(`['.sky-day', '.sky-dusk', '.sky-night'].map(s => getComputedStyle(document.querySelector(s)).opacity).join(' / ')`), '| phase:', await evaluate(`document.querySelector('.scene').className`));
