@@ -74,7 +74,7 @@ const PAGES: Page[] = [
         icon: <Sprite name="seedPacket" scale={2} />,
         text: (
           <>
-            <b>Sign in with Google</b>: the game creates your NEAR testnet account (<i>name.nearvest.testnet</i>) and pays every fee. No wallet needed.
+            <b>Sign in with Google or a NEAR wallet.</b> With Google the game creates your NEAR testnet account (<i>name.nearvest.testnet</i>) and pays every fee: no wallet needed.
           </>
         ),
       },
@@ -82,7 +82,7 @@ const PAGES: Page[] = [
         icon: <Sprite name="bolt" scale={2} />,
         text: (
           <>
-            <b>Or with your NEAR wallet</b>: your garden lives in your own account. The game pays the fees; only the one-time Shop setup costs a tiny testnet fee.
+            <b>With your NEAR wallet</b>: your garden lives in your own account. The game pays the fees; only the one-time Shop setup costs a tiny testnet fee.
           </>
         ),
       },

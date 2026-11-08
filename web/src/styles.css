@@ -3180,6 +3180,16 @@ input:focus-visible {
   color: #d8e8dd;
 }
 
+/* Small links to the Privacy and Terms pages (also used for the Google OAuth consent screen). */
+.login-legal {
+  margin: 4px 0 0;
+  color: #9fc4ae;
+}
+
+.login-legal a {
+  color: #bff5dd;
+}
+
 .login-page .dev-login label {
   color: #f4ead2;
 }
@@ -8161,4 +8171,48 @@ button.chip:focus-visible {
   .plot-art.fertilized + .soil.mound.art {
     --m-fert: drop-shadow(0 0 5px #a8e83a);
   }
+}
+
+/* v3: tree labels (Thirsty, timers, Ready) sit just above the tree itself, not above its
+   empty canvas, so a young tree's label stays close to it and clear of the village. */
+.mound-art .plot-art .badge {
+  top: auto;
+  bottom: calc(100% - var(--tree-top, 0px) + 4px);
+}
+
+/* Phones: the tutorial coach floats over the top (sky) of the garden scene instead of pushing
+   the village and the mounds down; the place pins move below it. */
+.content {
+  position: relative;
+}
+
+.coach-float {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.coach-float .coach {
+  margin: 0;
+  padding: 8px 10px;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.coach-float .coach-text {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.coach-float .coach-actions .btn {
+  min-height: 36px;
+}
+
+/* v3 phones: a label never climbs above the open grass (it stays off the shop and the pins);
+   on a tall tree it sits on the crown instead. */
+.phone-scene.mound-art .plot-art .badge {
+  bottom: min(calc(100% - var(--tree-top, 0px) + 4px), var(--label-max, 9999px));
 }

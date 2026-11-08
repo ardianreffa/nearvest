@@ -2,6 +2,7 @@
 // Needs the server (npm run dev in server/, DEV_LOGIN=true) and the web dev server running.
 // Usage: node tools/ui-test.mjs <outDir> <playerName> [width=390] [height=844]
 // Login page only (no account is created): node tools/ui-test.mjs <outDir> --login-only [width] [height]
+//   Also checks the footer text, the Privacy / Terms links and pages (/privacy, /terms) and whether the Dev login form shows.
 // Profile window of an EXISTING dev garden (no account is created): node tools/ui-test.mjs <outDir> --profile=<devUsername> [width] [height]
 // Garden layout (top bar, plot panel with a Rare Durian, TaniBot hint) on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --layout=<newDevUsername> [width] [height]
 // TaniBot motion (jets, landing, idle moments) on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --motion=<newDevUsername> [width] [height]
@@ -447,8 +448,10 @@ try {
       const coach = () => evaluate(`(() => { const c = document.querySelector('.coach'); return c ? c.className.replace('coach coach-', '') + ' | ' + (c.querySelector('.coach-progress')?.innerText ?? '') + ' | ' + c.querySelector('.coach-text').innerText : 'no coach'; })()`);
       const glow = () => evaluate(`[...document.querySelectorAll('*')].filter(e => getComputedStyle(e).animationName === 'tut-glow').map(e => e.className.split(' ').slice(0, 2).join('.')).join(', ') || 'none'`);
       const waitStep = (id, ms = 30000) => waitFor(`!!document.querySelector('.coach-${id}')`, `tutorial step ${id}`, ms);
+      // Phones: the coach floats over the scene's sky; the three mounds stay in view without scrolling.
+      const mounds = () => evaluate(`(() => { const soils = [...document.querySelectorAll('.plot .soil')].map(e => e.getBoundingClientRect()); if (!soils.length) return 'no garden'; const sheet = document.querySelector('.garden-sheet')?.getBoundingClientRect(); const c = document.querySelector('.coach')?.getBoundingClientRect(); const hit = (a, b) => a && b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom; const inView = soils.filter(r => r.top >= 0 && r.bottom <= Math.min(innerHeight, sheet ? sheet.top + 1 : innerHeight)).length; return 'mounds in view ' + inView + '/3 | coach covers a mound: ' + soils.some(r => hit(r, c)) + ' | page scrolled ' + Math.round(scrollY) + 'px'; })()`);
       const shot = async (label) => {
-        console.log(`${label}: ${await coach()} | glowing: ${await glow()}`);
+        console.log(`${label}: ${await coach()} | glowing: ${await glow()}${MOBILE ? ' | ' + (await mounds()) : ''}`);
         await screenshot(`tut-${label}`);
       };
       await typeInto('#dev-user', user);
@@ -500,6 +503,9 @@ try {
       await waitFor(`!!document.querySelector('.market-row:not(.empty) .sell-go')`, 'market');
       await sleep(300); await shot('market-open');
       await evaluate(`document.querySelector('.market-row:not(.empty) .sell-go').click()`);
+      // Demo days last a minute: if Mr. Darto's price changed meanwhile, accept the new price.
+      await waitFor(`!!document.querySelector('.coach-tanibot') || [...document.querySelectorAll('.dialog button')].some(b => /^Sell for/.test(b.innerText))`, 'sold or new price', 30000);
+      if (await clickText('Sell for', '.dialog button')) console.log('new day: sold at the new price');
       await waitStep('tanibot');
       await sleep(400); await shot('tanibot');
       console.log('share card while the tutorial runs (expect false):', await evaluate(`!!document.querySelector('.share-card')`));
@@ -696,6 +702,31 @@ try {
     throw Object.assign(new Error('profile done'), { done: true });
   }
   if (name === '--login-only') {
+    await step('login copy, legal links, dev login form', async () => {
+      // The footer names both ways in; the Privacy / Terms links open the static pages.
+      console.log('footer:', await evaluate(`document.querySelector('.login-foot')?.innerText`));
+      console.log('legal links:', await evaluate(`[...document.querySelectorAll('.login-legal a')].map(a => a.innerText + ' -> ' + a.getAttribute('href')).join(' | ')`));
+      console.log('dev login form shown:', await evaluate(`!!document.querySelector('#dev-user')`), '(must be false on a production build)');
+      await evaluate(`document.querySelector('.login-legal')?.scrollIntoView({ block: 'center' })`);
+      await sleep(300); await screenshot('login-footer');
+      await clickText('How to play');
+      await sleep(600);
+      console.log('how to play page 1:', await evaluate(`(document.querySelector('.info-dialog') || document.body).innerText.split('\\n').filter(l => /Google|wallet/i.test(l)).join(' / ')`));
+      await screenshot('howto-1');
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close, .help-skip').forEach(b => b.click())`);
+      await sleep(300);
+    });
+    await step('privacy and terms pages (opened directly by URL)', async () => {
+      const base = UI_URL.replace(/\/?(\?.*)?$/, '');
+      for (const page of ['privacy', 'terms']) {
+        await send('Page.navigate', { url: `${base}/${page}` });
+        await waitFor(`document.readyState === 'complete' && !!document.querySelector('h1')`, page);
+        console.log(page + ':', await evaluate(`document.title + ' | ' + document.querySelector('h1').innerText + ' | contact ' + (document.body.innerText.match(/[a-z0-9.]+@gmail[.]com/) || ['none'])[0] + ' | page scrolls sideways: ' + (document.documentElement.scrollWidth > innerWidth)`));
+        await sleep(300); await screenshot(page);
+      }
+      await send('Page.navigate', { url: UI_URL.includes('?') ? UI_URL : UI_URL + '/' });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen again');
+    });
     await step('NEAR wallet picker', async () => {
       if (!(await clickText('Connect NEAR Wallet'))) throw new Error('no Connect NEAR Wallet button');
       await sleep(5000); await screenshot('wallet-picker');

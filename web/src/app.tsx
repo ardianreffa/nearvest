@@ -697,7 +697,9 @@ export function App() {
           {chips}
           {notices}
           <div class="content">
-            {coach}
+            {/* Garden: the coach floats over the top (sky) of the scene, so it never pushes the
+                village and the mounds down. Other tabs: above the panel as before. */}
+            {coach && (tab === 'garden' ? <div class="coach-float">{coach}</div> : coach)}
             {tab === 'garden' ? garden : panelFor(tab)}
           </div>
           <nav class="tabs">
@@ -785,8 +787,46 @@ function TabButton({ tab, current, set, icon, label }: { tab: Tab; current: Tab;
   );
 }
 
-function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedIn: (token: string, s: GameState | null, note?: string) => void; onHelp: () => void }) {
+/** Username-only login for local testing (dev builds only). */
+function DevLogin({
+  busy,
+  setBusy,
+  setError,
+  onLoggedIn,
+}: {
+  busy: boolean;
+  setBusy: (b: boolean) => void;
+  setError: (e: string | null) => void;
+  onLoggedIn: (token: string, s: GameState | null) => void;
+}) {
   const [username, setUsername] = useState('');
+  const submit = async (e: Event) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/dev', { username: username.trim().toLowerCase() });
+      onLoggedIn(res.token, res.player);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form class="dev-login" onSubmit={submit}>
+      <label for="dev-user">Dev login (local testing)</label>
+      <div class="row">
+        <input id="dev-user" value={username} onInput={(e) => setUsername((e.target as HTMLInputElement).value)} placeholder="username" autocomplete="off" />
+        <button class="btn btn-mint" disabled={busy || username.trim().length < 2}>
+          Enter
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedIn: (token: string, s: GameState | null, note?: string) => void; onHelp: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -817,20 +857,6 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
             ? 'Many judge gardens were made today, so you are sharing a recent one.'
             : undefined;
       onLoggedIn(res.token, res.player, note);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const devLogin = async (e: Event) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/dev', { username: username.trim().toLowerCase() });
-      onLoggedIn(res.token, res.player);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -874,21 +900,15 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
         Connect NEAR Wallet
       </button>
 
-      {/* Dev login: local `npm run dev` only, never in a production build. */}
-      {import.meta.env.DEV && config.devLogin && (
-        <form class="dev-login" onSubmit={devLogin}>
-          <label for="dev-user">Dev login (local testing)</label>
-          <div class="row">
-            <input id="dev-user" value={username} onInput={(e) => setUsername((e.target as HTMLInputElement).value)} placeholder="username" autocomplete="off" />
-            <button class="btn btn-mint" disabled={busy || username.trim().length < 2}>
-              Enter
-            </button>
-          </div>
-        </form>
-      )}
+      {/* Dev login: local `npm run dev` only. The whole component is left out of production
+          builds (import.meta.env.DEV is false there), not only hidden; the server refuses it too. */}
+      {import.meta.env.DEV && config.devLogin && <DevLogin busy={busy} setBusy={setBusy} setError={setError} onLoggedIn={onLoggedIn} />}
       {error && <p class="error-text">{error}</p>}
       <p class="login-foot small">
-        Runs on NEAR {config.network}. Sign in with Google (no wallet needed, the game pays all fees) or with your NEAR wallet. Testnet tokens have no real value.
+        Sign in with <b>Google</b> or a <b>NEAR wallet</b>. With Google you need no wallet: the game creates your NEAR {config.network} account and pays all fees. Testnet tokens have no real value.
+      </p>
+      <p class="login-legal small">
+        <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
       </p>
     </main>
     </div>

@@ -5,7 +5,7 @@ import { loadToken, type GameState, type TreeView } from './api';
 import { Backdrop, lockedFraction, phaseOf } from './art/backdrop';
 import type { Place } from './art/hotspots';
 import { BASKET, Drone, droneCount, HOE, TaniBot, TANIBOT_H, TANIBOT_W, tierOf, tierRank, type Tier } from './art/tanibot';
-import { TreePixels } from './art/trees';
+import { TreePixels, treeTopRow } from './art/trees';
 import { leafBurst } from './fx';
 import { Pixels, Sprite } from './sprites';
 import { formatDuration } from './ui';
@@ -129,6 +129,10 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
               ...(mound ? { '--soil-h': `${mound.h * immersive.k}px` } : {}),
               ...(moundArt ? { '--mound-base': String(MOUND_BASE), '--mound-w': `${mound!.w * immersive.k}px` } : {}),
               ...(phone ? { '--sprite-px': `${phone.spritePx}px` } : {}),
+              // v3 phones: the highest a tree label may sit above its plot (its top stays on the grass).
+              ...(phone && moundArt && village?.grassRow !== undefined
+                ? { '--label-max': `${Math.max(0, (village.bedRow - mound!.h * (1 - MOUND_BASE) + (2 * phone.spritePx) / phone.k - village.grassRow) * phone.k - 22)}px` }
+                : {}),
               ...(phone ? { width: `${phone.sceneW}px`, height: `${phone.sceneH}px` } : {}),
             }
           : undefined
@@ -171,7 +175,11 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
                   </span>
                 )}
                 {st && (
-                  <span class={`badge ${st.cls}`}>
+                  <span
+                    class={`badge ${st.cls}`}
+                    // v3: the label sits just above the tree's real top (a sprout's label stays low).
+                    style={moundArt && p.tree ? { '--tree-top': `${treeTopRow(p.tree.species, p.tree.stage, p.tree.tokenId ?? p.tree.id) * px}px` } : undefined}
+                  >
                     {st.cls === 'thirsty' && <Sprite name="droplet" scale={2} />}
                     {st.cls === 'ready' && <Sprite name="sparkle" scale={2} />}
                     {st.text}

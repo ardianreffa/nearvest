@@ -29,9 +29,11 @@ Draft numbers live in `server/src/rules.ts` and are tuned in testing. Sounds and
 
 ## Must
 
-**9. Login copy and Dev login (before deploy)**
-- Login page footer ("No wallet...") and How to play step 1 must say: sign in with Google **or** a NEAR wallet.
-- Hide the Dev login form in production builds (not only on the server side).
+**9. Login copy and Dev login (before deploy)** - DONE 2026-11-08
+- Login page footer and How to play page 1 say: sign in with Google **or** a NEAR wallet.
+- The Dev login form is its own component, left out of production builds (`npm run build` has no `/auth/dev`); the server refuses it too.
+- `/privacy` and `/terms` (static `web/public/privacy.html`, `terms.html`; `web/vercel.json` cleanUrls; Vite serves them in dev and preview), linked in the login footer. Use their Vercel URLs on the Google OAuth consent screen.
+- `.env.example` files list every variable name the server and web read, without values.
 
 **10. Top up testnet accounts (before deploy)**
 - Fill `nearvest.testnet` and `game.nearvest.testnet` from the testnet faucet. The factory pays 0.003 NEAR per new player; `nearvest.testnet` has only ~0.68 NEAR free (2026-11-07, ~1.19 NEAR locked by contract storage).

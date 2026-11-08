@@ -66,6 +66,8 @@ export interface Village {
   billboard?: Box;
   /** Phones: the scene always shows the art from this game row down. */
   shownFrom?: number;
+  /** v3 phones: the top row of the open grass; tree labels never go above it (they stay off the village). */
+  grassRow?: number;
   lanterns: Box[];
   holograms: Box[];
   falls: Box[];
@@ -350,6 +352,7 @@ export const V3_PHONE: Village = {
   bedRow: 149,
   stage: [4, 116],
   shownFrom: 58,
+  grassRow: 130,
   groundExt: 'linear-gradient(#3f9a1c, #24600f)',
   mounds: true,
   moundArt: true,

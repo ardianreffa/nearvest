@@ -38,7 +38,7 @@ const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2
 
 /** Things a pin or bubble must never cover or hide under. */
 const OBSTACLES =
-  '.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .topbar, .toasts, .bot-spot .tanibot, .bot-hint, .bot-status, .badge, .plot-art, .soil, .garden-sheet';
+  '.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .coach-float, .topbar, .toasts, .bot-spot .tanibot, .bot-hint, .bot-status, .badge, .plot-art, .soil, .garden-sheet';
 
 /** Where the first village's train runs (boxes just above the rail): pins stay clear of it. */
 const RAIL_BAND_V1: Box[] = [
@@ -87,7 +87,7 @@ function visibleArea(host: HTMLElement): Rect {
   const scene = (host.closest('.scene') ?? host).getBoundingClientRect();
   const safeTop = safeAreaTop();
   let top = Math.max(scene.top, safeTop);
-  for (const el of document.querySelectorAll('.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys')) {
+  for (const el of document.querySelectorAll('.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys, .coach-float')) {
     const r = el.getBoundingClientRect();
     if (r.height && r.bottom > top && r.top < scene.top + scene.height / 3) top = Math.max(top, r.bottom);
   }

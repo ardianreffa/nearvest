@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy - NEARvest</title>
+    <meta name="description" content="Privacy policy of NEARvest, a pixel farming game on NEAR testnet made for the NEAR Hackathon." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      :root { color-scheme: light; }
+      body { margin: 0; background: #0f2a1e; color: #1b1b2f; font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+      main { max-width: 720px; margin: 24px auto; padding: 24px 20px 32px; background: #f6efd9; border: 3px solid #1b1b2f; box-shadow: 0 0 0 3px #00ec97; }
+      h1 { margin: 0 0 4px; font-size: 28px; color: #1e5a38; }
+      h2 { margin: 28px 0 6px; font-size: 19px; color: #1e5a38; }
+      p, li { margin: 6px 0; }
+      ul { padding-left: 22px; }
+      .muted { color: #5b5546; font-size: 14px; }
+      a { color: #0b6b86; }
+      .back { display: inline-block; margin-top: 24px; font-weight: 700; }
+      @media (max-width: 760px) { main { margin: 0; border-width: 0 0 3px; box-shadow: none; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>NEARvest privacy</h1>
+      <p class="muted">Last updated: 8 November 2026</p>
+
+      <p>
+        NEARvest is a pixel farming game on the <b>NEAR testnet</b>, made by Ardian Reffa for the NEAR Hackathon. It is a test version: there is no
+        real money in the game and testnet tokens and NFTs have no real value. This page says plainly what the game stores and why.
+      </p>
+
+      <h2>What we store</h2>
+      <ul>
+        <li><b>Sign-in with Google:</b> your Google account ID (the "sub" number) and your email address, only to sign you in and to keep one garden per Google account. We never see your Google password.</li>
+        <li><b>Sign-in with a NEAR wallet:</b> your NEAR account name (it is public anyway). We never receive your wallet's keys.</li>
+        <li><b>Your garden:</b> the garden name you choose, your NEAR testnet account name, your avatar and your game progress (trees, seeds, fruit, PANEN balance, XP, check-ins, TaniBot settings and its log).</li>
+        <li><b>Anti-abuse:</b> the IP address used when a garden is created, and a random device ID for "Try as Judge", to limit free welcome gifts per day.</li>
+        <li><b>Sign-in session:</b> a random token. The server keeps only a scrambled (hashed) copy; your browser keeps the token so you stay signed in for up to 30 days.</li>
+        <li><b>In your browser only</b> (local storage): your settings (music, sound, menu) and, for wallet gardens, a limited game key that can only spend PANEN in the Shop.</li>
+      </ul>
+
+      <h2>Account keys (custodial, testnet only)</h2>
+      <p>
+        If you sign in with Google, the game creates a NEAR testnet account for you (<i>name.nearvest.testnet</i>) and its server holds that account's key,
+        <b>encrypted</b> (AES-256-GCM). The same is true for TaniBot's own small account. This is a custodial design that we use only on the testnet so that
+        you never need a wallet or pay fees. If you sign in with your own NEAR wallet, your garden lives in your own account and your keys stay with you.
+      </p>
+
+      <h2>Public blockchain data</h2>
+      <p>
+        Game actions such as planting a tree (a Tree NFT), earning or spending PANEN are NEAR testnet transactions. They are public, show your NEAR account
+        name, and cannot be deleted by us or anyone else.
+      </p>
+
+      <h2>Who else is involved</h2>
+      <ul>
+        <li><b>We do not sell your data</b>, and the game has no ads and no tracking or analytics tools.</li>
+        <li>Google handles the Google sign-in; the page fonts load from Google Fonts.</li>
+        <li>The NEAR testnet network records the transactions.</li>
+        <li>TaniBot's AI helper (NEAR AI Cloud) receives only garden numbers (trees, fruit, prices, budget), never your name or email.</li>
+        <li>The web page is hosted on Vercel and the game server on a rented server (VPS).</li>
+      </ul>
+
+      <h2>How long, and deleting your data</h2>
+      <p>
+        We keep the data while the game runs for the hackathon and its testing. Email us and we will delete your garden and sign-in data from the game
+        server. Records on the public NEAR testnet stay, as explained above.
+      </p>
+
+      <h2>Contact</h2>
+      <p>Ardian Reffa: <a href="mailto:ardianreffaramadhan65@gmail.com">ardianreffaramadhan65@gmail.com</a></p>
+
+      <p><a href="/terms">Terms of use</a> · <a class="back" href="/">Back to NEARvest</a></p>
+    </main>
+  </body>
+</html>

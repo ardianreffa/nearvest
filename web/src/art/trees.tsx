@@ -301,6 +301,23 @@ export function treePalette(species: Species, stage: Stage): Record<string, stri
 const cache = new Map<string, TreeLayers>();
 
 /**
+ * The first pixel row (from the top of the 32x40 canvas) that a tree actually fills: a sprout
+ * only fills the bottom rows. Labels (Thirsty, timers) sit just above this row, close to the tree.
+ */
+export function treeTopRow(species: Species, stage: Stage, seed?: string | number | null): number {
+  const look = variantOf(seed);
+  const key = `${species}-${stage}-${look.shape}-${look.lean}-${look.lift}`;
+  let layers = cache.get(key);
+  if (!layers) {
+    layers = treeLayers(species, stage, look);
+    cache.set(key, layers);
+  }
+  const { trunk, crown } = layers;
+  for (let y = 0; y < H; y++) if (/[^.]/.test(trunk[y]) || /[^.]/.test(crown[y])) return y;
+  return H;
+}
+
+/**
  * A tree. `seed` (NFT token id or tree id) picks its own look for life. The crown sways in
  * the wind in whole pixels (top part a little more), fruit included; now and then a leaf falls.
  */
