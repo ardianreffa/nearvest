@@ -1,0 +1,23 @@
+# NEARvest: HTTPS for the game server (docs/DEPLOY.md). Certificates come from Let's Encrypt
+# automatically (port 80 and 443 must be open in the Tencent Cloud security group).
+{
+	# No admin API on port 2019: changes need a restart of nearvest-caddy.
+	admin off
+}
+
+150-109-24-35.sslip.io {
+	encode zstd gzip
+
+	# The game server limits free gifts per IP using CF-Connecting-IP or X-Forwarded-For.
+	# Caddy writes X-Forwarded-For itself (it ignores a visitor's own copy); a faked
+	# CF-Connecting-IP from a visitor is removed here.
+	request_header -CF-Connecting-IP
+
+	reverse_proxy 127.0.0.1:8787
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}

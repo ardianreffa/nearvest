@@ -1,0 +1,25 @@
+# Daily backup of the NEARvest database (server/scripts/backup-db.ts), run by nearvest-backup.timer.
+# Lowest CPU and disk priority, so it never slows down the other bots.
+
+[Unit]
+Description=NEARvest database backup
+After=nearvest.service
+
+[Service]
+Type=oneshot
+User=nearvest
+Group=nearvest
+WorkingDirectory=/opt/nearvest/app/server
+Environment=DATABASE_PATH=/var/lib/nearvest/nearvest.sqlite
+Environment=BACKUP_DIR=/var/backups/nearvest
+ExecStart=/opt/nearvest/node/bin/node scripts/backup-db.ts --keep 14
+Nice=19
+IOSchedulingClass=idle
+CPUQuota=30%
+MemoryMax=150M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/nearvest /var/backups/nearvest
+UMask=0077

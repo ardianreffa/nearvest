@@ -1,0 +1,56 @@
+# NEARvest game server (systemd). Installed as /etc/systemd/system/nearvest.service (docs/DEPLOY.md).
+# It shares the VPS with other bots (Entropy runs under pm2): it uses its OWN Node
+# (/opt/nearvest/node, never the global /usr/bin/node that pm2 uses), its own user and folders,
+# and hard limits on memory and CPU, so it can never starve or touch the other bots.
+
+[Unit]
+Description=NEARvest game server (127.0.0.1:8787)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=nearvest
+Group=nearvest
+WorkingDirectory=/opt/nearvest/app/server
+# Secrets (copied unchanged from the Mac's server/.env, root-only), then the production
+# overrides from the repo (no secrets). A later file wins.
+EnvironmentFile=/etc/nearvest/server.env
+EnvironmentFile=/opt/nearvest/app/deploy/production.env
+ExecStart=/opt/nearvest/node/bin/node src/main.ts
+Restart=on-failure
+RestartSec=5
+
+# Never take more than its share from the other bots on this 2-core, 1.9 GB server.
+MemoryHigh=220M
+MemoryMax=300M
+MemorySwapMax=64M
+CPUQuota=60%
+CPUWeight=50
+IOWeight=50
+Nice=5
+TasksMax=64
+LimitNOFILE=4096
+
+# Own files only: no access to /home (Entropy and the other bots live there).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/nearvest
+UMask=0077
+
+# Keep the journal small even if something loops.
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=300
+
+[Install]
+WantedBy=multi-user.target

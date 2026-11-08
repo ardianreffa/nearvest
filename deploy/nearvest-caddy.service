@@ -1,0 +1,45 @@
+# Caddy for NEARvest: HTTPS on 150-109-24-35.sslip.io (Let's Encrypt), proxy to 127.0.0.1:8787.
+# Installed as /etc/systemd/system/nearvest-caddy.service. Caddy is a single static program in
+# /opt/nearvest/caddy (no apt: on this VPS needrestart restarts services automatically after apt,
+# which would restart pm2 and Entropy).
+
+[Unit]
+Description=Caddy HTTPS for NEARvest
+After=network-online.target nearvest.service
+Wants=network-online.target
+
+[Service]
+Type=notify
+User=nearvest-caddy
+Group=nearvest-caddy
+Environment=HOME=/var/lib/nearvest-caddy
+Environment=XDG_DATA_HOME=/var/lib/nearvest-caddy
+Environment=XDG_CONFIG_HOME=/var/lib/nearvest-caddy/config
+ExecStart=/opt/nearvest/caddy/caddy run --config /opt/nearvest/app/deploy/Caddyfile --adapter caddyfile
+TimeoutStopSec=5s
+Restart=on-failure
+RestartSec=5
+
+# Ports 80 and 443 without running as root.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+MemoryHigh=80M
+MemoryMax=120M
+CPUQuota=40%
+Nice=5
+TasksMax=64
+LimitNOFILE=8192
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/lib/nearvest-caddy
+
+[Install]
+WantedBy=multi-user.target

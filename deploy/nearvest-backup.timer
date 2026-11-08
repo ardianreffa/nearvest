@@ -1,0 +1,13 @@
+# Every day at 03:30 VPS time (Asia/Jakarta), away from Entropy's cron jobs at 00:00 and 00:05.
+# Persistent: a backup missed while the VPS was off runs at the next start.
+
+[Unit]
+Description=Daily NEARvest database backup
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
