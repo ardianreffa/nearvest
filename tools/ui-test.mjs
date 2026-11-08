@@ -515,7 +515,17 @@ try {
       await clickText('Activate TaniBot', '.tanibot-dialog button');
       await waitFor(`!document.querySelector('.coach')`, 'tutorial finished', 30000);
       await sleep(2500);
-      console.log('tutorial finished; share cards after it (first harvest card expected):', await evaluate(`[...document.querySelectorAll('h2')].map(h => h.innerText).filter(t => t.startsWith('Share:')).join(' | ') || 'none'`));
+      // Share cards come one at a time, the first harvest first; close each and note the next.
+      const cards = [];
+      for (let i = 0; i < 4; i++) {
+        const h = await evaluate(`[...document.querySelectorAll('h2')].map(h => h.innerText).find(t => t.startsWith('Share:')) || ''`);
+        if (!h) break;
+        cards.push(h.replace('Share: ', ''));
+        await screenshot(`tut-card-${i + 1}`);
+        await clickText('Close', '.share-dialog button');
+        await sleep(1800);
+      }
+      console.log('tutorial finished; share cards in order (first harvest expected first):', cards.join(' -> ') || 'none');
       await screenshot('tut-done');
       console.log('horizontal overflow:', await evaluate(`document.documentElement.scrollWidth > window.innerWidth`));
     });

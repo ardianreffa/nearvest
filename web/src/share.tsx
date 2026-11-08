@@ -11,14 +11,9 @@ import { treePalette, treeRows } from './art/trees';
 import { withArticle } from './text';
 import { formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
-export type MomentKind = 'first_harvest' | 'first_gold' | 'evolved' | 'streak7' | 'title' | 'legend' | 'profile';
+import { enqueueMoment, momentId, orderMoments, type Moment, type MomentKind } from './moments';
 
-export interface Moment {
-  kind: MomentKind;
-  species?: Species;
-  quality?: Quality;
-  title?: string;
-}
+export type { Moment, MomentKind };
 
 export const MOMENT_LABELS: Record<MomentKind, string> = {
   first_harvest: 'First harvest',
@@ -41,21 +36,53 @@ export function openShare(m: Moment): void {
   for (const l of listeners) l(m);
 }
 
-/** Moments waiting while cards are held (Judge tour or tutorial running); null = not holding. */
-let held: Moment[] | null = null;
+/** True while new cards wait (Judge tour or tutorial running). */
+let holding = false;
+/** The account whose cards are held (the waiting cards are kept in localStorage per account). */
+let heldAccount: string | null = null;
+
+function heldKey(accountId: string) {
+  return `nearvest.momentsHeld.${accountId}`;
+}
+
+function readHeld(accountId: string): Moment[] {
+  try {
+    return JSON.parse(localStorage.getItem(heldKey(accountId)) ?? '[]') as Moment[];
+  } catch {
+    return [];
+  }
+}
+
+function writeHeld(accountId: string, list: Moment[]) {
+  try {
+    if (list.length) localStorage.setItem(heldKey(accountId), JSON.stringify(list));
+    else localStorage.removeItem(heldKey(accountId));
+  } catch {
+    // Storage blocked: the cards wait in memory for this visit only.
+  }
+}
+
+/** In memory too, for browsers that block storage. */
+let heldMemory: Moment[] = [];
 
 /**
- * Holds new share cards (e.g. until a judge finishes the Judge tour). Releasing opens the held
- * cards one after another (the dialog shows them one at a time).
+ * Holds new share cards (e.g. until a judge finishes the Judge tour or a new player the tutorial).
+ * The waiting cards are saved per account, so a page reload does not lose them. Releasing opens
+ * them one after another in showing order (moments.ts: the first harvest before a new title).
  */
-export function holdShareCards(hold: boolean): void {
+export function holdShareCards(hold: boolean, accountId?: string): void {
+  if (accountId) heldAccount = accountId;
   if (hold) {
-    held ??= [];
+    holding = true;
     return;
   }
-  if (!held) return;
-  const waiting = held;
-  held = null;
+  const wasHolding = holding;
+  holding = false;
+  const stored = heldAccount ? readHeld(heldAccount) : [];
+  if (!wasHolding && !stored.length) return;
+  const waiting = orderMoments([...stored, ...heldMemory]);
+  heldMemory = [];
+  if (heldAccount) writeHeld(heldAccount, []);
   if (waiting.length) window.setTimeout(() => waiting.forEach(openShare), 1200);
 }
 
@@ -63,10 +90,17 @@ function seenKey(accountId: string) {
   return `nearvest.moments.${accountId}`;
 }
 
+function hold(accountId: string, m: Moment) {
+  heldAccount = accountId;
+  const list = orderMoments([...readHeld(accountId), m]);
+  writeHeld(accountId, list);
+  heldMemory = orderMoments([...heldMemory, m]);
+}
+
 /** Opens the share dialog for a moment the first time it happens to this player. */
 export function shareMomentOnce(accountId: string, m: Moment, delayMs = 1600): void {
   // Title and evolution cards come once per title; the others once ever.
-  const id = m.kind === 'title' || m.kind === 'evolved' ? `${m.kind}:${m.title}` : m.kind;
+  const id = momentId(m);
   let seen: string[] = [];
   try {
     seen = JSON.parse(localStorage.getItem(seenKey(accountId)) ?? '[]') as string[];
@@ -79,11 +113,11 @@ export function shareMomentOnce(accountId: string, m: Moment, delayMs = 1600): v
   } catch {
     // Storage blocked: the moment may be offered again next visit.
   }
-  if (held) {
-    held.push(m);
+  if (holding) {
+    hold(accountId, m);
     return;
   }
-  window.setTimeout(() => (held ? held.push(m) : openShare(m)), delayMs);
+  window.setTimeout(() => (holding ? hold(accountId, m) : openShare(m)), delayMs);
 }
 
 // ---------- Texts ----------
@@ -420,7 +454,8 @@ export function ShareHost({ state }: { state: GameState }) {
   const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
-    const on = (m: Moment) => setQueue((q) => [...q, m]);
+    // Waiting cards keep their showing order (the first harvest before a new title).
+    const on = (m: Moment) => setQueue((q) => enqueueMoment(q, m));
     listeners.add(on);
     return () => void listeners.delete(on);
   }, []);

@@ -161,7 +161,7 @@ export function App() {
     (s: GameState) => {
       // Judge gardens: share cards wait until the Judge tour is complete; new gardens until the
       // tutorial is over. Then they come one by one.
-      holdShareCards((!!s.judgeTour && !s.judgeTour.every((t) => t.done)) || !!s.tutorial);
+      holdShareCards((!!s.judgeTour && !s.judgeTour.every((t) => t.done)) || !!s.tutorial, s.player.accountId);
       const done = s.activity.filter((a) => a.status === 'done');
       if (seenDone.current === null) {
         seenDone.current = new Set(done.map((a) => a.id));
