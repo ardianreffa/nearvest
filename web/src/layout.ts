@@ -102,6 +102,8 @@ export interface PhoneZoom extends Immersive {
   sceneH: number;
   /** Whole-number pixel size for the trees and the lock (v3: k is not a whole number). */
   spritePx: number;
+  /** Phones filling the screen: px from the scene's top where the sky (sun, moon, clouds) starts, under the HUD. */
+  skyFrom?: number;
 }
 
 /** Game rows the v2 phone scene always shows: from just above the towers to the bottom. */
@@ -158,5 +160,36 @@ export function phoneLayout(width: number, height: number, village: Village = V3
     sceneW: Math.round(width),
     sceneH: shown * k,
     spritePx: k,
+  };
+}
+
+/** Phones: rows of the village's bottom edge (bushes) that the plot sheet may cover. */
+export const PHONE_UNDER_SHEET = 10;
+/** Phones: rows below the beds that always stay above the plot sheet (TaniBot's feet and its ON/OFF chip). */
+export const PHONE_FRONT_ROWS = 12;
+
+/**
+ * Phones held upright (v3): the garden fills the whole screen. The sky (drawn in code) reaches the
+ * top edge behind the floating HUD, the village sits right above the plot sheet with its bottom
+ * bushes running on under the sheet and the tabs, and the mountain top stays below the HUD when
+ * the screen is tall enough. On short screens the village slides down behind the sheet (never
+ * past the grass in front of the beds); only then may the HUD cover the top of the mountain.
+ * `hudBottom` and `sheetTop` are screen positions in CSS px.
+ */
+export function phoneFill(base: PhoneZoom, height: number, hudBottom: number, sheetTop: number): PhoneZoom & { artTop: number } {
+  const v = base.village;
+  const k = base.k;
+  const shown = (v.h - (v.shownFrom ?? 0)) * k;
+  const lo = sheetTop + PHONE_UNDER_SHEET * k;
+  const hi = sheetTop + (v.h - v.bedRow - PHONE_FRONT_ROWS) * k;
+  const artY = Math.round(Math.min(hi, Math.max(lo, hudBottom + 4 + shown)));
+  const artBottom = Math.round(height) - artY;
+  return {
+    ...base,
+    sceneH: Math.round(height),
+    artBottom,
+    stageBottom: artBottom + (v.h - v.bedRow) * k,
+    artTop: artY - shown,
+    skyFrom: Math.max(0, Math.min(hudBottom, artY - shown - 20)),
   };
 }

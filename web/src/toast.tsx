@@ -73,8 +73,11 @@ function placeStrip(h: number): { top: number; left: number; width: number } | n
   const keepClear = [...document.querySelectorAll('.bot-spot .tanibot, .plot-art, .soil, .garden-sheet, .hud-bar, .tabs, .coach-float .coach')]
     .map((e) => e.getBoundingClientRect())
     .filter((r) => r.width && r.height);
-  const free = (top: number) => !keepClear.some((r) => left < r.right && r.left < left + width && top < r.bottom && r.top < top + h);
-  return { top: free(below) ? below : safeTop, left, width };
+  const free = (top: number) => top + h <= H && !keepClear.some((r) => left < r.right && r.left < left + width && top < r.bottom && r.top < top + h);
+  // Below the HUD; with the tutorial bubble there, just below the bubble; else the very top.
+  const coach = [...document.querySelectorAll('.coach-float .coach')].map((e) => e.getBoundingClientRect()).find((r) => r.height);
+  for (const top of [below, ...(coach ? [Math.round(coach.bottom + 6)] : [])]) if (free(top)) return { top, left, width };
+  return { top: safeTop, left, width };
 }
 
 export function ToastStrip({ shown, dismiss }: { shown: Shown | null; dismiss: () => void }) {

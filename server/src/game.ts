@@ -1165,7 +1165,7 @@ export class Game {
   }
 
   /** Recent on-chain activity with explorer links (proof for judges). */
-  activity(playerId: number, limit = 20) {
+  activity(playerId: number, limit = 50) {
     const rows = this.db
       .prepare('SELECT id, kind, status, tx_hash, error, created_at FROM chain_jobs WHERE player_id = ? ORDER BY id DESC LIMIT ?')
       .all(playerId, limit) as { id: number; kind: string; status: string; tx_hash: string | null; error: string | null; created_at: number }[];

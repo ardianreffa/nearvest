@@ -1,5 +1,6 @@
 import { render } from 'preact';
 import { App } from './app';
+import { mountRotateScreen } from './rotate';
 import { API_URL } from './api';
 import './fonts.css';
 import './styles.css';
@@ -15,3 +16,4 @@ for (const rel of ['dns-prefetch', 'preconnect']) {
 }
 
 render(<App />, document.getElementById('app')!);
+mountRotateScreen();

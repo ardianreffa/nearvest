@@ -21,14 +21,66 @@ export function seedPrice(config: ServerConfig, g: Pick<SeedGroup, 'species' | '
   return (config.seedSellPrices?.[g.species] ?? 1) * (g.quality ? QUALITY_MULT[g.quality] : 1);
 }
 
+type StorageSection = 'seeds' | 'fruits' | 'items';
+const STORAGE_OPEN_KEY = 'nearvest.storageOpen';
+/** Rows a closed Storage section shows (the rest: "... 4 more"). */
+const STORAGE_PEEK = 2;
+
+function readStorageOpen(): Record<StorageSection, boolean> {
+  try {
+    const v = JSON.parse(localStorage.getItem(STORAGE_OPEN_KEY) ?? '{}') as Partial<Record<StorageSection, boolean>>;
+    return { seeds: !!v.seeds, fruits: !!v.fruits, items: !!v.items };
+  } catch {
+    return { seeds: false, fruits: false, items: false };
+  }
+}
+
+/** "+ SEEDS (6)" / "− SEEDS (6)": opens or closes a Storage section (remembered in this browser). */
+function SectionToggle({ name, count, open, toggle }: { name: string; count: number; open: boolean; toggle: () => void }) {
+  return (
+    <button class="inv-toggle" onClick={toggle} aria-expanded={open} aria-label={`${open ? 'Show less' : 'Show all'} ${name} (${count})`}>
+      <span class="inv-sign" aria-hidden="true">
+        {open ? '−' : '+'}
+      </span>
+      {name} ({count})
+    </button>
+  );
+}
+
+function MoreRow({ hidden, onOpen }: { hidden: number; onOpen: () => void }) {
+  if (hidden <= 0) return null;
+  return (
+    <li class="inv-more-row">
+      <button class="link-btn inv-more" onClick={onOpen}>
+        ... {hidden} more
+      </button>
+    </li>
+  );
+}
+
 export function Storage({ state, config, act, busy, goSell }: { state: GameState; config: ServerConfig; act: Act; busy: boolean; goSell: () => void }) {
   const fertilizer = state.items.find((i) => i.item === 'fertilizer')?.qty ?? 0;
   const [open, setOpen] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(readStorageOpen);
+  const toggle = (section: StorageSection, to = !expanded[section]) => {
+    const next = { ...expanded, [section]: to };
+    setExpanded(next);
+    try {
+      localStorage.setItem(STORAGE_OPEN_KEY, JSON.stringify(next));
+    } catch {
+      // Storage blocked: remembered for this visit only.
+    }
+  };
   const full = state.seedSlots.used >= state.seedSlots.max;
+  const seedGroups = groupSeeds(state.seeds);
+  const shownSeeds = expanded.seeds ? seedGroups : seedGroups.slice(0, STORAGE_PEEK);
+  const shownFruits = expanded.fruits ? state.fruits : state.fruits.slice(0, STORAGE_PEEK);
+  const items = [{ key: 'fertilizer', qty: fertilizer }];
   return (
     <>
       <Panel
-        title="Seeds"
+        class="inv-section"
+        title={<SectionToggle name="Seeds" count={seedGroups.length} open={expanded.seeds} toggle={() => toggle('seeds')} />}
         right={
           <span class={`small ${full ? 'slots-full' : 'muted'}`}>
             {state.seedSlots.used}/{state.seedSlots.max} slots <Info k="seedStorage" label="seed storage" />
@@ -42,7 +94,7 @@ export function Storage({ state, config, act, busy, goSell }: { state: GameState
           <p class="muted">No seeds yet.</p>
         ) : (
           <ul class="list">
-            {groupSeeds(state.seeds).map((g) => (
+            {shownSeeds.map((g) => (
               <li key={g.key} class="seed-row">
                 <div class="seed-row-main">
                   <FruitIcon species={g.species} />
@@ -50,7 +102,7 @@ export function Storage({ state, config, act, busy, goSell }: { state: GameState
                     {SPECIES_NAME[g.species]} seed <b>x{g.ids.length}</b>
                     {g.fromTree && <span class="tiny block">from your tree</span>}
                   </span>
-                  <QualityTag quality={g.quality} />
+                  <QualityTag quality={g.quality} short />
                   <button class="link-btn" onClick={() => setOpen(open === g.key ? null : g.key)} aria-expanded={open === g.key}>
                     {open === g.key ? 'Close' : 'Sell / discard'}
                   </button>
@@ -72,16 +124,21 @@ export function Storage({ state, config, act, busy, goSell }: { state: GameState
                 )}
               </li>
             ))}
+            <MoreRow hidden={seedGroups.length - shownSeeds.length} onOpen={() => toggle('seeds', true)} />
           </ul>
         )}
-        <p class="muted small">Quality of shop and check-in seeds is revealed when you plant them: 80% Common, 17% Rare, 3% Gold.</p>
+        {expanded.seeds && <p class="muted small">Quality of shop and check-in seeds is revealed when you plant them: 80% Common, 17% Rare, 3% Gold.</p>}
       </Panel>
-      <Panel title="Fruits" right={state.fruits.length > 0 && <button class="link-btn" onClick={goSell}>Sell to Mr. Darto</button>}>
+      <Panel
+        class="inv-section"
+        title={<SectionToggle name="Fruits" count={state.fruits.length} open={expanded.fruits} toggle={() => toggle('fruits')} />}
+        right={state.fruits.length > 0 && <button class="link-btn" onClick={goSell}>Sell to Mr. Darto</button>}
+      >
         {state.fruits.length === 0 ? (
           <p class="muted">Harvest ripe trees to fill your storage.</p>
         ) : (
           <ul class="list">
-            {state.fruits.map((f) => (
+            {shownFruits.map((f) => (
               <li key={`${f.species}-${f.quality}`}>
                 <FruitIcon species={f.species} />
                 <span class="grow">{SPECIES_NAME[f.species]}</span>
@@ -89,18 +146,22 @@ export function Storage({ state, config, act, busy, goSell }: { state: GameState
                 <b>x{f.qty}</b>
               </li>
             ))}
+            <MoreRow hidden={state.fruits.length - shownFruits.length} onOpen={() => toggle('fruits', true)} />
           </ul>
         )}
       </Panel>
-      <Panel title="Items">
+      <Panel class="inv-section" title={<SectionToggle name="Items" count={items.length} open={expanded.items} toggle={() => toggle('items')} />}>
         <ul class="list">
-          <li>
-            <Sprite name="fertilizer" scale={3} />
-            <span class="grow">
-              Fertilizer <Info k="fertilizer" label="Fertilizer" />
-            </span>
-            <b>x{fertilizer}</b>
-          </li>
+          {(expanded.items ? items : items.slice(0, STORAGE_PEEK)).map((i) => (
+            <li key={i.key}>
+              <Sprite name="fertilizer" scale={3} />
+              <span class="grow">
+                Fertilizer <Info k="fertilizer" label="Fertilizer" />
+              </span>
+              <b>x{i.qty}</b>
+            </li>
+          ))}
+          <MoreRow hidden={expanded.items ? 0 : items.length - STORAGE_PEEK} onOpen={() => toggle('items', true)} />
         </ul>
       </Panel>
     </>
@@ -472,22 +533,61 @@ export function Village({ state, config, onBot }: { state: GameState; config: Se
             {state.player.accountId}
           </a>
         </p>
-        <ul class="list log">
-          {state.activity.map((a) => (
-            <li key={a.id}>
-              <span class={`dot dot-${a.status}`} />
-              <span class="grow">{ACTIVITY_LABELS[a.kind] ?? a.kind}</span>
-              {a.explorerUrl ? (
-                <a href={a.explorerUrl} target="_blank" rel="noreferrer">
-                  view tx
-                </a>
-              ) : (
-                <span class="muted small">{a.status === 'failed' ? 'failed' : 'sending...'}</span>
-              )}
-            </li>
-          ))}
-        </ul>
+        <ActivityLog activity={state.activity} />
       </Panel>
+    </>
+  );
+}
+
+/** Rows the on-chain log shows before "Show all". */
+const LOG_PEEK = 12;
+
+function ago(ms: number): string {
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+/**
+ * Every NEAR transaction of the garden, newest first: what it was, when, its short hash and a
+ * "view tx" link to nearblocks. The one-line notices in the garden only show the latest one; the
+ * full details always stay here.
+ */
+function ActivityLog({ activity }: { activity: GameState['activity'] }) {
+  const [all, setAll] = useState(false);
+  const rows = all ? activity : activity.slice(0, LOG_PEEK);
+  if (activity.length === 0) return <p class="muted small">No transactions yet.</p>;
+  return (
+    <>
+      <ul class="list log">
+        {rows.map((a) => (
+          <li key={a.id}>
+            <span class={`dot dot-${a.status}`} />
+            <span class="grow">
+              {ACTIVITY_LABELS[a.kind] ?? a.kind}
+              <span class="log-meta">
+                {ago(a.createdAt)}
+                {a.txHash && !a.txHash.startsWith('fake') && <> · {a.txHash.slice(0, 6)}...{a.txHash.slice(-4)}</>}
+                {a.status === 'failed' && a.error && <> · {a.error}</>}
+              </span>
+            </span>
+            {a.explorerUrl ? (
+              <a href={a.explorerUrl} target="_blank" rel="noreferrer">
+                view tx ›
+              </a>
+            ) : (
+              <span class="muted small">{a.status === 'failed' ? 'failed' : a.status === 'done' ? 'done' : 'sending...'}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {activity.length > LOG_PEEK && (
+        <button class="link-btn" onClick={() => setAll(!all)}>
+          {all ? 'Show fewer' : `Show all ${activity.length} transactions`}
+        </button>
+      )}
     </>
   );
 }

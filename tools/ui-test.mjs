@@ -16,6 +16,7 @@
 //   PINS=1 checks the pins and (phones) the sheet; it always reports the garden (mounds, plots and village in view, TaniBot clear of other plots and labels).
 //   Add &bg=v1 to UI_URL for the first village. REDUCED_MOTION=1 emulates prefers-reduced-motion.
 // Tutorial on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tutorial=<newDevUser> [w] [h]
+// Phone garden fit on a NEW dev garden (fake-chain server; FAKE_DB=<its sqlite> adds seeds, fruit, items): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --phonefit=<newDevUser> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
@@ -692,6 +693,147 @@ try {
       console.log('horizontal overflow:', await evaluate(`document.documentElement.scrollWidth > window.innerWidth`));
     });
     throw Object.assign(new Error('tutorial done'), { done: true });
+  }
+  if (name.startsWith('--phonefit=')) {
+    // Phone garden fit (NEW dev garden, fake-chain server, FAKE_DB=<its sqlite> to add seeds, fruit and items):
+    // no page scroll, sky behind the HUD, grass under the panel, TaniBot in front of the mounds,
+    // seed cards whole, Storage sections, the on-chain log, and the "turn your phone" screen sideways.
+    await step('phone garden fit', async () => {
+      const user = name.slice('--phonefit='.length);
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(bodyHas('Welcome to Tandur'), 'create screen');
+      await typeInto('.create input:not([type=checkbox])', user);
+      await clickText('Start farming');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await waitFor(`!document.body.innerText.includes('Creating your NEAR account')`, 'account', 60000);
+      await clickText('Skip tutorial');
+      if (process.env.FAKE_DB) {
+        const { DatabaseSync } = await import('node:sqlite');
+        const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
+        const pid = db.prepare("SELECT p.id FROM players p JOIN users u ON u.id = p.user_id WHERE u.provider = 'dev' AND u.subject = ?").get(user)?.id;
+        const seed = db.prepare("INSERT INTO seeds (player_id, species, quality, source, created_at) VALUES (?, ?, ?, 'shop', ?)");
+        const now = Date.now();
+        for (const [sp, q, n] of [['mango', null, 6], ['mango', 'rare', 1], ['mango', 'gold', 1], ['rambutan', null, 2], ['rambutan', 'rare', 1], ['durian', 'gold', 1], ['durian', null, 1]]) for (let i = 0; i < n; i++) seed.run(pid, sp, q, now);
+        const fruit = db.prepare('INSERT OR REPLACE INTO fruits (player_id, species, quality, qty) VALUES (?, ?, ?, ?)');
+        for (const [sp, q, n] of [['mango', 'common', 5], ['mango', 'rare', 2], ['rambutan', 'common', 3], ['durian', 'gold', 1]]) fruit.run(pid, sp, q, n);
+        db.prepare("INSERT OR REPLACE INTO items (player_id, item, qty) VALUES (?, 'fertilizer', 3)").run(pid);
+        db.close();
+        await send('Page.reload');
+        await waitFor(`!!document.querySelector('.plots')`, 'garden after reload');
+      }
+      await sleep(1500);
+      await evaluate(`document.querySelectorAll('.plot')[0].click()`);
+      await sleep(1200);
+      const fit = `(() => {
+        const se = document.scrollingElement; const before = se.scrollHeight - innerHeight;
+        window.scrollTo(0, 400); const y = scrollY; window.scrollTo(0, 0);
+        const sheet = document.querySelector('.garden-sheet')?.getBoundingClientRect();
+        const tabs = document.querySelector('.tabs')?.getBoundingClientRect();
+        const under = (x, yy) => document.elementsFromPoint(x, yy).filter(e => !e.closest('.topbar, .hud-chips, .garden-sheet, .tabs')).map(e => (e.className?.baseVal ?? e.className ?? '').toString().split(' ')[0] || e.tagName.toLowerCase()).slice(0, 3).join(' > ');
+        const top = document.querySelector('.topbar')?.getBoundingClientRect();
+        return 'page scroll room ' + before + 'px, scrolled to ' + y + ' | behind HUD: ' + under(innerWidth / 2, (top?.top ?? 0) + 4) +
+          ' | just above the panel: ' + under(innerWidth / 2, (sheet?.top ?? 0) - 3) +
+          ' | between panel and tabs: ' + Math.round((tabs?.top ?? 0) - (sheet?.bottom ?? 0)) + 'px';
+      })()`;
+      console.log('fit:', await evaluate(fit));
+      const seeds = `(() => {
+        const cards = [...document.querySelectorAll('.plot-empty .seed-card')];
+        const cut = cards.filter(c => { const r = c.getBoundingClientRect(); return [...c.querySelectorAll('*')].some(e => { const q = e.getBoundingClientRect(); return q.width && (q.right > r.right + 0.5 || q.left < r.left - 0.5); }) || c.scrollWidth > c.clientWidth + 1; });
+        const row = document.querySelector('.plot-empty .seed-row');
+        const bar = document.querySelector('.seed-scroll');
+        return cards.length + ' cards, cut: ' + (cut.length ? cut.map(c => c.innerText.replace(/\\n/g, ' ')).join(' | ') : 'none') + ' | row overflows: ' + (row ? row.scrollWidth > row.clientWidth + 1 : '-') + ' | pixel scrollbar: ' + (bar ? Math.round(bar.getBoundingClientRect().width) + 'x' + Math.round(bar.getBoundingClientRect().height) : 'none') + ' | hint: ' + (document.querySelector('.seed-swipe-hint')?.innerText ?? 'none');
+      })()`;
+      console.log('seeds:', await evaluate(seeds));
+      await screenshot('garden-empty-plot');
+      if (await evaluate(`!!document.querySelector('.plot-empty .seed-row')`)) {
+        await evaluate(`(() => { const r = document.querySelector('.plot-empty .seed-row'); r.scrollLeft = r.scrollWidth; })()`);
+        await sleep(500); await screenshot('seed-row-end');
+        await evaluate(`document.querySelector('.plot-empty .seed-row').scrollLeft = 0`);
+      }
+      // Plant on plot 1, then check TaniBot against the mounds and the labels.
+      await evaluate(`document.querySelector('.plot-empty .seed-card')?.click()`);
+      await waitFor(`!!document.querySelector('.plot .tree')`, 'planted');
+      await sleep(2500);
+      await clickText('Close', '.dialog-backdrop button');
+      await sleep(400);
+      // A second tree (plot 2), so TaniBot stands next to trees on both sides.
+      await evaluate(`document.querySelectorAll('.plot')[1].click()`);
+      await sleep(600);
+      await evaluate(`document.querySelectorAll('.plot-empty .seed-card')[2]?.click()`);
+      await waitFor(`document.querySelectorAll('.plot .tree').length >= 2`, 'second tree');
+      await sleep(1500);
+      await clickText('Close', '.dialog-backdrop button');
+      const view = `(() => {
+        const b = document.querySelector('.bot-spot .tanibot'); if (!b) return 'no TaniBot';
+        const r = b.getBoundingClientRect();
+        const sheet = document.querySelector('.garden-sheet')?.getBoundingClientRect();
+        const cut = r.top < 0 || r.bottom > (sheet ? sheet.top : innerHeight) + 1 || r.left < -1 || r.right > innerWidth + 1;
+        const sel = document.querySelector('.plot.selected');
+        const others = [...document.querySelectorAll('.plot')].filter(p => p !== sel).flatMap(p => [...p.querySelectorAll('.plot-art .badge, .empty-hint')]);
+        let hidden = 0;
+        for (const o of others) { const q = o.getBoundingClientRect(); for (let x = q.left + 2; x < q.right; x += 4) for (let y = q.top + 2; y < q.bottom; y += 4) { const all = document.elementsFromPoint(x, y); if (all[0] && b.contains(all[0]) && all.some(z => o.contains(z) && z !== o)) hidden++; } }
+        return (cut ? 'CUT' : 'fully visible') + ' | over other labels: ' + (hidden ? 'YES ' + hidden + ' points' : 'no');
+      })()`;
+      const bot = `(() => {
+        const st = document.createElement('style'); st.textContent = '.scene * { pointer-events: auto !important; }'; document.head.appendChild(st);
+        const b = document.querySelector('.bot-spot .tanibot'); if (!b) { st.remove(); return 'no TaniBot'; }
+        const r = b.getBoundingClientRect(); let behind = 0, pts = 0, sample = '';
+        for (let x = r.left + 2; x < r.right - 2; x += 3) for (let y = r.top + r.height * 0.55; y < r.bottom - 1; y += 3) { const all = document.elementsFromPoint(x, y); if (!all.some(z => b.contains(z) || z === b)) continue; pts++; if (all[0].closest('.soil')) { behind++; sample = all.slice(0, 4).map(e => e.tagName.toLowerCase() + '.' + ((e.className?.baseVal ?? e.className) || '').toString().split(' ').join('.') + '[z' + getComputedStyle(e).zIndex + ']').join(' > '); } }
+        const chip = document.querySelector('.bot-status')?.getBoundingClientRect();
+        const hits = chip ? [...document.querySelectorAll('.plot .badge, .plot .empty-hint')].filter(e => { const q = e.getBoundingClientRect(); return q.width && q.left < chip.right && chip.left < q.right && q.top < chip.bottom && chip.top < q.bottom; }).map(e => e.innerText) : [];
+        st.remove();
+        return 'TaniBot points behind a mound: ' + behind + '/' + pts + (sample ? ' (' + sample + ')' : '') + ' | labels over the ON/OFF chip: ' + (hits.join(', ') || 'none');
+      })()`;
+      for (const plot of [0, 1, 2]) {
+        await evaluate(`document.querySelectorAll('.plot')[${plot}].click()`);
+        await sleep(2200);
+        console.log(`plot ${plot + 1}:`, await evaluate(bot), '|', await evaluate(view));
+        await screenshot(`garden-plot${plot + 1}`);
+      }
+      console.log('fit (tree):', await evaluate(fit));
+      // Storage
+      await clickText('Storage', '.tab');
+      await sleep(800);
+      const storage = `(() => {
+        const tabs = document.querySelector('.tabs').getBoundingClientRect();
+        return [...document.querySelectorAll('.content .panel')].map(p => { const r = p.getBoundingClientRect(); return (p.querySelector('h2')?.innerText ?? '?') + ' [' + p.querySelectorAll('.list > li').length + ' rows' + (p.querySelector('.inv-more') ? ', ' + p.querySelector('.inv-more').innerText : '') + '] ' + (r.bottom <= tabs.top + 1 ? 'in view' : 'below the fold'); }).join(' | ') + ' | page scroll room ' + (document.scrollingElement.scrollHeight - innerHeight);
+      })()`;
+      console.log('storage:', await evaluate(storage));
+      await screenshot('storage');
+      if (await clickText('Seeds', '.inv-toggle')) {
+        await sleep(400);
+        console.log('storage (Seeds open):', await evaluate(storage));
+        await screenshot('storage-seeds-open');
+        await clickText('Sell / discard');
+        await sleep(400);
+        console.log('sell pickers open:', await evaluate(`document.querySelectorAll('.qty-picker, .qty').length`));
+        await screenshot('storage-sell');
+        await clickText('Seeds', '.inv-toggle');
+        await sleep(300);
+        console.log('storage (Seeds closed again):', await evaluate(storage));
+      }
+      // Village: the on-chain log has every transaction
+      await clickText('Village', '.tab');
+      await sleep(1500);
+      await evaluate(`document.querySelector('.log')?.scrollIntoView({ block: 'center' })`);
+      await sleep(400);
+      console.log('log:', await evaluate(`(() => { const rows = [...document.querySelectorAll('.log > li')]; return rows.length + ' rows: ' + rows.slice(0, 6).map(r => r.innerText.replace(/\\n/g, ' ')).join(' | '); })()`));
+      await screenshot('village-log');
+      await clickText('Garden', '.tab');
+      await sleep(800);
+      // Sideways phones
+      for (const [w, h] of [[874, 402], [956, 440]]) {
+        await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 2, mobile: true, screenOrientation: { type: 'landscapePrimary', angle: 90 } });
+        await sleep(1500);
+        console.log(`${w}x${h}:`, await evaluate(`(() => { const r = document.querySelector('.rotate-screen'); return r && getComputedStyle(r).display !== 'none' ? 'rotate screen: ' + r.innerText.replace(/\\n/g, ' ') : 'game shows'; })()`));
+        await screenshot(`landscape-${w}x${h}`);
+      }
+      await send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 2, mobile: true });
+      await sleep(1200);
+      console.log('upright again:', await evaluate(fit));
+    });
+    throw Object.assign(new Error('phone fit done'), { done: true });
   }
   if (name === '--howto') {
     await step('How to play: 4 pages', async () => {

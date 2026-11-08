@@ -20,8 +20,15 @@ export function FruitIcon({ species, scale = 3 }: { species: Species; scale?: nu
   return <Sprite name={species} scale={scale} title={SPECIES_NAME[species]} />;
 }
 
-export function QualityTag({ quality }: { quality: Quality | null }) {
-  if (!quality) return <span class="tag tag-unknown">Revealed when planted</span>;
+export function QualityTag({ quality, short = false }: { quality: Quality | null; short?: boolean }) {
+  if (!quality)
+    return short ? (
+      <span class="tag tag-unknown" title="Revealed when planted">
+        Unknown
+      </span>
+    ) : (
+      <span class="tag tag-unknown">Revealed when planted</span>
+    );
   return <span class={`tag tag-${quality}`}>{QUALITY_NAME[quality]}</span>;
 }
 
@@ -67,7 +74,7 @@ export function formatDuration(ms: number): string {
   return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
 
-export function Panel({ title, children, right, class: cls }: { title: string; children: ComponentChildren; right?: ComponentChildren; class?: string }) {
+export function Panel({ title, children, right, class: cls }: { title: ComponentChildren; children: ComponentChildren; right?: ComponentChildren; class?: string }) {
   return (
     <section class={`panel${cls ? ` ${cls}` : ''}`}>
       <header class="panel-head">

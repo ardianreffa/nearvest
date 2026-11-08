@@ -125,6 +125,13 @@ export function App() {
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
+  // Phones, Garden tab: one fixed screen (no page scroll, no bounce); the scene fills it behind the
+  // HUD, the plot sheet and the tabs. Other tabs scroll inside their own panels.
+  const phoneFit = !wide && phase === 'play' && tab === 'garden' && bgVersion() !== 'v1';
+  useEffect(() => {
+    document.documentElement.classList.toggle('page-locked', phoneFit);
+    if (phoneFit) window.scrollTo(0, 0);
+  }, [phoneFit]);
   const win = useWindowSize();
   const [drawerOpen, setDrawerOpenState] = useState(readDrawer);
   const setDrawerOpen = (open: boolean) => {
@@ -671,7 +678,7 @@ export function App() {
 
   return (
     <main
-      class={`shell${wide ? ' wide immersive' : ''}${wide && drawerOpen ? ' drawer-open' : ''}`}
+      class={`shell${wide ? ' wide immersive' : ''}${wide && drawerOpen ? ' drawer-open' : ''}${phoneFit ? ' phone-fit' : ''}`}
       data-tut={state.tutorial?.step}
     >
       {wide ? (
@@ -727,12 +734,14 @@ export function App() {
         </>
       ) : (
         <>
-          <header class="topbar">
-            <div class="hud-capsule hud-capsule-left">{who}</div>
-            <div class="hud-capsule hud-sys topbar-right">{muteButton}</div>
-          </header>
-          {chips}
-          {notices}
+          <div class="phone-hud">
+            <header class="topbar">
+              <div class="hud-capsule hud-capsule-left">{who}</div>
+              <div class="hud-capsule hud-sys topbar-right">{muteButton}</div>
+            </header>
+            {chips}
+            {notices}
+          </div>
           <div class="content">
             {/* Garden: the coach floats over the top (sky) of the scene, so it never pushes the
                 village and the mounds down. Other tabs: above the panel as before. */}

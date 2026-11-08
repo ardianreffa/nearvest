@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Place } from './art/hotspots';
 import type { GameState, Quality, ServerConfig } from './api';
 import { floatText } from './fx';
-import { phoneLayout } from './layout';
+import { phoneFill, phoneLayout } from './layout';
 import { bgVersion, villageFor } from './art/village';
 import { seasonPayout } from './qty';
 import { Info } from './info';
@@ -204,42 +204,61 @@ function PhoneGarden({
   const { w, h } = useWindowSize();
   const version = bgVersion();
   const v1 = version === 'v1';
-  // Phones held sideways (landscape): the wide village (as on laptops), its top sky cut off, so the
-  // garden is not taller than the screen.
+  // Wider than tall (small tablets; phones held sideways see the "turn your phone" screen): the
+  // wide village (as on laptops) with its top sky cut off.
   const upright = villageFor(version === 'v1' ? 'v3' : version, true);
   const base = phoneLayout(w, h, w > h ? { ...villageFor(version === 'v1' ? 'v3' : version, false), shownFrom: 50, moundArt: upright.moundArt } : upright);
   const sceneBox = useRef<HTMLDivElement>(null);
   const sheetBox = useRef<HTMLDivElement>(null);
-  // The scene grows into any room left between the top bar and the sheet, so the sheet always
-  // sits right above the tab bar (the art stays at the bottom; more sky shows above it).
-  const [extra, setExtra] = useState(0);
+  // The garden fills the whole screen: measure the HUD's bottom, the sheet's top and the screen's
+  // height, then place the village between them (layout.ts phoneFill).
+  const [room, setRoom] = useState<{ height: number; hud: number; sheet: number } | null>(null);
   useLayoutEffect(() => {
     if (v1) return;
     const fit = () => {
-      const p = sceneBox.current;
+      const box = sceneBox.current;
       const sb = sheetBox.current;
       const tabs = document.querySelector('.tabs');
-      if (!p || !sb || !tabs) return;
-      // Landscape: the sheet sits below the garden (the page scrolls), so the garden takes the room above the tabs.
-      const landscape = window.innerWidth > window.innerHeight;
-      const room = tabs.getBoundingClientRect().top - 8 - (landscape ? 0 : sb.getBoundingClientRect().height) - (p.getBoundingClientRect().top + window.scrollY) - 8;
-      setExtra((e) => {
-        const next = Math.max(0, Math.round(room - base.sceneH));
-        return Math.abs(next - e) > 2 ? next : e;
-      });
+      if (!box || !sb || !tabs) return;
+      const height = box.getBoundingClientRect().height || window.innerHeight;
+      let hud = 0;
+      for (const el of document.querySelectorAll('.phone-hud .topbar, .phone-hud .hud-chips, .phone-hud .notice')) {
+        const r = el.getBoundingClientRect();
+        if (r.height) hud = Math.max(hud, r.bottom);
+      }
+      const root = document.documentElement.style;
+      root.setProperty('--tabs-h', `${Math.round(tabs.getBoundingClientRect().height)}px`);
+      root.setProperty('--hud-bottom', `${Math.round(hud)}px`);
+      const sheet = Math.round(sb.getBoundingClientRect().top);
       // Toasts sit above the sheet, not on it.
-      document.documentElement.style.setProperty('--sheet-room', `${Math.round(window.innerHeight - sb.getBoundingClientRect().top + 8)}px`);
+      root.setProperty('--sheet-room', `${Math.round(window.innerHeight - sheet + 8)}px`);
+      setRoom((r) => (r && Math.abs(r.height - height) < 2 && Math.abs(r.hud - hud) < 2 && Math.abs(r.sheet - sheet) < 2 ? r : { height, hud, sheet }));
     };
     fit();
+    const ro = new ResizeObserver(fit);
+    if (sheetBox.current) ro.observe(sheetBox.current);
+    if (sceneBox.current) ro.observe(sceneBox.current);
+    const hud = document.querySelector('.phone-hud');
+    if (hud) ro.observe(hud);
+    window.addEventListener('resize', fit);
     const t = setInterval(fit, 1000);
-    return () => clearInterval(t);
-  });
-  useEffect(() => () => document.documentElement.style.removeProperty('--sheet-room'), []);
-  const zoom = { ...base, sceneH: base.sceneH + extra };
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', fit);
+      clearInterval(t);
+    };
+  }, [v1]);
+  useEffect(
+    () => () => {
+      for (const v of ['--sheet-room', '--tabs-h', '--hud-bottom']) document.documentElement.style.removeProperty(v);
+    },
+    [],
+  );
+  const zoom = room ? phoneFill(base, room.height, room.hud, room.sheet) : base;
 
   return (
     <div class="garden-screen phone-garden">
-      <div class={`phone-scene-box${v1 ? ' v1' : ''}`} ref={sceneBox}>
+      <div class={`phone-scene-box${v1 ? ' v1' : ''}`} ref={sceneBox} style={room || v1 ? undefined : { visibility: 'hidden' }}>
         <GardenScene state={state} selected={selected} onSelect={onSelect} elapsed={elapsed} fx={fx} big={big} phone={v1 ? undefined : zoom} onBot={onBot} onPlace={onPlace} />
       </div>
       <div class="garden-sheet" ref={sheetBox}>
@@ -343,41 +362,106 @@ function OddsLine({ odds }: { odds: Record<Quality, number> }) {
   );
 }
 
+const SWIPE_HINT_KEY = 'nearvest.seedSwipeHint';
+
 /**
- * The seeds of an empty plot in one row. When they do not fit (laptop action bar with many kinds),
- * the row scrolls sideways and shows clear arrow buttons at its ends.
+ * The seeds of an empty plot in one row. When they do not fit, the row scrolls sideways (swipe, or
+ * drag / tap the pixel scrollbar under it); a small "Swipe" hint shows once. The laptop action bar
+ * also has arrow buttons at the ends.
  */
-function SeedRow({ children }: { children: preact.ComponentChildren }) {
+function SeedRow({ children, arrows = false }: { children: preact.ComponentChildren; arrows?: boolean }) {
   const row = useRef<HTMLDivElement>(null);
-  const [ends, setEnds] = useState({ left: false, right: false });
+  const track = useRef<HTMLDivElement>(null);
+  const [bar, setBar] = useState({ over: false, left: 0, width: 1, atStart: true, atEnd: true });
+  const [hint, setHint] = useState(false);
   const update = () => {
     const r = row.current;
     if (!r) return;
-    const left = r.scrollLeft > 2;
-    const right = r.scrollLeft + r.clientWidth < r.scrollWidth - 2;
+    const over = r.scrollWidth > r.clientWidth + 2;
+    const max = Math.max(1, r.scrollWidth - r.clientWidth);
+    const width = over ? r.clientWidth / r.scrollWidth : 1;
+    const left = over ? (r.scrollLeft / max) * (1 - width) : 0;
+    const atStart = r.scrollLeft <= 2;
+    const atEnd = r.scrollLeft >= max - 2;
     // Only a real change re-renders (this runs after every render).
-    setEnds((e) => (e.left === left && e.right === right ? e : { left, right }));
+    setBar((b) =>
+      b.over === over && Math.abs(b.left - left) < 0.002 && Math.abs(b.width - width) < 0.002 && b.atStart === atStart && b.atEnd === atEnd ? b : { over, left, width, atStart, atEnd },
+    );
   };
   useLayoutEffect(() => {
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   });
+  // The first time a row is too long: a small "Swipe" hint (once per browser).
+  useEffect(() => {
+    if (!bar.over) return;
+    let seen = true;
+    try {
+      seen = localStorage.getItem(SWIPE_HINT_KEY) === 'seen';
+      localStorage.setItem(SWIPE_HINT_KEY, 'seen');
+    } catch {
+      seen = false;
+    }
+    if (seen) return;
+    setHint(true);
+    const t = window.setTimeout(() => setHint(false), 5000);
+    return () => window.clearTimeout(t);
+  }, [bar.over]);
+  const onScroll = () => {
+    update();
+    if (hint) setHint(false);
+  };
   const go = (dir: number) => row.current?.scrollBy({ left: dir * row.current.clientWidth * 0.8, behavior: 'smooth' });
+  /** Drag the thumb, or tap the track to jump there. */
+  const drag = (e: PointerEvent) => {
+    const r = row.current;
+    const t = track.current;
+    if (!r || !t) return;
+    e.preventDefault();
+    const box = t.getBoundingClientRect();
+    const thumbW = box.width * bar.width;
+    const to = (x: number) => {
+      const f = Math.min(1, Math.max(0, (x - box.left - thumbW / 2) / Math.max(1, box.width - thumbW)));
+      r.scrollLeft = f * (r.scrollWidth - r.clientWidth);
+    };
+    to(e.clientX);
+    const move = (ev: PointerEvent) => to(ev.clientX);
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
   return (
-    <div class="seed-row-wrap">
-      {ends.left && (
-        <button class="seed-arrow left" onClick={() => go(-1)} aria-label="Show earlier seeds">
-          ‹
-        </button>
-      )}
-      <div class="seed-row" role="list" aria-label="Your seeds" ref={row} onScroll={update}>
-        {children}
+    <div class={`seed-row-box${bar.over ? ' overflows' : ''}`}>
+      <div class="seed-row-wrap">
+        {arrows && bar.over && !bar.atStart && (
+          <button class="seed-arrow left" onClick={() => go(-1)} aria-label="Show earlier seeds">
+            ‹
+          </button>
+        )}
+        <div class="seed-row" role="list" aria-label="Your seeds" ref={row} onScroll={onScroll}>
+          {children}
+        </div>
+        {arrows && bar.over && !bar.atEnd && (
+          <button class="seed-arrow right" onClick={() => go(1)} aria-label="Show more seeds">
+            ›
+          </button>
+        )}
       </div>
-      {ends.right && (
-        <button class="seed-arrow right" onClick={() => go(1)} aria-label="Show more seeds">
-          ›
-        </button>
+      {bar.over && (
+        <div class="seed-scroll" ref={track} onPointerDown={drag} aria-hidden="true">
+          <i style={{ left: `${bar.left * 100}%`, width: `${bar.width * 100}%` }} />
+        </div>
+      )}
+      {hint && (
+        <span class="seed-swipe-hint" aria-hidden="true">
+          Swipe for more ›
+        </span>
       )}
     </div>
   );
@@ -440,7 +524,7 @@ function PlotPanel({
         {groups.length === 0 ? (
           <p class="muted">You have no seeds.</p>
         ) : (
-          <SeedRow>
+          <SeedRow arrows={bar}>
             {groups.map((g) => (
               <SeedCard
                 key={g.key}

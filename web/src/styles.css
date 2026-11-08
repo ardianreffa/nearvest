@@ -5302,7 +5302,7 @@ button.chip:focus-visible {
   align-self: center;
 }
 
-.shell:not(.immersive) > .hud-chips {
+.phone-hud > .hud-chips {
   margin: var(--space) 0 var(--space);
 }
 
@@ -9013,17 +9013,421 @@ li b,
   cursor: default;
 }
 
-/* Phones held sideways: the plot sheet follows the garden (scroll down to it) instead of sitting
-   on top of it, and shows all its buttons. */
-@media (orientation: landscape) and (max-height: 520px) and (max-width: 1023px) {
-  .garden-sheet {
-    position: static;
+/* =====================================================================
+   Phones, Garden tab (app.tsx phoneFit, garden.tsx PhoneGarden, layout.ts phoneFill):
+   one fixed screen, no page scroll and no bounce. The scene fills it: the code sky reaches the top
+   edge behind the floating HUD, the village's bottom bushes run on under the plot sheet and the
+   tabs. Other tabs keep their normal page.
+   ===================================================================== */
+html {
+  overscroll-behavior: none;
+}
+
+html.page-locked,
+html.page-locked body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.shell.phone-fit {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100dvh;
+  max-width: none;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.shell.phone-fit > .phone-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9;
+  box-sizing: border-box;
+  width: min(100%, 430px);
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 8px) 12px 0;
+  pointer-events: none;
+}
+
+.shell.phone-fit > .phone-hud > * {
+  pointer-events: auto;
+}
+
+/* The HUD floats over the sky: see-through capsules, still easy to read. */
+.shell.phone-fit .topbar > .hud-capsule {
+  background: rgba(14, 40, 27, 0.66);
+}
+
+.shell.phone-fit .hud-chips .chip-day {
+  background: rgba(40, 26, 14, 0.7);
+}
+
+.shell.phone-fit > .content {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.shell.phone-fit .garden-screen {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.shell.phone-fit .phone-scene-box {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  /* Taps still work; no page panning or pinch-zoom on the garden. */
+  touch-action: none;
+}
+
+.shell.phone-fit .garden-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--tabs-h, 68px) + 6px);
+  z-index: 6;
+  width: min(calc(100% - 24px), 406px);
+  margin: 0 auto;
+}
+
+.shell.phone-fit .coach-float {
+  top: calc(var(--hud-bottom, 120px) + 6px);
+  left: 12px;
+  right: 12px;
+}
+
+/* The village's bottom bushes continue below the art, strip by strip (every other one mirrored). */
+.bg-ground-below {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--art-bottom);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bg-ground-below .ground-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bg-ground-below .ground-layer i {
+  flex: none;
+  display: block;
+  height: calc(var(--k) * 16px);
+  margin-bottom: -0.5px;
+  background-size: calc(var(--k) * var(--art-w) * 1px) calc(var(--k) * var(--art-h) * 1px);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.bg-ground-below .ground-layer i.flip {
+  transform: scaleY(-1);
+}
+
+.bg-ground-below .ground-dusk {
+  opacity: var(--dusk);
+}
+
+.bg-ground-below .ground-night {
+  opacity: var(--night);
+}
+
+.bg-ground-below .ground-shade {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 14, 38, 0.45);
+  opacity: var(--night);
+}
+
+/* v3 phones: TaniBot stands on the grass IN FRONT of the mounds. The plots do not form one layer
+   here, so the order is: mound back < tree < mound front lip < TaniBot (with its chip and speech
+   bubble) < tree labels, so it never hides a label. */
+.phone-scene.mound-art .stage .plots,
+.phone-scene.mound-art .plot,
+.phone-scene.mound-art .plot-art {
+  z-index: auto;
+}
+
+.phone-scene.mound-art .soil.mound.art .mound-back {
+  z-index: 0;
+}
+
+.phone-scene.mound-art .plot-art > .tree {
+  position: relative;
+  z-index: 1;
+}
+
+.phone-scene.mound-art .soil.mound.art .mound-front {
+  z-index: 2;
+}
+
+.phone-scene.mound-art .stage .bot-spot.bot-beside {
+  z-index: 6;
+}
+
+.phone-scene.mound-art .plot-art .badge,
+.phone-scene.mound-art .plot-art .empty-hint,
+.phone-scene.mound-art .plot.locked .plot-art svg {
+  position: relative;
+  z-index: 7;
+}
+
+.phone-scene.mound-art .plot-art .badge {
+  position: absolute;
+}
+
+/* Its ON/OFF chip sits on the grass under its feet, clear of every tree label above the mounds. */
+.bot-spot.bot-beside .bot-status {
+  left: 50%;
+  top: calc(100% + 2px);
+  margin-left: 0;
+  transform: translateX(-50%);
+}
+
+/* Seeds of an empty plot (garden.tsx SeedRow): every card wide enough for its icon, quality dot
+   and count; a long row scrolls sideways with a clear pixel scrollbar under it. */
+.plot-sheet .seed-row-wrap .seed-card.compact {
+  flex: none;
+  width: auto;
+  min-width: 74px;
+  max-width: none;
+  padding: 3px 10px 3px 6px;
+  gap: 6px;
+}
+
+.seed-card.compact .seed-count {
+  flex: none;
+  white-space: nowrap;
+}
+
+.seed-row-box {
+  position: relative;
+}
+
+.seed-row-box.overflows .seed-row-wrap > .seed-row {
+  padding-bottom: 4px;
+}
+
+.seed-scroll {
+  position: relative;
+  height: 12px;
+  margin: 4px 2px 0;
+  background: #2a1c10;
+  border: 2px solid #1b1b2f;
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.seed-scroll > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 24px;
+  background: var(--gold);
+  box-shadow: inset 0 -2px 0 #c99a1a, inset 0 2px 0 #ffe58a;
+}
+
+.seed-swipe-hint {
+  position: absolute;
+  right: 8px;
+  bottom: -3px;
+  z-index: 2;
+  padding: 1px 6px;
+  font: 400 12px/1 'Tiny5', monospace;
+  color: #1b1b2f;
+  background: var(--gold);
+  border: 2px solid #1b1b2f;
+  box-shadow: 2px 2px 0 #1b1b2f;
+  pointer-events: none;
+  animation: swipe-nudge 0.9s steps(2) infinite;
+}
+
+@keyframes swipe-nudge {
+  50% {
+    transform: translateX(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seed-swipe-hint {
+    animation: none;
+  }
+}
+
+/* Storage sections (panels.tsx Storage): "+ SEEDS (6)" opens one, "− SEEDS (6)" closes it, like
+   "+ SELL SEEDS" in the Market. Closed: the first 2 rows and "... 4 more". */
+.inv-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-shadow: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.inv-toggle:focus-visible {
+  outline: 3px solid var(--mint);
+  outline-offset: 2px;
+}
+
+.inv-sign {
+  display: inline-block;
+  min-width: 0.7em;
+}
+
+.list li.inv-more-row {
+  padding: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  clip-path: none !important;
+  min-height: 0 !important;
+}
+
+/* Phones: Storage rows a little shorter, so Seeds, Fruits and Items fit on one screen. */
+@media (max-width: 1023px) {
+  .inv-section .list li {
+    min-height: 40px;
+    padding-top: 4px;
+    padding-bottom: 4px;
   }
 
-  .plot-sheet.closed,
-  .plot-sheet.plain,
-  .plot-sheet.open {
-    max-height: none;
-    overflow: visible;
+  .inv-section .list {
+    gap: 6px;
   }
+}
+
+.inv-more {
+  padding: 2px 4px;
+}
+
+/* On-chain log (Village): when and which transaction, under its name. */
+.log .log-meta {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* Turn your phone (rotate.tsx): phones held sideways see this instead of the game. */
+.rotate-screen {
+  display: none;
+}
+
+@media (orientation: landscape) and (max-height: 520px) and (max-width: 1023px), (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #app {
+    display: none;
+  }
+
+  .rotate-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px calc(env(safe-area-inset-right) + 24px) 16px calc(env(safe-area-inset-left) + 24px);
+    background:
+      repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 8px),
+      linear-gradient(#143826, #0f2a1e);
+    color: #f6efd9;
+  }
+}
+
+.rotate-inner {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  max-width: 640px;
+  padding: 20px 26px;
+  background: rgba(20, 56, 38, 0.92);
+  border: 4px solid #1b1b2f;
+  box-shadow: 0 0 0 3px var(--mint-dim), inset 0 -4px 0 rgba(0, 0, 0, 0.3);
+}
+
+.rotate-inner .tanibot {
+  flex: none;
+}
+
+.rotate-logo {
+  font: 400 30px/1.1 var(--font-title);
+  color: var(--mint);
+  text-shadow: 3px 3px 0 #000;
+}
+
+.rotate-text p {
+  margin: 10px 0 0;
+  font: 400 calc(18px * var(--text-k, 1)) / 1.45 var(--font-text);
+}
+
+/* A small phone that turns from sideways to upright. */
+.rotate-phone {
+  display: inline-block;
+  margin-top: 10px;
+  width: 20px;
+  height: 32px;
+  border: 3px solid #f6efd9;
+  box-shadow: 2px 2px 0 #000;
+  animation: rotate-phone 2.4s steps(1) infinite;
+}
+
+.rotate-phone i {
+  display: block;
+  width: 6px;
+  height: 3px;
+  margin: 22px auto 0;
+  background: #f6efd9;
+}
+
+@keyframes rotate-phone {
+  0%,
+  45% {
+    transform: rotate(-90deg);
+  }
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotate-phone {
+    animation: none;
+  }
+}
+
+/* Scrolling inside the plot sheet or the seed row never moves (or bounces) the garden screen. */
+.shell.phone-fit .plot-sheet,
+.shell.phone-fit .seed-row-wrap > .seed-row {
+  overscroll-behavior: contain;
 }

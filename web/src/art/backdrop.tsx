@@ -109,6 +109,7 @@ export function Backdrop({
   account,
   village = V1,
   skyTop,
+  groundBelow = false,
 }: {
   fraction: number;
   blurFill?: boolean;
@@ -117,6 +118,11 @@ export function Backdrop({
   account?: string;
   village?: Village;
   skyTop?: number;
+  /**
+   * Phones: the village's bottom bushes continue below the art (under the plot sheet and the tabs),
+   * mirrored strip by strip so every seam matches.
+   */
+  groundBelow?: boolean;
 }) {
   const v = village;
   const v2 = v.key !== 'v1';
@@ -206,6 +212,18 @@ export function Backdrop({
         {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} />}
       </div>
       {blurFill && <div class="bg-soil-ext" style={{ background: v.groundExt }} />}
+      {groundBelow && (
+        <div class="bg-ground-below" style={{ '--art-w': String(v.w), '--art-h': String(v.h) }}>
+          {(['day', 'dusk', 'night'] as const).map((light) => (
+            <div key={light} class={`ground-layer ground-${light}`}>
+              {Array.from({ length: 8 }, (_, i) => (
+                <i key={i} class={i % 2 === 0 ? 'flip' : undefined} style={{ backgroundImage: `url(${src(light)})` }} />
+              ))}
+            </div>
+          ))}
+          <div class="ground-shade" />
+        </div>
+      )}
 
       <div class="bg-tint" />
     </div>

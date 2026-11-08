@@ -149,7 +149,9 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         onPlace={onPlace}
         account={state.player.accountId}
         village={village}
-        skyTop={phone ? Math.max(0, phone.village.h - phone.sceneH / phone.k) : undefined}
+        // The sky's top: the first game row shown (above the art when the scene is taller than it).
+        skyTop={phone ? phone.village.h - (phone.sceneH - phone.artBottom - (phone.skyFrom ?? 0)) / phone.k : undefined}
+        groundBelow={!!phone && phone.artBottom > 0}
       />
 
       <Stage immersive={immersive}>
@@ -213,8 +215,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           '--bot-w': `${TANIBOT_W * botScale}px`,
           // Phones: on the grass in front of the plots (its head just under the mounds).
           ...(phone && v2 && !village?.moundArt ? { bottom: `${-(phone.village.h - phone.village.bedRow - 0.5) * phone.k}px` } : {}),
-          // v3 phones: feet on the mounds' baseline (a little in front of it).
-          ...(phone && village?.moundArt ? { bottom: `${-1.5 * phone.k}px` } : {}),
+          // v3 phones: feet on the grass just in front of the mounds' baseline.
+          ...(phone && village?.moundArt ? { bottom: `${-3 * phone.k}px` } : {}),
         }}
       >
         {on && (

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { ART_H, ART_W, immersiveLayout, PHONE_SHEET_MAX, PHONE_SHOWN_FROM, phoneLayout, phoneSceneRoom } from '../src/layout.ts';
+import { ART_H, ART_W, immersiveLayout, PHONE_FRONT_ROWS, PHONE_SHEET_MAX, PHONE_SHOWN_FROM, phoneFill, phoneLayout, phoneSceneRoom } from '../src/layout.ts';
 import { V2_PHONE, V2_WEB, V3_PHONE, V3_WEB } from '../src/art/village.ts';
 
 /** True when the sharp garden art covers the whole window (no blurred bars). */
@@ -134,6 +134,32 @@ describe('v3 phone garden: the village fills the screen width, no panning, less 
       assert.ok(Number.isInteger(l.spritePx) && l.spritePx >= 3, 'trees keep whole pixels');
       assert.ok(l.sceneH <= phoneSceneRoom(h), `scene ${l.sceneH}px fits above a sheet of at most ${PHONE_SHEET_MAX * 100}%`);
       assert.ok(l.sceneH >= (V3_PHONE.h - 70) * l.k, 'the towers, the village and the plots are in view');
+    });
+  }
+});
+
+describe('v3 phone garden fills the whole screen (no page scroll)', () => {
+  // [width, height, HUD bottom, sheet top]: Chrome sizes and Safari with its toolbars (shorter).
+  for (const [w, h, hud, sheet] of [
+    [402, 874, 124, 662],
+    [390, 844, 124, 632],
+    [402, 730, 124, 520],
+    [390, 664, 124, 452],
+    [375, 600, 124, 388],
+  ]) {
+    it(`${w}x${h}: sky to the top, village above the sheet, beds and TaniBot's feet in view`, () => {
+      const base = phoneLayout(w, h);
+      const z = phoneFill(base, h, hud, sheet);
+      const v = z.village;
+      assert.equal(z.sceneH, h, 'the scene is as tall as the screen');
+      const artY = h - z.artBottom;
+      // The beds and the grass in front of them (TaniBot's feet, its chip) stay above the sheet.
+      assert.ok(artY - (v.h - v.bedRow - PHONE_FRONT_ROWS) * z.k <= sheet + 1, 'beds above the sheet');
+      // The village's bottom bushes reach under the sheet (no empty band between them).
+      assert.ok(artY >= sheet, 'the sheet sits on the bushes');
+      // Tall enough screens: the mountain top stays below the HUD.
+      if (h >= 730) assert.ok(z.artTop >= hud, `mountain top ${z.artTop} under the HUD ${hud}`);
+      assert.equal(z.stageBottom, z.artBottom + (v.h - v.bedRow) * z.k);
     });
   }
 });
