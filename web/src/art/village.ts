@@ -4,8 +4,8 @@
 //   v2-phone - the same village drawn upright for phones (120x180 game pixels);
 //   v3-web / v3-phone - the default since 2026-11-08: the same layout redrawn by ChatGPT with a
 //                billboard on the Arena gazebo, a hologram robot head at the Friends house, no
-//                turbine pole on laptops, and real ChatGPT night images (no dusk image: the day
-//                cross-fades smoothly into the night). Dev builds compare with ?bg=v1 / ?bg=v2.
+//                turbine pole on laptops, and ChatGPT day, dusk and night images (cross-faded
+//                day -> dusk -> night from the village clock). Dev builds compare with ?bg=v1 / ?bg=v2.
 // Coordinates are game pixels (the grid trees, plots and TaniBot use); the images are more
 // detailed: twice (480x270 laptop images, v2 phone 240x360) or four times (v3 phone 480x720).
 // Each image comes in day / (dusk) / night versions that line up pixel for pixel and are
@@ -58,8 +58,6 @@ export interface Village {
   mounds: boolean;
   /** v3: the mounds are the ChatGPT mound (mound.png) instead of the code-drawn one. */
   moundArt?: boolean;
-  /** v3 has no dusk image: the day image cross-fades straight into the night one. */
-  noDuskArt?: boolean;
   /** v3: the holograms are drawn in the image; the code adds a slow glow and a soft scan line. */
   softHolograms?: boolean;
   /** v3: the empty screen of the Arena gazebo, where "1 VS 1" glows (game px). */
@@ -270,7 +268,7 @@ export const V2_PHONE: Village = {
   robot: { x: 113, y: 124, homeX: 101 },
 };
 
-const v3Src = (form: 'web' | 'phone') => (light: Light) => `/assets/bg/village3-${form}-${light === 'dusk' ? 'day' : light}.png`;
+const v3Src = (form: 'web' | 'phone') => (light: Light) => `/assets/bg/village3-${form}-${light}.png`;
 
 /** Rail top of the v3 laptop village, measured on the image (tools: see docs/ASSETS.md). */
 const railY3 = (x: number) => 68.5 - (x - 140) * 0.246;
@@ -288,7 +286,6 @@ export const V3_WEB: Village = {
   groundExt: 'linear-gradient(#3f9a1c, #24600f)',
   mounds: true,
   moundArt: true,
-  noDuskArt: true,
   softHolograms: true,
   lanterns: [
     [17, 63.5, 4, 6],
@@ -356,7 +353,6 @@ export const V3_PHONE: Village = {
   groundExt: 'linear-gradient(#3f9a1c, #24600f)',
   mounds: true,
   moundArt: true,
-  noDuskArt: true,
   softHolograms: true,
   lanterns: [
     [8.3, 98.3, 4.2, 5.5],

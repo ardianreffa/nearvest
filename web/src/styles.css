@@ -7899,11 +7899,6 @@ button.chip:focus-visible {
    stays, and the phone garden that fills the screen's width.
    ===================================================================== */
 
-/* No dusk image: the night image fades in slowly from 16:00 (--night-art, backdrop.tsx). */
-.bg-img-night,
-.bg-blur .bg-img-night {
-  opacity: var(--night-art, var(--night));
-}
 
 /* Holograms drawn in the image: a slow glow and a soft scan line (no flicker, no noise). */
 .holo.soft {
@@ -8215,4 +8210,83 @@ button.chip:focus-visible {
    on a tall tree it sits on the crown instead. */
 .phone-scene.mound-art .plot-art .badge {
   bottom: min(calc(100% - var(--tree-top, 0px) + 4px), var(--label-max, 9999px));
+}
+
+/* v3 robot (village-life.tsx, robot-sprite.ts): stays at the Friends house day and night. It hovers
+   a whole image pixel up and down, blinks now and then, and its antenna orb glows (stronger at night).
+   It dims a little after dark like the village, but never fades away. */
+.village-robot.v3 .vr-body {
+  animation: vr3-hover 2.8s steps(2) infinite;
+}
+
+.village-robot.v3 .vr-v3 {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.village-robot.v3 .vr-v3:not(.vr-orb):not(.vr-eyes) {
+  filter: brightness(calc(1 - 0.28 * var(--night) - 0.1 * var(--dusk)));
+}
+
+.village-robot.v3 .vr-eyes {
+  animation: vr3-blink 4.6s steps(1) infinite;
+}
+
+.village-robot.v3 .vr-orb {
+  filter: drop-shadow(0 0 2px #22d3ee) drop-shadow(0 0 calc(2px + 4px * var(--night)) rgba(34, 211, 238, 0.85));
+  animation: vr3-orb 2.2s ease-in-out infinite;
+}
+
+/* A small shadow on the grass that shrinks as the robot rises. */
+.village-robot.v3 .vr-shadow {
+  position: absolute;
+  left: 22%;
+  right: 22%;
+  bottom: -5%;
+  height: 7%;
+  border-radius: 50%;
+  background: rgba(10, 30, 10, 0.35);
+  animation: vr3-shadow 2.8s steps(2) infinite;
+}
+
+@keyframes vr3-hover {
+  50% {
+    transform: translateY(-3%);
+  }
+}
+
+@keyframes vr3-shadow {
+  50% {
+    transform: scaleX(0.8);
+    opacity: 0.7;
+  }
+}
+
+@keyframes vr3-blink {
+  0%,
+  92% {
+    opacity: 1;
+  }
+  93%,
+  96% {
+    opacity: 0;
+  }
+}
+
+@keyframes vr3-orb {
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .village-robot.v3 .vr-body,
+  .village-robot.v3 .vr-eyes,
+  .village-robot.v3 .vr-orb,
+  .village-robot.v3 .vr-shadow {
+    animation: none;
+  }
 }

@@ -3,14 +3,14 @@
 //   pixel size, standing idle and now and then waving;
 //   a little round robot near the Friends house (cut from the first village image with
 //   tools/pixelize/cutout.py and cleaned by hand): it floats, blinks and waves now and then.
-//   v2: at night it drifts home to the house's door and dims. v3 (`robot.stay`): it stays in
-//   front of the Friends house day and night, hovering and blinking.
-//   ChatGPT robot later: convert robot.png into /assets/bg/robot.png (docs/ASSETS.md) and fill in
-//   ROBOT_ART below (its size in image pixels, half a game pixel each); nothing else changes.
+//   v2: at night it drifts home to the house's door and dims. v3 (`robot.stay`): Ardian's ChatGPT
+//   robot (robot-sprite.ts) stays in front of the Friends house day and night, hovering, blinking,
+//   its antenna orb glowing.
 // Both stand still with prefers-reduced-motion. Sizes are image pixels (half a game pixel).
 
 import { Pixels } from '../sprites';
 import { DARTO_ANCHOR, DARTO_IDLE, DARTO_PALETTE, DARTO_WAVE } from './darto-sprite';
+import { ROBOT_V3, ROBOT_V3_EYES, ROBOT_V3_ORB, ROBOT_V3_PALETTE, ROBOT_V3_PER } from './robot-sprite';
 import { boxIn, type Village } from './village';
 
 const shrinkCache = new Map<string, string[]>();
@@ -91,21 +91,23 @@ const ARM_DOWN = ['..', 'h.', 'hh'];
 const JETS = ['....l...l....'];
 const ROBOT_PAL = { a: '#0B1620', g: '#F2F2EC', f: '#B3CCD5', h: '#89A8B2', i: '#5E90A8', k: '#22D3EE', l: '#69BDCF' };
 
-/** The ChatGPT robot (robot.png), once it exists: e.g. { src: '/assets/bg/robot.png', w: 16, h: 18 }. */
-const ROBOT_ART = null as { src: string; w: number; h: number } | null;
-
 /** The little robot near the Friends house. */
 export function VillageRobot({ v }: { v: Village }) {
   if (!v.robot) return null;
   const { x, y, homeX, stay } = v.robot;
-  if (ROBOT_ART) {
-    const w = ROBOT_ART.w / 2;
-    const h = ROBOT_ART.h / 2;
+  if (stay) {
+    // v3: Ardian's ChatGPT robot (robot-sprite.ts). It stays in front of the Friends house day and
+    // night: hovers gently, blinks, its antenna orb glows (brighter at night).
+    const w = ROBOT_V3[0].length / ROBOT_V3_PER;
+    const h = ROBOT_V3.length / ROBOT_V3_PER;
     return (
-      <div class={`village-robot${stay ? ' stay' : ''}`} style={{ ...boxIn(v, x - w / 2, y - h, w, h), '--home-dx': `${((homeX - x) / w) * 100}%` }} aria-hidden="true">
+      <div class="village-robot stay v3" style={boxIn(v, x - w / 2, y - h, w, h)} aria-hidden="true">
         <div class="vr-body">
-          <img class="vr-art" src={ROBOT_ART.src} alt="" draggable={false} />
+          <Pixels rows={ROBOT_V3} palette={ROBOT_V3_PALETTE} scale={1} class="vr-v3" />
+          <Pixels rows={ROBOT_V3_EYES} palette={ROBOT_V3_PALETTE} scale={1} class="vr-v3 vr-eyes" />
+          <Pixels rows={ROBOT_V3_ORB} palette={ROBOT_V3_PALETTE} scale={1} class="vr-v3 vr-orb" />
         </div>
+        <i class="vr-shadow" />
       </div>
     );
   }

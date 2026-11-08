@@ -80,23 +80,6 @@ export function skyMix(fractionOfDay: number): { night: number; dusk: number; ti
   return { night: hour >= 7 && hour < 16 ? 0 : 1, dusk: 0, tint: 0 };
 }
 
-/**
- * v3 has no dusk image: how much of the night image shows (0..1). A slow, eased cross-fade from
- * the day image to the night one between 16:00 and 19:30 (the sky turns warm on its own), and
- * back between 05:00 and 07:00.
- */
-export function nightArtMix(fractionOfDay: number): number {
-  const hour = hourOf(fractionOfDay);
-  const smooth = (from: number, to: number) => {
-    const u = Math.min(1, Math.max(0, (hour - from) / (to - from)));
-    return u * u * (3 - 2 * u);
-  };
-  if (hour >= 5 && hour < 7) return 1 - smooth(5, 7);
-  if (hour >= 7 && hour < 16) return 0;
-  if (hour >= 16 && hour < 19.5) return smooth(16, 19.5);
-  return 1;
-}
-
 /** Village fractions for ?time=day / dusk / night (dev builds: lock the clock for screenshots and video). */
 export const TIME_LOCK: Record<string, number> = {
   day: (12 - 7) / 24,
@@ -147,7 +130,6 @@ export function Backdrop({
     '--dusk': dusk.toFixed(3),
     '--day': ((1 - dusk) * (1 - night)).toFixed(3),
     '--tint': tint.toFixed(3),
-    ...(v.noDuskArt ? { '--night-art': nightArtMix(fraction).toFixed(3) } : {}),
   };
   // The 240x135 sky (sun, moon, clouds, birds, stars) keeps its shape: on the upright phone
   // village it is drawn in a box from the top of the visible scene.
@@ -163,7 +145,7 @@ export function Backdrop({
         <div class="bg-blur">
           {!v2 && <SkyBands hour={hour} />}
           <img src={src('day')} alt="" />
-          {!v.noDuskArt && <img class="bg-img-dusk" src={src('dusk')} alt="" />}
+          <img class="bg-img-dusk" src={src('dusk')} alt="" />
           <img class="bg-img-night" src={src('night')} alt="" />
         </div>
       )}
@@ -175,7 +157,7 @@ export function Backdrop({
           <SkyBack hour={hour} bands={!v2} />
         </div>
         <img class="bg-img" src={src('day')} alt="" />
-        {!v.noDuskArt && <img class="bg-img bg-img-dusk" src={src('dusk')} alt="" />}
+        <img class="bg-img bg-img-dusk" src={src('dusk')} alt="" />
         <img class="bg-img bg-img-night" src={src('night')} alt="" />
 
         <div class="bg-fx">
