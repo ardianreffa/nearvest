@@ -33,11 +33,10 @@ export interface Rail {
   toward: 'right' | 'left';
   /**
    * 'cars' (v1, v2): three code-drawn cars that tilt with the rail. 'slope' (v3): the ChatGPT
-   * train, already drawn on the rail's slope (train-slope.png), slides along it unrotated at
-   * one size and fades out at the far end of the rail (`fadeTo`..`fadeFrom`, game x).
+   * train, already drawn on the rail's slope (train-slope.png), slides along it unrotated and
+   * gets smaller as it rolls away to the far end of the rail (perspective).
    */
   sprite?: 'cars' | 'slope';
-  fade?: [number, number];
 }
 
 export interface Village {
@@ -334,7 +333,6 @@ export const V3_WEB: Village = {
     clip: { x: 135, y: 8, w: 105, h: 66 },
     toward: 'left',
     sprite: 'slope',
-    fade: [136, 160],
   },
   spots: {
     shop: { box: [14, 62, 37, 36], pin: [33, 69] },

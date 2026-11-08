@@ -7965,7 +7965,7 @@ button.chip:focus-visible {
 }
 
 /* The sloped train: never rotated, one size, a little darker at night (its windows stay lit). */
-.slope-train-mask {
+.slope-train-box {
   position: absolute;
   inset: 0;
 }

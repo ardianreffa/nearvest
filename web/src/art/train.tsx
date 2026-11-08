@@ -164,16 +164,20 @@ export function Train({ hd, rail }: { hd: boolean; rail: Rail }) {
 /**
  * v3: the ChatGPT train (docs/art-source/train-slope.png -> /assets/bg/train-slope.png, 244x83,
  * 3 image pixels per game pixel), drawn already leaning at the rail's slope (tools/pixelize/trim.py
- * --slope 0.246). It is never rotated: it slides along the rail at one size, its bottom edge on the
- * rail's top, comes in from the right edge, and fades out at the far (left) end of the rail (a
- * mask on the clip box, so each part fades where the rail ends). One run every 2 minutes.
+ * --slope 0.246). It is never rotated and never faded: it comes in big from the right edge and
+ * gets smaller step by step as it rolls away toward the far end of the rail (perspective), slowing
+ * down like a real train in the distance; once it is tiny at the end of the rail it is gone. Its
+ * bottom edge always sits on the rail. Sizes change in small steps and the width snaps to whole
+ * screen pixels, drawn with sharp (pixelated) scaling, so it never looks blurry. One run every 2 min.
  */
 const SLOPE_TRAIN = { src: '/assets/bg/train-slope.png', w: 244, h: 83, per: 3, bottomAtLeft: 82.4 };
-const SLOPE_RUN_MS = 20_000;
+const SLOPE_RUN_MS = 22_000;
+import { SLOPE_GONE, slopeTrainAt } from './train-path';
 
 export function SlopeTrain({ rail }: { rail: Rail }) {
   const [t, setT] = useState<number | null>(null);
   const mounted = useRef(performance.now());
+  const box = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -195,25 +199,31 @@ export function SlopeTrain({ rail }: { rail: Rail }) {
   if (t === null) return null;
   const clip = rail.clip;
   const S = SLOPE_TRAIN;
-  const w = S.w / S.per;
-  const h = S.h / S.per;
-  const [fadeTo, fadeFrom] = rail.fade ?? [rail.points[0][0], rail.points[0][0]];
-  // The left end runs from just outside the art's right edge until the whole train is past the fade.
-  const start = clip.x + clip.w + 1;
-  const end = fadeTo - w - 1;
-  const snap = (v: number) => Math.round(v * S.per) / S.per;
-  const left = snap(start + (end - start) * Math.min(1, t / SLOPE_RUN_MS));
-  const top = snap(railAt(rail.points, left).y - S.bottomAtLeft / S.per);
+  const farX = rail.points[0][0];
+  const nearX = clip.x + clip.w + 1;
+  const { left, size } = slopeTrainAt(t / SLOPE_RUN_MS, nearX, farX);
+  if (size < SLOPE_GONE) return null;
+  const w = (S.w / S.per) * size;
+  const h = (S.h / S.per) * size;
+  // Whole screen pixels for the width (sharp edges); the height follows the image's shape.
+  const pxPerGame = box.current ? box.current.getBoundingClientRect().width / clip.w : 0;
+  const wPx = pxPerGame ? Math.max(1, Math.round(w * pxPerGame)) : 0;
+  const top = railAt(rail.points, left).y - (S.bottomAtLeft / S.per) * size;
   const pct = (v: number, of: number) => `${(v / of) * 100}%`;
-  const mask = `linear-gradient(90deg, transparent ${pct(fadeTo - clip.x, clip.w)}, #000 ${pct(fadeFrom - clip.x, clip.w)})`;
   return (
-    <span class="slope-train-mask" style={{ maskImage: mask, WebkitMaskImage: mask }}>
+    <span class="slope-train-box" ref={box}>
       <img
         class="slope-train"
+        data-size={size.toFixed(2)}
         src={S.src}
         alt=""
         draggable={false}
-        style={{ left: pct(left - clip.x, clip.w), top: pct(top - clip.y, clip.h), width: pct(w, clip.w), height: pct(h, clip.h) }}
+        style={{
+          left: pct(left - clip.x, clip.w),
+          top: pct(top - clip.y, clip.h),
+          width: wPx ? `${wPx}px` : pct(w, clip.w),
+          height: wPx ? `${Math.round((wPx * S.h) / S.w)}px` : pct(h, clip.h),
+        }}
       />
     </span>
   );

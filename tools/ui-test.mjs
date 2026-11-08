@@ -350,11 +350,11 @@ try {
       await evaluate(`document.querySelector('.drawer-close')?.click()`);
       await sleep(800);
       // Train frames: freeze the 18 s run at a few points (dev builds: window.__trainT).
-      for (const t of [1.5, 4, 7, 10, 13, 16, 18.5]) {
+      for (const t of [1.5, 4, 7, 10, 13, 16, 18.5, 20, 21.5]) {
         await evaluate(`window.__trainT = ${t}`);
         await sleep(400);
         // v3: one sloped train image (never rotated); its bottom must sit on the rail's top.
-        console.log(`train at ${t}s:`, await evaluate(`[...document.querySelectorAll('.train-car, .slope-train')].map(c => { const r = c.getBoundingClientRect(); return (c.classList.contains('slope-train') ? 'slope-train rotate=' + getComputedStyle(c).transform : c.className.split(' ')[1] + ' ' + c.dataset.angle + 'deg') + ' @' + Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }).join(' | ') || 'not on screen'`));
+        console.log(`train at ${t}s:`, await evaluate(`[...document.querySelectorAll('.train-car, .slope-train')].map(c => { const r = c.getBoundingClientRect(); return (c.classList.contains('slope-train') ? 'slope-train size=' + c.dataset.size + ' opacity=' + getComputedStyle(c).opacity + ' rotate=' + getComputedStyle(c).transform : c.className.split(' ')[1] + ' ' + c.dataset.angle + 'deg') + ' @' + Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }).join(' | ') || 'not on screen'`));
         await screenshot(`train-${t}s`);
       }
       await evaluate(`delete window.__trainT`);
