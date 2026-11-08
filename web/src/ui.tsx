@@ -172,8 +172,21 @@ const SEED_SOURCE: Record<string, string> = {
 export const SEED_ODDS_TEXT = 'Quality is revealed when planted: 80% Common, 17% Rare, 3% Gold.';
 
 /** A seed card for planting: big fruit icon, name + amount, quality badge, where it came from. */
-export function SeedCard({ group, disabled, onPick }: { group: SeedGroup; disabled: boolean; onPick: () => void }) {
+/** `compact` (phone plot sheet): a small button with the fruit icon and the count; Rare / Gold show as a coloured dot. */
+export function SeedCard({ group, disabled, onPick, compact = false }: { group: SeedGroup; disabled: boolean; onPick: () => void; compact?: boolean }) {
   const q = group.quality;
+  const label = `Plant ${q ? QUALITY_NAME[q] + ' ' : ''}${SPECIES_NAME[group.species]} seed (${group.ids.length} in storage)`;
+  if (compact) {
+    return (
+      <button class={`seed-card compact seed-${q ?? 'unknown'}`} disabled={disabled} onClick={onPick} aria-label={label} title={label}>
+        <span class="seed-card-icon">
+          <FruitIcon species={group.species} scale={3} />
+          {(q === 'rare' || q === 'gold') && <i class="seed-dot" aria-hidden="true" />}
+        </span>
+        <b class="seed-count">x{group.ids.length}</b>
+      </button>
+    );
+  }
   return (
     <button class="seed-card" disabled={disabled} onClick={onPick} aria-label={`Plant ${q ? QUALITY_NAME[q] + ' ' : ''}${SPECIES_NAME[group.species]} seed (${group.ids.length} in storage)`}>
       <span class="seed-card-icon">

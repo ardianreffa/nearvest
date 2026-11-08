@@ -35,6 +35,8 @@ const LANE_STAGE: Lane = { left: 0, width: 100, botOffset: 18 };
 const LANE_V2: Lane = { left: 0, width: 100, botOffset: 16 };
 /** v2 phone: TaniBot stands on the grass in front of (below) the selected plot. */
 const LANE_PHONE: Lane = { left: 0, width: 100, botOffset: 6 };
+/** v3 phone: the bigger TaniBot stands a little closer to its plot, clear of the next mound. */
+const LANE_PHONE3: Lane = { left: 0, width: 100, botOffset: 4 };
 
 /** Horizontal center of a plot in % of the scene (or stage) width. */
 function plotCenter(plot: number, lane: Lane): number {
@@ -50,7 +52,7 @@ function botX(plot: number, lane: Lane): number {
 
 export { ART_H, ART_W, immersiveLayout, laptopLayout, type Immersive } from './layout';
 import type { Immersive, PhoneZoom } from './layout';
-import { Mound, MOUND } from './art/mound';
+import { Mound, MOUND, MOUND_ART, MOUND_BASE, MoundArt } from './art/mound';
 
 /** Dev builds only: ?time=day / dusk / night locks the village clock (screenshots and video). */
 const TIME_LOCKED = import.meta.env.DEV && typeof location !== 'undefined' ? lockedFraction(location.search) : null;
@@ -85,12 +87,13 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const v2 = !!village && village.key !== 'v1';
   // Trees use the game pixel size: 2 on v1 phones, 3 on the wide layout, k in the immersive
   // layouts (laptop and v2 phones).
-  const px = immersive ? immersive.k : big ? 3 : 2;
+  const px = phone ? phone.spritePx : immersive ? immersive.k : big ? 3 : 2;
   // TaniBot: half the tree pixel on v1 laptops; smaller on v2 so it never covers the next
   // plot; its 58 px size on phones (it stands on the grass in front of the selected plot).
-  const botScale = phone ? 1 : immersive ? Math.max(1, Math.round(immersive.k / (v2 ? 3 : 2))) : big ? 2 : 1;
-  const lane = phone && v2 ? LANE_PHONE : v2 ? LANE_V2 : immersive ? LANE_STAGE : LANE_NORMAL;
-  const mound = village?.key === 'v2-phone' ? MOUND.phone : village?.mounds ? MOUND.web : null;
+  const botScale = phone ? (village?.moundArt ? 1.5 : 1) : immersive ? Math.max(1, Math.round(immersive.k / (v2 ? 3 : 2))) : big ? 2 : 1;
+  const lane = phone && village?.moundArt ? LANE_PHONE3 : phone && v2 ? LANE_PHONE : v2 ? LANE_V2 : immersive ? LANE_STAGE : LANE_NORMAL;
+  const moundArt = !!village?.moundArt;
+  const mound = moundArt ? MOUND_ART : village?.key === 'v2-phone' ? MOUND.phone : village?.mounds ? MOUND.web : null;
   // Dev builds: ?time=day / dusk / night locks the village clock (screenshots and video).
   const fraction = TIME_LOCKED ?? 1 - Math.max(0, state.clock.msUntilNextDay - elapsed) / state.clock.dayLengthMs;
   const phase = phaseOf(fraction);
@@ -113,7 +116,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
 
   return (
     <div
-      class={`scene phase-${phase}${immersive ? ' immersive-scene' : ''}${phone ? ' phone-scene' : ''}`}
+      class={`scene phase-${phase}${immersive ? ' immersive-scene' : ''}${phone ? ' phone-scene' : ''}${moundArt ? ' mound-art' : ''}`}
       role="group"
       aria-label="Your garden"
       style={
@@ -124,6 +127,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
               '--art-bottom': `${immersive.artBottom}px`,
               '--art-w': String(immersive.village.w),
               ...(mound ? { '--soil-h': `${mound.h * immersive.k}px` } : {}),
+              ...(moundArt ? { '--mound-base': String(MOUND_BASE), '--mound-w': `${mound!.w * immersive.k}px` } : {}),
+              ...(phone ? { '--sprite-px': `${phone.spritePx}px` } : {}),
               ...(phone ? { width: `${phone.sceneW}px`, height: `${phone.sceneH}px` } : {}),
             }
           : undefined
@@ -131,7 +136,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
     >
       <Backdrop
         fraction={fraction}
-        blurFill={!!immersive && (!phone || phone.sceneW > phone.village.w * phone.k)}
+        blurFill={!!immersive && (!phone || phone.sceneW > phone.village.w * phone.k + 1)}
         hd={!!immersive}
         onPlace={onPlace}
         account={state.player.accountId}
@@ -150,7 +155,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
               onClick={() => onSelect(p.plot)}
               aria-label={`Plot ${p.plot + 1}${p.tree ? `: ${p.tree.species}, ${p.tree.stage}` : p.locked ? ': locked' : ': empty'}`}
             >
-              <div class={`plot-art${p.tree?.isFertilized && p.tree.fertMsLeft - elapsed > 0 ? ' fertilized' : ''}`}>
+              <div class={`plot-art${p.tree?.isFertilized && p.tree.fertMsLeft - elapsed > 0 ? ' fertilized' : ''}${!p.tree && !p.locked ? ' empty' : ''}`}>
                 {p.locked ? (
                   <Sprite name="lock" scale={mound ? px : px * 2} title="Locked" />
                 ) : p.tree ? (
@@ -173,8 +178,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
                   </span>
                 )}
               </div>
-              <div class={`soil${mound ? ' mound' : ''}${p.tree?.isWatered ? ' watered' : ''}`}>
-                {mound && <Mound size={mound} scale={px} kind={p.locked ? 'locked' : p.tree?.isWatered ? 'wet' : 'dry'} />}
+              <div class={`soil${mound ? ' mound' : ''}${moundArt ? ' art' : ''}${p.tree?.isWatered ? ' watered' : ''}`}>
+                {moundArt ? <MoundArt /> : mound && <Mound size={mound} scale={px} kind={p.locked ? 'locked' : p.tree?.isWatered ? 'wet' : 'dry'} />}
                 {fx?.kind === 'plant' && fx.plot === p.plot && <span class="soil-glow" key={fx.id} />}
               </div>
             </button>

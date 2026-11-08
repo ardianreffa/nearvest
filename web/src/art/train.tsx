@@ -74,12 +74,12 @@ declare global {
 }
 
 /** Milliseconds into the current run, or null while no train is on the rail. */
-function runTime(sinceMount: number): number | null {
+function runTime(sinceMount: number, run = RUN_MS): number | null {
   if (import.meta.env.DEV && typeof window !== 'undefined' && typeof window.__trainT === 'number') return window.__trainT * 1000;
   const t = sinceMount - FIRST_RUN_MS;
   if (t < 0) return null;
   const inCycle = t % CYCLE_MS;
-  return inCycle < RUN_MS ? inCycle : null;
+  return inCycle < run ? inCycle : null;
 }
 
 export function Train({ hd, rail }: { hd: boolean; rail: Rail }) {
@@ -159,4 +159,62 @@ export function Train({ hd, rail }: { hd: boolean; rail: Rail }) {
     );
   });
   return <>{cars}</>;
+}
+
+/**
+ * v3: the ChatGPT train (docs/art-source/train-slope.png -> /assets/bg/train-slope.png, 244x83,
+ * 3 image pixels per game pixel), drawn already leaning at the rail's slope (tools/pixelize/trim.py
+ * --slope 0.246). It is never rotated: it slides along the rail at one size, its bottom edge on the
+ * rail's top, comes in from the right edge, and fades out at the far (left) end of the rail (a
+ * mask on the clip box, so each part fades where the rail ends). One run every 2 minutes.
+ */
+const SLOPE_TRAIN = { src: '/assets/bg/train-slope.png', w: 244, h: 83, per: 3, bottomAtLeft: 82.4 };
+const SLOPE_RUN_MS = 20_000;
+
+export function SlopeTrain({ rail }: { rail: Rail }) {
+  const [t, setT] = useState<number | null>(null);
+  const mounted = useRef(performance.now());
+
+  useEffect(() => {
+    if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    let timer = 0;
+    const tick = () => {
+      const rt = runTime(performance.now() - mounted.current, SLOPE_RUN_MS);
+      setT(rt);
+      if (rt !== null) raf = requestAnimationFrame(tick);
+      else timer = window.setTimeout(tick, 1000);
+    };
+    tick();
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  if (t === null) return null;
+  const clip = rail.clip;
+  const S = SLOPE_TRAIN;
+  const w = S.w / S.per;
+  const h = S.h / S.per;
+  const [fadeTo, fadeFrom] = rail.fade ?? [rail.points[0][0], rail.points[0][0]];
+  // The left end runs from just outside the art's right edge until the whole train is past the fade.
+  const start = clip.x + clip.w + 1;
+  const end = fadeTo - w - 1;
+  const snap = (v: number) => Math.round(v * S.per) / S.per;
+  const left = snap(start + (end - start) * Math.min(1, t / SLOPE_RUN_MS));
+  const top = snap(railAt(rail.points, left).y - S.bottomAtLeft / S.per);
+  const pct = (v: number, of: number) => `${(v / of) * 100}%`;
+  const mask = `linear-gradient(90deg, transparent ${pct(fadeTo - clip.x, clip.w)}, #000 ${pct(fadeFrom - clip.x, clip.w)})`;
+  return (
+    <span class="slope-train-mask" style={{ maskImage: mask, WebkitMaskImage: mask }}>
+      <img
+        class="slope-train"
+        src={S.src}
+        alt=""
+        draggable={false}
+        style={{ left: pct(left - clip.x, clip.w), top: pct(top - clip.y, clip.h), width: pct(w, clip.w), height: pct(h, clip.h) }}
+      />
+    </span>
+  );
 }

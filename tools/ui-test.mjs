@@ -69,7 +69,7 @@ const waitFor = async (expr, what, timeout = 30000) => {
   throw new Error('timeout waiting for ' + what);
 };
 const clickText = (text, scope = 'button') => evaluate(`(() => {
-  const el = [...document.querySelectorAll(${JSON.stringify(scope)})].find(b => b.textContent.includes(${JSON.stringify(text)}) && !b.disabled);
+  const el = [...document.querySelectorAll(${JSON.stringify(scope)})].find(b => (b.textContent.includes(${JSON.stringify(text)}) || (b.getAttribute('aria-label') || '').includes(${JSON.stringify(text)})) && !b.disabled);
   if (!el) return false; el.click(); return true; })()`);
 const typeInto = (selector, value) => evaluate(`(() => {
   const el = document.querySelector(${JSON.stringify(selector)});
@@ -348,10 +348,11 @@ try {
       await evaluate(`document.querySelector('.drawer-close')?.click()`);
       await sleep(800);
       // Train frames: freeze the 18 s run at a few points (dev builds: window.__trainT).
-      for (const t of [1.5, 4, 7, 10, 13, 16]) {
+      for (const t of [1.5, 4, 7, 10, 13, 16, 18.5]) {
         await evaluate(`window.__trainT = ${t}`);
         await sleep(400);
-        console.log(`train at ${t}s:`, await evaluate(`[...document.querySelectorAll('.train-car')].map(c => { const r = c.getBoundingClientRect(); return c.className.split(' ')[1] + ' ' + c.dataset.angle + 'deg @' + Math.round(r.left) + ',' + Math.round(r.top); }).join(' | ') || 'not on screen'`));
+        // v3: one sloped train image (never rotated); its bottom must sit on the rail's top.
+        console.log(`train at ${t}s:`, await evaluate(`[...document.querySelectorAll('.train-car, .slope-train')].map(c => { const r = c.getBoundingClientRect(); return (c.classList.contains('slope-train') ? 'slope-train rotate=' + getComputedStyle(c).transform : c.className.split(' ')[1] + ' ' + c.dataset.angle + 'deg') + ' @' + Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }).join(' | ') || 'not on screen'`));
         await screenshot(`train-${t}s`);
       }
       await evaluate(`delete window.__trainT`);
@@ -427,6 +428,12 @@ try {
           + ' | TaniBot covers labels: ' + (labels.some(r => hit(bot, r)) ? 'YES' : 'no')
           + (touch && ${MOBILE} ? ' | pin touch area ' + touch.width + ' x ' + touch.height : '');
       })()`));
+      // Empty plot on phones: the seed buttons fit in one row (no sideways scrolling), and the sheet stays small.
+      if (MOBILE && await evaluate(`!!document.querySelector('.plot-sheet .seed-row')`)) {
+        console.log('seed row:', await evaluate(`(() => { const r = document.querySelector('.plot-sheet .seed-row'); const cards = [...r.querySelectorAll('.seed-card')]; const tops = new Set(cards.map(c => Math.round(c.getBoundingClientRect().top))); const s = document.querySelector('.plot-sheet').getBoundingClientRect(); return cards.length + ' buttons (' + cards.map(c => c.innerText.trim()).join(', ') + ') | one row: ' + (tops.size === 1) + ' | scrolls: ' + (r.scrollWidth > r.clientWidth + 1) + ' | all inside: ' + cards.every(c => { const b = c.getBoundingClientRect(); return b.left >= s.left && b.right <= s.right; }) + ' | sheet ' + Math.round(100 * s.height / innerHeight) + '% of the screen'; })()`));
+      }
+      // Phones: the art fills the scene's width (no blurred sides).
+      if (MOBILE) console.log('art width:', await evaluate(`(() => { const a = document.querySelector('.bg-art').getBoundingClientRect(); return Math.round(a.left) + '..' + Math.round(a.right) + ' of ' + innerWidth + ' | blurred sides: ' + !!document.querySelector('.bg-blur'); })()`));
       // Any sky element bigger than 3 game pixels drawn as a plain box (no picture inside, solid fill)?
       console.log('plain boxes in the sky:', await evaluate(`(() => { const art = document.querySelector('.bg-art').getBoundingClientRect(); const px = art.width / 240; return [...document.querySelectorAll('.sky *, .bg-fx > *')].filter(e => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); if (r.width < 3 * px || r.height < 3 * px || e.querySelector('svg, img') || e.tagName === 'svg' || e.closest('svg')) return false; const solid = cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundImage === 'none' && cs.clipPath === 'none' && cs.borderRadius === '0px'; return solid && parseFloat(cs.opacity) > 0.05; }).map(e => e.className).join(', ') || 'none'; })()`));
       console.log('sky layers (day / dusk / night opacity):', await evaluate(`['.sky-day', '.sky-dusk', '.sky-night'].map(s => getComputedStyle(document.querySelector(s)).opacity).join(' / ')`), '| phase:', await evaluate(`document.querySelector('.scene').className`));

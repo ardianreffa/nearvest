@@ -12,7 +12,7 @@
 // All coordinates are game pixels of the village's grid (village.ts).
 
 import { Drone } from './tanibot';
-import { Train } from './train';
+import { SlopeTrain, Train } from './train';
 import { Hotspots, type Place } from './hotspots';
 import { SkyBack, SkyBands, SkyFront } from './sky';
 import { skyBands } from './sky-colors';
@@ -20,6 +20,38 @@ import { boxIn, V1, type Village } from './village';
 import { VillageDarto, VillageRobot } from './village-life';
 
 export type Phase = 'dawn' | 'day' | 'dusk' | 'night';
+
+/** 3x5 pixel letters for the Arena billboard. */
+const GLYPHS: Record<string, string[]> = {
+  '1': ['.#.', '##.', '.#.', '.#.', '###'],
+  V: ['#.#', '#.#', '#.#', '#.#', '.#.'],
+  S: ['###', '#..', '###', '..#', '###'],
+};
+
+/** "1 VS 1" in pixel letters on the Arena gazebo's empty screen, glowing softly (v3). */
+function Billboard({ style }: { style: Record<string, string> }) {
+  const parts: [string, number][] = [
+    ['1', 0],
+    ['V', 6],
+    ['S', 10],
+    ['1', 16],
+  ];
+  const rects: preact.JSX.Element[] = [];
+  for (const [ch, x0] of parts) {
+    GLYPHS[ch].forEach((row, y) =>
+      [...row].forEach((c, x) => {
+        if (c === '#') rects.push(<rect key={`${x0}-${x}-${y}`} x={x0 + x + 1} y={y + 1} width={1} height={1} />);
+      }),
+    );
+  }
+  return (
+    <span class="billboard" style={style} aria-hidden="true">
+      <svg viewBox="0 0 21 7" preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges">
+        {rects}
+      </svg>
+    </span>
+  );
+}
 
 export function hourOf(fractionOfDay: number): number {
   return (7 + fractionOfDay * 24) % 24;
@@ -46,6 +78,23 @@ export function skyMix(fractionOfDay: number): { night: number; dusk: number; ti
   if (hour >= 5 && hour < 7) return { night: 1 - ramp(5, 6), dusk: 1 - ramp(6, 7), tint: 0 };
   if (hour >= 16 && hour < 19.5) return { night: ramp(18.5, 19.5), dusk: ramp(16, 17), tint: 0 };
   return { night: hour >= 7 && hour < 16 ? 0 : 1, dusk: 0, tint: 0 };
+}
+
+/**
+ * v3 has no dusk image: how much of the night image shows (0..1). A slow, eased cross-fade from
+ * the day image to the night one between 16:00 and 19:30 (the sky turns warm on its own), and
+ * back between 05:00 and 07:00.
+ */
+export function nightArtMix(fractionOfDay: number): number {
+  const hour = hourOf(fractionOfDay);
+  const smooth = (from: number, to: number) => {
+    const u = Math.min(1, Math.max(0, (hour - from) / (to - from)));
+    return u * u * (3 - 2 * u);
+  };
+  if (hour >= 5 && hour < 7) return 1 - smooth(5, 7);
+  if (hour >= 7 && hour < 16) return 0;
+  if (hour >= 16 && hour < 19.5) return smooth(16, 19.5);
+  return 1;
 }
 
 /** Village fractions for ?time=day / dusk / night (dev builds: lock the clock for screenshots and video). */
@@ -98,11 +147,12 @@ export function Backdrop({
     '--dusk': dusk.toFixed(3),
     '--day': ((1 - dusk) * (1 - night)).toFixed(3),
     '--tint': tint.toFixed(3),
+    ...(v.noDuskArt ? { '--night-art': nightArtMix(fraction).toFixed(3) } : {}),
   };
   // The 240x135 sky (sun, moon, clouds, birds, stars) keeps its shape: on the upright phone
   // village it is drawn in a box from the top of the visible scene.
   const skyH = (v.w * 135) / 240;
-  const skyBox = v.key === 'v2-phone' ? at(0, skyTop ?? v.h - skyH * 1.6, v.w, skyH) : at(0, 0, v.w, v.h);
+  const skyBox = v.h > v.w ? at(0, skyTop ?? v.h - skyH * 1.6, v.w, skyH) : at(0, 0, v.w, v.h);
 
   return (
     <div class={`backdrop village-${v.key}`} style={vars} aria-hidden={onPlace ? undefined : 'true'}>
@@ -113,7 +163,7 @@ export function Backdrop({
         <div class="bg-blur">
           {!v2 && <SkyBands hour={hour} />}
           <img src={src('day')} alt="" />
-          <img class="bg-img-dusk" src={src('dusk')} alt="" />
+          {!v.noDuskArt && <img class="bg-img-dusk" src={src('dusk')} alt="" />}
           <img class="bg-img-night" src={src('night')} alt="" />
         </div>
       )}
@@ -125,7 +175,7 @@ export function Backdrop({
           <SkyBack hour={hour} bands={!v2} />
         </div>
         <img class="bg-img" src={src('day')} alt="" />
-        <img class="bg-img bg-img-dusk" src={src('dusk')} alt="" />
+        {!v.noDuskArt && <img class="bg-img bg-img-dusk" src={src('dusk')} alt="" />}
         <img class="bg-img bg-img-night" src={src('night')} alt="" />
 
         <div class="bg-fx">
@@ -136,7 +186,7 @@ export function Backdrop({
           ))}
           {v.rail && (
             <div class="train-clip" style={at(v.rail.clip.x, v.rail.clip.y, v.rail.clip.w, v.rail.clip.h)}>
-              <Train hd={hd} rail={v.rail} />
+              {v.rail.sprite === 'slope' ? <SlopeTrain rail={v.rail} /> : <Train hd={hd} rail={v.rail} />}
             </div>
           )}
           {v.smoke.map((s, i) => (
@@ -146,8 +196,9 @@ export function Backdrop({
             <i key={i} class="fall" style={{ ...at(x, y, w, h), animationDelay: `${i * 0.15}s` }} />
           ))}
           {v.holograms.map(([x, y, w, h], i) => (
-            <i key={i} class="holo" style={{ ...at(x, y, w, h), animationDelay: `${i * 0.9}s` }} />
+            <i key={i} class={`holo${v.softHolograms ? ' soft' : ''}`} style={{ ...at(x, y, w, h), animationDelay: `${i * 1.7}s` }} />
           ))}
+          {v.billboard && <Billboard style={at(...v.billboard)} />}
           {v.lanterns.map(([x, y, w, h], i) => (
             <i key={i} class="lamp" style={{ ...at(x - 2, y - 2, w + 4, h + 4), animationDelay: `${i * 0.7}s` }} />
           ))}

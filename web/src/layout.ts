@@ -1,7 +1,7 @@
 // Garden layouts: the full-window (immersive) garden on laptops and PCs, and the phone garden.
 // Pure math, unit-tested in web/test/layout.test.ts.
 
-import { V1, V2_PHONE, V2_WEB, type Village } from './art/village.ts';
+import { V1, V2_PHONE, V2_WEB, V3_PHONE, V3_WEB, type BgVersion, type Village } from './art/village.ts';
 
 export const ART_W = 240;
 export const ART_H = 135;
@@ -92,31 +92,57 @@ export function immersiveLayout(width: number, height: number, drawerWidth: numb
 }
 
 /** The laptop layout of the village version in use. */
-export function laptopLayout(width: number, height: number, drawerWidth: number, barHeight: number, version: 'v1' | 'v2'): Immersive {
-  return immersiveLayout(width, height, drawerWidth, barHeight, version === 'v1' ? V1 : V2_WEB);
+export function laptopLayout(width: number, height: number, drawerWidth: number, barHeight: number, version: BgVersion): Immersive {
+  return immersiveLayout(width, height, drawerWidth, barHeight, version === 'v1' ? V1 : version === 'v2' ? V2_WEB : V3_WEB);
 }
 
 /** Phone garden: the scene box (as wide as the screen) and the upright art inside it. */
 export interface PhoneZoom extends Immersive {
   sceneW: number;
   sceneH: number;
+  /** Whole-number pixel size for the trees and the lock (v3: k is not a whole number). */
+  spritePx: number;
 }
 
-/** Game rows the phone scene always shows: from just above the towers to the bottom. */
+/** Game rows the v2 phone scene always shows: from just above the towers to the bottom. */
 export const PHONE_SHOWN_FROM = 66;
-/** Room above and below the phone scene: top HUD, the plot sheet (at most 25%), the tab bar. */
-const phoneRoom = (height: number) => height - 130 - Math.round(height * 0.25) - 68 - 16;
+/** The plot sheet takes at most this part of a phone screen. */
+export const PHONE_SHEET_MAX = 0.2;
+/** Room above and below the phone scene: top HUD, the plot sheet, the tab bar. */
+const phoneRoom = (height: number, sheet: number) => height - 130 - Math.round(height * sheet) - 68 - 16;
+
+/** Room for the phone scene between the top HUD, the plot sheet (at most 20%) and the tabs. */
+export function phoneSceneRoom(height: number): number {
+  return phoneRoom(height, PHONE_SHEET_MAX);
+}
 
 /**
- * Phones (below 1024 px): the upright village fits the screen's width at a whole-number scale
+ * Phones (below 1024 px), v3: see below. v2: the upright village fits the screen's width at a whole-number scale
  * (3 px per game pixel on 360 - 440 px phones), with the whole village and all three plots in
  * view at once (no panning). The art sits on the scene's bottom edge; the scene grows to fill
  * the room above the sheet, showing more sky.
  */
-export function phoneLayout(width: number, height: number, village: Village = V2_PHONE): PhoneZoom {
+export function phoneLayout(width: number, height: number, village: Village = V3_PHONE): PhoneZoom {
   const v = village;
+  if (v.shownFrom !== undefined) {
+    // v3: the village fills the screen's width exactly (no blurred sides, no panning); the
+    // scene shows the art from `shownFrom` down, so most of the empty sky is cut away.
+    const k = width / v.w;
+    return {
+      k,
+      artLeft: 0,
+      artBottom: 0,
+      stageLeft: v.stage[0] * k,
+      stageRight: width - v.stage[1] * k,
+      stageBottom: (v.h - v.bedRow) * k,
+      village: v,
+      sceneW: Math.round(width),
+      sceneH: Math.round((v.h - v.shownFrom) * k),
+      spritePx: Math.max(2, Math.round(k)),
+    };
+  }
   const shown = v.h - PHONE_SHOWN_FROM;
-  const k = Math.min(6, Math.max(2, Math.min(Math.floor(width / v.w), Math.floor(phoneRoom(height) / shown))));
+  const k = Math.min(6, Math.max(2, Math.min(Math.floor(width / v.w), Math.floor(phoneRoom(height, 0.25) / shown))));
   const artW = v.w * k;
   const artLeft = Math.round((width - artW) / 2);
   return {
@@ -129,5 +155,6 @@ export function phoneLayout(width: number, height: number, village: Village = V2
     village: v,
     sceneW: Math.round(width),
     sceneH: shown * k,
+    spritePx: k,
   };
 }

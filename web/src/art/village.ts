@@ -1,14 +1,18 @@
 // The village backdrops and where everything sits in them, per version and screen:
 //   v1       - the first layered village (240x135, laptop and phone), kept for comparison (?bg=v1);
 //   v2-web   - the symmetric village for laptops (wide image, 240x135 game pixels);
-//   v2-phone - the same village drawn upright for phones (120x180 game pixels).
-// Coordinates are game pixels (the grid trees, plots and TaniBot use); the images are twice as
-// detailed (480x270 / 240x360). Each image comes in day / dusk / night versions that line up
-// pixel for pixel and are cross-faded from the village clock. The v2 dusk and night files are
-// made from the day image for now (tools/pixelize/relight.py); the ChatGPT versions replace the
-// files later under the same names (village2-<web|phone>-<dusk|night>.png), no code change needed.
+//   v2-phone - the same village drawn upright for phones (120x180 game pixels);
+//   v3-web / v3-phone - the default since 2026-11-08: the same layout redrawn by ChatGPT with a
+//                billboard on the Arena gazebo, a hologram robot head at the Friends house, no
+//                turbine pole on laptops, and real ChatGPT night images (no dusk image: the day
+//                cross-fades smoothly into the night). Dev builds compare with ?bg=v1 / ?bg=v2.
+// Coordinates are game pixels (the grid trees, plots and TaniBot use); the images are more
+// detailed: twice (480x270 laptop images, v2 phone 240x360) or four times (v3 phone 480x720).
+// Each image comes in day / (dusk) / night versions that line up pixel for pixel and are
+// cross-faded from the village clock. The v2 dusk and night files are made from the day image
+// (tools/pixelize/relight.py). Commands for every file: docs/ASSETS.md.
 
-export type BgVersion = 'v1' | 'v2';
+export type BgVersion = 'v1' | 'v2' | 'v3';
 export type Light = 'day' | 'dusk' | 'night';
 export type Box = [number, number, number, number];
 export type Spot = 'shop' | 'market' | 'village' | 'friends' | 'arena';
@@ -27,10 +31,17 @@ export interface Rail {
   clip: { x: number; y: number; w: number; h: number };
   /** v1: runs left to right at one size. v2: comes from the right edge, gets smaller toward the middle and fades out. */
   toward: 'right' | 'left';
+  /**
+   * 'cars' (v1, v2): three code-drawn cars that tilt with the rail. 'slope' (v3): the ChatGPT
+   * train, already drawn on the rail's slope (train-slope.png), slides along it unrotated at
+   * one size and fades out at the far end of the rail (`fadeTo`..`fadeFrom`, game x).
+   */
+  sprite?: 'cars' | 'slope';
+  fade?: [number, number];
 }
 
 export interface Village {
-  key: 'v1' | 'v2-web' | 'v2-phone';
+  key: 'v1' | 'v2-web' | 'v2-phone' | 'v3-web' | 'v3-phone';
   /** Art grid in game pixels. */
   w: number;
   h: number;
@@ -45,6 +56,16 @@ export interface Village {
   groundExt: string;
   /** Soil mounds (pixel art) instead of the old wooden beds. */
   mounds: boolean;
+  /** v3: the mounds are the ChatGPT mound (mound.png) instead of the code-drawn one. */
+  moundArt?: boolean;
+  /** v3 has no dusk image: the day image cross-fades straight into the night one. */
+  noDuskArt?: boolean;
+  /** v3: the holograms are drawn in the image; the code adds a slow glow and a soft scan line. */
+  softHolograms?: boolean;
+  /** v3: the empty screen of the Arena gazebo, where "1 VS 1" glows (game px). */
+  billboard?: Box;
+  /** Phones: the scene always shows the art from this game row down. */
+  shownFrom?: number;
   lanterns: Box[];
   holograms: Box[];
   falls: Box[];
@@ -57,8 +78,11 @@ export interface Village {
   spots: Record<Spot, SpotPlace>;
   /** Mr. Darto in front of his fruit stand: feet position and how much the sprite is shrunk. */
   darto: { x: number; y: number; shrink: number } | null;
-  /** The little village robot near the Friends house (day spot, night spot at the door). */
-  robot: { x: number; y: number; homeX: number } | null;
+  /**
+   * The little village robot near the Friends house (day spot, night spot at the door).
+   * `stay` (v3): it never goes home and never fades at night; it hovers in place.
+   */
+  robot: { x: number; y: number; homeX: number; stay?: boolean } | null;
 }
 
 const v1Src = (light: Light, hd: boolean) => `/assets/bg/village-${light}${hd ? '-hd' : ''}.png`;
@@ -244,14 +268,145 @@ export const V2_PHONE: Village = {
   robot: { x: 113, y: 124, homeX: 101 },
 };
 
-/** Dev builds: ?bg=v1 shows the first village to compare. Production always uses v2. */
+const v3Src = (form: 'web' | 'phone') => (light: Light) => `/assets/bg/village3-${form}-${light === 'dusk' ? 'day' : light}.png`;
+
+/** Rail top of the v3 laptop village, measured on the image (tools: see docs/ASSETS.md). */
+const railY3 = (x: number) => 68.5 - (x - 140) * 0.246;
+
+/** Village v3, wide (laptops). Measured on web/public/assets/bg/village3-web-day.png (480x270). */
+export const V3_WEB: Village = {
+  key: 'v3-web',
+  w: 240,
+  h: 135,
+  src: v3Src('web'),
+  bedRow: 121,
+  stage: [30, 210],
+  // From the Shop's lantern to the robot hologram at the Friends house; the towers' tops.
+  focus: { x0: 16, x1: 220, top: 28 },
+  groundExt: 'linear-gradient(#3f9a1c, #24600f)',
+  mounds: true,
+  moundArt: true,
+  noDuskArt: true,
+  softHolograms: true,
+  lanterns: [
+    [17, 63.5, 4, 6],
+    [63.3, 79.6, 5, 6.2],
+    [146.7, 74, 4, 5],
+    [178, 76.5, 3.5, 5],
+  ],
+  holograms: [
+    [16.25, 77, 8.75, 14.75],
+    [210.4, 79.6, 9.2, 15],
+  ],
+  falls: [
+    [104.8, 81.8, 3.6, 3.6],
+    [126.3, 79.7, 3.6, 2.8],
+    [131.3, 86.1, 5.1, 3.6],
+    [114.8, 94.7, 5.8, 6.3],
+    [157.2, 96.2, 5.7, 5],
+  ],
+  smoke: [
+    { x: 114.5, y: 27, d: 0 },
+    { x: 117, y: 27, d: 1.3 },
+    { x: 112.5, y: 27, d: 2.6 },
+    { x: 116, y: 27, d: 3.9 },
+  ],
+  // No turbine pole in the v3 laptop village.
+  rotors: [],
+  arenaRing: null,
+  billboard: [111.5, 70, 13, 5],
+  flyby: [
+    [24, 114],
+    [16, 110],
+  ],
+  rail: {
+    points: [
+      [135, railY3(135)],
+      [240, railY3(240)],
+    ],
+    clip: { x: 135, y: 8, w: 105, h: 66 },
+    toward: 'left',
+    sprite: 'slope',
+    fade: [136, 160],
+  },
+  spots: {
+    shop: { box: [14, 62, 37, 36], pin: [33, 69] },
+    market: { box: [146, 67, 30, 21], pin: [161, 74], onBody: true },
+    village: { box: [149, 29, 37, 46], pin: [167, 47], onBody: true },
+    friends: { box: [184, 62, 38, 34], pin: [203, 62] },
+    arena: { box: [101, 64, 36, 14], pin: [119, 64] },
+  },
+  darto: { x: 151, y: 94, shrink: 3 },
+  // In front of the Friends house, on the grass (left of the side menu on every laptop).
+  robot: { x: 196, y: 101, homeX: 196, stay: true },
+};
+
+/** Village v3 upright (phones). Measured on village3-phone-day.png (480x720, 4 px per game px). */
+export const V3_PHONE: Village = {
+  key: 'v3-phone',
+  w: 120,
+  h: 180,
+  src: v3Src('phone'),
+  bedRow: 149,
+  stage: [4, 116],
+  shownFrom: 58,
+  groundExt: 'linear-gradient(#3f9a1c, #24600f)',
+  mounds: true,
+  moundArt: true,
+  noDuskArt: true,
+  softHolograms: true,
+  lanterns: [
+    [8.3, 98.3, 4.2, 5.5],
+    [31.25, 108.75, 3.4, 4.6],
+    [71.25, 105.4, 3, 4.6],
+  ],
+  holograms: [
+    [7.9, 107.5, 5.9, 10],
+    [107.9, 108.75, 6.3, 10.9],
+  ],
+  falls: [
+    [51.5, 109.5, 2.5, 3.5],
+    [65.6, 108, 3, 3.5],
+    [57.5, 118.3, 5.8, 7.5],
+  ],
+  smoke: [
+    { x: 59.5, y: 62.5, d: 0, small: true },
+    { x: 61, y: 62.5, d: 1.3, small: true },
+    { x: 58.5, y: 62.5, d: 2.6, small: true },
+    { x: 60.5, y: 62.5, d: 3.9, small: true },
+  ],
+  // The pole with the orb right of the towers.
+  rotors: [{ x: 104.6, y: 77.2, size: 8, speed: 8 }],
+  arenaRing: null,
+  billboard: [55.75, 95.75, 8.75, 3.75],
+  flyby: [
+    [62, 140],
+    [68, 136],
+  ],
+  // The rail is only about 48 game px long on phones (40% of the screen): too short for the big train.
+  rail: null,
+  spots: {
+    shop: { box: [7, 100, 22, 23], pin: [20, 104] },
+    market: { box: [70, 101, 23, 15], pin: [81, 108], onBody: true },
+    village: { box: [77, 66, 21, 33], pin: [88, 80], onBody: true },
+    friends: { box: [93, 97, 24, 23], pin: [105, 97] },
+    arena: { box: [49, 92, 23, 10], pin: [60.5, 92] },
+  },
+  darto: { x: 74, y: 120.5, shrink: 4 },
+  robot: { x: 100.5, y: 128.5, homeX: 100.5, stay: true },
+};
+
+/** Dev builds: ?bg=v1 / ?bg=v2 show the earlier villages to compare. Production always uses v3. */
 export function bgVersion(search = typeof location !== 'undefined' ? location.search : ''): BgVersion {
-  return import.meta.env?.DEV && new URLSearchParams(search).get('bg') === 'v1' ? 'v1' : 'v2';
+  if (!import.meta.env?.DEV) return 'v3';
+  const v = new URLSearchParams(search).get('bg');
+  return v === 'v1' || v === 'v2' ? v : 'v3';
 }
 
 export function villageFor(version: BgVersion, phone: boolean): Village {
   if (version === 'v1') return V1;
-  return phone ? V2_PHONE : V2_WEB;
+  if (version === 'v2') return phone ? V2_PHONE : V2_WEB;
+  return phone ? V3_PHONE : V3_WEB;
 }
 
 /** Absolute box in game pixels of a village (percent of its art). */

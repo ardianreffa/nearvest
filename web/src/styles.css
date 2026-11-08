@@ -7365,8 +7365,8 @@ button.chip:focus-visible {
 }
 
 .phone-scene-box {
-  /* Edge to edge on the phone; the whole village fits (no sideways panning). */
-  margin: 0 -16px;
+  /* Edge to edge on the phone (also on phones wider than the 430 px page); no sideways panning. */
+  margin: 0 calc(50% - 50vw);
   overflow: clip;
   border-top: var(--px) solid #000;
   border-bottom: var(--px) solid #000;
@@ -7880,4 +7880,285 @@ button.chip:focus-visible {
   position: absolute;
   inset: 0;
   background: rgba(8, 14, 40, calc(var(--night) * 0.55 + var(--dusk) * 0.15));
+}
+
+
+/* =====================================================================
+   v3 village (art/village.ts V3_WEB / V3_PHONE): day -> night cross-fade without a dusk image,
+   soft holograms, the Arena billboard, the sloped train, ChatGPT soil mounds, the robot that
+   stays, and the phone garden that fills the screen's width.
+   ===================================================================== */
+
+/* No dusk image: the night image fades in slowly from 16:00 (--night-art, backdrop.tsx). */
+.bg-img-night,
+.bg-blur .bg-img-night {
+  opacity: var(--night-art, var(--night));
+}
+
+/* Holograms drawn in the image: a slow glow and a soft scan line (no flicker, no noise). */
+.holo.soft {
+  overflow: hidden;
+  background: none;
+  box-shadow: 0 0 5px rgba(34, 211, 238, 0.45);
+  mix-blend-mode: screen;
+  opacity: calc(0.5 + 0.35 * var(--night));
+  animation: holo-soft-glow 4.8s ease-in-out infinite;
+}
+
+.holo.soft::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 10%;
+  background: linear-gradient(180deg, transparent, rgba(210, 252, 255, 0.6), transparent);
+  animation: holo-soft-scan 5.5s linear infinite;
+}
+
+@keyframes holo-soft-glow {
+  0%,
+  100% {
+    opacity: calc(0.4 + 0.35 * var(--night));
+  }
+  50% {
+    opacity: calc(0.75 + 0.25 * var(--night));
+  }
+}
+
+@keyframes holo-soft-scan {
+  from {
+    transform: translateY(-120%);
+  }
+  to {
+    transform: translateY(1050%);
+  }
+}
+
+/* "1 VS 1" on the Arena gazebo's screen: mint pixel letters with a soft glow. */
+.billboard {
+  pointer-events: none;
+  display: flex;
+}
+
+.billboard svg {
+  width: 100%;
+  height: 100%;
+  fill: #c8fff0;
+  filter: drop-shadow(0 0 1px #00ec97) drop-shadow(0 0 3px rgba(0, 236, 151, 0.75));
+  animation: billboard-glow 3.4s ease-in-out infinite;
+}
+
+@keyframes billboard-glow {
+  0%,
+  100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* The sloped train: never rotated, one size, a little darker at night (its windows stay lit). */
+.slope-train-mask {
+  position: absolute;
+  inset: 0;
+}
+
+.slope-train {
+  position: absolute;
+  max-width: none;
+  image-rendering: pixelated;
+  filter: brightness(calc(1 - 0.3 * var(--night)));
+}
+
+/* ChatGPT soil mounds: the whole mound behind the tree, its front lip in front of it.
+   Filters are on the images (not the plot) so the lip stays in front of the trunk. */
+.soil.mound.art {
+  --m-wet: 1;
+  --m-dark: 1;
+  --m-lock: 0;
+  --m-sel: drop-shadow(0 0 0 transparent);
+  --m-fert: drop-shadow(0 0 0 transparent);
+  overflow: visible;
+}
+
+.soil.mound.art .mound-img {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: var(--mound-w);
+  height: var(--soil-h);
+  max-width: none;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  pointer-events: none;
+  filter: brightness(calc(var(--m-wet) * var(--m-dark))) grayscale(var(--m-lock)) var(--m-fert) var(--m-sel);
+}
+
+.soil.mound.art .mound-front {
+  z-index: 2;
+}
+
+/* Watered: darker, damp soil. */
+.soil.mound.art.watered {
+  --m-wet: 0.7;
+}
+
+/* Locked: grey and dim, with the padlock on top. */
+.plot.locked .soil.mound.art {
+  --m-lock: 0.9;
+  --m-wet: 0.8;
+}
+
+.phase-dusk .soil.mound.art {
+  --m-dark: 0.88;
+}
+
+.phase-night .soil.mound.art {
+  --m-dark: 0.62;
+}
+
+/* Selected: a mint outline all around and a soft glow. */
+.plot.selected .soil.mound.art {
+  --m-sel: drop-shadow(1px 0 0 var(--mint)) drop-shadow(-1px 0 0 var(--mint)) drop-shadow(0 1px 0 var(--mint)) drop-shadow(0 -1px 0 var(--mint)) drop-shadow(0 0 5px rgba(0, 236, 151, 0.8));
+}
+
+/* Fertilized: a green glow that breathes. */
+.plot-art.fertilized + .soil.mound.art {
+  animation: mound-art-fert 1.6s steps(1) infinite;
+}
+
+@keyframes mound-art-fert {
+  0%,
+  100% {
+    --m-fert: drop-shadow(0 0 3px #8fe36b);
+  }
+  50% {
+    --m-fert: drop-shadow(0 0 8px #b6ed08);
+  }
+}
+
+/* The trunk base sits just behind the lip (--mound-base of the mound's height from its top). */
+.mound-art .plot-art {
+  margin-bottom: calc(var(--soil-h) * var(--mound-base) * -1 - 2 * var(--tree-px));
+}
+
+/* Empty plot: "Plant" floats just above the mound; locked: the padlock sits on the mound's top. */
+.mound-art .plot-art.empty {
+  margin-bottom: 2px;
+}
+
+.mound-art .plot.locked .plot-art {
+  margin-bottom: calc(var(--soil-h) * -0.45);
+}
+
+.mound-art .plot.locked .plot-art svg {
+  position: relative;
+  z-index: 3;
+}
+
+/* Phones (v3): trees use whole pixels while the art scales to the screen's width. */
+.phone-scene .plot {
+  --tree-px: var(--sprite-px, 3px);
+}
+
+/* The robot stays in front of the Friends house day and night (hovering, blinking). */
+.village-robot.stay {
+  transform: none;
+  opacity: 1;
+  transition: none;
+}
+
+.vr-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+/* Phone plot sheet: at most about 20% of the screen; an empty plot shows small seed buttons in one row. */
+.plot-sheet.closed,
+.plot-sheet.plain {
+  max-height: 20vh;
+}
+
+.plot-sheet .seed-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow: visible;
+  padding: 0 0 2px;
+}
+
+.plot-sheet .seed-card.compact {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 96px;
+  min-height: 44px;
+  flex-direction: row;
+  justify-content: center;
+  gap: 4px;
+  padding: 3px 6px;
+}
+
+.seed-card.compact .seed-card-icon {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  flex: none;
+}
+
+.seed-card.compact .seed-card-icon svg {
+  width: 21px;
+  height: auto;
+}
+
+.seed-count {
+  font-size: 14px;
+  color: var(--leaf-dark);
+}
+
+.seed-dot {
+  position: absolute;
+  right: -1px;
+  top: -1px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #1b1b2f;
+  border-radius: 50%;
+}
+
+.seed-card.seed-rare .seed-dot {
+  background: var(--purple);
+}
+
+.seed-card.seed-gold .seed-dot {
+  background: var(--gold);
+}
+
+.seed-card.compact.seed-rare {
+  border-color: var(--purple);
+}
+
+.seed-card.compact.seed-gold {
+  border-color: #c99a1a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .holo.soft,
+  .holo.soft::after,
+  .billboard svg,
+  .plot-art.fertilized + .soil.mound.art {
+    animation: none;
+  }
+
+  .holo.soft::after {
+    display: none;
+  }
+
+  .plot-art.fertilized + .soil.mound.art {
+    --m-fert: drop-shadow(0 0 5px #a8e83a);
+  }
 }

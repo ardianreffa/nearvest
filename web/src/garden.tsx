@@ -5,7 +5,7 @@ import type { Place } from './art/hotspots';
 import type { GameState, Quality, ServerConfig } from './api';
 import { floatText } from './fx';
 import { phoneLayout } from './layout';
-import { bgVersion } from './art/village';
+import { bgVersion, villageFor } from './art/village';
 import { seasonPayout } from './qty';
 import { GardenScene, type ActionKind, type Immersive, type SceneFx } from './scene';
 import { Sprite } from './sprites';
@@ -173,8 +173,9 @@ function PhoneGarden({
   hint: boolean;
 }) {
   const { w, h } = useWindowSize();
-  const v1 = bgVersion() === 'v1';
-  const base = phoneLayout(w, h);
+  const version = bgVersion();
+  const v1 = version === 'v1';
+  const base = phoneLayout(w, h, villageFor(version === 'v1' ? 'v3' : version, true));
   const sceneBox = useRef<HTMLDivElement>(null);
   const sheetBox = useRef<HTMLDivElement>(null);
   // The scene grows into any room left between the top bar and the sheet, so the sheet always
@@ -367,6 +368,7 @@ function PlotPanel({
               <SeedCard
                 key={g.key}
                 group={g}
+                compact={sheet}
                 disabled={busy}
                 onPick={() => act('/api/plant', { plot: plotIndex, seedId: g.ids[0] }, `Planted ${SPECIES_NAME[g.species]}!`)}
               />

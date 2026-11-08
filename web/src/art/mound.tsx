@@ -71,3 +71,24 @@ export function Mound({ size, scale, kind }: { size: MoundSize; scale: number; k
     </>
   );
 }
+
+/**
+ * v3: the ChatGPT mound (docs/art-source/mound.png -> /assets/bg/mound.png, 66x24, two image
+ * pixels per game pixel). The whole mound sits behind the tree and its front lip (rows 13+,
+ * `MOUND_LIP`) in front of it, so the trunk grows out of the soil. Watered (darker), locked
+ * (grey stone look), night, selected and fertilized are CSS filters (.soil.mound.art).
+ */
+export const MOUND_ART: MoundSize = { w: 33, h: 12 };
+/** Where the front lip starts (part of the mound's height, from the top). */
+export const MOUND_LIP = 0.54;
+/** Where the trunk base sits (part of the mound's height, from the top): just behind the lip. */
+export const MOUND_BASE = 0.62;
+
+export function MoundArt() {
+  return (
+    <>
+      <img class="mound-img mound-back" src="/assets/bg/mound.png" alt="" draggable={false} />
+      <img class="mound-img mound-front" src="/assets/bg/mound.png" alt="" draggable={false} style={{ clipPath: `inset(${MOUND_LIP * 100}% 0 0 0)` }} />
+    </>
+  );
+}

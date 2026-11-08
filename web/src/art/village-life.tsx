@@ -2,8 +2,11 @@
 //   Mr. Darto in front of his fruit stand: the Market's own sprite, shrunk to the village's
 //   pixel size, standing idle and now and then waving;
 //   a little round robot near the Friends house (cut from the first village image with
-//   tools/pixelize/cutout.py and cleaned by hand): it floats, blinks, waves now and then, and
-//   at night drifts home to the house's door and dims.
+//   tools/pixelize/cutout.py and cleaned by hand): it floats, blinks and waves now and then.
+//   v2: at night it drifts home to the house's door and dims. v3 (`robot.stay`): it stays in
+//   front of the Friends house day and night, hovering and blinking.
+//   ChatGPT robot later: convert robot.png into /assets/bg/robot.png (docs/ASSETS.md) and fill in
+//   ROBOT_ART below (its size in image pixels, half a game pixel each); nothing else changes.
 // Both stand still with prefers-reduced-motion. Sizes are image pixels (half a game pixel).
 
 import { Pixels } from '../sprites';
@@ -88,15 +91,29 @@ const ARM_DOWN = ['..', 'h.', 'hh'];
 const JETS = ['....l...l....'];
 const ROBOT_PAL = { a: '#0B1620', g: '#F2F2EC', f: '#B3CCD5', h: '#89A8B2', i: '#5E90A8', k: '#22D3EE', l: '#69BDCF' };
 
+/** The ChatGPT robot (robot.png), once it exists: e.g. { src: '/assets/bg/robot.png', w: 16, h: 18 }. */
+const ROBOT_ART = null as { src: string; w: number; h: number } | null;
+
 /** The little robot near the Friends house. */
 export function VillageRobot({ v }: { v: Village }) {
   if (!v.robot) return null;
-  const { x, y, homeX } = v.robot;
+  const { x, y, homeX, stay } = v.robot;
+  if (ROBOT_ART) {
+    const w = ROBOT_ART.w / 2;
+    const h = ROBOT_ART.h / 2;
+    return (
+      <div class={`village-robot${stay ? ' stay' : ''}`} style={{ ...boxIn(v, x - w / 2, y - h, w, h), '--home-dx': `${((homeX - x) / w) * 100}%` }} aria-hidden="true">
+        <div class="vr-body">
+          <img class="vr-art" src={ROBOT_ART.src} alt="" draggable={false} />
+        </div>
+      </div>
+    );
+  }
   const w = ROBOT[0].length / 2;
   const h = (ROBOT.length + 1) / 2;
   const cell = (n: number, of: number) => `${(n / of) * 100}%`;
   return (
-    <div class="village-robot" style={{ ...boxIn(v, x - w / 2, y - h, w, h), '--home-dx': `${((homeX - x) / w) * 100}%` }} aria-hidden="true">
+    <div class={`village-robot${stay ? ' stay' : ''}`} style={{ ...boxIn(v, x - w / 2, y - h, w, h), '--home-dx': `${((homeX - x) / w) * 100}%` }} aria-hidden="true">
       <div class="vr-body">
         <Pixels rows={ROBOT} palette={ROBOT_PAL} scale={1} class="vr-main" style={{ height: cell(ROBOT.length, ROBOT.length + 1) }} />
         <Pixels rows={ROBOT_SHUT} palette={ROBOT_PAL} scale={1} class="vr-shut" style={{ height: cell(ROBOT_SHUT.length, ROBOT.length + 1) }} />
