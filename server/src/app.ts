@@ -45,7 +45,9 @@ export function createApp(deps: AppDeps) {
   const { db, game, chain, config, now, tanibot, judge } = deps;
   const app = new Hono<Env>();
 
-  app.use('*', cors({ origin: config.webOrigins, allowHeaders: ['Content-Type', 'Authorization'], allowMethods: ['GET', 'POST'] }));
+  // maxAge: browsers remember the CORS preflight (Chrome up to 2 h), so each game action is one
+  // round trip to the server instead of two (the preflight was repeated after a few seconds idle).
+  app.use('*', cors({ origin: config.webOrigins, allowHeaders: ['Content-Type', 'Authorization'], allowMethods: ['GET', 'POST'], maxAge: 7200 }));
 
   app.onError((err, c) => {
     if (err instanceof GameError) return c.json({ error: err.message, ...err.details }, err.status as 400);

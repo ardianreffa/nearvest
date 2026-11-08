@@ -65,14 +65,25 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
     const kind = (path.split('/').pop() ?? '') as ActionKind;
     const plotIndex = (body as { plot?: number } | undefined)?.plot ?? selected;
     const before = state.plots[plotIndex]?.tree ?? null;
-    const result = await act(path, body, success);
-    if (result !== null && ['plant', 'water', 'harvest', 'fertilize', 'chop'].includes(kind)) {
+    // TaniBot's animation starts the moment the button is pressed (not after the server answers);
+    // it is cut short if the action fails.
+    const animated = ['plant', 'water', 'harvest', 'fertilize', 'chop'].includes(kind);
+    const id = Date.now();
+    if (animated) {
       window.clearTimeout(fxTimer.current);
-      setFx({ id: Date.now(), kind, plot: plotIndex, tree: before });
+      setFx({ id, kind, plot: plotIndex, tree: before });
       fxTimer.current = window.setTimeout(() => setFx(null), 1700);
-      const xp = (result as { xp?: number }).xp;
-      if (kind === 'harvest' && xp) floatText(`+${xp} XP`, 'xp');
     }
+    // A ripe (not old) tree: the XP is known already, so it floats up right away too.
+    const knownXp = kind === 'harvest' && before?.ready && before.stage !== 'old' ? (config.species?.[before.species]?.xpPerHarvest ?? 0) * state.player.xpMultiplier : 0;
+    if (knownXp) floatText(`+${knownXp} XP`, 'xp');
+    const result = await act(path, body, success);
+    if (animated && result === null) {
+      window.clearTimeout(fxTimer.current);
+      setFx((f) => (f?.id === id ? null : f));
+    }
+    const xp = (result as { xp?: number } | null)?.xp;
+    if (kind === 'harvest' && xp && !knownXp) floatText(`+${xp} XP`, 'xp');
     return result;
   };
 

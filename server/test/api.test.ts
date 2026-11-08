@@ -93,3 +93,21 @@ describe('HTTP API price lock', () => {
     assert.equal(res.json.price, real);
   });
 });
+
+describe('CORS', () => {
+  it('lets browsers remember the preflight (one round trip per game action)', async () => {
+    const { app } = makeWorld();
+    const res = await app.request('/api/harvest', {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://localhost:5173', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization,content-type' },
+    });
+    assert.equal(res.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+    assert.equal(res.headers.get('access-control-max-age'), '7200');
+  });
+
+  it('does not allow other sites', async () => {
+    const { app } = makeWorld();
+    const res = await app.request('/api/config', { headers: { Origin: 'https://evil.example' } });
+    assert.equal(res.headers.get('access-control-allow-origin'), null);
+  });
+});

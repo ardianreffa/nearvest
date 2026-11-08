@@ -21,6 +21,8 @@ import { TaniBotWindow } from './tanibot';
 import { GoogleButton } from './google';
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Coach } from './tutorial';
+import { predict } from './optimistic';
+import { seasonPayout } from './qty';
 import { Avatar } from './art/avatars';
 import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
@@ -264,9 +266,22 @@ export function App() {
           if (!signedBurn) return null;
           payload = { ...payload, signedBurn };
         }
-        const res = await api<{ state: GameState; result: unknown }>('POST', path, payload);
-        playSound(ACTION_SOUNDS[path] ?? 'click');
-        juice(path, res.result);
+        // Show what is already certain right away (optimistic.ts); the server's answer replaces it.
+        const guess = stateRef.current ? predict(path, payload, stateRef.current, config) : null;
+        if (guess) {
+          setState(guess);
+          playSound(ACTION_SOUNDS[path] ?? 'click');
+          if (path === '/api/shop/buy') burnAt();
+        }
+        let res: { state: GameState; result: unknown };
+        try {
+          res = await api<{ state: GameState; result: unknown }>('POST', path, payload);
+        } catch (e) {
+          if (guess) void refresh();
+          throw e;
+        }
+        if (!guess) playSound(ACTION_SOUNDS[path] ?? 'click');
+        juice(path, res.result, !!guess);
         applyState(res.state);
         moments(path, res.result, res.state);
         if (success) toast({ kind: 'info', text: success });
@@ -279,7 +294,7 @@ export function App() {
         setBusy(false);
       }
     },
-    [applyState, toast, ask, config],
+    [applyState, toast, ask, config, refresh],
   );
 
   /** Sells at the price shown; if Mr. Darto's price changed meanwhile, asks before selling at the new one. */
@@ -291,11 +306,28 @@ export function App() {
       for (let attempt = 0; attempt < 3; attempt++) {
         setBusy(true);
         try {
-          const res = await api<{ state: GameState }>('POST', '/api/sell', { species, quality, qty, expectedPrice: price });
-          playSound('coins');
-          const earned = (res as { result?: { expectedPanen?: number } }).result?.expectedPanen ?? price * mult * qty;
-          floatText(`+${formatPanen(earned)} PANEN`, 'gold');
-          coinsToBalance(Math.min(10, 3 + qty * 2));
+          // Coins and the new balance show at once; the server's answer confirms them.
+          const body = { species, quality, qty, expectedPrice: price };
+          const guess = stateRef.current ? predict('/api/sell', body, stateRef.current, config) : null;
+          if (guess) {
+            setState(guess);
+            playSound('coins');
+            floatText(`+${formatPanen(seasonPayout(price * mult * qty, guess.season.divisor))} PANEN`, 'gold');
+            coinsToBalance(Math.min(10, 3 + qty * 2));
+          }
+          let res: { state: GameState; result?: { expectedPanen?: number } };
+          try {
+            res = await api<{ state: GameState; result?: { expectedPanen?: number } }>('POST', '/api/sell', body);
+          } catch (e) {
+            if (guess) void refresh();
+            throw e;
+          }
+          const earned = res.result?.expectedPanen ?? price * mult * qty;
+          if (!guess) {
+            playSound('coins');
+            floatText(`+${formatPanen(earned)} PANEN`, 'gold');
+            coinsToBalance(Math.min(10, 3 + qty * 2));
+          }
           applyState(res.state);
           toast({ kind: 'info', text: `Sold ${label} for ${formatPanen(earned)} PANEN` });
           return;
@@ -322,7 +354,7 @@ export function App() {
         }
       }
     },
-    [applyState, ask, refresh, toast],
+    [applyState, ask, refresh, toast, config],
   );
 
   const onLoggedIn = (token: string, s: GameState | null, note?: string) => {
@@ -764,13 +796,14 @@ export function App() {
 }
 
 /** Floating numbers, coins and flames for actions with a PANEN effect. */
-function juice(path: string, result: unknown) {
+/** Effects after an action; `early`: the instant ones already played when the button was pressed. */
+function juice(path: string, result: unknown, early = false) {
   const r = (result ?? {}) as { rewards?: string[]; burnedPanen?: number };
   if (path === '/api/checkin' && r.rewards?.[0]) {
     floatText(`+${r.rewards[0]}`, 'gold');
     coinsToBalance(4);
   } else if (path === '/api/shop/buy' && r.burnedPanen) {
-    burnAt();
+    if (!early) burnAt();
     floatText(`-${r.burnedPanen} PANEN`, 'burn');
   }
 }
