@@ -56,6 +56,10 @@ reads it after the secrets, so it wins), `deploy/stage.sh` (builds a release on 
 Backup tests (`server/test/backup.test.ts`), a staged release started with Node 24.22.0 in fake-chain
 mode (`/health` ok), the backup service command run from the staged release.
 
+## Deployed 2026-11-08
+
+Steps 2-9 done on 2026-11-08 (each with Ardian's OK; Entropy stayed PID 1904180 throughout). Server: `https://150-109-24-35.sslip.io` (release `nearvest-1a2fa33`, `/opt/nearvest/app`), web: `https://nearvest-six.vercel.app` (Vercel, root `web/`, `VITE_API_URL=https://150-109-24-35.sslip.io`). Backups daily at 03:30 in `/var/backups/nearvest`. Step 10 (playing on the live site) is Ardian's.
+
 ## Step 2: read-only check right before deploying (no change)
 
 ```sh

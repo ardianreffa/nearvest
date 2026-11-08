@@ -265,7 +265,7 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - **Open notes:** the Shop stall is partly covered by the tree on plot 1 (the pin moves to a free spot, so it stays clickable); the Market house is often behind the plot 2 tree (same: use its pin).
 
 **Next, in this order:**
-1. Deploy: VPS (server + Caddy/sslip.io) and Vercel (web) - **only with Ardian's OK**. At deploy: raise `TANIBOT_AI_MAX_CALLS_PER_DAY` from 30 (development) to **1500**, keep `TANIBOT_AI_BUDGET_USD=8`; add the Vercel URL to Google's Authorized JavaScript origins and to `WEB_ORIGINS`; top up `nearvest.testnet`, `game.nearvest.testnet`, `pohon` and `panen` from the faucet (Try as Judge spends about 0.04 NEAR per judge garden).
+1. **Deployed 2026-11-08** (docs/DEPLOY.md): game server on the VPS (`https://150-109-24-35.sslip.io`, systemd `nearvest` + `nearvest-caddy`, own Node in /opt/nearvest, daily backup 03:30), web on Vercel `https://nearvest-six.vercel.app`. The Mac server must NOT run any more (same game key). Updates: stage a release on the Mac (`deploy/stage.sh`), switch `/opt/nearvest/app`, restart only `nearvest` (ask Ardian). Remaining from the old plan: At deploy: raise `TANIBOT_AI_MAX_CALLS_PER_DAY` from 30 (development) to **1500**, keep `TANIBOT_AI_BUDGET_USD=8`; add the Vercel URL to Google's Authorized JavaScript origins and to `WEB_ORIGINS`; top up `nearvest.testnet`, `game.nearvest.testnet`, `pohon` and `panen` from the faucet (Try as Judge spends about 0.04 NEAR per judge garden).
 2. Wednesday: Weather / Village events + volcano eruption (docs/BACKLOG.md item 3; never call them seasons), ambient sound. Then Thursday: simple garden visits, share popup per moment, referral (the interactive backdrop is done).
 
 **How-tos:**
