@@ -52,14 +52,6 @@ function Hero() {
         <div class="lp-tagline">Grow. Harvest. Own.</div>
         <div class="lp-lead">A pixel farming game on NEAR where your tree is a living NFT and an AI farmer tends it while you sleep.</div>
       </div>
-      {/* Phones: the six TaniBots from Seedling to Legend fill the tall sky. */}
-      <div class="lp-sky-bots" aria-hidden="true">
-        {TIERS.map((t, i) => (
-          <span key={t} style={{ animationDelay: `${-i * 0.4}s` }}>
-            <TaniBot tier={t} scale={1} />
-          </span>
-        ))}
-      </div>
       <div class="lp-cta">
         <a class="btn btn-mint lp-play" href="/play">
           Play for free

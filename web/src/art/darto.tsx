@@ -140,3 +140,21 @@ const FACE_ROWS = DARTO_IDLE.slice(0, 30);
 export function DartoFace({ scale = 1 }: { scale?: number }) {
   return <Pixels rows={FACE_ROWS} palette={DARTO_PALETTE} scale={scale} title="Mr. Darto" />;
 }
+
+/**
+ * Mr. Darto's head for icons (Market tab, menu rail, the Market pin): cut straight from the
+ * waving pose of the official sprite (rows 0-26, columns 10-38), nothing redrawn. The waving
+ * hand touches a few pixels at the bottom left of that box; they are left out.
+ */
+const HEAD_BOX = { x0: 10, x1: 39, y1: 27 };
+const HAND_PIXELS: Record<number, number> = { 24: 13, 25: 16, 26: 12 }; // row -> first column that is not hand
+export const DARTO_HEAD: string[] = DARTO_WAVE.slice(0, HEAD_BOX.y1).map((row, y) =>
+  [...row.slice(HEAD_BOX.x0, HEAD_BOX.x1)].map((c, i) => (i + HEAD_BOX.x0 < (HAND_PIXELS[y] ?? 0) ? '.' : c)).join(''),
+);
+/** Size of DARTO_HEAD in sprite pixels (29 x 27). */
+export const DARTO_HEAD_W = DARTO_HEAD[0].length;
+export const DARTO_HEAD_H = DARTO_HEAD.length;
+
+export function DartoHead({ scale = 1, class: className }: { scale?: number; class?: string }) {
+  return <Pixels rows={DARTO_HEAD} palette={DARTO_PALETTE} scale={scale} class={`darto-head${className ? ` ${className}` : ''}`} title="Mr. Darto" />;
+}

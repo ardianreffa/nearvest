@@ -10,6 +10,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Sprite, type SpriteName } from '../sprites';
+import { DartoHead } from './darto';
 import { boxIn, V1, type Box, type Spot, type Village } from './village';
 
 export type Place = 'shop' | 'market' | 'village';
@@ -20,25 +21,30 @@ interface SpotInfo {
   short: string;
   /** Full label on hover / tap. */
   label: string;
-  icon: SpriteName;
+  /** A sprite, or Mr. Darto's head (cut from his official sprite). */
+  icon: SpriteName | 'dartoHead';
   /** Opens this panel; null = coming soon. */
   open: Place | null;
 }
 
 const SPOTS: Record<Spot, SpotInfo> = {
   shop: { name: 'Shop', short: 'Shop', label: 'Village Shop: seeds and fertilizer', icon: 'seedPacket', open: 'shop' },
-  market: { name: 'Market', short: 'Market', label: "Mr. Darto's Market", icon: 'darto', open: 'market' },
+  market: { name: 'Market', short: 'Market', label: "Mr. Darto's Market", icon: 'dartoHead', open: 'market' },
   village: { name: 'Village Stats', short: 'Stats', label: 'Farm towers: Village Stats', icon: 'bolt', open: 'village' },
   friends: { name: 'Friends', short: 'Friends', label: 'Visit friends: coming soon', icon: 'sprout', open: null },
   arena: { name: 'Arena', short: 'Arena', label: 'Arena: 1v1 duels for PANEN, coming soon', icon: 'sparkle', open: null },
 };
 const IDS = Object.keys(SPOTS) as Spot[];
 /** Whole-number scales so every pin icon is about 16 px and stays sharp. */
-const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2, sparkle: 2, darto: 1, sprout: 1 };
+const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2, sparkle: 2, sprout: 1 };
 
-/** Things a pin or bubble must never cover or hide under. */
+/**
+ * Things a pin or bubble must never cover or hide under. Mr. Darto stays fully visible in front
+ * of his kiosk. TaniBot's speech bubble is not listed: the pins stay put and the bubble moves
+ * out of their way (useHintPlacement in scene.tsx).
+ */
 const OBSTACLES =
-  '.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .coach-float, .topbar, .toasts, .bot-spot .tanibot, .bot-hint, .bot-status, .badge, .plot-art, .soil, .garden-sheet';
+  '.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .coach-float, .topbar, .toasts, .bot-spot .tanibot, .bot-status, .badge, .plot-art, .soil, .garden-sheet, .village-darto';
 
 /** Where the first village's train runs (boxes just above the rail): pins stay clear of it. */
 const RAIL_BAND_V1: Box[] = [
@@ -65,7 +71,7 @@ function railBand(v: Village): Box[] {
 
 const canHover = () => typeof matchMedia === 'function' && matchMedia('(hover: hover) and (pointer: fine)').matches;
 
-type Rect = { left: number; top: number; right: number; bottom: number };
+type Rect = { left: number; top: number; right: number; bottom: number; /** How bad covering it is (default 1). */ weight?: number };
 const overlaps = (a: Rect, b: Rect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
 /** The phone's safe area at the top (notch / status bar), in px. */
@@ -108,7 +114,14 @@ function obstacleRects(host: HTMLElement, v: Village): Rect[] {
     right: hr.left + ((x + w) / v.w) * hr.width,
     bottom: hr.top + ((y + h) / v.h) * hr.height,
   }));
-  return [...[...document.querySelectorAll(OBSTACLES)].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.height > 0), ...rail];
+  const rects = [...document.querySelectorAll(OBSTACLES)].map((e) => {
+    const r = e.getBoundingClientRect();
+    if (!e.classList.contains('village-darto')) return r;
+    // Mr. Darto: a little room around him (his waving hand reaches past his box).
+    const pad = Math.max(3, r.width * 0.4);
+    return { left: r.left - pad, top: r.top - 6, right: r.right + pad, bottom: r.bottom, width: r.width + 2 * pad, height: r.height + 6, weight: 20 };
+  });
+  return [...rects.filter((r) => r.width > 0 && r.height > 0), ...rail];
 }
 
 /**
@@ -123,21 +136,25 @@ function place(el: HTMLElement, host: HTMLElement, v: Village, x: number, y: num
   const ay = hr.top + (y / v.h) * hr.height;
   const dxs = [0, -16, 16, -32, 32, -56, 56, -88, 88, -128, 128];
   const dys = below ? [6, 24, 44] : onBody ? [-h / 2, -h / 2 - 16, -h / 2 + 16, -h / 2 + 32] : [-h - 4, -h - 18, 2, 18];
-  let best: { l: number; t: number } | null = null;
-  for (const dy of dys) {
+  // The first spot (in this order) that covers nothing; with no free spot, the one that covers
+  // the least (weighted: covering Mr. Darto counts much more than a roof or a tree).
+  const cost = (r: Rect) =>
+    obstacles.reduce((sum, o) => {
+      if (!overlaps(r, o)) return sum;
+      const area = (Math.min(r.right, o.right) - Math.max(r.left, o.left)) * (Math.min(r.bottom, o.bottom) - Math.max(r.top, o.top));
+      return sum + area * (o.weight ?? 1);
+    }, 0);
+  let best: { l: number; t: number; c: number } | null = null;
+  search: for (const dy of dys) {
     for (const dx of dxs) {
       let l = ax - w / 2 + dx;
       let t = ay + dy;
       l = Math.min(Math.max(l, area.left), area.right - w);
       t = Math.min(Math.max(t, area.top), area.bottom - h);
-      const r = { left: l, top: t, right: l + w, bottom: t + h };
-      if (!obstacles.some((o) => overlaps(r, o))) {
-        best = { l, t };
-        break;
-      }
-      best ??= { l, t };
+      const c = cost({ left: l, top: t, right: l + w, bottom: t + h });
+      if (!best || c < best.c) best = { l, t, c };
+      if (c === 0) break search;
     }
-    if (best && !obstacles.some((o) => overlaps({ left: best!.l, top: best!.t, right: best!.l + w, bottom: best!.t + h }, o))) break;
   }
   el.style.left = `${best!.l - hr.left}px`;
   el.style.top = `${best!.t - hr.top}px`;
@@ -247,7 +264,7 @@ export function Hotspots({ onPlace, account, village = V1 }: { onPlace: (p: Plac
             aria-hidden="true"
           >
             <span class="pin-icon">
-              <Sprite name={s.icon} scale={ICON_SCALE[s.icon] ?? 1} />
+              {s.icon === 'dartoHead' ? <DartoHead /> : <Sprite name={s.icon} scale={ICON_SCALE[s.icon] ?? 1} />}
             </span>
             <span class="pin-name">{lit && canHover() ? s.label : s.name}</span>
             <span class="pin-short">{s.short}</span>

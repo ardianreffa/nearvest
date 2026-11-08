@@ -3799,13 +3799,16 @@ button.balance:focus-visible {
   box-shadow: 0 0 0 2px var(--mint), 0 4px 10px rgba(0, 0, 0, 0.3);
   opacity: 0;
   animation: bot-hint-in 0.5s ease-out 0.8s forwards, bot-hint-bob 2.4s ease-in-out 1.3s infinite;
+  /* Shifted sideways / up by useHintPlacement (scene.tsx) so it never covers a pin or Mr. Darto. */
+  margin-left: var(--hint-dx, 0px);
+  margin-bottom: calc(-1 * var(--hint-dy, 0px));
 }
 
 .bot-hint::after {
   content: '';
   position: absolute;
   top: 100%;
-  left: 50%;
+  left: calc(50% - var(--hint-dx, 0px));
   margin-left: -6px;
   border: 6px solid transparent;
   border-top-color: #1b1b2f;
@@ -4315,6 +4318,27 @@ button.balance:focus-visible {
   padding: 2px 4px;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* The sleepy "Tap me to help!" bubble: small, right next to TaniBot's head. */
+.bot-hint.bot-nudge {
+  bottom: calc(100% + 4px);
+  max-width: 112px;
+  padding: 3px 6px 2px;
+  gap: 0;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.wide .bot-hint.bot-nudge,
+.immersive-scene .bot-hint.bot-nudge {
+  max-width: 132px;
+  font-size: 12px;
+}
+
+.bot-hint.bot-nudge .bot-nudge-later {
+  font-size: 9px;
+  padding: 1px 4px;
 }
 
 .bot-nudge-later:hover,
@@ -5204,6 +5228,38 @@ button.chip:focus-visible {
   background: var(--mint);
   border: 2px solid #1b1b2f;
   border-radius: 50%;
+}
+
+/* The Day chip and its (i): one piece that wraps as a whole, (i) always right of "Demo". */
+.chip-day-group {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.chip-day-group > .info-i {
+  flex: none;
+  margin: 0;
+}
+
+/* The check-in countdown changes every second: the text box is always as wide as "Check in"
+   (an invisible copy in the same grid cell), so the chips after it and the row's wrapping
+   never move, whatever the font. */
+.chip-checkin-text {
+  display: inline-grid;
+  justify-items: center;
+}
+
+.chip-checkin-text > span,
+.chip-checkin-text::after {
+  grid-area: 1 / 1;
+}
+
+.chip-checkin-text::after {
+  content: attr(data-size);
+  visibility: hidden;
 }
 
 /* Farm day: information only, so quieter and not clickable. */
@@ -6936,103 +6992,6 @@ button.chip:focus-visible {
 }
 
 /* =====================================================================
-   Login page: the evolution journey (six TaniBots, swipe on phones)
-   ===================================================================== */
-
-.journey {
-  width: 100%;
-  max-width: 100vw;
-  margin: 0 0 4px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.journey::-webkit-scrollbar {
-  display: none;
-}
-
-.journey-track {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 14px;
-  width: max-content;
-  min-width: 100%;
-  margin: 0 auto;
-  padding: 26px 16px 4px;
-}
-
-.journey-step {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  scroll-snap-align: center;
-}
-
-/* Idle: each TaniBot hovers gently, out of step with its neighbours. */
-.journey-step .tanibot {
-  animation: journey-hover 3.2s ease-in-out infinite;
-  animation-delay: calc(var(--i) * -0.55s);
-}
-
-@keyframes journey-hover {
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-.journey-step figcaption {
-  position: relative;
-  z-index: 1;
-  font-size: 10px;
-  font-weight: 700;
-  color: #e6d7b5;
-  text-shadow: 1px 1px 0 #000;
-  white-space: nowrap;
-}
-
-/* Small arrows between the steps: a journey, not a lineup. */
-.journey-step + .journey-step::before {
-  content: '›';
-  position: absolute;
-  left: -12px;
-  top: 40%;
-  color: var(--mint);
-  font-size: 14px;
-  opacity: 0.7;
-}
-
-@media (min-width: 1024px) {
-  /* Wider than the login column, centred on the page. */
-  .login .journey {
-    flex: none;
-    width: min(100vw, 960px);
-    overflow: visible;
-  }
-
-  .journey-track {
-    gap: 22px;
-  }
-
-  .journey-step figcaption {
-    font-size: 13px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .journey-step .tanibot {
-    animation: none;
-  }
-}
-
-
-/* =====================================================================
    Layered backdrop (art/backdrop.tsx): code sky behind the village, train,
    rotors, Arena ring, hotspots (art/hotspots.tsx)
    ===================================================================== */
@@ -7265,6 +7224,19 @@ button.chip:focus-visible {
   overflow: hidden;
 }
 
+
+/* Market pin: Mr. Darto's head (29 x 27 sprite pixels, 1:1 so it stays sharp) fills the pin's
+   height without making the pin taller. */
+.place-pin .pin-icon .darto-head {
+  flex: none;
+}
+
+.place-pin.pin-market .pin-icon {
+  width: 29px;
+  height: 27px;
+  margin: -5px -2px -5px -2px;
+  overflow: visible;
+}
 
 .place-pin .pin-short {
   display: none;
@@ -8840,7 +8812,7 @@ li b,
     0 calc(var(--n) * 2), var(--n) calc(var(--n) * 2), var(--n) var(--n), calc(var(--n) * 2) var(--n), calc(var(--n) * 2) 0,
     calc(100% - var(--n) * 2) 0, calc(100% - var(--n) * 2) var(--n), calc(100% - var(--n)) var(--n), calc(100% - var(--n)) calc(var(--n) * 2), 100% calc(var(--n) * 2),
     100% calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n) * 2) calc(100% - var(--n)), calc(100% - var(--n) * 2) 100%,
-    calc(50% + 7px) 100%, 50% calc(100% + 8px), calc(50% - 7px) 100%,
+    calc(50% - var(--hint-dx, 0px) + 7px) 100%, calc(50% - var(--hint-dx, 0px)) calc(100% + 8px), calc(50% - var(--hint-dx, 0px) - 7px) 100%,
     calc(var(--n) * 2) 100%, calc(var(--n) * 2) calc(100% - var(--n)), var(--n) calc(100% - var(--n)), var(--n) calc(100% - var(--n) * 2), 0 calc(100% - var(--n) * 2)
   );
 }

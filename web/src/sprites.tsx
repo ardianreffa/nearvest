@@ -233,24 +233,6 @@ export const SPRITES = {
     '..ee....',
     '...e....',
   ],
-  darto: [
-    '................',
-    '.....kkkkkk.....',
-    '....kllllllk....',
-    '...kllllllllk...',
-    '...lccccccccl...',
-    '...lcwcllcwcl...',
-    '...llllLLllll...',
-    '...llkkkkkkll...',
-    '....llkllkll....',
-    '.....llllll.....',
-    '......LLLL......',
-    '...uuuuuuuuuu...',
-    '..uuuuyuuyuuuu..',
-    '..uuuuuuuuuuuu..',
-    '..uuuuuuuuuuuu..',
-    '................',
-  ],
 } satisfies Record<string, string[]>;
 
 export const BASE_PALETTE = PALETTE;

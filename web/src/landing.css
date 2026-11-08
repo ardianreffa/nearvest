@@ -83,10 +83,6 @@
   color: #fff;
 }
 
-.lp-sky-bots {
-  display: none;
-}
-
 /* TaniBot on the grass. */
 .lp-hero-bot {
   position: absolute;
@@ -204,29 +200,6 @@
 
   .lp-lead {
     font-size: 17px;
-  }
-
-  /* The tall phone sky: the six TaniBots in a row, bobbing one after another. */
-  .lp-sky-bots {
-    position: absolute;
-    left: 0;
-    right: 0;
-    /* Just above the village's highest rooftops (the art starts 100vw * 1.5 above the bottom,
-       its sky is the top 40%). */
-    top: calc(100svh - 100vw * 1.5 * 0.6 - 22vw);
-    display: flex;
-    justify-content: center;
-    align-items: flex-end;
-    gap: 2px;
-    transform: translateY(-100%);
-  }
-
-  .lp-sky-bots span {
-    animation: lp-bob 2.4s ease-in-out infinite;
-  }
-
-  .lp-sky-bots .tanibot {
-    transform: scale(0.9);
   }
 
   /* The sky above the art (tall phones) continues in the horizon colour. */
@@ -545,7 +518,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp-sky-bots span,
   .lp-hero-bot,
   .lp-more,
   .lp-drone {

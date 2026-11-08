@@ -117,6 +117,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const motion = useBotMotion(bx, on, working, selected);
   const bye = useGoodbye(on, tb?.status === 'ready');
   const evolving = useEvolution(tier);
+  const botSpot = useRef<HTMLDivElement>(null);
+  useHintPlacement(botSpot, `${bye}|${nudge.key}|${flash?.id ?? ''}|${bx}`);
 
   return (
     <div
@@ -209,6 +211,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         </span>
       )}
       <div
+        ref={botSpot}
         class={`bot-spot tier-${tier} ${motion.cls}${evolving ? ' evolving' : ''}${phone && v2 && !village?.moundArt ? ' bot-front' : ''}${phone && village?.moundArt ? ' bot-beside' : ''}`}
         style={{
           left: `${bx}%`,
@@ -513,9 +516,7 @@ function useTurnOnNudge(askOn: boolean, state: GameState): { text: string | null
         session.setItem(greetKey, sessionId());
         show(
           pick([
-            "Zzz... need a hand? Tap me and I'll water your trees.",
-            "Psst! Switch me on and I'll look after your garden while you're away.",
-            "Hi farmer! I can water, harvest and sell for you. Just tap me.",
+            'Zzz... Tap me to help!',
           ]),
         );
         return;
@@ -525,8 +526,8 @@ function useTurnOnNudge(askOn: boolean, state: GameState): { text: string | null
       const trees = plots.current.map((p) => p.tree).filter((t): t is TreeView => !!t);
       const ripe = trees.find((t) => t.ready);
       const thirsty = trees.find((t) => !t.wateredToday && !t.ready);
-      if (ripe) show(pick(['Ripe fruit! I can harvest and sell it for you.', `Your ${SPECIES_LABEL[ripe.species]} is ripe. Want me to take care of it?`]));
-      else if (thirsty) show(pick([`Your ${SPECIES_LABEL[thirsty.species]} looks thirsty. Want me to help?`, 'Some trees need water. Tap me and I can do it for you.']));
+      if (ripe) show(pick(['Ripe fruit! Tap me to help!', `${SPECIES_LABEL[ripe.species]} is ripe! Tap me!`]));
+      else if (thirsty) show(pick(['Thirsty trees! Tap me to help!', `${SPECIES_LABEL[thirsty.species]} is thirsty! Tap me!`]));
     };
     check();
     const id = setInterval(check, 2000);
@@ -545,6 +546,53 @@ function useTurnOnNudge(askOn: boolean, state: GameState): { text: string | null
     setShown(null);
   };
   return { text: askOn && shown ? shown.text : null, key: shown?.key ?? 0, notNow };
+}
+
+/** Places that TaniBot's speech bubble must never cover: place pins, Mr. Darto, the HUD, plot labels. */
+const HINT_AVOID = '.place-pin, .village-darto, .hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .topbar, .badge, .coach-hud, .coach-float';
+
+/**
+ * Keeps TaniBot's speech bubble next to its head without covering a place pin or Mr. Darto:
+ * centred above the head first, else shifted left or right (the tail still points at the head),
+ * else a little higher. Sets --hint-dx / --hint-dy on the bubble (px; read by CSS).
+ */
+function useHintPlacement(spot: { current: HTMLDivElement | null }, key: string) {
+  useLayoutEffect(() => {
+    const place = () => {
+      const hint = spot.current?.querySelector<HTMLElement>(':scope > .bot-hint');
+      if (!hint) return;
+      hint.style.setProperty('--hint-dx', '0px');
+      hint.style.setProperty('--hint-dy', '0px');
+      const base = hint.getBoundingClientRect();
+      // The bubble's resting box (its pop-in / bob animation moves it by a few px only).
+      const w = hint.offsetWidth;
+      const h = hint.offsetHeight;
+      const cx = base.left + base.width / 2;
+      const top0 = base.bottom - h;
+      const avoid = [...document.querySelectorAll(HINT_AVOID)]
+        .filter((e) => !hint.contains(e))
+        .map((e) => e.getBoundingClientRect())
+        .filter((r) => r.width > 0 && r.height > 0);
+      const half = w / 2 - 14; // keep the tail inside the bubble
+      const dxs = [0, -half * 0.6, half * 0.6, -half, half];
+      const dys = [0, -12, -24];
+      const fits = (l: number, t: number) =>
+        l >= 4 && l + w <= window.innerWidth - 4 && t >= 0 &&
+        !avoid.some((r) => l < r.right && r.left < l + w && t < r.bottom && r.top < t + h);
+      for (const dy of dys)
+        for (const dx of dxs) {
+          if (fits(cx - w / 2 + dx, top0 + dy)) {
+            hint.style.setProperty('--hint-dx', `${Math.round(dx)}px`);
+            hint.style.setProperty('--hint-dy', `${Math.round(dy)}px`);
+            return;
+          }
+        }
+    };
+    place();
+    // Pins settle a moment after the scene appears; check once more then.
+    const t = setTimeout(place, 1100);
+    return () => clearTimeout(t);
+  }, [key]);
 }
 
 type IdleAct = 'glance' | 'blink' | 'leds' | 'wave' | 'look';
