@@ -989,22 +989,76 @@ button {
   pointer-events: none;
 }
 
+/* Watering: the drone takes off next to TaniBot, flies to the tree, hovers just above its crown
+   (--hover from the stage bottom) spraying, and flies back (WaterDrone in scene.tsx). */
 .act-water .fly-drone {
   position: absolute;
-  bottom: 46%;
-  margin-left: -11px;
-  animation: drone-fly 1.6s ease-in-out forwards;
+  left: var(--from);
+  bottom: 30px;
+  transform: translateX(-50%);
+  animation: water-drone 1.6s ease-in-out forwards;
 }
 
 .act-water .drop {
   position: absolute;
-  bottom: 42%;
+  bottom: var(--hover);
   width: 3px;
-  height: 5px;
+  height: 6px;
+  margin-left: -1px;
+  border-radius: 2px;
   background: var(--cyan);
   box-shadow: 0 0 5px var(--cyan);
   opacity: 0;
-  animation: drop-fall 0.6s ease-in forwards;
+  animation: water-drop 0.55s ease-in forwards;
+}
+
+@keyframes water-drone {
+  0% {
+    left: var(--from);
+    bottom: 30px;
+  }
+  24% {
+    left: var(--to);
+    bottom: calc(var(--hover) + 4px);
+  }
+  50% {
+    left: var(--to);
+    bottom: var(--hover);
+  }
+  76% {
+    left: var(--to);
+    bottom: calc(var(--hover) + 4px);
+  }
+  100% {
+    left: var(--from);
+    bottom: 30px;
+  }
+}
+
+@keyframes water-drop {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(var(--fall));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No flight: the drone shows above the tree with a few still drops, then the effect ends. */
+  .act-water .fly-drone {
+    left: var(--to);
+    bottom: var(--hover);
+    animation: none;
+  }
+
+  .act-water .drop {
+    opacity: 1;
+    transform: translateY(calc(var(--fall) * 0.4));
+    animation: none;
+  }
 }
 
 .act-plant .hoe {
@@ -2091,17 +2145,7 @@ input:focus-visible {
   50% { transform: translate(4px, -6px); }
 }
 
-@keyframes drone-fly {
-  0% { left: var(--from); transform: translateY(0); }
-  25% { left: var(--to); transform: translateY(-14px); }
-  75% { left: var(--to); transform: translateY(-14px); }
-  100% { left: var(--from); transform: translateY(0); }
-}
 
-@keyframes drop-fall {
-  0% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(52px); }
-}
 
 @keyframes hoe {
   0% { transform: rotate(-40deg); }
@@ -5814,46 +5858,6 @@ button.chip:focus-visible {
   }
 }
 
-/* Watering from the can (Farmhand and up). */
-.act-water.from-can .pour {
-  position: absolute;
-  bottom: 38%;
-  width: 3px;
-  height: 6px;
-  border-radius: 2px;
-  background: var(--cyan);
-  box-shadow: 0 0 4px var(--cyan);
-  opacity: 0;
-  animation: can-pour 0.7s ease-in forwards;
-}
-
-@keyframes can-pour {
-  0% {
-    opacity: 0;
-    transform: translate(18px, -26px);
-  }
-  20% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translate(0, 10px);
-  }
-}
-
-/* Durian King: coins jump out of a harvest. */
-.king-coin {
-  position: absolute;
-  bottom: 40%;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--gold);
-  border: 1px solid #a07a12;
-  box-shadow: 0 0 5px var(--gold);
-  opacity: 0;
-  animation: king-coin 0.9s ease-out forwards;
-}
 
 @keyframes king-coin {
   0% {
@@ -8423,4 +8427,9 @@ p b,
 .howto-points li b,
 .login-points li b {
   font-weight: 700;
+}
+
+/* While the water drone hovers over a tree its label steps aside (it turns into the timer after). */
+.plot.watering .badge {
+  visibility: hidden;
 }

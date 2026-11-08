@@ -61,6 +61,22 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
   const fxTimer = useRef<number>(0);
   const plot = state.plots[selected];
 
+  // TaniBot waters on its own (server rounds): when a tree turns watered without the player pressing
+  // Water here, its water drone flies to that tree too.
+  const lastLocal = useRef(0);
+  const prevWatered = useRef<boolean[] | null>(null);
+  useEffect(() => {
+    const now = state.plots.map((p) => !!p.tree?.wateredToday);
+    const prev = prevWatered.current;
+    prevWatered.current = now;
+    if (!prev || Date.now() - lastLocal.current < 4000) return;
+    const plot = now.findIndex((w, i) => w && !prev[i] && state.plots[i].tree);
+    if (plot < 0) return;
+    window.clearTimeout(fxTimer.current);
+    setFx({ id: Date.now(), kind: 'water', plot, tree: state.plots[plot].tree });
+    fxTimer.current = window.setTimeout(() => setFx(null), 1700);
+  }, [state]);
+
   /** Runs an action and plays TaniBot's animation for it when it succeeds. */
   const botAct: Act = async (path, body, success) => {
     const kind = (path.split('/').pop() ?? '') as ActionKind;
@@ -70,6 +86,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
     // it is cut short if the action fails.
     const animated = ['plant', 'water', 'harvest', 'fertilize', 'chop'].includes(kind);
     const id = Date.now();
+    lastLocal.current = id;
     if (animated) {
       window.clearTimeout(fxTimer.current);
       setFx({ id, kind, plot: plotIndex, tree: before });

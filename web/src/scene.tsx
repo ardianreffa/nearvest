@@ -9,7 +9,7 @@ import { TreePixels, treeTopRow } from './art/trees';
 import { leafBurst } from './fx';
 import { Pixels, Sprite } from './sprites';
 import { formatDuration } from './ui';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 export type ActionKind = 'plant' | 'water' | 'harvest' | 'fertilize' | 'chop';
 
@@ -155,7 +155,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           return (
             <button
               key={p.plot}
-              class={`plot${p.plot === selected ? ' selected' : ''}${p.locked ? ' locked' : ''}`}
+              class={`plot${p.plot === selected ? ' selected' : ''}${p.locked ? ' locked' : ''}${fx?.kind === 'water' && fx.plot === p.plot ? ' watering' : ''}`}
               onClick={() => onSelect(p.plot)}
               aria-label={`Plot ${p.plot + 1}${p.tree ? `: ${p.tree.species}, ${p.tree.stage}` : p.locked ? ': locked' : ': empty'}`}
             >
@@ -296,31 +296,61 @@ function Stage({ immersive, children }: { immersive?: Immersive; children: preac
   );
 }
 
+/**
+ * Watering (the player or TaniBot): a drone takes off next to TaniBot, flies to the chosen tree,
+ * hovers just above its crown spraying water over it, then flies back. The tree's real top and
+ * centre are read from the screen, so it works for a sprout and a big tree, on phones and laptops.
+ * prefers-reduced-motion: the drone simply shows above the tree with a few still drops (CSS).
+ */
+function WaterDrone({ fx, from, to, droneScale }: { fx: SceneFx; from: number; to: number; droneScale: number }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<{ x: number; hover: number; fall: number; spread: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const area = el.getBoundingClientRect();
+    const plot = el.closest('.stage, .scene')?.querySelectorAll('.plot')[fx.plot];
+    const target = plot?.querySelector('.plot-art .tree') ?? plot?.querySelector('.plot-art');
+    if (!area.width || !target) return;
+    const t = target.getBoundingClientRect();
+    // The crown's top: the first filled row of the tree picture (its canvas has empty rows on top).
+    const svg = target.querySelector('svg');
+    const top = svg ? svg.getBoundingClientRect().top + (svg.getBoundingClientRect().height * Number(target.getAttribute('data-top') ?? 0)) : t.top;
+    const droneH = 11 * droneScale;
+    setPlace({
+      x: ((t.left + t.width / 2 - area.left) / area.width) * 100,
+      hover: Math.max(droneH, area.bottom - top + 6),
+      fall: Math.max(10, (area.bottom - top) * 0.6),
+      spread: Math.max(8, Math.min(28, t.width * 0.3)),
+    });
+  }, [fx.id]);
+  const x = place?.x ?? to;
+  const vars = { '--from': `${from}%`, '--to': `${x}%`, '--hover': `${place?.hover ?? 60}px`, '--fall': `${place?.fall ?? 40}px` };
+  return (
+    <div class="act act-water" style={vars} ref={box}>
+      <span class="fly-drone">
+        <Drone scale={droneScale} />
+      </span>
+      {place &&
+        Array.from({ length: 12 }, (_, i) => (
+          <i
+            key={i}
+            class="drop"
+            style={{ left: `calc(${x}% + ${Math.round(((i % 4) / 3 - 0.5) * 2 * place.spread)}px)`, animationDelay: `${520 + i * 75}ms` }}
+          />
+        ))}
+    </div>
+  );
+}
+
 function ActionEffect({ fx, from, to, tier, px, droneScale }: { fx: SceneFx; from: number; to: number; tier: Tier; px: number; droneScale: number }) {
-  const hasCan = tierRank(tier) >= tierRank('farmhand');
   const vars = { '--from': `${from}%`, '--to': `${to}%` };
   const left = Math.min(from, to);
   const width = Math.abs(from - to);
 
   switch (fx.kind) {
     case 'water':
-      return (
-        <div class={`act act-water${hasCan ? ' from-can' : ''}`} style={vars}>
-          {hasCan ? (
-            // From Farmhand on, TaniBot pours from its own watering can.
-            Array.from({ length: 12 }, (_, i) => (
-              <i key={i} class="pour" style={{ left: `calc(${to}% + ${(i % 4) * 5 - 8}px)`, animationDelay: `${150 + i * 70}ms` }} />
-            ))
-          ) : (
-            <>
-              <Drone scale={droneScale} class="fly-drone" />
-              {Array.from({ length: 9 }, (_, i) => (
-                <i key={i} class="drop" style={{ left: `calc(${to}% + ${(i % 3) * 6 - 6}px)`, animationDelay: `${450 + i * 70}ms` }} />
-              ))}
-            </>
-          )}
-        </div>
-      );
+      return <WaterDrone fx={fx} from={from} to={to} droneScale={droneScale} />;
     case 'plant':
       return (
         <div class="act act-plant" style={vars}>

@@ -10,6 +10,7 @@
 // Fullscreen layout at several screen sizes (EXISTING dev garden): node tools/ui-test.mjs <outDir> --fullscreen=<devUser>
 // TaniBot tiers in the garden (EXISTING dev garden with TaniBot ON; FAKE_DB=<fake server's sqlite> NEXT_XP=<xp> to raise its XP live; UI_URL=...?record=1 checks that no share card opens): node tools/ui-test.mjs <outDir> --tiers=<devUser>
 // Village train frames, hotspot hit test and hover (EXISTING dev garden, no changes): node tools/ui-test.mjs <outDir> --train=<devUser> [w] [h]
+// Water drone (EXISTING dev garden with a tree; fake-chain server): node tools/ui-test.mjs <outDir> --water=<devUser> [w] [h] (REDUCED_MOTION=1 too)
 // Info (i) bubbles in every panel of an EXISTING dev garden (fake-chain server): node tools/ui-test.mjs <outDir> --info=<devUser> [w] [h]
 // Garden scene of an EXISTING dev garden (no changes): UI_URL='http://localhost:5173/?time=dusk' node tools/ui-test.mjs <outDir> --scene=<devUser> [w] [h]
 //   PINS=1 checks the pins and (phones) the sheet; it always reports the garden (mounds, plots and village in view, TaniBot clear of other plots and labels).
@@ -389,6 +390,44 @@ try {
       await screenshot('after-market');
     });
     throw Object.assign(new Error('train done'), { done: true });
+  }
+  if (name.startsWith('--water=')) {
+    await step('water drone flies to the chosen tree (EXISTING dev garden with a thirsty tree; fake-chain server)', async () => {
+      await typeInto('#dev-user', name.slice('--water='.length));
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      await sleep(600);
+      // Demo days last a minute: wait until some tree can be watered, select it.
+      const plot = await (async () => {
+        for (let i = 0; i < 90; i++) {
+          for (let p = 0; p < 3; p++) {
+            await evaluate(`document.querySelectorAll('.plot')[${p}].click()`);
+            await sleep(250);
+            if (await evaluate(`!!document.querySelector('.act-water:not(:disabled)')`)) return p;
+          }
+          await sleep(1000);
+        }
+        return -1;
+      })();
+      if (plot < 0) throw new Error('no tree to water');
+      await clickText('Water', '.act-water');
+      for (const [ms, label] of [[250, 'take-off'], [700, 'over-tree'], [1500, 'back']]) {
+        await sleep(ms === 250 ? 250 : ms === 700 ? 450 : 800);
+        console.log(`water ${label}:`, await evaluate(`(() => {
+          const d = document.querySelector('.act-water .fly-drone');
+          if (!d) return 'no drone';
+          const r = d.getBoundingClientRect();
+          const tree = document.querySelectorAll('.plot')[${plot}].querySelector('.plot-art .tree svg') || document.querySelectorAll('.plot')[${plot}].querySelector('.plot-art');
+          const t = tree.getBoundingClientRect();
+          const top = t.top + t.height * Number(tree.closest('.tree')?.dataset.top ?? 0);
+          const drops = [...document.querySelectorAll('.act-water .drop')].filter(x => getComputedStyle(x).opacity > 0.05).length;
+          return 'drone centre ' + Math.round(r.left + r.width / 2) + ' vs tree centre ' + Math.round(t.left + t.width / 2) + ' | drone bottom ' + Math.round(r.bottom) + ' vs crown top ' + Math.round(top) + ' | drops falling ' + drops;
+        })()`));
+        await screenshot(`water-${label}`);
+      }
+    });
+    throw Object.assign(new Error('water done'), { done: true });
   }
   if (name.startsWith('--info=')) {
     await step('info (i) bubbles in every panel (EXISTING dev garden with a tree and TaniBot)', async () => {

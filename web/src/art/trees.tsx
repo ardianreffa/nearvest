@@ -339,7 +339,12 @@ export function TreePixels({ species, stage, quality, scale = 2, seed }: { speci
   const delay = `${-((h * 0.73) % 4).toFixed(2)}s`;
   const leafX = 30 + ((h * 37) % 40);
   return (
-    <div class={`tree tree-${stage} q-${quality}`} style={{ '--tpx': `${scale}px`, '--sway-delay': delay, '--leaf': palette.G }}>
+    <div
+      class={`tree tree-${stage} q-${quality}`}
+      // data-top: where the tree really starts, as a part of its picture's height (the water drone hovers there).
+      data-top={(treeTopRow(species, stage, seed) / H).toFixed(3)}
+      style={{ '--tpx': `${scale}px`, '--sway-delay': delay, '--leaf': palette.G }}
+    >
       <Pixels rows={tr} palette={palette} scale={scale} />
       {bottom && <Pixels rows={bottom} palette={palette} scale={scale} class="crown crown-low" />}
       {top && <Pixels rows={top} palette={palette} scale={scale} class="crown crown-top" />}
