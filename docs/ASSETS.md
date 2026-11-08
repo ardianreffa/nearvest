@@ -62,9 +62,11 @@ Credits (copy into README): music "Apple Cider" by Zane Little Music; sound effe
 
 | Font | Source | License |
 |---|---|---|
-| Tiny5 (text and numbers) | Google Fonts | SIL Open Font License 1.1 |
+| Tiny5 (buttons, HUD labels and numbers) | Google Fonts | SIL Open Font License 1.1 |
 | Pixelify Sans (headings) | Google Fonts | SIL Open Font License 1.1 |
 | Inter (long text: explanations, notes, logs, info bubbles, How to play, Privacy / Terms) | Google Fonts | SIL Open Font License 1.1 |
+| Nunito, Plus Jakarta Sans, Silkscreen, Bungee (font pair candidates b / c, `?font=b|c` in dev builds) | Google Fonts | SIL Open Font License 1.1 |
+| **All fonts are self-hosted** in `web/public/assets/fonts/` (latin subset woff2 files downloaded from Google Fonts on 2026-11-08; `web/src/fonts.css`), no request to Google at runtime | | OFL 1.1 allows bundling and redistribution with the game |
 
 ## Modified and AI-generated assets
 

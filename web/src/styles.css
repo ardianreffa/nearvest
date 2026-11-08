@@ -8433,3 +8433,93 @@ p b,
 .plot.watering .badge {
   visibility: hidden;
 }
+
+/* =====================================================================
+   Font pairs (title + reading text) and bigger reading text. All fonts are self-hosted
+   (src/fonts.css, OFL). Dev builds compare the pairs with ?font=a|b|c:
+     a: Pixelify Sans titles + Inter (the current look, larger text)
+     b: Silkscreen titles (bold pixel) + Nunito (rounded, friendly)
+     c: Bungee titles (chunky game titles) + Plus Jakarta Sans (designed in Indonesia)
+   Buttons, HUD labels, tags and numbers keep Tiny5 (clear pixel digits).
+   ===================================================================== */
+:root {
+  --font-title: 'Pixelify Sans', ui-monospace, monospace;
+  --font-text: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root[data-font='b'] {
+  --font-title: 'Silkscreen', ui-monospace, monospace;
+  --font-text: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root[data-font='c'] {
+  --font-title: 'Bungee', system-ui, sans-serif;
+  --font-text: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+h1,
+.logo,
+.drawer-head,
+.info-body h3 {
+  font-family: var(--font-title);
+}
+
+/* Pairs b and c: section titles too (their digits are clear, unlike Pixelify Sans). */
+:root[data-font='b'] h2,
+:root[data-font='b'] h3,
+:root[data-font='c'] h2,
+:root[data-font='c'] h3 {
+  font-family: var(--font-title);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+:root[data-font='b'] h2,
+:root[data-font='b'] h3 {
+  font-weight: 700;
+}
+
+/* Bigger reading text (phones and laptops). The sizes win over the older per-panel ones. */
+p:not(.tagline):not(.speech):not(.odds-line):not(.account-preview),
+.login-points li,
+.howto-points li,
+.info-body li {
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+
+p.small:not(.odds-line),
+p.muted.small,
+.seed-note,
+.checkin-note,
+.stat-note,
+.bot-style span,
+.notice {
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+}
+
+.bot-log .grow {
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.info-bubble p {
+  font-size: 16px !important;
+  line-height: 1.5 !important;
+}
+
+.info-bubble {
+  max-width: min(320px, calc(100vw - 16px));
+}
+
+/* The laptop action bar is short: its notes stay one size smaller. */
+.hud-bar p,
+.hud-bar .muted {
+  font-size: 14px !important;
+}
+
+.hud-bar p.small,
+.hud-bar .muted.small {
+  font-size: 13px !important;
+}
