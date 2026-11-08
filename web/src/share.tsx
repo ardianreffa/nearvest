@@ -8,6 +8,8 @@ import type { GameState, Quality, Species } from './api';
 import { DARTO_IDLE, DARTO_PALETTE } from './art/darto-sprite';
 import { botSprite, TIER_TITLE, tierOf, type Tier } from './art/tanibot';
 import { treePalette, treeRows } from './art/trees';
+import { hourOf, lockedFraction, phaseOf } from './art/backdrop';
+import { celestial, skyBands, SKY_BAND } from './art/sky-colors';
 import { withArticle } from './text';
 import { formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
@@ -97,8 +99,21 @@ function hold(accountId: string, m: Moment) {
   heldMemory = orderMoments([...heldMemory, m]);
 }
 
+/** The latest game state seen by the share dialog (for the village hour of a moment). */
+let lastState: GameState | null = null;
+
+/** The village hour now (dev builds: ?time=day|dusk|night|<hour> wins, like the garden). */
+export function villageHour(s: GameState | null = lastState): number {
+  const locked = import.meta.env.DEV && typeof location !== 'undefined' ? lockedFraction(location.search) : null;
+  if (locked !== null) return hourOf(locked);
+  if (!s) return 12;
+  return hourOf(1 - Math.max(0, s.clock.msUntilNextDay) / s.clock.dayLengthMs);
+}
+
 /** Opens the share dialog for a moment the first time it happens to this player. */
-export function shareMomentOnce(accountId: string, m: Moment, delayMs = 1600): void {
+export function shareMomentOnce(accountId: string, moment: Moment, delayMs = 1600): void {
+  // The card shows the sky of the moment itself, even if it opens later (held during a tour).
+  const m: Moment = { ...moment, hour: moment.hour ?? villageHour() };
   // Title and evolution cards come once per title; the others once ever.
   const id = momentId(m);
   let seen: string[] = [];
@@ -320,7 +335,7 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   ctx.imageSmoothingEnabled = false;
   // The card is drawn once: make sure both pixel fonts are loaded first.
   try {
-    await Promise.all([document.fonts.load('44px "Pixelify Sans"'), document.fonts.load('32px Tiny5')]);
+    await Promise.all([document.fonts.load('68px "Pixelify Sans"'), document.fonts.load('32px Tiny5')]);
   } catch {
     // Fonts blocked: the browser's fallback font is used.
   }
@@ -329,16 +344,53 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   // Layout: one margin on every side; TaniBot stands on the left-third line with its feet on the
   // village ground; the moment's object stands behind / beside it; text in the right column.
   const M = 56;
-  const GROUND = 478; // top of the soil in the background below (row 104 of 135, drawn at 5x)
+  const GROUND = 500; // TaniBot's feet: on the village grass (game row 109 of 135, drawn at 5x)
 
-  // Background: the village, a little darker towards the text column.
+  // Background: the code sky of the moment's hour (pixel bands, sun or moon, stars), then the
+  // v3 village of that light (day / dusk / night) at 2.5x, its bottom on the card's bottom.
+  const hour = m.hour ?? villageHour(s);
+  const phase = phaseOf((((hour - 7) % 24) + 24) % 24 / 24);
+  const light = phase === 'day' ? 'day' : phase === 'night' ? 'night' : 'dusk';
+  const ART = 5; // card px per game px (480x270 image at 2.5x = 1200x675)
+  const top = CARD_H - 135 * ART;
+  const bands = skyBands(hour);
+  // Below the bands: the horizon colour (the last band); the first band reaches the card's top.
+  ctx.fillStyle = bands[bands.length - 1];
+  ctx.fillRect(0, 0, CARD_W, CARD_H);
+  bands.forEach((c, i) => {
+    const y0 = i === 0 ? 0 : top + i * SKY_BAND * ART;
+    const y1 = top + (i + 1) * SKY_BAND * ART;
+    ctx.fillStyle = c;
+    if (y1 > 0) ctx.fillRect(0, y0, CARD_W, y1 - y0);
+  });
+  const { sun, moon } = celestial(hour);
+  if (light === 'night') {
+    ctx.fillStyle = 'rgba(255, 255, 240, 0.85)';
+    for (let i = 0; i < 46; i++) {
+      const x = (i * 263) % CARD_W;
+      const y = (i * 97) % 260;
+      ctx.fillRect(x, y, i % 5 === 0 ? 5 : 3, i % 5 === 0 ? 5 : 3);
+    }
+  }
+  const disc = (cx: number, cy: number, r: number, color: string, glow: string) => {
+    const g = ctx.createRadialGradient(cx, cy, r * 0.6, cx, cy, r * 2.6);
+    g.addColorStop(0, glow);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - r * 3, cy - r * 3, r * 6, r * 6);
+    ctx.fillStyle = color;
+    for (let y = -r; y <= r; y += ART) {
+      const half = Math.floor(Math.sqrt(Math.max(0, r * r - y * y)) / ART) * ART;
+      ctx.fillRect(cx - half, cy + y, half * 2, ART);
+    }
+  };
+  if (sun.show) disc(sun.x * ART, top + sun.y * ART, 7 * ART, light === 'dusk' ? '#FFB36B' : '#FFE27A', light === 'dusk' ? 'rgba(255, 140, 80, 0.55)' : 'rgba(255, 236, 150, 0.6)');
+  else if (moon.show) disc(moon.x * ART, top + moon.y * ART, 5 * ART, '#F4F1D0', 'rgba(244, 241, 208, 0.35)');
   try {
-    const bg = await loadImage('/assets/bg/bg-day.png');
-    const scale = Math.max(CARD_W / bg.width, CARD_H / bg.height);
-    ctx.drawImage(bg, (CARD_W - bg.width * scale) / 2, CARD_H - bg.height * scale, bg.width * scale, bg.height * scale);
+    const bg = await loadImage(`/assets/bg/village3-web-${light}.png`);
+    ctx.drawImage(bg, 0, top, CARD_W, 135 * ART);
   } catch {
-    ctx.fillStyle = '#7fd3f2';
-    ctx.fillRect(0, 0, CARD_W, CARD_H);
+    // Image blocked: the sky alone.
   }
   const shade = ctx.createLinearGradient(0, 0, CARD_W, 0);
   shade.addColorStop(0, 'rgba(6, 20, 14, 0.2)');
@@ -418,14 +470,14 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   const width = CARD_W - left - M;
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#00EC97';
-  ctx.font = '44px "Pixelify Sans", sans-serif';
-  ctx.fillText('NEARvest', left, M);
+  ctx.font = '68px "Pixelify Sans", sans-serif';
+  ctx.fillText('NEARvest', left, M - 6);
   ctx.fillStyle = '#F5C542';
-  ctx.font = '58px Tiny5, monospace';
-  let y = M + 76;
-  for (const line of wrap(ctx, headline, width)) {
+  ctx.font = '66px Tiny5, monospace';
+  let y = M + 92;
+  for (const line of wrap(ctx, headline.toUpperCase(), width)) {
     ctx.fillText(line, left, y);
-    y += 66;
+    y += 70;
   }
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '32px Tiny5, monospace';
@@ -446,6 +498,7 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
 // ---------- Dialog ----------
 
 export function ShareHost({ state }: { state: GameState }) {
+  lastState = state;
   // Moments wait in a queue so two at once (first harvest + new title) both get shown.
   const [queue, setQueue] = useState<Moment[]>([]);
   const moment = queue[0] ?? null;
@@ -486,6 +539,9 @@ export function ShareHost({ state }: { state: GameState }) {
       <div class="dialog panel share-dialog" role="dialog" aria-modal="true" aria-label="Share to X">
         <header class="panel-head">
           <h2>Share: {MOMENT_LABELS[moment.kind]}</h2>
+          <button class="icon-btn info-close share-x" onClick={() => setMoment(null)} aria-label="Close">
+            x
+          </button>
         </header>
         <div class="share-card">{image ? <img src={image} alt={`NEARvest card: ${MOMENT_LABELS[moment.kind]}`} /> : <p class="muted">Drawing your card...</p>}</div>
         <p class="share-text">{post}</p>

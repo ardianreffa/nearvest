@@ -334,10 +334,23 @@ try {
       if (MOBILE) await clickText('Village', '.tab'); else await evaluate(`[...document.querySelectorAll('.rail-btn, .side-tabs button')].find(b => b.textContent.includes('Village'))?.click()`);
       await waitFor(`!!document.querySelector('.share-preview > summary')`, 'village');
       await evaluate(`document.querySelector('.share-preview > summary').click()`);
-      await clickText('TaniBot evolved', '.share-preview button');
-      await waitFor(`!!document.querySelector('.share-card img')`, 'card image', 15000);
-      await sleep(500); await screenshot('card-dialog');
-      console.log('card image size:', await evaluate(`(() => { const i = document.querySelector('.share-card img'); return i.naturalWidth + 'x' + i.naturalHeight + ' shown ' + Math.round(i.getBoundingClientRect().width) + 'px'; })()`), '| buttons:', await evaluate(`[...document.querySelectorAll('.share-dialog button, .share-dialog a.btn, [aria-label^="Share"] button')].map(b => b.innerText).join(' / ')`));
+      // Every kind of card: open it, save the card image, close it with the x in the corner.
+      const kinds = await evaluate(`[...document.querySelectorAll('.share-preview button'), ...[...document.querySelectorAll('button')].filter(b => /farmer card/i.test(b.innerText))].map(b => b.innerText.trim())`);
+      for (const [i, label] of kinds.entries()) {
+        await clickText(label, 'button');
+        await waitFor(`!!document.querySelector('.share-card img')`, 'card image ' + label, 15000);
+        await sleep(400);
+        if (i === 0) {
+          await screenshot('card-dialog');
+          console.log('card image size:', await evaluate(`(() => { const i = document.querySelector('.share-card img'); return i.naturalWidth + 'x' + i.naturalHeight + ' shown ' + Math.round(i.getBoundingClientRect().width) + 'px'; })()`), '| buttons:', await evaluate(`[...document.querySelectorAll('.share-dialog button, .share-dialog a.btn')].map(b => b.innerText.trim()).join(' / ')`));
+          console.log('x in the top right corner:', await evaluate(`(() => { const x = document.querySelector('.share-dialog .share-x').getBoundingClientRect(); const d = document.querySelector('.share-dialog').getBoundingClientRect(); return Math.round(d.right - x.right) + 'px from the right, ' + Math.round(x.top - d.top) + 'px from the top'; })()`));
+        }
+        const data = await evaluate(`document.querySelector('.share-card img').src`);
+        writeFileSync(`${out}/card-${String(i + 1).padStart(2, '0')}-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`, Buffer.from(data.split(',')[1], 'base64'));
+        await evaluate(`document.querySelector('.share-dialog .share-x').click()`);
+        await sleep(300);
+        console.log('card', label, '| closed with x:', await evaluate(`!document.querySelector('.share-dialog')`));
+      }
     });
     throw Object.assign(new Error('cards done'), { done: true });
   }

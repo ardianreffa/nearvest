@@ -13,6 +13,8 @@ export interface Moment {
   species?: Species;
   quality?: Quality;
   title?: string;
+  /** Village hour when it happened (the card's sky: day, dusk or night). */
+  hour?: number;
 }
 
 const RANK: Record<MomentKind, number> = {
