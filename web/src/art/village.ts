@@ -62,6 +62,11 @@ export interface Village {
   softHolograms?: boolean;
   /** v3: the empty screen of the Arena gazebo, where "1 VS 1" glows (game px). */
   billboard?: Box;
+  /**
+   * The lowest game row where the art is see-through (its sky, gaps in the palm leaves). The blurred
+   * side fill (laptops) is only drawn below it, so it never shows behind the village's own sky.
+   */
+  skyBottom?: number;
   /** Phones: the scene always shows the art from this game row down. */
   shownFrom?: number;
   /** v3 phones: the top row of the open grass; tree labels never go above it (they stay off the village). */
@@ -166,6 +171,7 @@ export const V2_WEB: Village = {
   key: 'v2-web',
   w: 240,
   h: 135,
+  skyBottom: 62,
   src: v2Src('web'),
   bedRow: 120,
   stage: [30, 210],
@@ -225,6 +231,7 @@ export const V2_PHONE: Village = {
   key: 'v2-phone',
   w: 120,
   h: 180,
+  skyBottom: 92,
   src: v2Src('phone'),
   bedRow: 158,
   stage: [4, 116],
@@ -278,6 +285,7 @@ export const V3_WEB: Village = {
   key: 'v3-web',
   w: 240,
   h: 135,
+  skyBottom: 61,
   src: v3Src('web'),
   bedRow: 121,
   stage: [30, 210],
@@ -345,6 +353,7 @@ export const V3_PHONE: Village = {
   key: 'v3-phone',
   w: 120,
   h: 180,
+  skyBottom: 88,
   src: v3Src('phone'),
   bedRow: 149,
   stage: [4, 116],

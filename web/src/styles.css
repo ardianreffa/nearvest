@@ -8290,3 +8290,12 @@ button.chip:focus-visible {
     animation: none;
   }
 }
+
+/* Villages with a see-through sky (v2, v3): the blurred side fill is cut off at the art's lowest
+   sky row (--ground-rows from the art's bottom), so only the code sky shows behind the village's
+   sky; it fades in over 6 rows where the art is solid. .bg-blur reaches 40px below the scene. */
+.bg-blur.below-sky {
+  --cut: calc(40px + var(--art-bottom, 0px) + var(--ground-rows) * var(--k, 1) * 1px);
+  -webkit-mask-image: linear-gradient(to top, #000 calc(var(--cut) - 6 * var(--k, 1) * 1px), transparent var(--cut));
+  mask-image: linear-gradient(to top, #000 calc(var(--cut) - 6 * var(--k, 1) * 1px), transparent var(--cut));
+}

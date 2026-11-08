@@ -142,7 +142,9 @@ export function Backdrop({
       {v2 && <SkyBands hour={hour} />}
       {blurFill && (
         // Full-window layout: whatever the sharp art does not cover shows a blurred copy of it.
-        <div class="bg-blur">
+        // Villages with a see-through sky (v2, v3): the blurred copy only shows below the art's sky
+        // (`skyBottom`), fading in over 6 rows of solid art, so it never appears behind the sky.
+        <div class={`bg-blur${v.skyBottom !== undefined ? ' below-sky' : ''}`} style={v.skyBottom !== undefined ? { '--ground-rows': String(v.h - v.skyBottom) } : undefined}>
           {!v2 && <SkyBands hour={hour} />}
           <img src={src('day')} alt="" />
           <img class="bg-img-dusk" src={src('dusk')} alt="" />

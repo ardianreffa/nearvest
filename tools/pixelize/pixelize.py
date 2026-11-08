@@ -2,12 +2,14 @@
 # - removes the background with a flood fill from the edges (inner whites stay)
 # - downsamples to ROWS rows using the dominant color of each cell
 # - snaps colors to the game palette (GDD colors + metal/straw/skin tones)
-# Usage: python3 -I tools/pixelize/pixelize.py input.png ROWS out_dir [--keep-bg [--colors N] [--key RRGGBB] [--hq] [--crop X0 Y0 X1 Y1 [--cols N]]]
+# Usage: python3 -I tools/pixelize/pixelize.py input.png ROWS out_dir [--keep-bg [--colors N] [--key RRGGBB] [--hq] [--sky-until ROW] [--crop X0 Y0 X1 Y1 [--cols N]]]
 # Writes out_dir/sprite.json (rows + palette) and out_dir/preview-x8.png.
 # --keep-bg is for full backgrounds: no background removal, an adaptive palette
 # (median cut, N colors, default 48) whose colors close to the GDD colors are
 # snapped to them exactly, and out_dir/bg.png at 1 pixel per cell. --hq: high quality mode
 # (smoothing, rare colours kept, pink fringe and stray pixels cleaned; see background.py).
+# --sky-until ROW (source row): the magenta sky ends above it, so nothing below is cut out
+# (pink flowers in the grass stay; without it they became see-through holes).
 # Used for the official TaniBot and the garden backdrop (docs/ASSETS.md). Standard library only.
 import sys, os, json, collections
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -42,7 +44,8 @@ if keep_bg:
     crop = tuple(int(v) for v in sys.argv[sys.argv.index('--crop') + 1:sys.argv.index('--crop') + 5]) if '--crop' in sys.argv else None
     cols = int(sys.argv[sys.argv.index('--cols') + 1]) if '--cols' in sys.argv else None
     pixelize_background(w, h, px, ROWS, n, out, tuple(int(key[i:i + 2], 16) for i in (0, 2, 4)) if key else None,
-                        crop=crop, cols=cols, hq='--hq' in sys.argv)
+                        crop=crop, cols=cols, hq='--hq' in sys.argv,
+                        sky_until=int(sys.argv[sys.argv.index('--sky-until') + 1]) if '--sky-until' in sys.argv else None)
     sys.exit(0)
 else:
     xs = [x for y in range(0, h, 3) for x in range(0, w, 3) if not white(px[y][x])]

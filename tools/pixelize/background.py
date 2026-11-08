@@ -44,9 +44,11 @@ def pinkish(p):
     return (r - g > 35 and b - g > 35 and abs(r - b) < 80) or (b - g > 60 and r >= g - 10 and b > r)
 
 
-def fringe_mask(w, h, px, key, ox=0, oy=0):
-    """Key pixels plus pinkish pixels within 3 px of them (source coordinates of the crop)."""
-    strong = [[keyish(px[oy + y][ox + x], key) for x in range(w)] for y in range(h)]
+def fringe_mask(w, h, px, key, ox=0, oy=0, sky_until=None):
+    """Key pixels plus pinkish pixels within 3 px of them (source coordinates of the crop).
+    `sky_until` (source row): below it nothing is cut (pink flowers in the grass stay)."""
+    lim = h if sky_until is None else max(0, min(h, sky_until - oy))
+    strong = [[y < lim and keyish(px[oy + y][ox + x], key) for x in range(w)] for y in range(h)]
     near = [[False] * w for _ in range(h)]
     R = 3
     for y in range(h):
@@ -60,7 +62,7 @@ def fringe_mask(w, h, px, key, ox=0, oy=0):
     full = [[False] * (ox + w) for _ in range(oy + h)]
     for y in range(h):
         for x in range(w):
-            if strong[y][x] or (near[y][x] and pinkish(px[oy + y][ox + x])):
+            if strong[y][x] or (y < lim and near[y][x] and pinkish(px[oy + y][ox + x])):
                 full[oy + y][ox + x] = True
     return full
 
@@ -176,13 +178,13 @@ def median_cut(colors, n):
     return [tuple(sum(c[i] for c in b) // len(b) for i in range(3)) for b in boxes if b]
 
 
-def pixelize_background(w, h, px, rows, ncolors, out, key=None, mask=None, crop=None, cols=None, hq=False):
+def pixelize_background(w, h, px, rows, ncolors, out, key=None, mask=None, crop=None, cols=None, hq=False, sky_until=None):
     """`mask[y][x]` = True for background pixels (cut out); `crop` = (x0, y0, x1, y1) source box."""
     ox, oy = (crop[0], crop[1]) if crop else (0, 0)
     if crop:
         w, h = crop[2] - crop[0], crop[3] - crop[1]
     if hq and key is not None:
-        fm = fringe_mask(w, h, px, key, ox, oy)
+        fm = fringe_mask(w, h, px, key, ox, oy, sky_until)
         if mask is None:
             mask = fm
         else:
@@ -204,7 +206,8 @@ def pixelize_background(w, h, px, rows, ncolors, out, key=None, mask=None, crop=
 
     if hq:
         # pinkish cells on the edge of the cut-out sky are fringe as well
-        for r in range(rows):
+        last = rows if sky_until is None else int((sky_until - oy) / cell)
+        for r in range(min(rows, last)):
             for q in range(cols):
                 c = cells[r][q]
                 if c is not None and pinkish(c) and any(
