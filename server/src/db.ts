@@ -99,7 +99,13 @@ CREATE TABLE IF NOT EXISTS trees (
   regrow_days REAL NOT NULL,
   synced_stage TEXT,               -- last stage sent to the chain
   status TEXT NOT NULL DEFAULT 'alive',  -- 'alive' | 'dead'
-  died_at INTEGER
+  died_at INTEGER,
+  -- Weather (weather.ts): last moment the tree had water, cleaned of volcanic ash at, went back
+  -- a stage from thirst at, waterings on the current game day (a drought needs two).
+  dry_from INTEGER NOT NULL DEFAULT 0,
+  ash_clean_at INTEGER NOT NULL DEFAULT 0,
+  wilt_at INTEGER NOT NULL DEFAULT 0,
+  water_count INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX IF NOT EXISTS trees_plot ON trees(player_id, plot) WHERE status = 'alive';
 
@@ -227,6 +233,15 @@ function migrate(db: DB): void {
   // TaniBot auto-plant: 'off' | 'common' (only Common or unknown seeds, never Rare or Gold).
   if (!has('bots', 'auto_plant')) db.exec("ALTER TABLE bots ADD COLUMN auto_plant TEXT NOT NULL DEFAULT 'off'");
   if (!has('bots', 'hold_until')) db.exec('ALTER TABLE bots ADD COLUMN hold_until INTEGER NOT NULL DEFAULT 0');
+  // Weather (2026-11-09). Thirst counts from the moment this release starts, not from the past:
+  // gardens left dry before the weather existed do not wilt at once.
+  if (!has('trees', 'dry_from')) {
+    db.exec('ALTER TABLE trees ADD COLUMN dry_from INTEGER NOT NULL DEFAULT 0');
+    db.prepare('UPDATE trees SET dry_from = ?').run(Date.now());
+  }
+  if (!has('trees', 'ash_clean_at')) db.exec('ALTER TABLE trees ADD COLUMN ash_clean_at INTEGER NOT NULL DEFAULT 0');
+  if (!has('trees', 'wilt_at')) db.exec('ALTER TABLE trees ADD COLUMN wilt_at INTEGER NOT NULL DEFAULT 0');
+  if (!has('trees', 'water_count')) db.exec('ALTER TABLE trees ADD COLUMN water_count INTEGER NOT NULL DEFAULT 0');
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS players_google_sub ON players (google_sub)');
   // One wallet = one garden.
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS players_wallet_account ON players (wallet_account_id)');

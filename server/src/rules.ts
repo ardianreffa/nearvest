@@ -2,6 +2,8 @@
 // are first drafts to tune during play testing. Durations are in game days,
 // so demo mode (1 day = 1 minute) speeds everything up automatically.
 
+import { VOLCANIC_BOOST, type SkyView } from './weather.ts';
+
 export type Species = 'mango' | 'rambutan' | 'durian';
 export type Quality = 'common' | 'rare' | 'gold';
 export type Stage = 'seed' | 'sprout' | 'tree' | 'fruiting' | 'old';
@@ -87,18 +89,27 @@ export function seedSellPrice(species: Species, quality: Quality | null): number
 export const FERT_STEP1 = 0.2;
 export const FERT_STEP2 = 0.05;
 
-/** Chances of each fruit quality on the next harvest. */
-export function fruitOdds(treeQuality: Quality, fertilized: boolean): Record<Quality, number> {
+/**
+ * Chances of each fruit quality on the next harvest. `goldBonus` (Volcanic soil) moves that much
+ * chance to Gold, taken from Common first, then Rare.
+ */
+export function fruitOdds(treeQuality: Quality, fertilized: boolean, goldBonus = 0): Record<Quality, number> {
+  let odds: Record<Quality, number>;
   if (!fertilized || treeQuality === 'gold') {
-    return { common: treeQuality === 'common' ? 1 : 0, rare: treeQuality === 'rare' ? 1 : 0, gold: treeQuality === 'gold' ? 1 : 0 };
+    odds = { common: treeQuality === 'common' ? 1 : 0, rare: treeQuality === 'rare' ? 1 : 0, gold: treeQuality === 'gold' ? 1 : 0 };
+  } else if (treeQuality === 'rare') odds = { common: 0, rare: 1 - FERT_STEP1, gold: FERT_STEP1 };
+  else odds = { common: 1 - FERT_STEP1 - FERT_STEP2, rare: FERT_STEP1, gold: FERT_STEP2 };
+  if (goldBonus > 0 && odds.gold < 1) {
+    const fromCommon = Math.min(odds.common, goldBonus);
+    const fromRare = Math.min(odds.rare, goldBonus - fromCommon);
+    odds = { common: odds.common - fromCommon, rare: odds.rare - fromRare, gold: odds.gold + fromCommon + fromRare };
   }
-  if (treeQuality === 'rare') return { common: 0, rare: 1 - FERT_STEP1, gold: FERT_STEP1 };
-  return { common: 1 - FERT_STEP1 - FERT_STEP2, rare: FERT_STEP1, gold: FERT_STEP2 };
+  return odds;
 }
 
 /** Fruit quality of a harvest. `roll` is in [0, 1). */
-export function rollFruitQuality(treeQuality: Quality, fertilized: boolean, roll: number): Quality {
-  const odds = fruitOdds(treeQuality, fertilized);
+export function rollFruitQuality(treeQuality: Quality, fertilized: boolean, roll: number, goldBonus = 0): Quality {
+  const odds = fruitOdds(treeQuality, fertilized, goldBonus);
   if (roll < odds.gold) return 'gold';
   if (roll < odds.gold + odds.rare) return 'rare';
   return 'common';
@@ -169,10 +180,39 @@ export interface TreeGrowth {
   fertUntilMs: number;
   harvestCount: number;
   maxHarvests: number;
+  /** Weather rules only: the last moment the tree had water (or wilted, or the weather release). */
+  dryFromMs?: number;
+  /** Weather rules only: when the tree was last cleaned of volcanic ash. */
+  ashCleanMs?: number;
+  /** Weather rules only: when the tree last went back one stage from thirst (0 = never). */
+  wiltedAtMs?: number;
 }
 
-/** Advances growth to `nowMs`. Trees only grow while watered; fertilizer adds speed. */
-export function advance(t: TreeGrowth, nowMs: number, dayMs: number): TreeGrowth {
+/**
+ * One stage back after too long without water (GDD wilting). Never kills a tree:
+ * fruiting -> tree (60% grown), tree -> sprout (25%), sprout -> seed (0%); a seed stays a seed.
+ * A tree that was harvested before (regrowing, always "tree") loses its progress instead. Old
+ * trees are not affected.
+ */
+export function wiltBack(t: Pick<TreeGrowth, 'growth' | 'target' | 'harvestCount' | 'maxHarvests'>, growth: number): number {
+  if (t.harvestCount >= t.maxHarvests || t.target <= 0) return growth;
+  const f = growth / t.target;
+  if (f >= 1 - 1e-9) return 0.6 * t.target;
+  if (t.harvestCount > 0) return 0;
+  if (f >= 0.6) return 0.25 * t.target;
+  if (f >= 0.25) return 0;
+  return growth;
+}
+
+/**
+ * Advances growth to `nowMs`. Trees only grow while watered; fertilizer adds speed.
+ * With `sky` (the village weather) also: rain waters every tree for free, volcanic ash stops
+ * growth until the tree is cleaned (or the eruption ends), cleaned trees grow faster on Volcanic
+ * soil, and a tree without water for `sky.wiltMs` goes back one stage (then the count restarts).
+ * The result does not depend on how often it is called (time is cut at every rule change).
+ */
+export function advance(t: TreeGrowth, nowMs: number, dayMs: number, sky?: SkyView): TreeGrowth {
+  if (sky) return advanceWithWeather(t, nowMs, sky);
   const from = t.lastTickMs;
   if (nowMs <= from) return t;
   const wateredEnd = Math.min(nowMs, t.waterUntilMs);
@@ -183,6 +223,60 @@ export function advance(t: TreeGrowth, nowMs: number, dayMs: number): TreeGrowth
     growth += (watered + FERTILIZER_BOOST * fertilized) / dayMs;
   }
   return { ...t, growth: Math.min(growth, t.target), lastTickMs: nowMs };
+}
+
+function advanceWithWeather(t: TreeGrowth, nowMs: number, sky: SkyView): TreeGrowth {
+  let time = t.lastTickMs;
+  if (nowMs <= time) return t;
+  const dayMs = sky.dayMs;
+  const old = t.harvestCount >= t.maxHarvests;
+  const ashClean = t.ashCleanMs ?? 0;
+  let growth = t.growth;
+  let dry = Math.max(t.dryFromMs ?? time, 0);
+  let wiltedAt = t.wiltedAtMs ?? 0;
+  while (time < nowMs) {
+    const day = Math.floor(time / dayMs);
+    let end = Math.min(nowMs, (day + 1) * dayMs);
+    const eruptions = sky.eruptionsNear(day);
+    const marks = [t.waterUntilMs, t.fertUntilMs, ashClean, dry + sky.wiltMs];
+    for (const e of eruptions) marks.push(e.start, e.end, e.volcanicEnd);
+    for (const m of marks) if (m > time && m < end) end = m;
+
+    const watered = sky.kind(day) === 'rain' || time < t.waterUntilMs;
+    const e = eruptions.find((x) => time >= x.start && time < x.volcanicEnd);
+    const cleaned = !!e && ashClean >= e.start && ashClean < e.end;
+    const ashy = !old && !!e && time < e.end && !(cleaned && time >= ashClean);
+    const volcanic = !old && !!e && time >= e.end && cleaned;
+    if (watered && !ashy) {
+      let rate = 1;
+      if (time < t.fertUntilMs) rate += FERTILIZER_BOOST;
+      if (volcanic) rate += VOLCANIC_BOOST;
+      growth = Math.min(t.target, growth + (rate * (end - time)) / dayMs);
+    }
+    if (watered) dry = end;
+    else if (!old && end - dry >= sky.wiltMs - 1e-6) {
+      const back = wiltBack(t, growth);
+      if (back !== growth) wiltedAt = end;
+      growth = back;
+      dry = end;
+    }
+    time = end;
+  }
+  return { ...t, growth, lastTickMs: nowMs, dryFromMs: dry, wiltedAtMs: wiltedAt };
+}
+
+/** How thirsty a tree is right now (call on a tree advanced to `nowMs` with the sky). */
+export function thirstOf(t: TreeGrowth, nowMs: number, sky: SkyView) {
+  const dryMs = Math.max(0, nowMs - (t.dryFromMs ?? nowMs));
+  const old = t.harvestCount >= t.maxHarvests;
+  return {
+    dryMs,
+    /** Half the wilting time without water. */
+    thirsty: !old && dryMs >= 0.5 * sky.wiltMs,
+    /** Three quarters: it goes back one stage soon. */
+    wilting: !old && dryMs >= 0.75 * sky.wiltMs,
+    msToWilt: old ? null : Math.max(0, sky.wiltMs - dryMs),
+  };
 }
 
 export function isReady(t: TreeGrowth): boolean {

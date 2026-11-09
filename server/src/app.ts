@@ -357,6 +357,7 @@ export function createApp(deps: AppDeps) {
 
   app.post('/api/water', async (c) => respond(c, game.water(playerId(c), plotOf(await body(c)))));
   app.post('/api/fertilize', async (c) => respond(c, game.fertilize(playerId(c), plotOf(await body(c)))));
+  app.post('/api/clean', async (c) => respond(c, game.cleanAsh(playerId(c), plotOf(await body(c)))));
   app.post('/api/harvest', async (c) => {
     const b = await body(c);
     const then = b.then === 'plant' || b.then === 'sell' ? b.then : undefined;

@@ -8,6 +8,7 @@ import { Game } from '../src/game.ts';
 import { TaniBotService } from '../src/tanibot.ts';
 import { JudgeService } from '../src/judge.ts';
 import { AiMeter, type AiLimits, type Brain } from '../src/brain.ts';
+import { clearSky, type WeatherSchedule } from '../src/weather.ts';
 
 /** 2026-11-07 01:00 UTC (08:00 WIB), one hour after the village day began. */
 export const START = Date.UTC(2026, 10, 7, 1, 0, 0);
@@ -16,7 +17,7 @@ export const HOUR = 60 * MINUTE;
 export const DAY = 24 * HOUR;
 
 export function makeWorld(
-  opts: { random?: number; demo?: boolean; googleClientId?: string; googleKeys?: JWTVerifyGetKey; devLogin?: boolean; brain?: Brain; aiLimits?: AiLimits } = {},
+  opts: { random?: number; demo?: boolean; googleClientId?: string; googleKeys?: JWTVerifyGetKey; devLogin?: boolean; brain?: Brain; aiLimits?: AiLimits; weather?: WeatherSchedule } = {},
 ) {
   const db = openDb(':memory:');
   const chain = new FakeChain();
@@ -33,6 +34,8 @@ export function makeWorld(
     accountSuffix: 'nearvest.testnet',
     explorerTxUrl: 'https://testnet.nearblocks.io/txns/',
     demoModeDefault: opts.demo ?? false,
+    // Tests that are not about the weather get a clear sky (no rain, drought or eruption).
+    weather: opts.weather ?? clearSky,
   });
   const worker = new ChainWorker({
     db,

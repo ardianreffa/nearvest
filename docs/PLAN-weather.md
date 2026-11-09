@@ -1,11 +1,25 @@
 # Rencana paket Rabu: cuaca, layu, event desa, suara ambient
 
-Status: RENCANA (belum ada kode). Ditulis 2026-11-09 untuk BACKLOG item 3 (cuaca + event desa) dan
+Status: DISETUJUI Ardian 2026-11-09 dengan 3 perubahan (lihat "Keputusan" di bawah). Dikerjakan bertahap. Ditulis 2026-11-09 untuk BACKLOG item 3 (cuaca + event desa) dan
 item 1 (suara ambient). Semua angka adalah draf; letaknya nanti di `server/src/rules.ts` dan disetel
 saat tes.
 
 **Aturan nama:** semua ini disebut **cuaca** atau **event desa** (weather / village event). Jangan pernah
 disebut "season": Season = halving PANEN.
+
+## Keputusan Ardian (2026-11-09)
+
+1. **Musim ulat dan Pesticide DIPOTONG** (Bonus di GDD). Yang dikerjakan: hujan, kemarau, layu,
+   letusan + Volcanic soil + Clean ash, reaksi TaniBot dengan alasan di Log, visual, dan suara ambient.
+   Bagian ulat di bawah tetap ditulis sebagai catatan untuk nanti, tapi TIDAK dibuat sekarang.
+2. **Layu di mode demo:** baru mundur satu tahap setelah sekitar **10 hari demo** tanpa air
+   (peringatan Thirsty / Wilting tetap muncul lebih dulu). Mode normal tetap 2 hari.
+   Prinsip "pemain tidak pernah terjebak" tetap berlaku.
+3. **Tidak ada push** sampai server siap dirilis ke VPS: web dan server dirilis bersamaan, dengan izin
+   Ardian. Web harus tetap aman kalau server lama belum mengirim data cuaca.
+
+Tahapan (lapor setelah tiap tahap, commit lokal saja): 1) aturan server + tes otomatis (server palsu),
+2) TaniBot + Log, 3) visual web + suara ambient + screenshot 4 ukuran.
 
 ---
 
@@ -28,12 +42,12 @@ disebut "season": Season = halving PANEN.
 | **Clear** (cerah) | sisanya, sekitar 55% | Siram 1x seperti sekarang. |
 | **Rain** (hujan) | 20% | Semua pohon **otomatis tersiram gratis** sepanjang hari. Tombol Water bertuliskan "Watered by rain". |
 | **Drought** (kemarau) | 12% | Pohon butuh **2x siram** hari itu. Satu kali siram hanya memberi setengah hari tumbuh; siram kedua menggenapkan. |
-| **Caterpillars** (musim ulat) | 8% | Ulat muncul **terutama di durian** (draf: durian 60%, rambutan 25%, mangga 10% per pohon). Pohon berulat **berhenti tumbuh** sampai diobati dengan **Pesticide**. |
+| ~~**Caterpillars** (musim ulat)~~ DIPOTONG | (8%, nanti) | Ulat muncul **terutama di durian** (draf: durian 60%, rambutan 25%, mangga 10% per pohon). Pohon berulat **berhenti tumbuh** sampai diobati dengan **Pesticide**. |
 | **Eruption** (letusan Gunung Tandur) | jarang, sekitar 1x per 10 hari | 3 tahap, lihat di bawah. |
 
 ### Layu (GDD)
 
-- **2 hari desa tanpa air = pohon mundur satu tahap.** Hari hujan dihitung sebagai hari tersiram.
+- **2 hari desa tanpa air = pohon mundur satu tahap** (mode normal). **Mode demo: sekitar 10 hari demo** (Keputusan 2). Hari hujan dihitung sebagai hari tersiram.
   - fruiting → tree (buah hilang, tumbuh lagi dari 60%)
   - tree → sprout
   - sprout → seed
@@ -43,7 +57,7 @@ disebut "season": Season = halving PANEN.
 - **Masa aman saat rilis:** hitungan hari kering mulai dari waktu rilis, bukan dari masa lalu.
   Tanpa ini, kebun pemain yang lama tidak disiram akan langsung mundur begitu fitur aktif.
 
-### Ulat dan Pesticide
+### Ulat dan Pesticide (DIPOTONG, catatan untuk nanti)
 
 - **Pesticide** adalah barang baru di Shop seharga **10 PANEN**, dan dibakar seperti barang Shop lain
   (memakai `burn` yang sudah ada).
@@ -74,7 +88,7 @@ aturan game, dan setiap alasan masuk Log.
 | Rain | Tidak menyiram (hemat). | "It's raining: the trees are watered for free." |
 | Drought | Menyiram 2x. | "Drought: watered the Durian a second time." |
 | Pohon "Wilting!" | Menyiram dulu, sebelum aksi lain. | "The Mango was wilting: watered it first." |
-| Caterpillars | Menyemprot kalau ada Pesticide. Gaya Balanced/Turbo boleh membeli Pesticide (burn, dalam batas harian kontrak); Thrifty tidak membeli. | "Caterpillars on the Durian: sprayed pesticide (10 PANEN burned)." |
+| ~~Caterpillars~~ (dipotong) | Menyemprot kalau ada Pesticide. Gaya Balanced/Turbo boleh membeli Pesticide (burn, dalam batas harian kontrak); Thrifty tidak membeli. | "Caterpillars on the Durian: sprayed pesticide (10 PANEN burned)." |
 | Eruption (abu) | Membersihkan abu semua pohon. | "Ash from Mount Tandur: cleaned the trees." |
 | Volcanic soil | Menyiram supaya bonus tidak terbuang. | "Volcanic soil: kept the trees watered for faster growth." |
 
@@ -108,8 +122,8 @@ aturan game, dan setiap alasan masuk Log.
 
 - Satu hari demo = 1 menit, dan pola event dibuat **berulang tetap** supaya juri hampir pasti melihat
   semuanya dalam 10–15 menit:
-  - Siklus 12 hari demo (12 menit): Clear, Rain, Clear, Drought, Clear, Caterpillars, Clear, Clear,
-    **Eruption** (peringatan, letusan, lalu Volcanic soil), Clear, Rain, Clear.
+  - Siklus 10 hari demo (10 menit): Clear, Rain, Clear, Drought, Clear, Clear, **Eruption**
+    (peringatan, letusan, lalu Volcanic soil), Clear, Rain, Clear.
 - **Kebun juri** dimulai di dekat letusan (misalnya 3 menit sebelum peringatan), supaya letusan muncul
   di awal tur juri.
 - Mode normal memakai peluang di bagian 1 (acak tapi tetap dari nomor hari).
@@ -186,8 +200,9 @@ aturan game, dan setiap alasan masuk Log.
 
 ### Langkah rilis ke VPS (setiap langkah menunggu izin Ardian)
 
-1. Semua tes lulus; commit dan push web (Vercel). Web baru tetap jalan dengan server lama: tampilan cuaca
-   muncul hanya kalau server mengirim `weather`.
+1. Semua tes lulus. Web dan server dirilis **bersamaan** (Keputusan 3): push web (Vercel) hanya setelah
+   server baru siap dan dengan izin. Web baru tetap aman dengan server lama: tampilan cuaca muncul hanya
+   kalau server mengirim `weather`.
 2. **STOP, minta izin.** Cek Entropy baca-saja: PID **3665978** dan waktu jalannya terus bertambah.
 3. Backup database VPS (`/var/backups/nearvest`, sama seperti backup harian).
 4. Siapkan rilis di Mac (`deploy/stage.sh`), kirim ke `/opt/nearvest/releases/nearvest-<commit>`.
@@ -214,7 +229,7 @@ aturan game, dan setiap alasan masuk Log.
 
 **Kalau waktu mepet, potong dari atas ke bawah:**
 
-1. **Musim ulat + Pesticide** (di BACKLOG ini memang Bonus).
+1. ~~Musim ulat + Pesticide~~: sudah dipotong (Keputusan 1).
 2. Share card letusan (letusannya tetap ada).
 3. Suara ambient tambahan (simpan siang/malam + hujan saja, buang gemuruh).
 4. Getaran layar dan efek kilat.

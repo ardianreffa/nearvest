@@ -34,6 +34,7 @@ import {
   SPECIES,
   SPECIES_LIST,
   stageOf,
+  thirstOf,
   TITLES,
   titleFor,
   WATER_DAYS,
@@ -45,6 +46,17 @@ import {
   type Stage,
   type TreeGrowth,
 } from './rules.ts';
+import {
+  cleanedOf,
+  DROUGHT_WATER_DAYS,
+  DROUGHT_WATERINGS,
+  eruptionAt,
+  skyView,
+  villageWeather,
+  VOLCANIC_GOLD_BONUS,
+  type SkyView,
+  type WeatherSchedule,
+} from './weather.ts';
 
 export class GameError extends Error {
   status: number;
@@ -69,6 +81,8 @@ export interface GameDeps {
   demoModeDefault: boolean;
   /** PANEN contract: wallet players' burns are signed for this receiver. */
   panenContractId?: string;
+  /** Village weather and events (default: the real schedule; tests may pass clearSky). */
+  weather?: WeatherSchedule;
 }
 
 /** A shop burn signed in the browser with a wallet player's game key. */
@@ -133,6 +147,10 @@ interface TreeRow {
   regrow_days: number;
   synced_stage: string | null;
   status: string;
+  dry_from: number;
+  ash_clean_at: number;
+  wilt_at: number;
+  water_count: number;
 }
 
 /**
@@ -175,6 +193,9 @@ function growthOf(t: TreeRow): TreeGrowth {
     fertUntilMs: t.fert_until,
     harvestCount: t.harvest_count,
     maxHarvests: t.max_harvests,
+    dryFromMs: t.dry_from || t.planted_at,
+    ashCleanMs: t.ash_clean_at,
+    wiltedAtMs: t.wilt_at,
   };
 }
 
@@ -185,6 +206,17 @@ export class Game {
 
   constructor(deps: GameDeps) {
     this.d = deps;
+    const weather = deps.weather ?? villageWeather;
+    this.weather = weather;
+    this.skies = { normal: skyView(weather, false), demo: skyView(weather, true) };
+  }
+
+  readonly weather: WeatherSchedule;
+  private readonly skies: { normal: SkyView; demo: SkyView };
+
+  /** The village sky of a player's mode (normal or demo). */
+  sky(demo: boolean): SkyView {
+    return demo ? this.skies.demo : this.skies.normal;
   }
 
   private get db(): DB {
@@ -347,10 +379,10 @@ export class Game {
         const res = this.db
           .prepare(
             `INSERT INTO trees (player_id, plot, species, quality, parent_tree_id, planted_at, growth, target, last_tick,
-               water_until, water_day, max_harvests, regrow_days, synced_stage)
-             VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 'seed')`,
+               water_until, water_day, water_count, max_harvests, regrow_days, synced_stage, dry_from)
+             VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, 1, ?, ?, 'seed', ?)`,
           )
-          .run(p.id, t.plot, t.species, t.quality, now - dayMs * rules.growDays, rules.growDays * t.ripe, rules.growDays, now, now + dayMs * WATER_DAYS, this.today(p), rules.harvests, rules.regrowDays);
+          .run(p.id, t.plot, t.species, t.quality, now - dayMs * rules.growDays, rules.growDays * t.ripe, rules.growDays, now, now + dayMs * WATER_DAYS, this.today(p), rules.harvests, rules.regrowDays, now);
         const treeId = Number(res.lastInsertRowid);
         enqueue(this.db, p.id, { kind: 'mint_tree', treeId, accountId: p.account_id, species: t.species, quality: t.quality }, now);
       }
@@ -546,12 +578,14 @@ export class Game {
   private tickedTree(p: PlayerRow, plot: number): TreeRow {
     const t = this.treeOnPlot(p.id, plot);
     if (!t) throw new GameError('There is no tree on this plot');
-    return this.saveGrowth(t, advance(growthOf(t), this.d.now(), this.dayMs(p)));
+    return this.saveGrowth(t, advance(growthOf(t), this.d.now(), this.dayMs(p), this.sky(p.demo === 1)));
   }
 
   private saveGrowth(t: TreeRow, g: TreeGrowth): TreeRow {
-    this.db.prepare('UPDATE trees SET growth = ?, last_tick = ? WHERE id = ?').run(g.growth, g.lastTickMs, t.id);
-    return { ...t, growth: g.growth, last_tick: g.lastTickMs };
+    const dry = g.dryFromMs ?? t.dry_from;
+    const wilt = g.wiltedAtMs ?? t.wilt_at;
+    this.db.prepare('UPDATE trees SET growth = ?, last_tick = ?, dry_from = ?, wilt_at = ? WHERE id = ?').run(g.growth, g.lastTickMs, dry, wilt, t.id);
+    return { ...t, growth: g.growth, last_tick: g.lastTickMs, dry_from: dry, wilt_at: wilt };
   }
 
   /** Stage and age of a tree right now (used by the chain worker to sync the NFT). */
@@ -565,7 +599,7 @@ export class Game {
       .get(treeId) as unknown as (TreeRow & { account_id: string; demo: number; parent_token_id: string | null }) | undefined;
     if (!t) return null;
     const dayMs = dayLengthMs(t.demo === 1);
-    const g = advance(growthOf(t), this.d.now(), dayMs);
+    const g = advance(growthOf(t), this.d.now(), dayMs, this.sky(t.demo === 1));
     return {
       token_id: t.token_id,
       account_id: t.account_id,
@@ -583,7 +617,10 @@ export class Game {
       .all() as unknown as (TreeRow & { demo: number })[];
     let queued = 0;
     for (const t of trees) {
-      const stage = stageOf(advance(growthOf(t), this.d.now(), dayLengthMs(t.demo === 1)));
+      // Saved as it goes, so the next run (and every view) only has to look at the time since.
+      const g = advance(growthOf(t), this.d.now(), dayLengthMs(t.demo === 1), this.sky(t.demo === 1));
+      this.saveGrowth(t, g);
+      const stage = stageOf(g);
       if (stage !== t.synced_stage) {
         enqueueTreeUpdate(this.db, t.player_id, t.id, this.d.now());
         queued++;
@@ -654,10 +691,10 @@ export class Game {
       const res = this.db
         .prepare(
           `INSERT INTO trees (player_id, plot, species, quality, parent_tree_id, planted_at, growth, target, last_tick,
-             max_harvests, regrow_days, synced_stage)
-           VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'seed')`,
+             max_harvests, regrow_days, synced_stage, dry_from)
+           VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, 'seed', ?)`,
         )
-        .run(p.id, plot, seed.species, quality, seed.parent_tree_id, now, target, now, rules.harvests, rules.regrowDays);
+        .run(p.id, plot, seed.species, quality, seed.parent_tree_id, now, target, now, rules.harvests, rules.regrowDays, now);
       const treeId = Number(res.lastInsertRowid);
       this.db.prepare('UPDATE players SET first_tree_planted = 1 WHERE id = ?').run(p.id);
       enqueue(this.db, p.id, { kind: 'mint_tree', treeId, accountId: p.account_id, species: seed.species, quality }, now);
@@ -670,10 +707,36 @@ export class Game {
       const p = this.getPlayer(playerId);
       const t = this.tickedTree(p, plot);
       const today = this.today(p);
-      if (t.water_day === today) throw new GameError('This tree was already watered today');
       const now = this.d.now();
-      this.db.prepare('UPDATE trees SET water_until = ?, water_day = ? WHERE id = ?').run(now + WATER_DAYS * this.dayMs(p), today, t.id);
-      return { watered: true };
+      const kind = this.sky(p.demo === 1).kind(today);
+      if (kind === 'rain') throw new GameError("It's raining: your trees are watered for free today.", 409, { code: 'rain' });
+      const count = t.water_day === today ? t.water_count : 0;
+      if (kind === 'drought') {
+        // A drought: each watering lasts half a day, so a tree is watered twice.
+        if (count >= DROUGHT_WATERINGS) throw new GameError('This tree was already watered twice today');
+        const until = Math.max(now, t.water_until) + DROUGHT_WATER_DAYS * this.dayMs(p);
+        this.db.prepare('UPDATE trees SET water_until = ?, water_day = ?, water_count = ? WHERE id = ?').run(until, today, count + 1, t.id);
+        return { watered: true, weather: kind, waterings: count + 1, needed: DROUGHT_WATERINGS };
+      }
+      if (count >= 1) throw new GameError('This tree was already watered today');
+      this.db.prepare('UPDATE trees SET water_until = ?, water_day = ?, water_count = 1 WHERE id = ?').run(now + WATER_DAYS * this.dayMs(p), today, t.id);
+      return { watered: true, weather: kind, waterings: 1, needed: 1 };
+    });
+  }
+
+  /** Cleans the volcanic ash off a tree during an eruption (free). Cleaned trees get the Volcanic soil bonus. */
+  cleanAsh(playerId: number, plot: number) {
+    return tx(this.db, () => {
+      const p = this.getPlayer(playerId);
+      const t = this.tickedTree(p, plot);
+      const now = this.d.now();
+      const at = eruptionAt(this.sky(p.demo === 1), now);
+      if (!at || at.phase === 'warning') throw new GameError('There is no ash to clean right now.', 409, { code: 'no_ash' });
+      if (at.phase === 'volcanic') throw new GameError('The eruption is over: the ash has blown away.', 409, { code: 'no_ash' });
+      if (t.harvest_count >= t.max_harvests) throw new GameError('Old trees are not covered in ash.', 409, { code: 'no_ash' });
+      if (cleanedOf(at.eruption, t.ash_clean_at)) throw new GameError('This tree is already clean.', 409, { code: 'already_clean' });
+      this.db.prepare('UPDATE trees SET ash_clean_at = ? WHERE id = ?').run(now, t.id);
+      return { cleaned: true, volcanicSoilFrom: at.eruption.end, volcanicSoilUntil: at.eruption.volcanicEnd };
     });
   }
 
@@ -737,7 +800,8 @@ export class Game {
       }
 
       const fertilized = t.fert_boost === 1;
-      const fruitQuality = rollFruitQuality(t.quality, fertilized, this.d.random());
+      const goldBonus = this.volcanicGoldBonus(p, t, now);
+      const fruitQuality = rollFruitQuality(t.quality, fertilized, this.d.random(), goldBonus);
       const xp = rules.xpPerHarvest * (p.demo === 1 ? DEMO_XP_MULTIPLIER : 1);
       this.addFruit(p.id, t.species, fruitQuality, 1);
       const harvestCount = t.harvest_count + 1;
@@ -760,6 +824,39 @@ export class Game {
         titleUp: titleAfter !== titleBefore ? titleAfter : null,
       };
     });
+  }
+
+  /** Volcanic soil: a better Gold chance for trees cleaned during the eruption, until it ends. */
+  private volcanicGoldBonus(p: PlayerRow, t: TreeRow, now: number): number {
+    const at = eruptionAt(this.sky(p.demo === 1), now);
+    return at && at.phase === 'volcanic' && cleanedOf(at.eruption, t.ash_clean_at) ? VOLCANIC_GOLD_BONUS : 0;
+  }
+
+  /** The village weather of a mode, as the web game and TaniBot see it. */
+  weatherView(demo: boolean) {
+    const now = this.d.now();
+    const sky = this.sky(demo);
+    const day = dayIndex(now, demo);
+    const at = eruptionAt(sky, now);
+    const nextDayKind = sky.kind(day + 1);
+    return {
+      kind: sky.kind(day),
+      tomorrow: nextDayKind,
+      /** Waterings a tree needs today: 0 in the rain, 2 in a drought, else 1. */
+      waterNeed: sky.kind(day) === 'rain' ? 0 : sky.kind(day) === 'drought' ? DROUGHT_WATERINGS : 1,
+      wiltDays: sky.wiltMs / sky.dayMs,
+      eruption: at
+        ? {
+            phase: at.phase,
+            msToEruption: Math.max(0, at.eruption.start - now),
+            msToEnd: Math.max(0, at.eruption.end - now),
+            msToVolcanicEnd: Math.max(0, at.eruption.volcanicEnd - now),
+            /** Phase ends in this many ms. */
+            msLeft: Math.max(0, (at.phase === 'warning' ? at.eruption.start : at.phase === 'eruption' ? at.eruption.end : at.eruption.volcanicEnd) - now),
+            id: `${demo ? 'd' : 'n'}${at.eruption.day}`,
+          }
+        : null,
+    };
   }
 
   /** Cuts a tree down early to free the plot. It becomes a Memorial Tree. */
@@ -1073,14 +1170,21 @@ export class Game {
     const dayMs = this.dayMs(p);
     const today = this.today(p);
     const plots = plotCount(p.xp);
+    const sky = this.sky(demo);
+    const weather = this.weatherView(demo);
 
     const plotViews = [];
     for (let plot = 0; plot < 3; plot++) {
       const t = this.treeOnPlot(p.id, plot);
       let tree = null;
       if (t) {
-        const g = advance(growthOf(t), now, dayMs);
+        const g = advance(growthOf(t), now, dayMs, sky);
         const ready = isReady(g);
+        const thirst = thirstOf(g, now, sky);
+        const at = eruptionAt(sky, now);
+        const old = t.harvest_count >= t.max_harvests;
+        const cleaned = !!at && cleanedOf(at.eruption, t.ash_clean_at);
+        const waterCount = t.water_day === today ? t.water_count : 0;
         tree = {
           id: t.id,
           tokenId: t.token_id,
@@ -1089,12 +1193,23 @@ export class Game {
           stage: stageOf(g) as Stage,
           growthPercent: Math.round((g.growth / g.target) * 100),
           ready,
-          wateredToday: t.water_day === today,
-          isWatered: t.water_until > now,
+          // Rain waters every tree; a drought needs two waterings.
+          wateredToday: weather.waterNeed === 0 || waterCount >= weather.waterNeed,
+          waterCount,
+          waterNeed: weather.waterNeed,
+          isWatered: t.water_until > now || weather.kind === 'rain',
+          /** Weather: thirst (the tree goes back one stage after `wiltDays` without water). */
+          thirsty: thirst.thirsty,
+          wilting: thirst.wilting,
+          msToWilt: thirst.msToWilt,
+          wiltedRecently: (g.wiltedAtMs ?? 0) > 0 && now - (g.wiltedAtMs ?? 0) < dayMs,
+          /** Volcanic ash (during an eruption, until cleaned) and the Volcanic soil bonus. */
+          ash: !!at && at.phase === 'eruption' && !old && !cleaned,
+          volcanicSoil: !!at && at.phase === 'volcanic' && !old && cleaned,
           isFertilized: t.fert_until > now,
           fertMsLeft: Math.max(0, t.fert_until - now),
           fertSpeed: t.fert_until > now ? 1 + FERTILIZER_BOOST : 1,
-          nextHarvestOdds: fruitOdds(t.quality, t.fert_boost === 1),
+          nextHarvestOdds: fruitOdds(t.quality, t.fert_boost === 1, this.volcanicGoldBonus(p, t, now)),
           harvestCount: t.harvest_count,
           maxHarvests: t.max_harvests,
           msToReady: ready ? 0 : msToReady(g, dayMs),
@@ -1119,6 +1234,8 @@ export class Game {
 
     const signIn = (this.db.prepare('SELECT provider FROM users WHERE id = ?').get(p.user_id) as { provider: string } | undefined)?.provider ?? 'dev';
     return {
+      /** Village weather and events (weather.ts); the same for every garden of this mode. */
+      weather,
       player: {
         name: p.name,
         accountId: p.account_id,
