@@ -139,6 +139,22 @@ export class TaniBotService {
       .run(playerId, action, reason, jobId, brain, short, this.d.now());
   }
 
+  /** Logs a weather line once since `sinceMs` (the start of a rain day or of an eruption warning). */
+  private logOnceSince(playerId: number, action: string, reason: string, sinceMs: number, short: string): void {
+    const seen = this.db.prepare('SELECT 1 FROM bot_log WHERE player_id = ? AND action = ? AND reason = ? AND created_at >= ? LIMIT 1').get(playerId, action, reason, sinceMs);
+    if (seen) return;
+    this.db
+      .prepare('INSERT INTO bot_log (player_id, action, reason, job_id, brain, short, created_at) VALUES (?, ?, ?, NULL, ?, ?, ?)')
+      .run(playerId, action, reason, 'rules', short, this.d.now());
+  }
+
+  /** Start of the current village day of this player's mode. */
+  private dayStart(playerId: number): number {
+    const demo = this.d.game.getPlayer(playerId).demo === 1;
+    const dayMs = this.d.game.sky(demo).dayMs;
+    return dayIndex(this.d.now(), demo) * dayMs;
+  }
+
   /** Latest chain job of this player created after `afterId` (the proof of an action). */
   private jobSince(playerId: number, afterId: number): number | null {
     const r = this.db.prepare('SELECT MIN(id) AS id FROM chain_jobs WHERE player_id = ? AND id > ?').get(playerId, afterId) as { id: number | null };
@@ -405,6 +421,7 @@ export class TaniBotService {
    * Rules only (no AI): harvest, water and sell; no shopping.
    */
   private quickReactions(now: number, justRan: Set<number>): number {
+    const ash = this.ashReactions(now);
     const bots = this.db
       .prepare(
         `SELECT b.player_id FROM bots b JOIN players p ON p.id = b.player_id
@@ -421,8 +438,8 @@ export class TaniBotService {
       if (last && now - last.at < QUICK_REACTION_MS) continue;
       const plots = this.d.game.state(player_id).plots;
       const sig = plots
-        .filter((x) => x.tree && (x.tree.ready || !x.tree.wateredToday))
-        .map((x) => `${x.plot}:${x.tree!.ready ? 'ripe' : 'dry'}`)
+        .filter((x) => x.tree && (x.tree.ready || !x.tree.wateredToday || x.tree.ash))
+        .map((x) => `${x.plot}:${x.tree!.ash ? 'ash' : x.tree!.ready ? 'ripe' : 'dry'}`)
         .join(',');
       if (!sig) continue;
       // Nothing changed since a round that could not help (e.g. storage full): wait for a change.
@@ -435,6 +452,31 @@ export class TaniBotService {
       }
       this.quick.set(player_id, { at: now, sig, acted });
       n++;
+    }
+    return n + ash;
+  }
+
+  /**
+   * Normal gardens, during an eruption only: clean the ash between scheduled rounds (an eruption
+   * lasts about an hour, rounds are 3x a day). Free; nothing else is done. Demo gardens do this
+   * in their quick reactions.
+   */
+  private ashReactions(now: number): number {
+    if (this.d.game.weatherView(false).eruption?.phase !== 'eruption') return 0;
+    const bots = this.db
+      .prepare(
+        `SELECT b.player_id FROM bots b JOIN players p ON p.id = b.player_id
+         WHERE b.status = 'ready' AND b.enabled = 1 AND p.demo = 0 AND b.hold_until <= ?`,
+      )
+      .all(now) as { player_id: number }[];
+    let n = 0;
+    for (const { player_id } of bots) {
+      if (!this.d.game.state(player_id).plots.some((x) => x.tree?.ash)) continue;
+      try {
+        n += this.run(player_id, 'ash');
+      } catch (err) {
+        this.log(player_id, 'notice', `Something went wrong while cleaning the ash, I will try again. (${err instanceof Error ? err.message : err})`);
+      }
     }
     return n;
   }
@@ -465,7 +507,15 @@ export class TaniBotService {
     const st = this.d.game.state(playerId);
     const day = this.limitDay();
     const spent = b.spent_day === day ? b.spent_micro : 0;
+    const wx = st.weather;
+    const dayMs = this.d.game.sky(st.player.demo).dayMs;
     return {
+      weather: {
+        today: wx.kind,
+        tomorrow: wx.tomorrow,
+        volcano: wx.eruption ? wx.eruption.phase : 'quiet',
+        volcanoMinutesLeft: wx.eruption ? Math.ceil(wx.eruption.msLeft / 60_000) : null,
+      },
       style: b.style,
       budget: fromMicro(b.budget_micro),
       budgetLeftToday: fromMicro(Math.max(0, b.daily_limit_micro - spent)),
@@ -480,6 +530,12 @@ export class TaniBotService {
           ripe: x.tree!.ready,
           watered: x.tree!.wateredToday,
           fertilized: x.tree!.isFertilized,
+          waterTimesLeft: Math.max(0, x.tree!.waterNeed - x.tree!.waterCount),
+          thirsty: x.tree!.thirsty,
+          wilting: x.tree!.wilting,
+          daysToWilt: x.tree!.msToWilt === null ? null : Math.round((x.tree!.msToWilt / dayMs) * 10) / 10,
+          ash: x.tree!.ash,
+          volcanicSoil: x.tree!.volcanicSoil,
         })),
       fruits: st.fruits.filter((f) => f.qty > 0).map((f) => ({ species: f.species, quality: f.quality, qty: f.qty })),
       darto: st.darto.prices.map((p) => ({ species: p.species, price: p.price, normal: p.base })),
@@ -583,6 +639,17 @@ export class TaniBotService {
       }
       if (a.action === 'buy' && a.item === 'seed_mango') {
         // A seed is bought together with the plant action that needs it.
+        continue;
+      }
+      if (a.action === 'clean') {
+        const plot = plotOf(a.plot);
+        const t = plot?.tree;
+        if (!plot || !t) {
+          ignored.push(`clean on plot ${a.plot} (no tree)`);
+          continue;
+        }
+        // Free: cleaning ash never touches the budget.
+        doIt(a, () => (game.cleanAsh(playerId, plot.plot), [`Cleaned the volcanic ash off ${label(t.species)} on plot ${a.plot} (free).`, `Cleaned the ${label(t.species)}!`]));
         continue;
       }
       if (a.action === 'harvest' || a.action === 'water' || a.action === 'fertilize') {
@@ -690,7 +757,7 @@ export class TaniBotService {
    *   shopping and no "nothing to do" line.
    * - 'safety' (after an AI round): only harvest and water what the AI missed.
    */
-  run(playerId: number, mode: 'full' | 'quick' | 'safety' = 'full'): number {
+  run(playerId: number, mode: 'full' | 'quick' | 'safety' | 'ash' = 'full'): number {
     const quick = mode !== 'full';
     const prefix = mode === 'safety' ? 'Safety net: ' : '';
     const b = this.mustRow(playerId);
@@ -711,6 +778,36 @@ export class TaniBotService {
         } else if (!(err instanceof GameError)) throw err;
       }
     };
+
+    // 0. Weather first (weather.ts). Volcanic ash: clean every tree; it is free (no budget).
+    const cleaned: string[] = [];
+    for (const plot of game.state(playerId).plots) {
+      const t = plot.tree;
+      if (!t?.ash) continue;
+      try {
+        game.cleanAsh(playerId, plot.plot);
+        cleaned.push(`${label(t.species)} (plot ${plot.plot + 1})`);
+      } catch (err) {
+        if (!(err instanceof GameError)) throw err;
+      }
+    }
+    if (cleaned.length > 0) {
+      this.log(
+        playerId,
+        'clean',
+        `${prefix}Ash from Mount Tandur covered ${cleaned.length === 1 ? 'a tree' : `${cleaned.length} trees`}, so I cleaned ${cleaned.join(', ')}: ${cleaned.length === 1 ? 'it grows again and gets' : 'they grow again and get'} Volcanic soil after the eruption (faster growth, better Gold chance). Cleaning is free.`,
+        null,
+        'rules',
+        'Cleaned the ash!',
+      );
+      done += cleaned.length;
+    }
+    if (mode === 'ash') return done;
+    const weather = game.state(playerId).weather;
+    if (weather.eruption?.phase === 'warning' && mode !== 'safety') {
+      const warnedFrom = this.d.now() - weather.eruption.msSinceWarning;
+      this.logOnceSince(playerId, 'weather', 'Mount Tandur is rumbling! When the ash falls I will clean your trees right away.', warnedFrom, 'Mount Tandur is rumbling!');
+    }
 
     // 1. Harvest everything that is ripe.
     for (const plot of game.state(playerId).plots) {
@@ -745,22 +842,53 @@ export class TaniBotService {
       }
     }
 
-    // 2. Water every thirsty tree (one Log line for all of them).
-    const watered: string[] = [];
-    for (const plot of game.state(playerId).plots) {
-      const t = plot.tree;
-      if (t && !t.wateredToday) {
-        try {
-          game.water(playerId, plot.plot);
-          watered.push(`${label(t.species)} (plot ${plot.plot + 1})`);
-        } catch (err) {
-          if (!(err instanceof GameError)) throw err;
-        }
+    // 2. Water every thirsty tree (one Log line for all of them). Rain waters everything for free;
+    //    a drought needs two waterings; wilting trees come first.
+    if (weather.kind === 'rain') {
+      if (game.state(playerId).plots.some((x) => x.tree) && mode !== 'safety') {
+        this.logOnceSince(playerId, 'weather', "It's raining: every tree is watered for free today, so I saved my water.", this.dayStart(playerId), "It's raining!");
       }
-    }
-    if (watered.length > 0) {
-      this.log(playerId, 'water', `${prefix}Watered ${watered.length === 1 ? 'a dry tree' : `${watered.length} dry trees`}: ${watered.join(', ')}. Watering is free and happens off-chain.`, null, 'rules', watered.length === 1 ? 'Watered 1 tree.' : `Watered ${watered.length} trees.`);
-      done += watered.length;
+    } else {
+      const thirsty = game
+        .state(playerId)
+        .plots.filter((x) => x.tree && !x.tree.wateredToday)
+        .sort((a, b) => Number(b.tree!.wilting) - Number(a.tree!.wilting) || Number(b.tree!.thirsty) - Number(a.tree!.thirsty));
+      const watered: string[] = [];
+      const wilting: string[] = [];
+      let volcanic = false;
+      for (const plot of thirsty) {
+        const t = plot.tree!;
+        const times = Math.max(1, t.waterNeed - t.waterCount);
+        let ok = 0;
+        for (let i = 0; i < times; i++) {
+          try {
+            game.water(playerId, plot.plot);
+            ok++;
+          } catch (err) {
+            if (!(err instanceof GameError)) throw err;
+            break;
+          }
+        }
+        if (ok === 0) continue;
+        const name = `${label(t.species)} (plot ${plot.plot + 1})`;
+        watered.push(name);
+        if (t.wilting) wilting.push(label(t.species));
+        if (t.volcanicSoil) volcanic = true;
+      }
+      if (watered.length > 0) {
+        const n = watered.length;
+        let reason = `${prefix}Watered ${n === 1 ? 'a dry tree' : `${n} dry trees`}: ${watered.join(', ')}. Watering is free and happens off-chain.`;
+        if (weather.kind === 'drought') {
+          reason = `${prefix}Drought: a watering only lasts half a day, so I watered ${watered.join(', ')} twice. Watering is free and happens off-chain.`;
+        }
+        if (wilting.length > 0) {
+          reason = `${prefix}${wilting.join(' and ')} ${wilting.length === 1 ? 'was' : 'were'} wilting (about to go back a stage), so I watered ${wilting.length === 1 ? 'it' : 'them'} first. ${reason.slice(prefix.length)}`;
+        }
+        if (volcanic) reason += ' Volcanic soil: watered trees grow faster now.';
+        if (weather.tomorrow === 'drought') reason += ' A drought is coming tomorrow: I will water twice.';
+        this.log(playerId, 'water', reason, null, 'rules', n === 1 ? 'Watered 1 tree.' : `Watered ${n} trees.`);
+        done += n;
+      }
     }
 
     // 3. Fertilize (Balanced: slow trees only; Turbo: every growing tree). Buy fertilizer from my budget if needed.

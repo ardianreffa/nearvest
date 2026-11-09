@@ -848,6 +848,7 @@ export class Game {
       eruption: at
         ? {
             phase: at.phase,
+            msSinceWarning: Math.max(0, now - at.eruption.warnStart),
             msToEruption: Math.max(0, at.eruption.start - now),
             msToEnd: Math.max(0, at.eruption.end - now),
             msToVolcanicEnd: Math.max(0, at.eruption.volcanicEnd - now),

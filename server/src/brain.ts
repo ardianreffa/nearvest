@@ -26,9 +26,30 @@ export interface BrainTree {
   ripe: boolean;
   watered: boolean;
   fertilized: boolean;
+  /** Waterings still needed today (2 in a drought, 0 in the rain or when watered). */
+  waterTimesLeft: number;
+  /** No water for a while: it goes back one stage in `daysToWilt` days without water. */
+  thirsty: boolean;
+  wilting: boolean;
+  daysToWilt: number | null;
+  /** Covered in volcanic ash (no growth until cleaned; cleaning is free). */
+  ash: boolean;
+  /** Cleaned during the eruption: grows faster and has a better Gold chance now. */
+  volcanicSoil: boolean;
+}
+
+/** The village weather as TaniBot's AI brain sees it. */
+export interface BrainWeather {
+  today: 'clear' | 'rain' | 'drought';
+  tomorrow: 'clear' | 'rain' | 'drought';
+  /** Mount Tandur: 'warning' (rumbling), 'eruption' (ash is falling) or 'volcanic' (Volcanic soil). */
+  volcano: 'quiet' | 'warning' | 'eruption' | 'volcanic';
+  /** Minutes until the current volcano phase ends (null when quiet). */
+  volcanoMinutesLeft: number | null;
 }
 
 export interface BrainInput {
+  weather: BrainWeather;
   style: string;
   budget: number;
   budgetLeftToday: number;
@@ -45,7 +66,7 @@ export interface BrainInput {
 }
 
 export type BrainAction =
-  | { action: 'harvest' | 'water' | 'fertilize' | 'plant'; plot: number; reason: string }
+  | { action: 'harvest' | 'water' | 'fertilize' | 'plant' | 'clean'; plot: number; reason: string }
   | { action: 'buy'; item: string; qty: number; reason: string }
   | { action: 'sell'; species: string; quality: string; qty: number; reason: string };
 
@@ -72,14 +93,16 @@ export interface Brain {
 
 export const SYSTEM_PROMPT = `You are TaniBot, a careful AI farmer robot in the pixel farming game NEARvest. Decide this round's work in the player's garden.
 Checklist, in this order:
+0. If a tree has "ash": true, clean it first with {"action":"clean","plot":N} (free, uses no budget): ash stops growth, and a cleaned tree gets Volcanic soil (faster growth, better Gold chance).
 1. Harvest every tree with "ripe": true.
-2. Water every tree with "watered": false. Never skip this.
+2. Water every tree with "watered": false, ONE water action per needed watering ("waterTimesLeft": 2 in a drought means two water actions for that plot). Water "wilting" and "thirsty" trees first. Never skip this.
 3. Fertilize according to the style. If "fertilizerInStorage" is 0, add {"action":"buy","item":"fertilizer","qty":1} BEFORE the fertilize. Buy at most 1 per round, only if "budgetLeftToday" and "budget" are both at least the shop price.
 4. Sell Common fruit when Mr. Darto's price is at least the normal price (turbo: sell right away). Never sell Rare or Gold fruit: that is the player's decision.
 5. Only if "autoPlant" is true: plant each plot in "emptyPlots" with {"action":"plant","plot":N}. The game picks a Common or unknown seed (never Rare or Gold). If "plantableSeeds" is 0, balanced and turbo may first add {"action":"buy","item":"seed_mango","qty":1}; thrifty plants only seeds already in storage.
+Weather ("weather"): "rain" = every tree is watered for free, never add water actions; "drought" = a watering only lasts half a day, so trees need 2; "tomorrow" lets you plan (mention it in a reason when useful). Mount Tandur ("volcano"): "warning" = ash will fall soon; "eruption" = clean ash now; "volcanic" = keep cleaned trees watered to use the faster growth. A tree without water goes back one stage after a few days ("daysToWilt"); trees never die.
 Styles: thrifty = never buy, never fertilize; balanced = fertilize only slow trees (rambutan, durian); turbo = fertilize every growing tree.
 Allowed actions:
-{"action":"harvest","plot":N} {"action":"water","plot":N} {"action":"fertilize","plot":N} {"action":"plant","plot":N}
+{"action":"harvest","plot":N} {"action":"water","plot":N} {"action":"fertilize","plot":N} {"action":"plant","plot":N} {"action":"clean","plot":N}
 {"action":"buy","item":"fertilizer","qty":1} {"action":"buy","item":"seed_mango","qty":1} {"action":"sell","species":"mango|rambutan|durian","quality":"common","qty":N}
 Every action has "reason": a short English reason for the player, at most 15 words, friendly.
 Use ONLY the data given: "ripe": true means harvest it now; "watered": true means it needs no water. Do not add actions that are not needed.
@@ -99,7 +122,7 @@ export function parseDecision(text: string): BrainDecision {
   let malformed = 0;
   for (const a of data.actions.slice(0, 20) as Record<string, unknown>[]) {
     const reason = clean(a?.reason) || 'No reason given.';
-    if (a && (a.action === 'harvest' || a.action === 'water' || a.action === 'fertilize' || a.action === 'plant') && Number.isInteger(a.plot)) {
+    if (a && (a.action === 'harvest' || a.action === 'water' || a.action === 'fertilize' || a.action === 'plant' || a.action === 'clean') && Number.isInteger(a.plot)) {
       actions.push({ action: a.action, plot: a.plot as number, reason });
     } else if (a && a.action === 'buy' && typeof a.item === 'string' && Number.isInteger(a.qty ?? 1)) {
       actions.push({ action: 'buy', item: a.item, qty: (a.qty as number | undefined) ?? 1, reason });

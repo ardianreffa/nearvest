@@ -267,7 +267,9 @@ function advanceWithWeather(t: TreeGrowth, nowMs: number, sky: SkyView): TreeGro
 
 /** How thirsty a tree is right now (call on a tree advanced to `nowMs` with the sky). */
 export function thirstOf(t: TreeGrowth, nowMs: number, sky: SkyView) {
-  const dryMs = Math.max(0, nowMs - (t.dryFromMs ?? nowMs));
+  // Watered right now (by hand or by the rain): not thirsty at all.
+  const wateredNow = t.waterUntilMs > nowMs || sky.kind(Math.floor(nowMs / sky.dayMs)) === 'rain';
+  const dryMs = wateredNow ? 0 : Math.max(0, nowMs - (t.dryFromMs ?? nowMs));
   const old = t.harvestCount >= t.maxHarvests;
   return {
     dryMs,
