@@ -9,6 +9,7 @@
 // The libraries are loaded only when a wallet is used, so Google players never download them.
 
 import { outcomeHash } from './outcome';
+import { installPopupRescue } from './popup-rescue';
 import type { NearConnector } from '@hot-labs/near-connect';
 import { api, ApiError, type ServerConfig } from './api';
 
@@ -22,6 +23,9 @@ export interface WalletProof {
 let connectorPromise: Promise<NearConnector> | null = null;
 
 function connector(network: string): Promise<NearConnector> {
+  // Safari on iPhone blocks wallet windows / app links that near-connect opens outside the tap:
+  // offer a "Continue" button instead (popup-rescue.ts).
+  installPopupRescue();
   connectorPromise ??= import('@hot-labs/near-connect').then(
     ({ NearConnector }) =>
       // No manual wallet list: near-connect shows every wallet that supports this network.

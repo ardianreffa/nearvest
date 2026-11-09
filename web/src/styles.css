@@ -9717,3 +9717,55 @@ html.page-locked body {
 .scene .sky-moon {
   transition: translate 1.2s ease-in-out;
 }
+
+/* "Continue to Meteor" / "Open Meteor app" (popup-rescue.ts): above near-connect's wallet window. */
+.popup-rescue {
+  position: fixed;
+  inset: 0;
+  z-index: 100000001;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--ink) 60%, transparent);
+}
+
+.popup-rescue-card {
+  --n: 3px;
+  width: min(340px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 18px 16px 12px;
+  text-align: center;
+  color: var(--ink);
+  background: var(--paper);
+  border: 6px solid var(--gold-500);
+  clip-path: polygon(
+    0 calc(var(--n) * 2), var(--n) calc(var(--n) * 2), var(--n) var(--n), calc(var(--n) * 2) var(--n), calc(var(--n) * 2) 0,
+    calc(100% - var(--n) * 2) 0, calc(100% - var(--n) * 2) var(--n), calc(100% - var(--n)) var(--n), calc(100% - var(--n)) calc(var(--n) * 2), 100% calc(var(--n) * 2),
+    100% calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n) * 2) calc(100% - var(--n)), calc(100% - var(--n) * 2) 100%,
+    calc(var(--n) * 2) 100%, calc(var(--n) * 2) calc(100% - var(--n)), var(--n) calc(100% - var(--n)), var(--n) calc(100% - var(--n) * 2), 0 calc(100% - var(--n) * 2)
+  );
+}
+
+.popup-rescue-card p {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  line-height: 1.45;
+}
+
+.popup-rescue-go {
+  min-height: 52px;
+  font-size: var(--fs-body);
+}
+
+.popup-rescue-cancel {
+  align-self: center;
+  height: auto;
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+  text-decoration: underline;
+  cursor: pointer;
+}

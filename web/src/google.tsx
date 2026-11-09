@@ -3,6 +3,7 @@
 // ID token to `onCredential`; the caller decides which server route gets it.
 
 import { useEffect, useRef } from 'preact/hooks';
+import { installPopupRescue } from './popup-rescue';
 
 declare global {
   interface Window {
@@ -67,6 +68,9 @@ export function GoogleButton({
 
   useEffect(() => {
     if (!clientId || !ref.current) return;
+    // Safari on iPhone blocks the Google window (opened by Google's script after a message from
+    // its button iframe, not inside the tap): offer "Continue to Google" instead (popup-rescue.ts).
+    installPopupRescue();
     let alive = true;
     loadScript()
       .then(() => {
@@ -106,7 +110,8 @@ export function GoogleButton({
       opened = false;
       window.clearTimeout(check);
       check = window.setTimeout(() => {
-        if (alive && !opened && document.visibilityState === 'visible') handlers.current.onError(GOOGLE_NO_WINDOW);
+        // Not while the "Continue to Google" box is waiting for a tap.
+        if (alive && !opened && document.visibilityState === 'visible' && !document.querySelector('.popup-rescue')) handlers.current.onError(GOOGLE_NO_WINDOW);
       }, 4000);
     };
     window.addEventListener('blur', onBlur);
