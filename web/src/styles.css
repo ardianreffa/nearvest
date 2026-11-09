@@ -9065,6 +9065,25 @@ li b,
   cursor: pointer;
 }
 
+/* "+2 more": as small as its words (never stretched). On an alert it gets its own line at the
+   bottom right, under the text, so it never covers the message. */
+.toasts > .toast .toast-more {
+  flex: none !important;
+}
+
+.toasts > .toast.toast-alert {
+  flex-wrap: wrap;
+}
+
+.toasts > .toast.toast-alert .toast-more {
+  order: 3;
+  margin: 6px 0 0 auto;
+}
+
+.toasts > .toast.toast-alert .toast-text {
+  flex: 1 1 calc(100% - 32px);
+}
+
 .toasts > .toast.toast-alert .toast-text {
   overflow: visible;
   text-overflow: clip;
