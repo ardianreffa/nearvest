@@ -2,8 +2,8 @@
    laptops: the code sky, the v3 village, TaniBot on the grass, the logo and the two big buttons. */
 
 .lp-body {
-  background: #0f2a1e;
-  color: #f4ead2;
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .lp-hero {
@@ -11,7 +11,7 @@
   height: 100svh;
   min-height: 520px;
   overflow: hidden;
-  background: #b5e3f7;
+  background: var(--cyan-300);
 }
 
 .lp-sky {
@@ -53,7 +53,7 @@
   width: min(760px, calc(100% - 32px));
   transform: translateX(-50%);
   text-align: center;
-  text-shadow: 0 2px 0 rgba(6, 20, 14, 0.55), 0 0 18px rgba(6, 20, 14, 0.35);
+  text-shadow: 0 2px 0 color-mix(in srgb, var(--ink) 55%, transparent), 0 0 18px color-mix(in srgb, var(--ink) 35%, transparent);
 }
 
 .lp-logo {
@@ -61,9 +61,9 @@
   font-size: var(--fs-logo);
   line-height: 1;
   white-space: nowrap;
-  color: #00ec97;
+  color: var(--mint-500);
   /* Hard pixel outline + drop (a text stroke would blur the pixel font). */
-  text-shadow: 3px 0 0 #0b3b27, -3px 0 0 #0b3b27, 0 3px 0 #0b3b27, 0 -3px 0 #0b3b27, 0 7px 0 #0b3b27, 0 0 24px rgba(0, 236, 151, 0.35);
+  text-shadow: 3px 0 0 var(--hud), -3px 0 0 var(--hud), 0 3px 0 var(--hud), 0 -3px 0 var(--hud), 0 7px 0 var(--hud), 0 0 24px color-mix(in srgb, var(--mint-500) 35%, transparent);
 }
 
 .lp-tagline {
@@ -73,8 +73,8 @@
   font-size: var(--fs-tagline);
   font-weight: 700;
   white-space: nowrap;
-  color: #f5c542;
-  text-shadow: 2px 0 0 #3b2a00, -2px 0 0 #3b2a00, 0 2px 0 #3b2a00, 0 -2px 0 #3b2a00, 0 4px 0 #3b2a00;
+  color: var(--gold-500);
+  text-shadow: 2px 0 0 var(--soil-700), -2px 0 0 var(--soil-700), 0 2px 0 var(--soil-700), 0 -2px 0 var(--soil-700), 0 4px 0 var(--soil-700);
 }
 
 .lp-lead {
@@ -83,7 +83,7 @@
   font-family: var(--font-body);
   font-size: clamp(var(--fs-body), 1.6vw, var(--fs-h3));
   line-height: 1.45;
-  color: #fff;
+  color: var(--paper-light);
 }
 
 /* TaniBot on the grass. */
@@ -122,8 +122,8 @@
   text-align: center;
   font-family: var(--font-body);
   font-size: var(--fs-body);
-  color: #fff;
-  text-shadow: 0 1px 0 #000, 0 0 8px rgba(0, 0, 0, 0.6);
+  color: var(--paper-light);
+  text-shadow: 0 1px 0 var(--ink), 0 0 8px color-mix(in srgb, var(--ink) 60%, transparent);
 }
 
 .lp-more {
@@ -131,9 +131,9 @@
   right: 18px;
   bottom: 14px;
   font-size: var(--fs-h3);
-  color: #fff;
+  color: var(--paper-light);
   text-decoration: none;
-  text-shadow: 0 1px 0 #000;
+  text-shadow: 0 1px 0 var(--ink);
   animation: lp-bob 1.8s ease-in-out infinite;
 }
 
@@ -207,7 +207,7 @@
 
   /* The sky above the art (tall phones) continues in the horizon colour. */
   .lp-hero {
-    background: #b5e3f7;
+    background: var(--cyan-300);
   }
 
   .lp-more {
@@ -230,10 +230,10 @@
   align-items: center;
   margin: 0 0 28px;
   padding: 24px;
-  color: #1b1b2f;
-  background: #f6efd9;
-  border: 3px solid #1b1b2f;
-  box-shadow: 0 0 0 3px #00ec97, 6px 6px 0 rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 3px var(--mint-500), 6px 6px 0 color-mix(in srgb, var(--ink) 35%, transparent);
   border-radius: 10px;
 }
 
@@ -246,7 +246,7 @@
   font-family: var(--font-title);
   text-transform: uppercase;
   font-size: clamp(var(--fs-h3), 3vw, var(--fs-h2));
-  color: #1e5a38;
+  color: var(--leaf-700);
 }
 
 .lp-text p,
@@ -261,7 +261,7 @@
 
 .lp-small {
   font-size: var(--fs-sm) !important;
-  color: #5b5546;
+  color: var(--ink-soft);
 }
 
 .lp-art-box {
@@ -270,8 +270,8 @@
   align-items: flex-end;
   min-height: 200px;
   padding: 12px;
-  background: linear-gradient(#b5e3f7 0 62%, #4caf6a 62% 100%);
-  border: 3px solid #1b1b2f;
+  background: linear-gradient(var(--cyan-300) 0 62%, var(--leaf-300) 62% 100%);
+  border: 3px solid var(--ink);
   border-radius: 8px;
   image-rendering: pixelated;
 }
@@ -296,7 +296,7 @@
 
 .lp-bots figcaption {
   font-size: var(--fs-xs);
-  color: #1b1b2f;
+  color: var(--ink);
 }
 
 .lp-panen {
@@ -341,15 +341,15 @@
   gap: 6px;
   padding: 16px 10px;
   text-align: center;
-  background: #fffaf0;
-  border: 2px solid #b89a5e;
+  background: var(--paper-light);
+  border: 2px solid var(--soil-300);
   border-radius: 8px;
   counter-increment: step;
 }
 
 .lp-steps li b {
   font-size: var(--fs-h3);
-  color: #1e5a38;
+  color: var(--leaf-700);
 }
 
 .lp-steps li b::before {
@@ -375,17 +375,17 @@
   align-items: center;
   gap: 4px;
   padding: 16px 8px;
-  color: #f4ead2;
+  color: var(--paper);
   text-decoration: none;
-  background: #143826;
-  border: 3px solid #1b1b2f;
+  background: var(--hud);
+  border: 3px solid var(--ink);
   border-radius: 8px;
-  box-shadow: inset 0 0 0 2px rgba(0, 236, 151, 0.35);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--mint-500) 35%, transparent);
 }
 
 .lp-stat b {
   font-size: clamp(var(--fs-h2), 4vw, var(--fs-h1));
-  color: #00ec97;
+  color: var(--mint-500);
 }
 
 .lp-stat span {
@@ -396,11 +396,11 @@
   font-style: normal;
   font-family: var(--font-body);
   font-size: var(--fs-xs);
-  color: #a7f3d0;
+  color: var(--mint-300);
 }
 
 .lp-stat:hover {
-  box-shadow: inset 0 0 0 2px #00ec97, 0 0 14px rgba(0, 236, 151, 0.45);
+  box-shadow: inset 0 0 0 2px var(--mint-500), 0 0 14px color-mix(in srgb, var(--mint-500) 45%, transparent);
 }
 
 .lp-tech {
@@ -416,14 +416,14 @@
 
 .lp-tech li {
   padding: 10px 12px;
-  background: #fffaf0;
-  border: 2px solid #b89a5e;
+  background: var(--paper-light);
+  border: 2px solid var(--soil-300);
   border-radius: 8px;
 }
 
 .lp-tech b {
   font-family: var(--font-ui);
-  color: #0b6b86;
+  color: var(--cyan-700);
 }
 
 .lp-roadmap {
@@ -438,7 +438,7 @@
   display: flex;
   gap: 12px;
   padding: 10px 0;
-  border-bottom: 2px dashed #d8c99c;
+  border-bottom: 2px dashed var(--gold-300);
 }
 
 .lp-roadmap li:last-child {
@@ -449,12 +449,12 @@
   flex: none;
   width: 64px;
   font-family: var(--font-ui);
-  color: #1e5a38;
+  color: var(--leaf-700);
 }
 
 .lp-roadmap li.done b::after {
   content: ' ✓';
-  color: #0b8f5f;
+  color: var(--mint-700);
 }
 
 .lp-final {
@@ -482,12 +482,12 @@
   padding: 22px 16px 32px;
   font-family: var(--font-body);
   font-size: var(--fs-body);
-  color: #9fc4ae;
-  border-top: 3px solid #143826;
+  color: var(--leaf-300);
+  border-top: 3px solid var(--hud);
 }
 
 .lp-footer a {
-  color: #bff5dd;
+  color: var(--mint-300);
 }
 
 .lp-footer span {
@@ -544,7 +544,7 @@
   max-width: 100%;
   margin: 0 auto;
   padding: 4px 10px;
-  background: rgba(6, 20, 14, 0.72);
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
   text-shadow: none;
 }
 

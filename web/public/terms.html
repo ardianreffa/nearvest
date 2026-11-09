@@ -13,18 +13,19 @@
       @font-face { font-family: 'DotGothic16'; font-display: swap; src: url('/assets/fonts/dotgothic16.woff2') format('woff2'); }
       @font-face { font-family: 'Silkscreen'; font-weight: 700; font-display: swap; src: url('/assets/fonts/silkscreen-700.woff2') format('woff2'); }
       /* Same design-system tokens as the game (web/src/styles.css). */
-      :root { color-scheme: light; --font-title: 'Silkscreen', monospace; --font-body: 'DotGothic16', monospace; --fs-sm: 13px; --fs-body: 16px; --fs-h3: 20px; --fs-h2: 26px; }
-      body { margin: 0; background: #0f2a1e; color: #1b1b2f; font: var(--fs-body)/1.6 var(--font-body); }
-      main { max-width: 720px; margin: 24px auto; padding: 24px 20px 32px; background: #f6efd9; border: 3px solid #1b1b2f; box-shadow: 0 0 0 3px #00ec97; }
-      h1 { margin: 0 0 4px; font: 700 var(--fs-h2)/1.15 var(--font-title); text-transform: uppercase; color: #1e5a38; }
-      h2 { margin: 26px 0 8px; font: 700 var(--fs-h3)/1.15 var(--font-title); text-transform: uppercase; color: #1e5a38; }
+      :root { color-scheme: light; --font-title: 'Silkscreen', monospace; --font-body: 'DotGothic16', monospace; --fs-sm: 13px; --fs-body: 16px; --fs-h3: 20px; --fs-h2: 26px;
+        --leaf-700: #1e5a38; --leaf-500: #2e7d4f; --mint-500: #00ec97; --cyan-700: #0b6b86; --ink: #1b1b2f; --ink-soft: #5b5546; --paper: #f6efd9; }
+      body { margin: 0; background: var(--leaf-700); color: var(--ink); font: var(--fs-body)/1.6 var(--font-body); }
+      main { max-width: 720px; margin: 24px auto; padding: 24px 20px 32px; background: var(--paper); border: 3px solid var(--ink); box-shadow: 0 0 0 3px var(--mint-500); }
+      h1 { margin: 0 0 4px; font: 700 var(--fs-h2)/1.15 var(--font-title); text-transform: uppercase; color: var(--leaf-700); }
+      h2 { margin: 26px 0 8px; font: 700 var(--fs-h3)/1.15 var(--font-title); text-transform: uppercase; color: var(--leaf-700); }
       p, li { margin: 6px 0; }
       ul { padding-left: 0; list-style: none; }
       li { position: relative; padding-left: 20px; }
-      li::before { content: ''; position: absolute; left: 2px; top: 0.6em; width: 8px; height: 8px; background: #2e7d4f; box-shadow: 2px 2px 0 #1b1b2f; }
-      b { font-weight: 400; color: #1e5a38; }
-      .muted { color: #5b5546; font-size: var(--fs-sm); }
-      a { color: #0b6b86; }
+      li::before { content: ''; position: absolute; left: 2px; top: 0.6em; width: 8px; height: 8px; background: var(--leaf-500); box-shadow: 2px 2px 0 var(--ink); }
+      b { font-weight: 400; color: var(--leaf-700); }
+      .muted { color: var(--ink-soft); font-size: var(--fs-sm); }
+      a { color: var(--cyan-700); }
       .back { display: inline-block; margin-top: 24px; font-weight: 700; }
       @media (max-width: 760px) { main { margin: 0; border-width: 0 0 3px; box-shadow: none; } }
     </style>

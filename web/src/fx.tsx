@@ -73,7 +73,8 @@ export function leafBurst(x: number, y: number, count = 10) {
   );
 }
 
-const CONFETTI_COLORS = ['#00EC97', '#22D3EE', '#F5C542', '#8B5CF6', '#EF4444', '#FFFFFF'];
+/** Palette tokens (styles.css): mint, cyan, gold, purple, red, paper-light. */
+const CONFETTI_COLORS = ['var(--mint-500)', 'var(--cyan-500)', 'var(--gold-500)', 'var(--purple-500)', 'var(--red-500)', 'var(--paper-light)'];
 export function confetti(count = 48) {
   if (reduced()) return;
   emit(

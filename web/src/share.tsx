@@ -3,6 +3,7 @@
 // image, so the card can be saved (or shared with the phone's share sheet,
 // where supported) and attached to the post.
 
+import { token } from './tokens';
 import { useEffect, useState } from 'preact/hooks';
 import type { GameState, Quality, Species } from './api';
 import { botSprite, TIER_TITLE, tierOf, type Tier } from './art/tanibot';
@@ -310,21 +311,21 @@ function drawCalendar(ctx: CanvasRenderingContext2D, x: number, y: number) {
   const cell = 46;
   const w = cell * 4 + 18;
   const h = cell * 2 + 70;
-  ctx.fillStyle = '#FFFAF0';
+  ctx.fillStyle = token('--paper-light');
   ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = '#1B1B2F';
+  ctx.fillStyle = token('--ink');
   ctx.fillRect(x, y, w, 6);
   ctx.fillRect(x, y + h - 6, w, 6);
   ctx.fillRect(x, y, 6, h);
   ctx.fillRect(x + w - 6, y, 6, h);
-  ctx.fillStyle = '#E5484D';
+  ctx.fillStyle = token('--red-500');
   ctx.fillRect(x + 6, y + 6, w - 12, 34);
   for (let d = 0; d < 7; d++) {
     const cx = x + 9 + (d % 4) * cell;
     const cy = y + 52 + Math.floor(d / 4) * cell;
-    ctx.fillStyle = d === 6 ? '#F5C542' : '#BBF7D0';
+    ctx.fillStyle = d === 6 ? token('--gold-500') : token('--mint-300');
     ctx.fillRect(cx + 3, cy + 3, cell - 6, cell - 6);
-    ctx.fillStyle = d === 6 ? '#7A4A00' : '#0B8F5F';
+    ctx.fillStyle = d === 6 ? token('--gold-700') : token('--mint-700');
     // A pixel check mark.
     ctx.fillRect(cx + 12, cy + 22, 6, 6);
     ctx.fillRect(cx + 18, cy + 28, 6, 6);
@@ -336,10 +337,10 @@ function drawCalendar(ctx: CanvasRenderingContext2D, x: number, y: number) {
 /** The design-system fonts (CSS tokens --font-title / --font-ui), read once for the canvas. */
 const FONT = {
   get title() {
-    return getComputedStyle(document.documentElement).getPropertyValue('--font-title').trim() || 'monospace';
+    return token('--font-title') || 'monospace';
   },
   get ui() {
-    return getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim() || 'monospace';
+    return token('--font-ui') || 'monospace';
   },
 };
 
@@ -417,7 +418,7 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   ctx.fillRect(0, 0, CARD_W, CARD_H);
 
   // Frame in NEAR mint.
-  ctx.fillStyle = '#00EC97';
+  ctx.fillStyle = token('--mint-500');
   ctx.fillRect(0, 0, CARD_W, 8);
   ctx.fillRect(0, CARD_H - 8, CARD_W, 8);
   ctx.fillRect(0, 0, 8, CARD_H);
@@ -476,9 +477,9 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
     const side = px * rows[0].length;
     const ax = M - 26;
     const ay = GROUND - side - 24;
-    ctx.fillStyle = '#1B1B2F';
+    ctx.fillStyle = token('--ink');
     ctx.fillRect(ax - 8, ay - 8, side + 16, side + 16);
-    ctx.fillStyle = art.tier ? '#CDEFF7' : '#F6EFD9';
+    ctx.fillStyle = art.tier ? token('--cyan-300') : token('--paper');
     ctx.fillRect(ax, ay, side, side);
     drawRows(ctx, rows, { ...PALETTE, ...art.palette }, ax, ay, px);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
@@ -506,17 +507,17 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   const left = Math.round(CARD_W * 0.56);
   const width = CARD_W - left - M;
   ctx.textBaseline = 'top';
-  ctx.fillStyle = '#00EC97';
+  ctx.fillStyle = token('--mint-500');
   ctx.font = `700 64px ${FONT.title}`;
   ctx.fillText('NEARVEST', left, M - 4);
-  ctx.fillStyle = '#F5C542';
+  ctx.fillStyle = token('--gold-500');
   ctx.font = `700 48px ${FONT.title}`;
   let y = M + 88;
   for (const line of wrap(ctx, headline.toUpperCase(), width)) {
     ctx.fillText(line, left, y);
     y += 58;
   }
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = token('--paper-light');
   ctx.font = `32px ${FONT.ui}`;
   y += 12;
   for (const line of wrap(ctx, sub, width)) {
@@ -524,10 +525,10 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
     y += 40;
   }
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#A7F3D0';
+  ctx.fillStyle = token('--mint-300');
   ctx.font = `24px ${FONT.ui}`;
   ctx.fillText(`${s.player.accountId}`, left, CARD_H - M - 40);
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = token('--paper-light');
   ctx.fillText('Grow. Harvest. Own.  ·  on NEAR', left, CARD_H - M);
   return canvas;
 }

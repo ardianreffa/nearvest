@@ -95,11 +95,59 @@ Tip: the Read tool cannot render this PDF without poppler. Extract text with mac
 - Market and Shop scenes have ChatGPT backdrops (`web/src/art/scenes.tsx`) with a light veil and shadows so the characters stay readable. On phones, Mr. Darto's face says "Thanks!" next to the sell list when the scene is scrolled away.
 - Tests: `cd server && npm test` (storage, seeds, never-stuck, fertilizer, titles, demo XP in `test/storage.test.ts`); `cd web && npm test` (quantity picker, `web/test/qty.test.ts`).
 
+## Design system (Ardian, 2026-11-09) — REQUIRED for every new feature
+
+New UI must use these tokens only. Never write a font name, a px font size or a colour value
+(hex, rgb, named colour) in CSS or UI code; add a token here first if something is truly missing
+(ask Ardian). Tokens live in `web/src/styles.css` (`:root`); code that cannot use `var()` (canvas)
+reads them with `token('--name')` from `web/src/tokens.ts`. See-through colours:
+`color-mix(in srgb, var(--x) N%, transparent)`. Pixel art (village, characters, sprites, TaniBot /
+drone / sky / tree / soil effects, generated art palettes) keeps its own colours and is NOT part of this.
+
+**Fonts (3, one job each, self-hosted OFL, no sans-serif anywhere):**
+| Token | Font | Job |
+|---|---|---|
+| `--font-title` | Silkscreen Bold | logo, page titles, panel titles (always UPPER CASE) |
+| `--font-body` | DotGothic16 | all reading text |
+| `--font-ui` | Tiny5 | buttons, labels, numbers (clear digits) |
+
+**Font sizes (one scale, ratio ~1.272):** `--fs-sm` 13 (small notes, labels, tags) · `--fs-body` 16 (reading text, buttons) · `--fs-h3` 20 (panel titles) · `--fs-h2` 26 (window / section titles) · `--fs-h1` 42 (page titles) · `--fs-hero` 68 (big display). Only for tiny Tiny5 labels on phones: `--fs-xs` 12 (chips, tab names), `--fs-2xs` 10 (badges like "Soon"). Logo and tagline: `--fs-logo` (phones fill the width, max 56; laptops 104), `--fs-logo-login` (laptops 88), `--fs-tagline` (max 24 / laptops 40), `--fs-tagline-login` (laptops 32). Silkscreen is sharpest at multiples of 8 px.
+
+**Colours (24, one job each; GDD colours are the -500 step):**
+| Token | Hex | Job |
+|---|---|---|
+| `--leaf-700` | #1E5A38 | page background, logo shadow, dark green text |
+| `--leaf-500` | #2E7D4F | GDD leaf: XP bar, plant / garden, Seedling |
+| `--leaf-300` | #6FBF7F | grass highlights, growing progress |
+| `--soil-700` | #3F2A19 | dark wood: frames, drawer edge, HUD outlines |
+| `--soil-500` | #6B4A2F | GDD soil: wood panels, menu drawer |
+| `--soil-300` | #A07A52 | light wood, disabled buttons |
+| `--mint-700` | #00935E | success text on paper, pressed primary |
+| `--mint-500` | #00EC97 | GDD mint: primary button, NEAR / tx success, selected |
+| `--mint-300` | #9CF8D2 | success background, tx toast tint |
+| `--cyan-700` | #0B6B86 | (i) buttons, links |
+| `--cyan-500` | #22D3EE | GDD cyan: Water, Demo, Soon, info |
+| `--cyan-300` | #A8F1FB | watered tint, info bubble edge |
+| `--gold-700` | #9A7A2E | gold text on paper, dark bamboo |
+| `--gold-500` | #F5C542 | GDD gold: PANEN, Harvest, Gold quality, check-in, panel frames |
+| `--gold-300` | #FFE08A | PANEN chip highlight, tagline glow |
+| `--purple-700` | #5B3DB8 | Rare text on paper |
+| `--purple-500` | #8B5CF6 | GDD purple: Rare quality, AI tag |
+| `--purple-300` | #CDBEFE | Rare badge background |
+| `--ink` | #1B1B2F | all text and outlines on light boxes; shadows (see-through) |
+| `--ink-soft` | #5B5546 | secondary text, hints |
+| `--paper` | #F6EFD9 | paper panels (cream) |
+| `--paper-light` | #FFFAF0 | bubbles, toasts, cards, light buttons; white text |
+| `--hud` | #12303A | dark-blue HUD capsules and chips (see-through) |
+| `--red-500` | #E5484D | errors, Cut down tree, failed tx |
+
+Before the palette (2026-11-09) the UI used 282 different colour values; the conversion mapped each one to the nearest token (same rule as the preview Ardian approved). `theme-color` / manifest colours (not CSS) use the `--leaf-700` value.
+
 ## Web game (2026-11-05)
 
 - **Stack:** Vite 8 + Preact 10 (10.29.8; Preact 11 skipped because the Vite plugin was not updated for it yet) + TypeScript. Static build (`npm run build` -> `web/dist`), deploys to Vercel as-is.
 - Dev: `cd web && npm run dev` -> http://localhost:5173, talks to `VITE_API_URL` (default `http://127.0.0.1:8787`).
-- Mobile first (390 px), **portrait only on phones** (sideways phones see a "turn your phone upright" screen, `web/src/rotate.tsx`), English UI. Fonts (self-hosted, no sans-serif anywhere): Bungee (titles, logo), DotGothic16 (reading text), Tiny5 (buttons, labels, numbers). Colors from the GDD as CSS variables in `web/src/styles.css`.
+- Mobile first (390 px), **portrait only on phones** (sideways phones see a "turn your phone upright" screen, `web/src/rotate.tsx`), English UI. Fonts and colours: see **Design system** above (3 fonts, one size scale, 24 colours; tokens only).
 - Art: original pixel art drawn in code (`web/src/sprites.tsx` icons, `web/src/art/` trees, TaniBot, Mr. Darto, backdrop) plus CC0 palms in `web/public/assets/cc0/` (see `docs/ASSETS.md`). Dev-only gallery: http://localhost:5173/preview.html (not in the production build).
 - Visual polish (2026-11-05): TaniBot stands next to the selected plot (v1 rusty + bamboo hat for Seedling/Farmhand, v2 chrome + LED hat + 2 drones from Farmer) with idle hover, blinking eyes, LED and screen animations, and action animations (plasma hoe, watering drone, harvest laser + fruit to basket, nano spray, laser saw + light motes). Garden backdrop = Ardian's ChatGPT village images (day + night, `web/public/assets/bg/`, 240x135) cross-faded from the village clock (dawn/dusk mix both with a warm tint), with light overlays in `web/src/art/backdrop.tsx` (passing drones, LEDs, lanterns, holograms, waterfalls, volcano smoke); ground = bottom 28% of the image, plots sit on it between 11% and 89% of the width. Juice in `web/src/fx.tsx` (floating numbers, coins to balance, burn flame, leaves, level-up confetti). Bamboo/wood panels with mint neon. Mr. Darto = Ardian's ChatGPT design (`web/src/art/darto-sprite.ts`, 3 poses: idle default, wave when the Market opens, hold when selling: he lifts the fruit that was sold, his original durian or a code-drawn mango/rambutan in the same hand; sparkle animation; hover cart with flickering thrusters). Shop tab has the ChatGPT stall (`web/src/art/shop-sprite.ts`) with a floating, blinking guard robot; seed packets show mango/rambutan/durian. Regenerate both with `tools/pixelize/sheet.py` + `make-market-shop.py` (commands at the top of that script).
 - Laptops draw the garden at a whole-number scale k for the window (trees at k px, TaniBot at round(k/2)); phones fit the backdrop to ~104% of the width (whole village visible), trees at 2 px.
@@ -156,7 +204,7 @@ Tip: the Read tool cannot render this PDF without poppler. Extract text with mac
 - Watering: rain = free water, drought = water twice; 2 days without water = plant goes back one stage. Seed storage ~20 slots.
 - Demo mode: 1 day = 1 minute. "Try as Judge" opens a pre-filled sample garden.
 - Anti-cheat: 1 Google account = 1 garden; never block by IP; welcome/referral bonus limited per IP/device (e.g. max 3/day); referral pays after the friend's first harvest.
-- Colors: leaf #2E7D4F, soil #6B4A2F, NEAR mint #00EC97, tech cyan #22D3EE, gold #F5C542, purple #8B5CF6.
+- Colors: leaf #2E7D4F, soil #6B4A2F, NEAR mint #00EC97, tech cyan #22D3EE, gold #F5C542, purple #8B5CF6 (the -500 step of the UI palette, see Design system).
 
 ## Feature priority (from the GDD)
 
@@ -262,10 +310,10 @@ If time runs short, cut from the bottom (Bonus first, then Important). All **Mus
 - **TaniBot auto-plant done:** "Auto-plant: Off / Common seeds only" in the TaniBot window (off for existing gardens, on for judge gardens); only Common / unknown seeds, never Rare, Gold or superior seeds; Thrifty never buys, Balanced / Turbo may buy a Mango seed (burn, within the contract limit); AI "plant" action checked by the rules. A Tree NFT stores about 490 bytes (about 0.005 testnet NEAR from `pohon.nearvest.testnet`; on 2026-11-07 only about 0.37 NEAR of its 3.50 NEAR was free = about 75 more trees: **top up pohon before deploy**).
 - **Village v3 = default (2026-11-08, live)** (`art/village.ts` `V3_WEB` / `V3_PHONE`; dev builds compare with `?bg=v1` / `?bg=v2`): ChatGPT day, dusk and night images (day -> dusk -> night cross-fade; dusk added 2026-11-08), converted with `pixelize.py --hq` (laptop 480x270, phone 480x720); phone night lined up with `tools/pixelize/warp.py`, sky outlines matched with `samesky.py` (commands in docs/ASSETS.md). ChatGPT soil mounds (`mound.png`, tree behind the front lip), "1 VS 1" billboard on the Arena gazebo, soft hologram glow, sloped ChatGPT train on laptops (`SlopeTrain`, off on phones: rail too short), Ardian's ChatGPT robot (`art/robot-sprite.ts`) stays at the Friends house day and night (hover, blink, glowing orb). Phones: the village fills the screen width (k = width / 120, trees keep whole pixels), less sky, TaniBot 1.5x, plot sheet at most 20%, empty plot = small seed buttons (icon + count) in one row.
 - **Deploy prep (BACKLOG #9, 2026-11-08, live):** login footer + How to play page 1 say "Google or a NEAR wallet"; Dev login left out of production builds; `/privacy` and `/terms` pages (contact ardianreffaramadhan65@gmail.com; put their Vercel URLs on the Google OAuth consent screen); `.env.example` files are names only (empty value = the server's safe default). Phones: the tutorial coach floats over the scene's sky (mounds stay in view), tree labels sit just above the tree and never above the grass line.
-- **Landing page (2026-11-08, live):** `/` = landing (`web/index.html`, `src/landing.tsx`, `src/landing.css`), `/play` = sign-in + game (`web/play.html`), `/privacy`, `/terms`. Signed-in players and old links with game options (`?record`, `?time`, `?bg`, `?judge`) go to `/play`; `/play?judge=1` makes a judge garden right away. Tab titles "NEARvest - ...", TaniBot-head favicon, X preview (`og-image.png`, summary_large_image). Fonts (Ardian 2026-11-08): Bungee titles and logo, DotGothic16 reading text, Tiny5 buttons / labels / numbers, all self-hosted; no sans-serif anywhere. One type scale (13/16/20/26/42/68), stepped pixel corners on every box. ui-test's UI_URL now points at /play.
+- **Landing page (2026-11-08, live):** `/` = landing (`web/index.html`, `src/landing.tsx`, `src/landing.css`), `/play` = sign-in + game (`web/play.html`), `/privacy`, `/terms`. Signed-in players and old links with game options (`?record`, `?time`, `?bg`, `?judge`) go to `/play`; `/play?judge=1` makes a judge garden right away. Tab titles "NEARvest - ...", TaniBot-head favicon, X preview (`og-image.png`, summary_large_image). Fonts: see Design system (Bungee was replaced by Silkscreen on 2026-11-09). One type scale (13/16/20/26/42/68), stepped pixel corners on every box. ui-test's UI_URL now points at /play.
 - **Phone garden = one fixed screen (2026-11-08, web pushed):** on phones the Garden tab never scrolls or bounces (`.shell.phone-fit`, `html.page-locked`, 100dvh); the code sky reaches the top edge behind the floating HUD, the village sits right above the plot sheet and its bottom bushes continue (mirrored strips) under the sheet and the tabs (`layout.ts phoneFill`, `Backdrop groundBelow`). TaniBot stands in front of the mounds (labels above the mounds, its ON/OFF chip under its feet). Seed row: cards fit their count, pixel scrollbar + one-time "Swipe for more" hint (laptops keep the arrows). Storage: "+ SEEDS (6)" / "− SEEDS (6)" sections showing 2 rows + "... 4 more" (remembered in `nearvest.storageOpen`). Village log: time and short hash per transaction; the server's limit of 50 transactions (`activity()` in server/src/game.ts, was 20) **waits for the next server release** to the VPS (until then the live log shows 20). Phones held sideways see a "turn your phone upright" screen (`rotate.tsx`, CSS media query: landscape, height <= 520 px and width < 1024 px or a touch screen). Browser check: `--phonefit=<newDevUser>` in tools/ui-test.mjs (FAKE_DB adds seeds, fruit, items).
-- **Ardian's iPhone test fixes (2026-11-09, web only, not pushed yet):** no TaniBot evolution row on the landing or login page any more; TaniBot's sleepy bubble is small ("Zzz... Tap me to help!" + small "Not now"), sits by its head and moves aside so it never covers a place pin or Mr. Darto (`useHintPlacement` in `scene.tsx`); pins never cover Mr. Darto (`.village-darto` is a weighted obstacle in `art/hotspots.tsx`); the Market icon everywhere is Mr. Darto's head cut from the waving sprite (`DartoHead` in `art/darto.tsx`; the old code-drawn face is gone); the HUD (i) is grouped with the Day/Demo chip (`.chip-day-group`) and the check-in text keeps the width of "Check in", so the (i) no longer jumps to the Judge tour row on Safari.
-- **Revision 2 (2026-11-09, web only, not pushed yet):** place pins are boxes with stepped pixel corners (frame = inner `.pin-frame`, neon glow = filter on the pin so the clip does not cut it), every icon fits a 16 px box (Mr. Darto: `DartoHead small`, 15 x 14 via `shrink`); laptops: the village's bottom bushes continue under the plot panel (`Backdrop groundBelow` + `groundWide`). `screenshots/` is git-ignored. Waiting for Ardian: landing title font (Bungee vs Press Start 2P / Silkscreen / Pixelify Sans, all OFL) and the 24-colour UI palette proposal (today 282 colour values in the UI).
+- **Ardian's iPhone test fixes (2026-11-09, web only, pushed):** no TaniBot evolution row on the landing or login page any more; TaniBot's sleepy bubble is small ("Zzz... Tap me to help!" + small "Not now"), sits by its head and moves aside so it never covers a place pin or Mr. Darto (`useHintPlacement` in `scene.tsx`); pins never cover Mr. Darto (`.village-darto` is a weighted obstacle in `art/hotspots.tsx`); the Market icon everywhere is Mr. Darto's head cut from the waving sprite (`DartoHead` in `art/darto.tsx`; the old code-drawn face is gone); the HUD (i) is grouped with the Day/Demo chip (`.chip-day-group`) and the check-in text keeps the width of "Check in", so the (i) no longer jumps to the Judge tour row on Safari.
+- **Revision 2 (2026-11-09, web only, pushed with 0380026 on 2026-11-09; VPS unchanged):** place pins are boxes with stepped pixel corners (frame = inner `.pin-frame`, neon glow = filter on the pin so the clip does not cut it), every icon fits a 16 px box (Mr. Darto: `DartoHead small`, 15 x 14 via `shrink`); laptops: the village's bottom bushes continue under the plot panel (`Backdrop groundBelow` + `groundWide`). `screenshots/` is git-ignored. Font (Silkscreen) and the 24-colour palette were chosen and built the same day: see Design system.
 - **Open notes:** the Shop stall is partly covered by the tree on plot 1 (the pin moves to a free spot, so it stays clickable); the Market house is often behind the plot 2 tree (same: use its pin).
 
 **Next, in this order:**

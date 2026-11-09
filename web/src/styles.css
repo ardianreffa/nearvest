@@ -1,30 +1,44 @@
-/* NEARvest: Solarpunk Nusantara pixel theme. Colors from the GDD. */
+/* NEARvest: Solarpunk Nusantara pixel theme.
+
+   COLOUR PALETTE (design system, Ardian 2026-11-09; see CLAUDE.md "Design system").
+   24 named colours, one job each. Every UI colour (panels, buttons, chips, text) uses these
+   variables; see-through versions are color-mix(in srgb, var(--x) N%, transparent).
+   The GDD colours are the middle step (-500) of each ramp. Pixel art (village, characters,
+   sprites, TaniBot / drone / sky effects) keeps its own colours and is not part of this. */
 
 :root {
-  --mint-dim: rgba(0, 236, 151, 0.35);
-  --wood: #6b4a2f;
-  --wood-dark: #3f2a19;
-  --wood-light: #8a6342;
-  --bamboo-a: #c9a24a;
-  --bamboo-b: #9a7a2e;
-  --leaf: #2e7d4f;
-  --leaf-light: #4caf6a;
-  --leaf-dark: #1e5a38;
-  --soil: #6b4a2f;
-  --soil-dark: #4a321f;
-  --mint: #00ec97;
-  --cyan: #22d3ee;
-  --gold: #f5c542;
-  --purple: #8b5cf6;
-  --red: #e5484d;
-
-  --bg: #0f2a1e;
-  --bg-2: #143826;
-  --panel: #f6efd9;
-  --panel-2: #ece2c2;
-  --ink: #1b1b2f;
-  --ink-soft: #5b5546;
-  --line: #1b1b2f;
+  /* Leaf */
+  --leaf-700: #1e5a38; /* page background, logo shadow, dark green text */
+  --leaf-500: #2e7d4f; /* GDD leaf: XP bar, plant / garden, Seedling */
+  --leaf-300: #6fbf7f; /* grass highlights, growing progress */
+  /* Soil / wood */
+  --soil-700: #3f2a19; /* dark wood: frames, drawer edge, HUD outlines */
+  --soil-500: #6b4a2f; /* GDD soil: wood panels, menu drawer */
+  --soil-300: #a07a52; /* light wood, disabled buttons */
+  /* Mint (NEAR) */
+  --mint-700: #00935e; /* success text on paper, pressed primary */
+  --mint-500: #00ec97; /* GDD mint: primary button, NEAR / tx success, selected */
+  --mint-300: #9cf8d2; /* success background, tx toast tint */
+  /* Cyan (tech, water) */
+  --cyan-700: #0b6b86; /* (i) buttons, links */
+  --cyan-500: #22d3ee; /* GDD cyan: Water, Demo, Soon, info */
+  --cyan-300: #a8f1fb; /* watered tint, info bubble edge */
+  /* Gold (PANEN) */
+  --gold-700: #9a7a2e; /* gold text on paper, dark bamboo */
+  --gold-500: #f5c542; /* GDD gold: PANEN, Harvest, Gold quality, check-in, panel frames */
+  --gold-300: #ffe08a; /* PANEN chip highlight, tagline glow */
+  /* Purple (Rare, AI) */
+  --purple-700: #5b3db8; /* Rare text on paper */
+  --purple-500: #8b5cf6; /* GDD purple: Rare quality, AI tag */
+  --purple-300: #cdbefe; /* Rare badge background */
+  /* Neutrals */
+  --ink: #1b1b2f; /* all text and outlines on light boxes; shadows (see-through) */
+  --ink-soft: #5b5546; /* secondary text, hints */
+  --paper: #f6efd9; /* paper panels (cream) */
+  --paper-light: #fffaf0; /* bubbles, toasts, cards, light buttons; white text */
+  --hud: #12303a; /* dark-blue HUD capsules and chips (see-through) */
+  /* Danger */
+  --red-500: #e5484d; /* errors, Cut down tree, failed tx */
 
   --px: 3px; /* one "pixel" of the UI chrome */
   color-scheme: light;
@@ -37,7 +51,7 @@
 html,
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--leaf-700);
   color: var(--ink);
   /* Tiny5 for labels and numbers (clear digits); Silkscreen titles and DotGothic16 text: see TYPOGRAPHY. */
   font-family: var(--font-ui);
@@ -48,9 +62,9 @@ body {
 
 body {
   background:
-    radial-gradient(circle at 20% 0%, rgba(0, 236, 151, 0.12), transparent 40%),
-    radial-gradient(circle at 90% 10%, rgba(34, 211, 238, 0.1), transparent 35%),
-    var(--bg);
+    radial-gradient(circle at 20% 0%, color-mix(in srgb, var(--mint-500) 12%, transparent), transparent 40%),
+    radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--cyan-500) 10%, transparent), transparent 35%),
+    var(--leaf-700);
   min-height: 100vh;
 }
 
@@ -60,7 +74,7 @@ svg {
 }
 
 a {
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
   font-weight: 600;
 }
 
@@ -81,7 +95,7 @@ h1,
 /* Dark outline so small icons stay visible on colored buttons and badges. */
 .btn svg,
 .badge svg {
-  filter: drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000);
+  filter: drop-shadow(1px 0 0 var(--ink)) drop-shadow(-1px 0 0 var(--ink)) drop-shadow(0 1px 0 var(--ink)) drop-shadow(0 -1px 0 var(--ink));
 }
 
 button {
@@ -106,20 +120,20 @@ button {
   justify-content: center;
   text-align: center;
   gap: 12px;
-  color: #e8f5ec;
+  color: var(--paper-light);
   padding-bottom: 32px;
 }
 
 .shell.center .muted {
-  color: #b9d3c3;
+  color: var(--mint-300);
 }
 
 .logo {
   font-size: var(--fs-h1);
-  color: var(--mint);
+  color: var(--mint-500);
   text-shadow:
-    var(--px) var(--px) 0 var(--leaf-dark),
-    calc(var(--px) * 2) calc(var(--px) * 2) 0 #000;
+    var(--px) var(--px) 0 var(--leaf-700),
+    calc(var(--px) * 2) calc(var(--px) * 2) 0 var(--ink);
   letter-spacing: 1px;
 }
 
@@ -130,8 +144,8 @@ button {
   font-size: var(--fs-tagline-login);
   font-weight: 700;
   white-space: nowrap;
-  color: var(--gold);
-  text-shadow: 2px 0 0 #3b2a00, -2px 0 0 #3b2a00, 0 2px 0 #3b2a00, 0 -2px 0 #3b2a00, 0 3px 0 #3b2a00;
+  color: var(--gold-500);
+  text-shadow: 2px 0 0 var(--soil-700), -2px 0 0 var(--soil-700), 0 2px 0 var(--soil-700), 0 -2px 0 var(--soil-700), 0 3px 0 var(--soil-700);
 }
 
 .content {
@@ -147,11 +161,11 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
-  background: var(--bg-2);
-  color: #e8f5ec;
+  background: var(--hud);
+  color: var(--paper-light);
   padding: 8px 10px;
-  border: var(--px) solid #000;
-  box-shadow: inset 0 calc(var(--px) * -1) 0 rgba(0, 0, 0, 0.35);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset 0 calc(var(--px) * -1) 0 color-mix(in srgb, var(--ink) 35%, transparent);
 }
 
 .who {
@@ -171,20 +185,20 @@ button {
 
 .title-line {
   font-size: var(--fs-sm);
-  color: var(--gold);
+  color: var(--gold-500);
 }
 
 .xp {
   width: 120px;
   height: 6px;
-  background: #0a1d14;
-  border: 1px solid #000;
+  background: var(--ink);
+  border: 1px solid var(--ink);
   margin-top: 3px;
 }
 
 .xp > div {
   height: 100%;
-  background: var(--mint);
+  background: var(--mint-500);
 }
 
 .balance {
@@ -193,10 +207,10 @@ button {
   gap: 6px;
   font-size: var(--fs-h3);
   font-weight: 700;
-  color: var(--gold);
-  background: #0a1d14;
+  color: var(--gold-500);
+  background: var(--ink);
   padding: 4px 10px;
-  border: 2px solid var(--gold);
+  border: 2px solid var(--gold-500);
 }
 
 .subbar {
@@ -205,19 +219,19 @@ button {
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 8px;
-  color: #b9d3c3;
+  color: var(--mint-300);
   font-size: var(--fs-sm);
   margin: 8px 2px 10px;
 }
 
 .subbar .link-btn {
-  color: #b9d3c3;
+  color: var(--mint-300);
 }
 
 .notice {
-  background: var(--bg-2);
-  color: var(--cyan);
-  border: 2px dashed var(--cyan);
+  background: var(--hud);
+  color: var(--cyan-500);
+  border: 2px dashed var(--cyan-500);
   padding: 6px 10px;
   margin: 0 0 10px;
   font-size: var(--fs-sm);
@@ -226,11 +240,11 @@ button {
 /* ---------- Panels ---------- */
 
 .panel {
-  background: var(--panel);
-  border: var(--px) solid var(--line);
+  background: var(--paper);
+  border: var(--px) solid var(--ink);
   box-shadow:
-    inset calc(var(--px) * -1) calc(var(--px) * -1) 0 var(--panel-2),
-    var(--px) var(--px) 0 #000;
+    inset calc(var(--px) * -1) calc(var(--px) * -1) 0 var(--paper),
+    var(--px) var(--px) 0 var(--ink);
   padding: 12px;
 }
 
@@ -244,7 +258,7 @@ button {
 
 .panel-head h2 {
   font-size: var(--fs-h3);
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
 }
 
 .muted {
@@ -257,14 +271,14 @@ button {
 }
 
 .hint {
-  color: #b9d3c3;
+  color: var(--mint-300);
   font-size: var(--fs-sm);
   text-align: center;
   margin: 0;
 }
 
 .error-text {
-  color: var(--red);
+  color: var(--red-500);
   font-weight: 600;
 }
 
@@ -277,10 +291,10 @@ button {
   gap: 6px;
   min-height: 44px;
   padding: 8px 14px;
-  background: #fffaf0;
+  background: var(--paper-light);
   color: var(--ink);
-  border: var(--px) solid var(--line);
-  box-shadow: 0 var(--px) 0 #000;
+  border: var(--px) solid var(--ink);
+  box-shadow: 0 var(--px) 0 var(--ink);
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
@@ -302,20 +316,20 @@ button {
 .plot:focus-visible,
 .seed-btn:focus-visible,
 .link-btn:focus-visible {
-  outline: 3px solid var(--cyan);
+  outline: 3px solid var(--cyan-500);
   outline-offset: 2px;
 }
 
 .btn-mint {
-  background: var(--mint);
+  background: var(--mint-500);
 }
 
 .btn-cyan {
-  background: var(--cyan);
+  background: var(--cyan-500);
 }
 
 .btn-gold {
-  background: var(--gold);
+  background: var(--gold-500);
 }
 
 .btn-small {
@@ -325,16 +339,16 @@ button {
 }
 
 .btn-google {
-  background: #fff;
+  background: var(--paper-light);
   width: 100%;
   max-width: 320px;
 }
 
 /* NEAR wallet: black with the NEAR mint accent. */
 .btn-wallet {
-  background: #111;
-  color: var(--mint);
-  border-color: var(--mint);
+  background: var(--ink);
+  color: var(--mint-500);
+  border-color: var(--mint-500);
 }
 
 .login .btn-wallet {
@@ -345,14 +359,14 @@ button {
   background: none;
   border: 0;
   padding: 4px;
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
   text-decoration: underline;
   cursor: pointer;
   font-weight: 600;
 }
 
 .link-btn.danger {
-  color: #9b2c2c;
+  color: var(--soil-500);
   display: block;
   margin: 8px auto 0;
   font-size: var(--fs-sm);
@@ -369,33 +383,33 @@ button {
   padding: 1px 6px;
   font-size: var(--fs-xs);
   font-weight: 700;
-  border: 2px solid var(--line);
-  background: #fff;
+  border: 2px solid var(--ink);
+  background: var(--paper-light);
   white-space: nowrap;
 }
 
 .tag-common {
-  background: #d9f2e2;
+  background: var(--paper);
 }
 
 .tag-rare {
-  background: var(--purple);
-  color: #fff;
+  background: var(--purple-500);
+  color: var(--paper-light);
 }
 
 .tag-gold {
-  background: var(--gold);
+  background: var(--gold-500);
 }
 
 .tag-unknown {
-  background: #eee;
+  background: var(--paper-light);
 }
 
 .tag-demo {
   margin-left: 6px;
-  background: var(--cyan);
+  background: var(--cyan-500);
   color: var(--ink);
-  border-color: #000;
+  border-color: var(--ink);
 }
 
 /* ---------- Check-in ---------- */
@@ -404,8 +418,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--bg-2);
-  border: var(--px) solid #000;
+  background: var(--hud);
+  border: var(--px) solid var(--ink);
   padding: 10px;
 }
 
@@ -420,26 +434,26 @@ button {
   align-items: center;
   justify-content: center;
   height: 32px;
-  background: #0a1d14;
-  color: #b9d3c3;
-  border: 2px solid #2c4f3c;
+  background: var(--ink);
+  color: var(--mint-300);
+  border: 2px solid var(--leaf-700);
   font-weight: 700;
 }
 
 .cal-day.done {
-  background: var(--leaf);
-  color: #fff;
-  border-color: var(--mint);
+  background: var(--leaf-500);
+  color: var(--paper-light);
+  border-color: var(--mint-500);
 }
 
 .cal-day.next {
-  border-color: var(--gold);
-  color: var(--gold);
+  border-color: var(--gold-500);
+  color: var(--gold-500);
   animation: pulse 1.2s steps(2) infinite;
 }
 
 .cal-day.big {
-  border-color: var(--gold);
+  border-color: var(--gold-500);
 }
 
 /* ---------- Garden scene ---------- */
@@ -454,8 +468,8 @@ button {
   position: relative;
   height: 250px;
   overflow: hidden;
-  border: var(--px) solid #000;
-  box-shadow: 0 0 0 2px var(--mint-dim), 0 0 18px rgba(0, 236, 151, 0.18);
+  border: var(--px) solid var(--ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mint-500) 35%, transparent), 0 0 18px color-mix(in srgb, var(--mint-500) 18%, transparent);
   isolation: isolate;
 }
 
@@ -502,14 +516,14 @@ button {
   height: var(--soil-h);
   background:
     repeating-linear-gradient(90deg, transparent 0 9px, rgba(0, 0, 0, 0.2) 9px 12px),
-    linear-gradient(#7d5636, var(--soil));
-  border: var(--px) solid var(--soil-dark);
+    linear-gradient(#7d5636, var(--soil-500));
+  border: var(--px) solid var(--soil-700);
   box-shadow: inset 0 var(--px) 0 #9a7049, inset 0 calc(var(--px) * -1) 0 rgba(0, 236, 151, 0.25);
 }
 
 .plot.selected .soil {
-  border-color: var(--mint);
-  box-shadow: inset 0 var(--px) 0 #9a7049, 0 0 10px var(--mint);
+  border-color: var(--mint-500);
+  box-shadow: inset 0 var(--px) 0 #9a7049, 0 0 10px var(--mint-500);
 }
 
 .plot.locked .soil {
@@ -533,13 +547,13 @@ button {
   background:
     repeating-linear-gradient(90deg, transparent 0 9px, rgba(0, 0, 0, 0.18) 9px 12px),
     linear-gradient(#6b4a2f, #553a24);
-  border: var(--px) solid var(--soil-dark);
+  border: var(--px) solid var(--soil-700);
   border-top: 2px solid #8a6342;
   pointer-events: none;
 }
 
 .plot.selected .soil::after {
-  border-color: var(--mint);
+  border-color: var(--mint-500);
   border-top-color: #8a6342;
 }
 
@@ -549,10 +563,10 @@ button {
 }
 
 .empty-hint {
-  color: #fff;
+  color: var(--paper-light);
   font-size: var(--fs-sm);
-  background: rgba(15, 42, 30, 0.8);
-  border: 1px solid var(--mint);
+  background: color-mix(in srgb, var(--ink) 80%, transparent);
+  border: 1px solid var(--mint-500);
   padding: 2px 6px;
   margin-bottom: 18px;
 }
@@ -568,22 +582,22 @@ button {
   gap: 3px;
   padding: 1px 6px;
   font-size: var(--fs-xs);
-  border: 2px solid #000;
+  border: 2px solid var(--ink);
   white-space: nowrap;
 }
 
 .badge.ready {
-  background: var(--gold);
+  background: var(--gold-500);
   animation: bob 1s steps(2) infinite;
 }
 
 .badge.thirsty {
-  background: #fff;
-  color: #0b6b86;
+  background: var(--paper-light);
+  color: var(--cyan-700);
 }
 
 .badge.growing {
-  background: rgba(255, 255, 255, 0.88);
+  background: color-mix(in srgb, var(--paper-light) 88%, transparent);
 }
 
 .soil-glow {
@@ -671,7 +685,7 @@ button {
 /* Volcano and chimney smoke: pixel puffs that rise, grow and fade. */
 .puff {
   /* white by day, grey at night */
-  background: color-mix(in srgb, rgb(120, 130, 150) calc(var(--night) * 100%), rgb(240, 244, 248));
+  background: color-mix(in srgb, var(--leaf-300) calc(var(--night) * 100%), var(--paper-light));
   animation: puff 5.2s steps(10) infinite;
   opacity: 0;
 }
@@ -685,12 +699,12 @@ button {
   clip-path: none;
   animation-duration: 3.6s;
   /* Steam from the geothermal station: soft round wisps. */
-  background: radial-gradient(circle, rgba(245, 248, 252, 0.95) 0 45%, rgba(245, 248, 252, 0) 72%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--paper-light) 95%, transparent) 0 45%, transparent 72%);
 }
 
 /* Waterfalls in the rice terraces: light bands sliding down. */
 .fall {
-  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0 18%, transparent 18% 50%);
+  background: repeating-linear-gradient(180deg, color-mix(in srgb, var(--paper-light) 75%, transparent) 0 18%, transparent 18% 50%);
   background-size: 100% 200%;
   mix-blend-mode: screen;
   opacity: 0.55;
@@ -708,7 +722,7 @@ button {
 
 /* Lanterns: a soft mint glow that breathes, much stronger at night. */
 .lamp {
-  background: radial-gradient(circle, rgba(0, 236, 151, 0.75) 0 30%, rgba(0, 236, 151, 0) 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--mint-500) 75%, transparent) 0 30%, transparent 70%);
   mix-blend-mode: screen;
   opacity: calc(0.25 + 0.75 * var(--night));
   animation: lamp 2.6s steps(3) infinite;
@@ -716,8 +730,8 @@ button {
 
 /* Blinking LEDs on the drones painted in the sky. */
 .led {
-  background: var(--mint);
-  box-shadow: 0 0 3px var(--mint);
+  background: var(--mint-500);
+  box-shadow: 0 0 3px var(--mint-500);
   animation: led-blink 1.4s steps(1) infinite;
 }
 
@@ -748,7 +762,7 @@ button {
 }
 
 .mini-led {
-  fill: #00ec97;
+  fill: var(--mint-500);
   animation: led-blink 0.8s steps(1) infinite;
 }
 
@@ -870,30 +884,30 @@ button {
 }
 
 .tree.q-rare {
-  filter: drop-shadow(0 0 3px var(--purple)) drop-shadow(0 0 1px #c4b5fd);
+  filter: drop-shadow(0 0 3px var(--purple-500)) drop-shadow(0 0 1px #c4b5fd);
 }
 
 .tree.q-gold {
-  filter: drop-shadow(0 0 3px var(--gold)) drop-shadow(0 0 1px #fff3b0);
+  filter: drop-shadow(0 0 3px var(--gold-500)) drop-shadow(0 0 1px #fff3b0);
 }
 
 .twinkles i {
   position: absolute;
   width: 4px;
   height: 4px;
-  background: #fff;
-  box-shadow: 0 0 4px #fff;
+  background: var(--paper-light);
+  box-shadow: 0 0 4px var(--paper-light);
   animation: twinkle 1.8s steps(3) infinite;
 }
 
 .q-rare .twinkles i {
-  background: #ddd6fe;
-  box-shadow: 0 0 6px var(--purple);
+  background: var(--purple-300);
+  box-shadow: 0 0 6px var(--purple-500);
 }
 
 .q-gold .twinkles i {
-  background: #fff3b0;
-  box-shadow: 0 0 6px var(--gold);
+  background: var(--paper);
+  box-shadow: 0 0 6px var(--gold-500);
 }
 
 /* ---------- TaniBot ---------- */
@@ -923,7 +937,7 @@ button {
 }
 
 .bot-leds {
-  filter: drop-shadow(0 0 2px var(--mint)) drop-shadow(0 0 4px var(--mint));
+  filter: drop-shadow(0 0 2px var(--mint-500)) drop-shadow(0 0 4px var(--mint-500));
   animation: led 1.6s steps(2) infinite;
 }
 
@@ -932,7 +946,7 @@ button {
 }
 
 .bot-thruster {
-  filter: drop-shadow(0 0 3px var(--cyan));
+  filter: drop-shadow(0 0 3px var(--cyan-500));
   animation: flicker 0.25s steps(2) infinite;
 }
 
@@ -946,7 +960,7 @@ button {
 
 .phase-night .bot-eyes,
 .phase-night .bot-screen {
-  filter: drop-shadow(0 0 3px var(--cyan));
+  filter: drop-shadow(0 0 3px var(--cyan-500));
 }
 
 .bot-drones {
@@ -1011,8 +1025,8 @@ button {
   height: 6px;
   margin-left: -1px;
   border-radius: 2px;
-  background: var(--cyan);
-  box-shadow: 0 0 5px var(--cyan);
+  background: var(--cyan-500);
+  box-shadow: 0 0 5px var(--cyan-500);
   opacity: 0;
   animation: water-drop 0.55s ease-in forwards;
 }
@@ -1071,7 +1085,7 @@ button {
   bottom: 18%;
   transform-origin: 80% 90%;
   animation: hoe 0.9s steps(3) forwards;
-  filter: drop-shadow(0 0 4px var(--mint));
+  filter: drop-shadow(0 0 4px var(--mint-500));
 }
 
 .act-harvest .laser,
@@ -1079,8 +1093,8 @@ button {
   position: absolute;
   bottom: 40%;
   height: 3px;
-  background: linear-gradient(90deg, var(--cyan), #fff, var(--cyan));
-  box-shadow: 0 0 8px var(--cyan);
+  background: linear-gradient(90deg, var(--cyan-500), #fff, var(--cyan-500));
+  box-shadow: 0 0 8px var(--cyan-500);
   animation: laser 0.6s steps(3) forwards;
 }
 
@@ -1088,7 +1102,7 @@ button {
   height: 10px;
   bottom: 36%;
   background: repeating-linear-gradient(90deg, rgba(0, 236, 151, 0.8) 0 3px, transparent 3px 7px);
-  box-shadow: 0 0 10px var(--mint);
+  box-shadow: 0 0 10px var(--mint-500);
 }
 
 .act-harvest .jump-fruit {
@@ -1109,13 +1123,13 @@ button {
 }
 
 .nano.mint {
-  background: var(--mint);
-  box-shadow: 0 0 5px var(--mint);
+  background: var(--mint-500);
+  box-shadow: 0 0 5px var(--mint-500);
 }
 
 .nano.gold {
-  background: var(--gold);
-  box-shadow: 0 0 5px var(--gold);
+  background: var(--gold-500);
+  box-shadow: 0 0 5px var(--gold-500);
 }
 
 .act-chop .ghost-tree {
@@ -1140,8 +1154,8 @@ button {
   bottom: 30%;
   width: 3px;
   height: 3px;
-  background: var(--mint);
-  box-shadow: 0 0 6px var(--mint);
+  background: var(--mint-500);
+  box-shadow: 0 0 6px var(--mint-500);
   opacity: 0;
   animation: rise 1.1s ease-out forwards;
 }
@@ -1161,9 +1175,9 @@ button {
   gap: 4px;
   min-height: 84px;
   padding: 8px 4px;
-  background: #fffaf0;
-  border: var(--px) solid var(--line);
-  box-shadow: 0 var(--px) 0 #000;
+  background: var(--paper-light);
+  border: var(--px) solid var(--ink);
+  box-shadow: 0 var(--px) 0 var(--ink);
   cursor: pointer;
   font-size: var(--fs-sm);
   font-weight: 600;
@@ -1184,13 +1198,13 @@ button {
 .progress {
   height: 12px;
   margin: 8px 0 4px;
-  background: #d8cfb1;
-  border: 2px solid var(--line);
+  background: var(--gold-300);
+  border: 2px solid var(--ink);
 }
 
 .progress-bar {
   height: 100%;
-  background: repeating-linear-gradient(90deg, var(--leaf) 0 6px, var(--leaf-light) 6px 9px);
+  background: repeating-linear-gradient(90deg, var(--leaf-500) 0 6px, var(--leaf-300) 6px 9px);
   transition: width 0.4s steps(6);
 }
 
@@ -1225,8 +1239,8 @@ button {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  background: #fffaf0;
-  border: 2px solid #d8cfb1;
+  background: var(--paper-light);
+  border: 2px solid var(--gold-300);
   min-height: 44px;
 }
 
@@ -1240,15 +1254,15 @@ button {
   align-items: center;
   gap: 4px;
   font-weight: 700;
-  color: #7a5a10;
+  color: var(--soil-500);
 }
 
 .burn-note {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #ffe9d6;
-  border: 2px solid #e8a36a;
+  background: var(--paper);
+  border: 2px solid var(--gold-500);
   padding: 6px 8px;
   margin: 0 0 8px;
   font-size: var(--fs-sm);
@@ -1267,8 +1281,8 @@ button {
 .speech {
   position: relative;
   margin: 0;
-  background: #fff;
-  border: 2px solid var(--line);
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
   padding: 8px 10px;
   font-size: var(--fs-sm);
 }
@@ -1285,8 +1299,8 @@ button {
   height: 6px;
   width: 100%;
   max-width: 160px;
-  background: linear-gradient(90deg, #e5d7a8, var(--gold));
-  border: 1px solid var(--line);
+  background: linear-gradient(90deg, var(--gold-300), var(--gold-500));
+  border: 1px solid var(--ink);
 }
 
 .range-dot {
@@ -1304,11 +1318,11 @@ button {
 }
 
 .up {
-  color: var(--leaf);
+  color: var(--leaf-500);
 }
 
 .down {
-  color: #9b2c2c;
+  color: var(--soil-500);
 }
 
 /* ---------- Village ---------- */
@@ -1323,8 +1337,8 @@ button {
   display: flex;
   flex-direction: column;
   padding: 8px;
-  background: #fffaf0;
-  border: 2px solid #d8cfb1;
+  background: var(--paper-light);
+  border: 2px solid var(--gold-300);
 }
 
 .stat-label {
@@ -1335,12 +1349,12 @@ button {
 .stat-value {
   font-size: var(--fs-h3);
   font-weight: 700;
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
   word-break: break-word;
 }
 
 .stat-burn .stat-value {
-  color: #b5462a;
+  color: var(--red-500);
 }
 
 .stat-note {
@@ -1351,21 +1365,21 @@ button {
 .dot {
   width: 10px;
   height: 10px;
-  border: 2px solid #000;
+  border: 2px solid var(--ink);
   flex: none;
 }
 
 .dot-done {
-  background: var(--mint);
+  background: var(--mint-500);
 }
 
 .dot-pending {
-  background: var(--gold);
+  background: var(--gold-500);
   animation: pulse 0.8s steps(2) infinite;
 }
 
 .dot-failed {
-  background: var(--red);
+  background: var(--red-500);
 }
 
 /* ---------- Bottom tabs ---------- */
@@ -1379,8 +1393,8 @@ button {
   max-width: 430px;
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  background: var(--bg-2);
-  border-top: var(--px) solid #000;
+  background: var(--hud);
+  border-top: var(--px) solid var(--ink);
   padding-bottom: env(safe-area-inset-bottom);
   z-index: 10;
 }
@@ -1394,7 +1408,7 @@ button {
   min-height: 64px;
   background: none;
   border: 0;
-  color: #b9d3c3;
+  color: var(--mint-300);
   font-size: var(--fs-xs);
   font-weight: 600;
   cursor: pointer;
@@ -1407,9 +1421,9 @@ button {
 }
 
 .tab.active {
-  color: var(--mint);
-  background: #0a1d14;
-  box-shadow: inset 0 var(--px) 0 var(--mint);
+  color: var(--mint-500);
+  background: var(--ink);
+  box-shadow: inset 0 var(--px) 0 var(--mint-500);
 }
 
 /* ---------- Toasts and the blockchain flash ---------- */
@@ -1435,9 +1449,9 @@ button {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: #fffaf0;
-  border: var(--px) solid #000;
-  box-shadow: var(--px) var(--px) 0 #000;
+  background: var(--paper-light);
+  border: var(--px) solid var(--ink);
+  box-shadow: var(--px) var(--px) 0 var(--ink);
   font-size: var(--fs-sm);
   font-weight: 600;
   pointer-events: auto;
@@ -1449,28 +1463,28 @@ button {
 }
 
 .toast-error {
-  background: #ffe1e1;
+  background: var(--paper);
 }
 
 .toast-chain {
-  background: #0a1d14;
-  color: var(--mint);
-  border-color: var(--mint);
+  background: var(--ink);
+  color: var(--mint-500);
+  border-color: var(--mint-500);
 }
 
 .toast-chain a {
-  color: var(--cyan);
+  color: var(--cyan-500);
 }
 
 /* Success (TaniBot activated, budget moved): green with a check mark and the tx link. */
 .toast-success {
-  background: #0a1d14;
-  color: var(--mint);
-  border-color: var(--mint);
+  background: var(--ink);
+  color: var(--mint-500);
+  border-color: var(--mint-500);
 }
 
 .toast-success a {
-  color: var(--cyan);
+  color: var(--cyan-500);
 }
 
 .toast-check {
@@ -1479,8 +1493,8 @@ button {
   width: 20px;
   height: 20px;
   flex: none;
-  background: var(--mint);
-  color: #0a1d14;
+  background: var(--mint-500);
+  color: var(--ink);
   font-size: var(--fs-sm);
   line-height: 1;
 }
@@ -1493,8 +1507,8 @@ button {
 @keyframes count-flash {
   0%,
   40% {
-    color: #0a8f5f;
-    text-shadow: 0 0 6px var(--mint);
+    color: var(--mint-700);
+    text-shadow: 0 0 6px var(--mint-500);
   }
   100% {
     color: inherit;
@@ -1513,7 +1527,7 @@ button {
   inset: 0;
   pointer-events: none;
   z-index: 15;
-  box-shadow: inset 0 0 0 6px var(--mint), inset 0 0 60px rgba(0, 236, 151, 0.55);
+  box-shadow: inset 0 0 0 6px var(--mint-500), inset 0 0 60px color-mix(in srgb, var(--mint-500) 55%, transparent);
   animation: flash 700ms steps(4) forwards;
 }
 
@@ -1531,7 +1545,7 @@ button {
 
 .dev-login label {
   font-size: var(--fs-sm);
-  color: #b9d3c3;
+  color: var(--mint-300);
 }
 
 .row {
@@ -1547,18 +1561,18 @@ input:not([type]) {
   padding: 8px 10px;
   font: inherit;
   font-size: var(--fs-body); /* prevents zoom on iPhone */
-  background: #fffaf0;
+  background: var(--paper-light);
   color: var(--ink);
-  border: var(--px) solid #000;
+  border: var(--px) solid var(--ink);
 }
 
 input:focus-visible {
-  outline: 3px solid var(--cyan);
+  outline: 3px solid var(--cyan-500);
 }
 
 .account-preview {
   margin: 0;
-  color: var(--mint);
+  color: var(--mint-500);
   font-size: var(--fs-sm);
   word-break: break-all;
 }
@@ -1567,14 +1581,14 @@ input:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #e8f5ec;
+  color: var(--paper-light);
   font-size: var(--fs-sm);
 }
 
 .check input {
   width: 20px;
   height: 20px;
-  accent-color: var(--mint);
+  accent-color: var(--mint-500);
 }
 
 .google-slot {
@@ -1634,13 +1648,13 @@ input:focus-visible {
   justify-content: center;
   width: 44px;
   height: 44px;
-  background: #0a1d14;
-  border: 2px solid #2c4f3c;
+  background: var(--ink);
+  border: 2px solid var(--leaf-700);
   cursor: pointer;
 }
 
 .icon-btn:focus-visible {
-  outline: 3px solid var(--cyan);
+  outline: 3px solid var(--cyan-500);
 }
 
 .tag-unknown {
@@ -1663,7 +1677,7 @@ input:focus-visible {
 .checkin-note {
   margin: 0;
   font-size: var(--fs-xs);
-  color: #b9d3c3;
+  color: var(--mint-300);
 }
 
 .buy-link {
@@ -1688,7 +1702,7 @@ input:focus-visible {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(5, 15, 10, 0.72);
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
 }
 
 .dialog {
@@ -1732,8 +1746,8 @@ input:focus-visible {
 .side-tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  background: var(--bg-2);
-  border: var(--px) solid #000;
+  background: var(--hud);
+  border: var(--px) solid var(--ink);
 }
 
 .side-tabs .tab {
@@ -1794,7 +1808,7 @@ input:focus-visible {
 }
 
 /* ---------- Dev art preview page ---------- */
-.preview { padding: 16px; color: #e8f5ec; }
+.preview { padding: 16px; color: var(--paper-light); }
 .preview-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
 .preview-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .preview-scene { width: 390px; margin-bottom: 12px; }
@@ -1807,11 +1821,11 @@ input:focus-visible {
 .panel {
   position: relative;
   background:
-    repeating-linear-gradient(0deg, rgba(107, 74, 47, 0.04) 0 2px, transparent 2px 6px),
-    linear-gradient(#fbf4df, #f1e6c6);
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--soil-500) 4%, transparent) 0 2px, transparent 2px 6px),
+    linear-gradient(var(--paper), var(--paper));
   border: 6px solid transparent;
-  border-image: repeating-linear-gradient(90deg, var(--bamboo-a) 0 22px, var(--bamboo-b) 22px 25px, #e0c271 25px 27px) 6;
-  box-shadow: 0 0 0 2px #000, 0 0 0 4px var(--mint-dim), 4px 6px 0 4px rgba(0, 0, 0, 0.35);
+  border-image: repeating-linear-gradient(90deg, var(--gold-500) 0 22px, var(--gold-700) 22px 25px, var(--gold-300) 25px 27px) 6;
+  box-shadow: 0 0 0 2px var(--ink), 0 0 0 4px color-mix(in srgb, var(--mint-500) 35%, transparent), 4px 6px 0 4px color-mix(in srgb, var(--ink) 35%, transparent);
   padding: 0 12px 12px;
 }
 
@@ -1819,25 +1833,25 @@ input:focus-visible {
   margin: 0 -12px 10px;
   padding: 8px 12px;
   background:
-    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.12) 0 1px, transparent 1px 5px),
-    linear-gradient(var(--wood-light), var(--wood));
-  border-bottom: 2px solid var(--mint);
-  box-shadow: 0 2px 8px rgba(0, 236, 151, 0.35);
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink) 12%, transparent) 0 1px, transparent 1px 5px),
+    linear-gradient(var(--soil-300), var(--soil-500));
+  border-bottom: 2px solid var(--mint-500);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--mint-500) 35%, transparent);
 }
 
 .panel-head h2 {
-  color: #fff7e0;
-  text-shadow: 2px 2px 0 var(--wood-dark);
+  color: var(--paper);
+  text-shadow: 2px 2px 0 var(--soil-700);
 }
 
 .panel-head .muted,
 .panel-head .small,
 .panel-head .balance-chip {
-  color: #f6e7c2;
+  color: var(--paper);
 }
 
 .panel-head .link-btn {
-  color: var(--mint);
+  color: var(--mint-500);
 }
 
 /* rivets in the corners */
@@ -1848,8 +1862,8 @@ input:focus-visible {
   top: 6px;
   width: 6px;
   height: 6px;
-  background: var(--mint);
-  box-shadow: 0 0 6px var(--mint);
+  background: var(--mint-500);
+  box-shadow: 0 0 6px var(--mint-500);
   z-index: 1;
 }
 
@@ -1864,61 +1878,61 @@ input:focus-visible {
 .list li,
 .stat,
 .seed-btn {
-  background: #fffaf0;
-  border: 2px solid #d8c79c;
-  box-shadow: inset 0 -2px 0 #eadcb4;
+  background: var(--paper-light);
+  border: 2px solid var(--gold-300);
+  box-shadow: inset 0 -2px 0 var(--paper);
 }
 
 .topbar {
   background:
-    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.15) 0 1px, transparent 1px 6px),
-    linear-gradient(#24563d, #143826);
-  border: 3px solid #000;
-  box-shadow: 0 0 0 2px var(--mint-dim), inset 0 -3px 0 rgba(0, 236, 151, 0.35);
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink) 15%, transparent) 0 1px, transparent 1px 6px),
+    linear-gradient(var(--leaf-700), var(--hud));
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mint-500) 35%, transparent), inset 0 -3px 0 color-mix(in srgb, var(--mint-500) 35%, transparent);
 }
 
 .checkin {
   background:
-    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.14) 0 1px, transparent 1px 5px),
-    linear-gradient(var(--wood-light), var(--wood));
-  border: 3px solid #000;
-  box-shadow: 0 0 0 2px var(--mint-dim);
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink) 14%, transparent) 0 1px, transparent 1px 5px),
+    linear-gradient(var(--soil-300), var(--soil-500));
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mint-500) 35%, transparent);
 }
 
 .cal-day {
-  background: #2a1c10;
-  border-color: #5b4128;
-  color: #e9d7ae;
+  background: var(--soil-700);
+  border-color: var(--soil-500);
+  color: var(--gold-300);
 }
 
 .tabs,
 .side-tabs {
   background:
-    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.15) 0 1px, transparent 1px 6px),
-    linear-gradient(var(--wood), var(--wood-dark));
-  border-top: 3px solid #000;
-  box-shadow: 0 -2px 10px rgba(0, 236, 151, 0.25);
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink) 15%, transparent) 0 1px, transparent 1px 6px),
+    linear-gradient(var(--soil-500), var(--soil-700));
+  border-top: 3px solid var(--ink);
+  box-shadow: 0 -2px 10px color-mix(in srgb, var(--mint-500) 25%, transparent);
 }
 
 .side-tabs {
-  border: 3px solid #000;
+  border: 3px solid var(--ink);
 }
 
 .tab {
-  color: #e9d7ae;
+  color: var(--gold-300);
 }
 
 .tab.active {
-  color: var(--mint);
-  background: rgba(0, 0, 0, 0.35);
-  box-shadow: inset 0 3px 0 var(--mint), 0 0 12px rgba(0, 236, 151, 0.3);
-  text-shadow: 0 0 6px var(--mint);
+  color: var(--mint-500);
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+  box-shadow: inset 0 3px 0 var(--mint-500), 0 0 12px color-mix(in srgb, var(--mint-500) 30%, transparent);
+  text-shadow: 0 0 6px var(--mint-500);
 }
 
 /* Buttons feel pressed */
 .btn {
   border-radius: 0;
-  box-shadow: 0 4px 0 #000, inset 0 -3px 0 rgba(0, 0, 0, 0.18), inset 0 2px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 0 var(--ink), inset 0 -3px 0 color-mix(in srgb, var(--ink) 18%, transparent), inset 0 2px 0 color-mix(in srgb, var(--paper-light) 50%, transparent);
   transition: transform 50ms, box-shadow 50ms, filter 120ms;
 }
 
@@ -1928,11 +1942,11 @@ input:focus-visible {
 
 .btn:active:not(:disabled) {
   transform: translateY(4px) scale(0.98);
-  box-shadow: 0 0 0 #000, inset 0 3px 0 rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 0 var(--ink), inset 0 3px 0 color-mix(in srgb, var(--ink) 25%, transparent);
 }
 
 .btn-mint {
-  box-shadow: 0 4px 0 #000, 0 0 12px rgba(0, 236, 151, 0.45), inset 0 -3px 0 rgba(0, 0, 0, 0.18), inset 0 2px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 0 var(--ink), 0 0 12px color-mix(in srgb, var(--mint-500) 45%, transparent), inset 0 -3px 0 color-mix(in srgb, var(--ink) 18%, transparent), inset 0 2px 0 color-mix(in srgb, var(--paper-light) 50%, transparent);
 }
 
 .balance {
@@ -1951,9 +1965,9 @@ input:focus-visible {
   margin: 0 -12px 10px;
   overflow: hidden;
   background:
-    linear-gradient(#bfeee6 0 62%, transparent 62%),
-    linear-gradient(#4fae5f, #2f7d48);
-  border-bottom: 2px solid #000;
+    linear-gradient(var(--cyan-300) 0 62%, transparent 62%),
+    linear-gradient(var(--leaf-300), var(--leaf-500));
+  border-bottom: 2px solid var(--ink);
 }
 
 .market-scene {
@@ -1998,12 +2012,12 @@ input:focus-visible {
 }
 
 .cart-jets {
-  filter: drop-shadow(0 0 4px var(--cyan));
+  filter: drop-shadow(0 0 4px var(--cyan-500));
   animation: flicker 0.2s steps(2) infinite;
 }
 
 .cart-core {
-  filter: drop-shadow(0 0 3px var(--mint));
+  filter: drop-shadow(0 0 3px var(--mint-500));
   animation: led 1.6s steps(2) infinite;
 }
 
@@ -2013,7 +2027,7 @@ input:focus-visible {
   right: 12px;
   top: 8px;
   font-size: var(--fs-sm);
-  box-shadow: 3px 3px 0 #000;
+  box-shadow: 3px 3px 0 var(--ink);
   z-index: 1;
 }
 
@@ -2023,7 +2037,7 @@ input:focus-visible {
   left: -10px;
   top: 14px;
   border: 5px solid transparent;
-  border-right-color: var(--line);
+  border-right-color: var(--ink);
 }
 
 /* Village Shop stall: centered on the grass, the guard robot floats and blinks. */
@@ -2041,7 +2055,7 @@ input:focus-visible {
 }
 
 .shop-robot-eyes {
-  filter: drop-shadow(0 0 2px var(--cyan));
+  filter: drop-shadow(0 0 2px var(--cyan-500));
   animation: blink 3.6s steps(1) infinite;
 }
 
@@ -2062,24 +2076,24 @@ input:focus-visible {
   font-weight: 700;
   font-size: var(--fs-h3);
   white-space: nowrap;
-  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+  text-shadow: 2px 2px 0 var(--ink), -1px -1px 0 var(--ink), 1px -1px 0 var(--ink), -1px 1px 0 var(--ink);
   animation: float-up 1.4s ease-out forwards;
 }
 
 .tone-gold {
-  color: var(--gold);
+  color: var(--gold-500);
 }
 
 .tone-mint {
-  color: var(--mint);
+  color: var(--mint-500);
 }
 
 .tone-burn {
-  color: #ff7a45;
+  color: var(--red-500);
 }
 
 .tone-xp {
-  color: #c4b5fd;
+  color: var(--purple-300);
 }
 
 .fx-coin {
@@ -2099,8 +2113,8 @@ input:focus-visible {
   position: absolute;
   width: 5px;
   height: 4px;
-  background: var(--leaf-light);
-  box-shadow: 1px 1px 0 var(--leaf-dark);
+  background: var(--leaf-300);
+  box-shadow: 1px 1px 0 var(--leaf-700);
   animation: leaf 1.1s ease-out forwards;
   opacity: 0;
 }
@@ -2184,8 +2198,8 @@ input:focus-visible {
 
 @keyframes dissolve {
   0% { opacity: 1; filter: brightness(1); }
-  40% { opacity: 1; filter: brightness(2.2) drop-shadow(0 0 6px var(--mint)); }
-  100% { opacity: 0; filter: brightness(3) drop-shadow(0 0 10px var(--mint)); transform: translateX(-50%) scaleY(0.6); }
+  40% { opacity: 1; filter: brightness(2.2) drop-shadow(0 0 6px var(--mint-500)); }
+  100% { opacity: 0; filter: brightness(3) drop-shadow(0 0 10px var(--mint-500)); transform: translateX(-50%) scaleY(0.6); }
 }
 
 @keyframes saw {
@@ -2296,7 +2310,7 @@ input:focus-visible {
   width: 56%;
   height: 6px;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.28);
+  background: color-mix(in srgb, var(--ink) 28%, transparent);
   border-radius: 50%;
   z-index: -1;
   animation: bot-shadow 2.4s ease-in-out infinite;
@@ -2397,8 +2411,8 @@ input:focus-visible {
   bottom: 10%;
   width: 4px;
   height: 4px;
-  background: #7dffb8;
-  box-shadow: 0 0 6px var(--mint);
+  background: var(--mint-300);
+  box-shadow: 0 0 6px var(--mint-500);
   animation: fert-rise 1.8s steps(6) infinite;
 }
 
@@ -2409,10 +2423,10 @@ input:focus-visible {
   margin: 0 0 8px;
   padding: 3px 8px;
   font-size: var(--fs-sm);
-  color: #08351f;
-  background: #b9f7d6;
-  border: 2px solid var(--mint);
-  box-shadow: 0 0 8px rgba(0, 236, 151, 0.45);
+  color: var(--hud);
+  background: var(--mint-300);
+  border: 2px solid var(--mint-500);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--mint-500) 45%, transparent);
 }
 
 .odds-line {
@@ -2434,8 +2448,8 @@ input:focus-visible {
 }
 
 @keyframes fert-glow {
-  0%, 100% { filter: drop-shadow(0 0 2px rgba(0, 236, 151, 0.6)); }
-  50% { filter: drop-shadow(0 0 6px rgba(0, 236, 151, 0.95)) brightness(1.08); }
+  0%, 100% { filter: drop-shadow(0 0 2px color-mix(in srgb, var(--mint-500) 60%, transparent)); }
+  50% { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--mint-500) 95%, transparent)) brightness(1.08); }
 }
 
 @keyframes fert-rise {
@@ -2463,7 +2477,7 @@ input:focus-visible {
   flex-direction: column;
   gap: 6px;
   padding-top: 4px;
-  border-top: 2px dashed #e3d9b8;
+  border-top: 2px dashed var(--paper);
 }
 
 .qty-row {
@@ -2482,7 +2496,7 @@ input:focus-visible {
 .qty-slider {
   flex: 1;
   min-width: 0;
-  accent-color: var(--leaf);
+  accent-color: var(--leaf-500);
   height: 28px;
 }
 
@@ -2497,7 +2511,7 @@ input:focus-visible {
 }
 
 .slots-full {
-  color: #b42318;
+  color: var(--soil-500);
   font-weight: bold;
 }
 
@@ -2505,8 +2519,8 @@ input:focus-visible {
   margin: 0 0 8px;
   padding: 6px 8px;
   font-size: var(--fs-sm);
-  background: #fff1e6;
-  border: 2px solid #e8a06a;
+  background: var(--paper-light);
+  border: 2px solid var(--gold-500);
 }
 
 /* ---------- Mr. Darto's small "Thanks!" next to the sell list ---------- */
@@ -2521,15 +2535,15 @@ input:focus-visible {
   width: max-content;
   margin: 0 0 8px auto;
   padding: 4px 8px 4px 4px;
-  background: rgba(10, 29, 20, 0.92);
-  border: 2px solid var(--gold);
+  background: color-mix(in srgb, var(--ink) 92%, transparent);
+  border: 2px solid var(--gold-500);
   animation: pop-in 0.25s steps(3);
 }
 
 .darto-thanks .speech {
   position: static;
   font-size: var(--fs-sm);
-  color: var(--gold);
+  color: var(--gold-500);
   background: none;
   border: 0;
   padding: 0;
@@ -2575,15 +2589,15 @@ input:focus-visible {
 .scene-dim {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 70%, rgba(8, 20, 30, 0.1), rgba(8, 20, 30, 0.38));
+  background: radial-gradient(ellipse at 50% 70%, color-mix(in srgb, var(--ink) 10%, transparent), color-mix(in srgb, var(--ink) 38%, transparent));
 }
 
 .ripples {
-  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0) 0 9%, rgba(210, 250, 255, 0.35) 9% 11%, rgba(255, 255, 255, 0) 11% 20%);
+  background: repeating-linear-gradient(180deg, transparent 0 9%, color-mix(in srgb, var(--cyan-300) 35%, transparent) 9% 11%, transparent 11% 20%);
   background-size: 200% 100%;
   mix-blend-mode: screen;
-  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 14%, transparent 14% 22%);
-  mask-image: repeating-linear-gradient(90deg, #000 0 14%, transparent 14% 22%);
+  -webkit-mask-image: repeating-linear-gradient(90deg, var(--ink) 0 14%, transparent 14% 22%);
+  mask-image: repeating-linear-gradient(90deg, var(--ink) 0 14%, transparent 14% 22%);
   animation: ripple 3s steps(6) infinite;
 }
 
@@ -2604,7 +2618,7 @@ input:focus-visible {
 
 .tree-light {
   background: #b6ffe0;
-  box-shadow: 0 0 4px var(--mint), 0 0 8px rgba(0, 236, 151, 0.6);
+  box-shadow: 0 0 4px var(--mint-500), 0 0 8px rgba(0, 236, 151, 0.6);
 }
 
 .fountain {
@@ -2663,8 +2677,8 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0a1d14;
-  border: 2px solid #000;
+  background: var(--ink);
+  border: 2px solid var(--ink);
 }
 
 .share-card img {
@@ -2675,8 +2689,8 @@ input:focus-visible {
 
 .share-text {
   font-size: var(--fs-sm);
-  background: #fffaf0;
-  border: 2px solid #d8cfb1;
+  background: var(--paper-light);
+  border: 2px solid var(--gold-300);
   padding: 6px 8px;
 }
 
@@ -2842,15 +2856,15 @@ input:focus-visible {
 .hud {
   position: fixed;
   z-index: 10;
-  color: #f4ead2;
+  color: var(--paper);
   background:
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 3px, transparent 3px 9px),
-    rgba(60, 38, 20, 0.8);
-  border: 3px solid #2a190c;
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--paper-light) 4%, transparent) 0 3px, transparent 3px 9px),
+    color-mix(in srgb, var(--soil-700) 80%, transparent);
+  border: 3px solid var(--soil-700);
   box-shadow:
-    inset 0 0 0 2px rgba(201, 152, 84, 0.55),
-    0 0 0 2px rgba(0, 236, 151, 0.35),
-    0 6px 18px rgba(0, 0, 0, 0.35);
+    inset 0 0 0 2px color-mix(in srgb, var(--soil-300) 55%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--mint-500) 35%, transparent),
+    0 6px 18px color-mix(in srgb, var(--ink) 35%, transparent);
   backdrop-filter: blur(3px);
 }
 
@@ -2869,14 +2883,14 @@ input:focus-visible {
 }
 
 .hud-top .name {
-  color: #fff;
+  color: var(--paper-light);
 }
 
 .hud-day {
   flex: 1;
   min-width: 0;
   font-size: var(--fs-sm);
-  color: #e6d7b5;
+  color: var(--paper);
 }
 
 .hud-day .notice {
@@ -2884,7 +2898,7 @@ input:focus-visible {
 }
 
 .hud-top .link-btn {
-  color: #e6d7b5;
+  color: var(--paper);
 }
 
 .hud-drawer {
@@ -2910,13 +2924,13 @@ input:focus-visible {
   font-family: var(--font-title);
   text-transform: uppercase;
   font-size: var(--fs-body);
-  border-bottom: 2px solid rgba(201, 152, 84, 0.55);
+  border-bottom: 2px solid color-mix(in srgb, var(--soil-300) 55%, transparent);
 }
 
 .drawer-close {
   width: 36px;
   height: 32px;
-  color: #fff;
+  color: var(--paper-light);
   font-size: var(--fs-body);
 }
 
@@ -2928,7 +2942,7 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  scrollbar-color: #8a6342 transparent;
+  scrollbar-color: var(--gold-700) transparent;
 }
 
 .drawer-scroll .side-tabs {
@@ -2955,19 +2969,19 @@ input:focus-visible {
   padding: 6px 2px;
   font: inherit;
   font-size: var(--fs-xs);
-  color: #f4ead2;
-  background: rgba(20, 12, 6, 0.45);
+  color: var(--paper);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   border: 2px solid transparent;
   cursor: pointer;
 }
 
 .rail-btn:hover,
 .rail-btn:focus-visible {
-  border-color: var(--mint);
+  border-color: var(--mint-500);
 }
 
 .rail-checkin {
-  border-color: var(--gold);
+  border-color: var(--gold-500);
   animation: bob 1s steps(2) infinite;
 }
 
@@ -2994,12 +3008,12 @@ input:focus-visible {
   max-height: 128px;
   overflow-y: auto;
   margin: 0;
-  color: #f4ead2;
+  color: var(--paper);
   background:
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0 3px, transparent 3px 9px),
-    rgba(60, 38, 20, 0.82);
-  border: 3px solid #2a190c;
-  box-shadow: inset 0 0 0 2px rgba(201, 152, 84, 0.55), 0 0 0 2px rgba(0, 236, 151, 0.35), 0 6px 18px rgba(0, 0, 0, 0.35);
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--paper-light) 4%, transparent) 0 3px, transparent 3px 9px),
+    color-mix(in srgb, var(--soil-700) 82%, transparent);
+  border: 3px solid var(--soil-700);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--soil-300) 55%, transparent), 0 0 0 2px color-mix(in srgb, var(--mint-500) 35%, transparent), 0 6px 18px color-mix(in srgb, var(--ink) 35%, transparent);
   backdrop-filter: blur(3px);
   border-image: none;
   padding: 8px 12px;
@@ -3032,15 +3046,15 @@ input:focus-visible {
   margin: 0;
   font-size: var(--fs-body);
   line-height: 1.3;
-  color: #fff;
+  color: var(--paper-light);
 }
 
 .plot-bar .link-btn {
-  color: var(--mint);
+  color: var(--mint-500);
 }
 
 .plot-bar .link-btn.danger {
-  color: #ffab9c;
+  color: var(--gold-300);
 }
 
 .plot-bar .muted,
@@ -3190,22 +3204,22 @@ input:focus-visible {
   inset: 0;
   z-index: -1;
   background:
-    linear-gradient(rgba(6, 18, 12, 0.72), rgba(6, 18, 12, 0.62) 45%, rgba(6, 18, 12, 0.85)),
+    linear-gradient(color-mix(in srgb, var(--ink) 72%, transparent), color-mix(in srgb, var(--ink) 62%, transparent) 45%, color-mix(in srgb, var(--ink) 85%, transparent)),
     url('/assets/bg/bg-day-hd.png') center bottom / cover no-repeat,
-    var(--bg);
+    var(--leaf-700);
   image-rendering: pixelated;
 }
 
 .login-page .login {
-  color: #f4ead2;
+  color: var(--paper);
   max-width: 520px;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55);
+  text-shadow: 0 2px 0 color-mix(in srgb, var(--ink) 55%, transparent);
 }
 
 .login-lead {
   margin: 0 0 8px;
   font-size: var(--fs-body);
-  color: #fff;
+  color: var(--paper-light);
 }
 
 .login-points {
@@ -3214,8 +3228,8 @@ input:focus-visible {
   text-align: left;
   font-size: var(--fs-sm);
   line-height: 1.5;
-  background: rgba(10, 29, 20, 0.72);
-  border: 2px solid rgba(0, 236, 151, 0.45);
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
+  border: 2px solid color-mix(in srgb, var(--mint-500) 45%, transparent);
 }
 
 .login-points li + li {
@@ -3227,21 +3241,21 @@ input:focus-visible {
 }
 
 .login-foot {
-  color: #d8e8dd;
+  color: var(--paper);
 }
 
 /* Small links to the Privacy and Terms pages (also used for the Google OAuth consent screen). */
 .login-legal {
   margin: 4px 0 0;
-  color: #9fc4ae;
+  color: var(--leaf-300);
 }
 
 .login-legal a {
-  color: #bff5dd;
+  color: var(--mint-300);
 }
 
 .login-page .dev-login label {
-  color: #f4ead2;
+  color: var(--paper);
 }
 
 /* ---------- "How to play" and the PANEN info window ---------- */
@@ -3262,7 +3276,7 @@ input:focus-visible {
 .info-close {
   width: 34px;
   height: 30px;
-  color: #fff;
+  color: var(--paper-light);
 }
 
 .info-body {
@@ -3276,7 +3290,7 @@ input:focus-visible {
   font-family: var(--font-title);
   text-transform: uppercase;
   font-size: var(--fs-body);
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
 }
 
 .info-body p {
@@ -3302,8 +3316,8 @@ input:focus-visible {
   gap: 10px;
   align-items: center;
   padding: 6px 8px;
-  background: #fffaf0;
-  border: 2px solid #d8cfb1;
+  background: var(--paper-light);
+  border: 2px solid var(--gold-300);
 }
 
 .step-icon {
@@ -3313,8 +3327,8 @@ input:focus-visible {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: #0f2a1e;
-  border: 2px solid #000;
+  background: var(--ink);
+  border: 2px solid var(--ink);
 }
 
 .step-text {
@@ -3327,18 +3341,18 @@ input:focus-visible {
   margin: 6px 0;
   padding: 6px 8px;
   font-size: var(--fs-sm);
-  background: #eefbf3;
-  border: 2px solid var(--mint-dim);
+  background: var(--paper-light);
+  border: 2px solid color-mix(in srgb, var(--mint-500) 35%, transparent);
 }
 
 .info-box.soon {
-  background: #e9f9fd;
-  border-color: var(--cyan);
+  background: var(--paper-light);
+  border-color: var(--cyan-500);
 }
 
 .info-box.warn {
-  background: #fff1e6;
-  border-color: #e8a06a;
+  background: var(--paper-light);
+  border-color: var(--gold-500);
   font-weight: bold;
 }
 
@@ -3363,7 +3377,7 @@ input:focus-visible {
 .help-btn {
   font-size: var(--fs-body);
   font-weight: bold;
-  color: #fff;
+  color: var(--paper-light);
 }
 
 button.balance {
@@ -3373,7 +3387,7 @@ button.balance {
 
 button.balance:hover,
 button.balance:focus-visible {
-  box-shadow: 0 0 0 2px var(--mint);
+  box-shadow: 0 0 0 2px var(--mint-500);
 }
 
 /* ---------- Profile ---------- */
@@ -3392,7 +3406,7 @@ button.balance:focus-visible {
 
 .who-btn:hover,
 .who-btn:focus-visible {
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--paper-light) 12%, transparent);
 }
 
 .profile-head {
@@ -3414,7 +3428,7 @@ button.balance:focus-visible {
 }
 
 .profile-facts dt {
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
   font-weight: 700;
 }
 
@@ -3424,11 +3438,11 @@ button.balance:focus-visible {
 }
 
 .farmer-card-slot {
-  border: 2px dashed var(--leaf);
+  border: 2px dashed var(--leaf-500);
   border-radius: 8px;
   padding: 18px 12px;
   text-align: center;
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
   font-size: var(--fs-sm);
 }
 
@@ -3443,10 +3457,10 @@ button.balance:focus-visible {
   display: inline-block;
   flex: 0 0 auto;
   line-height: 0;
-  border: 2px solid #1b1b2f;
+  border: 2px solid var(--ink);
   border-radius: 4px;
   overflow: hidden;
-  box-shadow: 0 0 0 2px rgba(0, 236, 151, 0.55);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mint-500) 55%, transparent);
 }
 
 .avatar svg {
@@ -3458,7 +3472,7 @@ button.balance:focus-visible {
 /* Profile: soft village backdrop with see-through panels so text stays readable. */
 .profile-dialog .info-body {
   background:
-    linear-gradient(rgba(251, 244, 223, 0.35), rgba(251, 244, 223, 0.55)),
+    linear-gradient(color-mix(in srgb, var(--paper) 35%, transparent), color-mix(in srgb, var(--paper) 55%, transparent)),
     url('/assets/bg/bg-day-hd.png') center 70% / cover no-repeat;
   image-rendering: pixelated;
   margin: 0 -12px;
@@ -3471,11 +3485,11 @@ button.balance:focus-visible {
 
 .profile-card,
 .profile-dialog .info-body .panel {
-  background: rgba(251, 244, 223, 0.9);
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
 }
 
 .profile-card {
-  border: 2px solid rgba(27, 27, 47, 0.75);
+  border: 2px solid color-mix(in srgb, var(--ink) 75%, transparent);
   border-radius: 6px;
   padding: 12px;
   margin-bottom: 12px;
@@ -3509,28 +3523,28 @@ button.balance:focus-visible {
   align-items: center;
   gap: 4px;
   padding: 6px 2px;
-  background: rgba(255, 255, 255, 0.6);
+  background: color-mix(in srgb, var(--paper-light) 60%, transparent);
   border: 2px solid transparent;
   border-radius: 6px;
   font: inherit;
   font-size: var(--fs-xs);
   line-height: 1.2;
-  color: var(--ink, #1b1b2f);
+  color: var(--ink, var(--ink));
   cursor: pointer;
 }
 
 .avatar-choice:hover,
 .avatar-choice:focus-visible {
-  border-color: var(--cyan);
+  border-color: var(--cyan-500);
 }
 
 .avatar-choice.selected {
-  border-color: var(--mint);
-  background: rgba(0, 236, 151, 0.18);
+  border-color: var(--mint-500);
+  background: color-mix(in srgb, var(--mint-500) 18%, transparent);
 }
 
 .profile-signout {
-  background: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--paper-light) 92%, transparent);
 }
 
 /* ---------- TaniBot window ---------- */
@@ -3546,7 +3560,7 @@ button.balance:focus-visible {
 }
 
 .bot-click:focus-visible {
-  outline: 3px solid var(--mint);
+  outline: 3px solid var(--mint-500);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -3601,11 +3615,11 @@ button.balance:focus-visible {
 }
 
 .bot-switch.on {
-  background: var(--mint);
+  background: var(--mint-500);
 }
 
 .bot-switch.off {
-  background: #d1d5db;
+  background: var(--paper);
 }
 
 .bot-styles {
@@ -3623,7 +3637,7 @@ button.balance:focus-visible {
   font: inherit;
   font-size: var(--fs-xs);
   line-height: 1.3;
-  background: rgba(255, 255, 255, 0.6);
+  background: color-mix(in srgb, var(--paper-light) 60%, transparent);
   border: 2px solid transparent;
   border-radius: 6px;
   color: var(--ink);
@@ -3635,8 +3649,8 @@ button.balance:focus-visible {
 }
 
 .bot-style.selected {
-  border-color: var(--mint);
-  background: rgba(0, 236, 151, 0.18);
+  border-color: var(--mint-500);
+  background: color-mix(in srgb, var(--mint-500) 18%, transparent);
 }
 
 .bot-budget {
@@ -3663,7 +3677,7 @@ button.balance:focus-visible {
   width: 18px;
   text-align: center;
   font-weight: 700;
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
 }
 
 .bot-log-time {
@@ -3671,7 +3685,7 @@ button.balance:focus-visible {
 }
 
 .bot-log-notice .grow {
-  color: #9b2c2c;
+  color: var(--soil-500);
 }
 
 @media (max-width: 480px) {
@@ -3687,15 +3701,15 @@ button.balance:focus-visible {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  color: #f4ead2;
+  color: var(--paper);
   padding: 5px 14px 5px 6px;
   border-radius: 999px;
-  background: rgba(40, 26, 14, 0.62);
-  border: 2px solid rgba(42, 25, 12, 0.9);
+  background: color-mix(in srgb, var(--soil-700) 62%, transparent);
+  border: 2px solid color-mix(in srgb, var(--soil-700) 90%, transparent);
   box-shadow:
-    inset 0 0 0 2px rgba(201, 152, 84, 0.45),
-    0 0 0 2px rgba(0, 236, 151, 0.3),
-    0 6px 16px rgba(0, 0, 0, 0.3);
+    inset 0 0 0 2px color-mix(in srgb, var(--soil-300) 45%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--mint-500) 30%, transparent),
+    0 6px 16px color-mix(in srgb, var(--ink) 30%, transparent);
   backdrop-filter: blur(4px);
 }
 
@@ -3705,7 +3719,7 @@ button.balance:focus-visible {
 }
 
 .hud-capsule .name {
-  color: #fff;
+  color: var(--paper-light);
 }
 
 .hud-capsule .avatar {
@@ -3747,7 +3761,7 @@ button.balance:focus-visible {
   flex: 0 1 auto;
   max-width: 330px;
   padding-left: 10px;
-  border-left: 2px solid rgba(201, 152, 84, 0.45);
+  border-left: 2px solid color-mix(in srgb, var(--soil-300) 45%, transparent);
   font-size: var(--fs-xs);
   line-height: 1.5;
 }
@@ -3762,7 +3776,7 @@ button.balance:focus-visible {
 }
 
 .topbar > .hud-capsule {
-  background: rgba(20, 56, 38, 0.92);
+  background: color-mix(in srgb, var(--hud) 92%, transparent);
 }
 
 .topbar > .hud-capsule-left {
@@ -3799,11 +3813,11 @@ button.balance:focus-visible {
   line-height: 1.35;
   text-align: center;
   color: var(--ink);
-  background: #fffaf0;
-  border: 2px solid #1b1b2f;
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
   border-radius: 8px;
   padding: 6px 9px;
-  box-shadow: 0 0 0 2px var(--mint), 0 4px 10px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 0 2px var(--mint-500), 0 4px 10px color-mix(in srgb, var(--ink) 30%, transparent);
   opacity: 0;
   animation: bot-hint-in 0.5s ease-out 0.8s forwards, bot-hint-bob 2.4s ease-in-out 1.3s infinite;
   /* Shifted sideways / up by useHintPlacement (scene.tsx) so it never covers a pin or Mr. Darto. */
@@ -3818,7 +3832,7 @@ button.balance:focus-visible {
   left: calc(50% - var(--hint-dx, 0px));
   margin-left: -6px;
   border: 6px solid transparent;
-  border-top-color: #1b1b2f;
+  border-top-color: var(--ink);
 }
 
 .wide .bot-hint,
@@ -3906,8 +3920,8 @@ button.balance:focus-visible {
   line-height: 1;
   padding: 2px 4px;
   margin-right: 2px;
-  color: #fff;
-  background: var(--purple);
+  color: var(--paper-light);
+  background: var(--purple-500);
   border-radius: 3px;
   vertical-align: 1px;
 }
@@ -3934,21 +3948,21 @@ button.balance:focus-visible {
   padding: 10px 6px 8px;
   font: inherit;
   color: var(--ink);
-  background: #fffaf0;
-  border: 2px solid #b89a5e;
+  background: var(--paper-light);
+  border: 2px solid var(--soil-300);
   border-radius: 6px;
-  box-shadow: inset 0 -3px 0 #eadcb4, 0 2px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 -3px 0 var(--paper), 0 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
   cursor: pointer;
   transition: transform 0.08s steps(2);
 }
 
 .seed-card:hover:not(:disabled) {
   transform: translateY(-2px);
-  border-color: var(--leaf);
+  border-color: var(--leaf-500);
 }
 
 .seed-card:focus-visible {
-  outline: 3px solid var(--cyan);
+  outline: 3px solid var(--cyan-500);
   outline-offset: 2px;
 }
 
@@ -3963,18 +3977,18 @@ button.balance:focus-visible {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff 0 45%, #f1e3bf 70%);
+  background: radial-gradient(circle, var(--paper-light) 0 45%, var(--paper) 70%);
 }
 
 .seed-card-name {
   font-size: var(--fs-body);
   font-weight: 700;
-  color: #1b1b2f;
+  color: var(--ink);
   line-height: 1.2;
 }
 
 .seed-card-name b {
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
 }
 
 .seed-q {
@@ -3983,22 +3997,22 @@ button.balance:focus-visible {
   line-height: 1;
   padding: 3px 8px;
   border-radius: 999px;
-  border: 2px solid #1b1b2f;
+  border: 2px solid var(--ink);
 }
 
 .seed-q-common {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--paper);
+  color: var(--leaf-700);
 }
 
 .seed-q-rare {
-  background: var(--purple);
-  color: #fff;
+  background: var(--purple-500);
+  color: var(--paper-light);
 }
 
 .seed-q-gold {
-  background: var(--gold);
-  color: #3b2a00;
+  background: var(--gold-500);
+  color: var(--soil-700);
 }
 
 .seed-q-unknown {
@@ -4007,7 +4021,7 @@ button.balance:focus-visible {
   padding: 2px 6px;
   color: var(--ink-soft);
   background: transparent;
-  border: 1px dashed #b8a780;
+  border: 1px dashed var(--leaf-300);
 }
 
 .seed-card-from {
@@ -4029,7 +4043,7 @@ button.balance:focus-visible {
 
 .plot-bar.plot-empty > .seed-note {
   grid-column: 1 / -1;
-  color: #e6d7b5;
+  color: var(--paper);
 }
 
 .plot-bar .seed-card {
@@ -4086,21 +4100,21 @@ button.balance:focus-visible {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  border: 2px solid #1b1b2f;
+  border: 2px solid var(--ink);
 }
 
 .bot-dot-on {
-  background: var(--mint);
-  box-shadow: 0 0 6px var(--mint);
+  background: var(--mint-500);
+  box-shadow: 0 0 6px var(--mint-500);
 }
 
 .bot-dot-off {
-  background: #9ca3af;
+  background: var(--leaf-300);
 }
 
 .bot-dot-warn {
-  background: var(--gold);
-  box-shadow: 0 0 6px var(--gold);
+  background: var(--gold-500);
+  box-shadow: 0 0 6px var(--gold-500);
 }
 
 .drawer-head .drawer-bot {
@@ -4122,7 +4136,7 @@ button.balance:focus-visible {
   font-weight: 700;
   line-height: 1;
   border-radius: 999px;
-  border: 2px solid #1b1b2f;
+  border: 2px solid var(--ink);
   pointer-events: none;
   white-space: nowrap;
 }
@@ -4134,23 +4148,23 @@ button.balance:focus-visible {
 }
 
 .bot-status.on {
-  color: #053b26;
-  background: #b9f7dd;
+  color: var(--hud);
+  background: var(--mint-300);
 }
 
 .bot-status.on i {
-  background: var(--mint);
-  box-shadow: 0 0 6px var(--mint);
+  background: var(--mint-500);
+  box-shadow: 0 0 6px var(--mint-500);
   animation: bot-lamp 1.6s ease-in-out infinite;
 }
 
 .bot-status.off {
-  color: #374151;
-  background: #d1d5db;
+  color: var(--ink-soft);
+  background: var(--paper);
 }
 
 .bot-status.off i {
-  background: #6b7280;
+  background: var(--soil-300);
 }
 
 .wide .bot-status,
@@ -4198,8 +4212,8 @@ button.balance:focus-visible {
   font-family: var(--font-title);
   text-transform: uppercase;
   font-weight: 700;
-  color: #e0f2fe;
-  text-shadow: 1px 1px 0 #1b1b2f;
+  color: var(--paper-light);
+  text-shadow: 1px 1px 0 var(--ink);
   line-height: 1;
 }
 
@@ -4432,8 +4446,8 @@ button.balance:focus-visible {
   width: 12%;
   height: 100%;
   border-radius: 50% 50% 45% 45%;
-  background: linear-gradient(#ffffff 0 18%, var(--mint) 40%, var(--cyan) 70%, rgba(34, 211, 238, 0) 100%);
-  box-shadow: 0 0 8px var(--mint);
+  background: linear-gradient(#ffffff 0 18%, var(--mint-500) 40%, var(--cyan-500) 70%, rgba(34, 211, 238, 0) 100%);
+  box-shadow: 0 0 8px var(--mint-500);
   transform-origin: 50% 0;
   animation: bot-flame 0.12s steps(2) infinite;
 }
@@ -4453,8 +4467,8 @@ button.balance:focus-visible {
   left: 50%;
   width: 4px;
   height: 4px;
-  background: var(--mint);
-  box-shadow: 0 0 4px var(--cyan);
+  background: var(--mint-500);
+  box-shadow: 0 0 4px var(--cyan-500);
   opacity: 0;
   animation: bot-trail 0.42s linear infinite;
 }
@@ -4668,16 +4682,16 @@ button.balance:focus-visible {
 
 @keyframes bot-leds {
   0% {
-    filter: drop-shadow(0 0 2px var(--mint)) drop-shadow(0 0 6px var(--mint));
+    filter: drop-shadow(0 0 2px var(--mint-500)) drop-shadow(0 0 6px var(--mint-500));
   }
   25% {
-    filter: drop-shadow(0 0 2px var(--cyan)) drop-shadow(0 0 6px var(--cyan)) hue-rotate(40deg);
+    filter: drop-shadow(0 0 2px var(--cyan-500)) drop-shadow(0 0 6px var(--cyan-500)) hue-rotate(40deg);
   }
   50% {
-    filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 6px var(--gold)) hue-rotate(-60deg);
+    filter: drop-shadow(0 0 2px var(--gold-500)) drop-shadow(0 0 6px var(--gold-500)) hue-rotate(-60deg);
   }
   75% {
-    filter: drop-shadow(0 0 2px var(--mint)) drop-shadow(0 0 9px var(--mint)) brightness(1.3);
+    filter: drop-shadow(0 0 2px var(--mint-500)) drop-shadow(0 0 9px var(--mint-500)) brightness(1.3);
   }
 }
 
@@ -4766,14 +4780,14 @@ button.balance:focus-visible {
   gap: 6px;
   padding: 8px 10px;
   color: var(--ink);
-  background: #fffaf0;
-  border: 2px solid #d8c79c;
+  background: var(--paper-light);
+  border: 2px solid var(--gold-300);
   border-radius: 6px;
-  box-shadow: inset 0 -2px 0 #eadcb4;
+  box-shadow: inset 0 -2px 0 var(--paper);
 }
 
 .market-row.empty {
-  background: #f7f0dc;
+  background: var(--paper);
 }
 
 .market-row-head {
@@ -4786,7 +4800,7 @@ button.balance:focus-visible {
 .market-name {
   font-weight: 700;
   font-size: var(--fs-body);
-  color: #1b1b2f;
+  color: var(--ink);
 }
 
 .market-price {
@@ -4799,11 +4813,11 @@ button.balance:focus-visible {
 }
 
 .market-price b.up {
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
 }
 
 .market-price b.down {
-  color: #b45309;
+  color: var(--gold-700);
 }
 
 .market-range {
@@ -4845,30 +4859,30 @@ button.balance:focus-visible {
   line-height: 1;
   padding: 4px 8px;
   border-radius: 999px;
-  border: 2px solid #b8a780;
-  background: #fff;
+  border: 2px solid var(--leaf-300);
+  background: var(--paper-light);
   color: var(--ink);
   cursor: pointer;
 }
 
 .owned-chip.selected {
-  border-color: #1b1b2f;
-  box-shadow: 0 0 0 2px var(--mint);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px var(--mint-500);
 }
 
 .owned-chip.q-common {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--paper);
+  color: var(--leaf-700);
 }
 
 .owned-chip.q-rare {
-  background: var(--purple);
-  color: #fff;
+  background: var(--purple-500);
+  color: var(--paper-light);
 }
 
 .owned-chip.q-gold {
-  background: var(--gold);
-  color: #3b2a00;
+  background: var(--gold-500);
+  color: var(--soil-700);
 }
 
 .owned-chip.q-unknown {
@@ -4960,17 +4974,17 @@ details.sell-seeds[open] > summary h2::before {
 }
 
 .rail-checkin.ready {
-  border-color: var(--gold);
+  border-color: var(--gold-500);
   animation: rail-glow 1.4s ease-in-out infinite;
 }
 
 .rail-checkin.done {
-  border-color: rgba(0, 236, 151, 0.55);
+  border-color: color-mix(in srgb, var(--mint-500) 55%, transparent);
 }
 
 .rail-checkin.done span:last-child {
   font-size: var(--fs-2xs);
-  color: #c9f7e3;
+  color: var(--cyan-300);
 }
 
 .rail-dot {
@@ -4980,9 +4994,9 @@ details.sell-seeds[open] > summary h2::before {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #ef4444;
-  border: 2px solid #1b1b2f;
-  box-shadow: 0 0 6px #ef4444;
+  background: var(--red-500);
+  border: 2px solid var(--ink);
+  box-shadow: 0 0 6px var(--red-500);
 }
 
 .rail-check {
@@ -4995,26 +5009,26 @@ details.sell-seeds[open] > summary h2::before {
   font-size: var(--fs-xs);
   line-height: 13px;
   text-align: center;
-  color: #053b26;
-  background: var(--mint);
-  border: 2px solid #1b1b2f;
+  color: var(--hud);
+  background: var(--mint-500);
+  border: 2px solid var(--ink);
   border-radius: 50%;
 }
 
 @keyframes rail-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(245, 197, 66, 0);
+    box-shadow: 0 0 0 0 transparent;
   }
   50% {
-    box-shadow: 0 0 12px 2px rgba(245, 197, 66, 0.75);
+    box-shadow: 0 0 12px 2px color-mix(in srgb, var(--gold-500) 75%, transparent);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rail-checkin.ready {
     animation: none;
-    box-shadow: 0 0 10px 2px rgba(245, 197, 66, 0.6);
+    box-shadow: 0 0 10px 2px color-mix(in srgb, var(--gold-500) 60%, transparent);
   }
 }
 
@@ -5093,7 +5107,7 @@ input[type='number'],
 /* Panels: a solid bamboo frame instead of the striped border image (border images
    ignore corner shapes); the wood header follows the panel's top corners. */
 .panel {
-  border: 3px solid var(--bamboo-a);
+  border: 3px solid var(--gold-500);
   border-image: none;
 }
 
@@ -5164,16 +5178,16 @@ details.panel > summary.panel-head {
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
-  color: #f4ead2;
-  background: rgba(40, 26, 14, 0.66);
-  border: 2px solid rgba(201, 152, 84, 0.6);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  color: var(--paper);
+  background: color-mix(in srgb, var(--soil-700) 66%, transparent);
+  border: 2px solid color-mix(in srgb, var(--soil-300) 60%, transparent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 28%, transparent);
   backdrop-filter: blur(4px);
   cursor: pointer;
 }
 
 button.chip:focus-visible {
-  outline: 3px solid var(--cyan);
+  outline: 3px solid var(--cyan-500);
   outline-offset: 2px;
 }
 
@@ -5182,10 +5196,10 @@ button.chip:focus-visible {
   height: 36px;
   padding: 0 14px 0 8px;
   font-size: var(--fs-body);
-  color: #3b2a00;
-  background: linear-gradient(#ffe08a, var(--gold));
-  border-color: #1b1b2f;
-  box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.45), 0 4px 12px rgba(0, 0, 0, 0.3);
+  color: var(--soil-700);
+  background: linear-gradient(var(--gold-300), var(--gold-500));
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold-500) 45%, transparent), 0 4px 12px color-mix(in srgb, var(--ink) 30%, transparent);
 }
 
 .chip-panen .chip-unit {
@@ -5201,13 +5215,13 @@ button.chip:focus-visible {
 }
 
 .chip-checkin.ready {
-  border-color: var(--gold);
+  border-color: var(--gold-500);
   animation: rail-glow 1.4s ease-in-out infinite;
 }
 
 .chip-checkin.done {
-  border-color: rgba(0, 236, 151, 0.6);
-  color: #c9f7e3;
+  border-color: color-mix(in srgb, var(--mint-500) 60%, transparent);
+  color: var(--cyan-300);
 }
 
 .chip-dot {
@@ -5217,9 +5231,9 @@ button.chip:focus-visible {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #ef4444;
-  border: 2px solid #1b1b2f;
-  box-shadow: 0 0 6px #ef4444;
+  background: var(--red-500);
+  border: 2px solid var(--ink);
+  box-shadow: 0 0 6px var(--red-500);
 }
 
 .chip-check {
@@ -5232,9 +5246,9 @@ button.chip:focus-visible {
   font-size: var(--fs-2xs);
   line-height: 11px;
   text-align: center;
-  color: #053b26;
-  background: var(--mint);
-  border: 2px solid #1b1b2f;
+  color: var(--hud);
+  background: var(--mint-500);
+  border: 2px solid var(--ink);
   border-radius: 50%;
 }
 
@@ -5274,16 +5288,16 @@ button.chip:focus-visible {
 .chip-day {
   cursor: default;
   font-weight: 600;
-  color: #e6d7b5;
-  background: rgba(40, 26, 14, 0.5);
-  border-color: rgba(201, 152, 84, 0.35);
+  color: var(--paper);
+  background: color-mix(in srgb, var(--soil-700) 50%, transparent);
+  border-color: color-mix(in srgb, var(--soil-300) 35%, transparent);
 }
 
 .chip-demo {
   font-size: var(--fs-2xs);
   padding: 3px 6px;
-  color: #062b33;
-  background: var(--cyan);
+  color: var(--hud);
+  background: var(--cyan-500);
   border-radius: var(--r-btn);
   corner-shape: var(--corner);
 }
@@ -5292,9 +5306,9 @@ button.chip:focus-visible {
 .hud-sys {
   gap: 4px;
   padding: 4px;
-  background: rgba(20, 14, 8, 0.42);
-  border-color: rgba(42, 25, 12, 0.6);
-  box-shadow: inset 0 0 0 2px rgba(201, 152, 84, 0.25), 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--ink) 42%, transparent);
+  border-color: color-mix(in srgb, var(--soil-700) 60%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--soil-300) 25%, transparent), 0 4px 12px color-mix(in srgb, var(--ink) 20%, transparent);
 }
 
 .hud-sys .icon-row {
@@ -5416,10 +5430,10 @@ button.chip:focus-visible {
   align-items: flex-end;
   padding: 12px 16px 8px;
   background:
-    linear-gradient(transparent 72%, rgba(60, 40, 20, 0.55) 72%),
+    linear-gradient(transparent 72%, color-mix(in srgb, var(--soil-700) 55%, transparent) 72%),
     url('/assets/bg/bg-day-hd.png') center 72% / cover no-repeat;
   image-rendering: pixelated;
-  border: 2px solid #000;
+  border: 2px solid var(--ink);
 }
 
 .evo-cell {
@@ -5431,7 +5445,7 @@ button.chip:focus-visible {
 
 .evo-cell svg {
   image-rendering: pixelated;
-  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.25));
+  filter: drop-shadow(0 4px 0 color-mix(in srgb, var(--ink) 25%, transparent));
 }
 
 /* Preview hole check: plain loud background, no shadows or motion. */
@@ -5442,9 +5456,9 @@ button.chip:focus-visible {
 }
 
 .evo-cell small {
-  color: #fff;
+  color: var(--paper-light);
   font-size: var(--fs-xs);
-  text-shadow: 1px 1px 0 #000;
+  text-shadow: 1px 1px 0 var(--ink);
 }
 
 /* =====================================================================
@@ -5508,10 +5522,10 @@ button.chip:focus-visible {
 @keyframes bot-led-pulse {
   0%,
   100% {
-    filter: drop-shadow(0 0 2px var(--mint)) brightness(1);
+    filter: drop-shadow(0 0 2px var(--mint-500)) brightness(1);
   }
   50% {
-    filter: drop-shadow(0 0 6px var(--mint)) drop-shadow(0 0 10px rgba(0, 236, 151, 0.6)) brightness(1.3);
+    filter: drop-shadow(0 0 6px var(--mint-500)) drop-shadow(0 0 10px color-mix(in srgb, var(--mint-500) 60%, transparent)) brightness(1.3);
   }
 }
 
@@ -5519,7 +5533,7 @@ button.chip:focus-visible {
 .bot-sweep {
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(115deg, transparent 0 40%, rgba(255, 255, 255, 0.85) 48%, rgba(255, 255, 255, 0.85) 52%, transparent 60%);
+  background: linear-gradient(115deg, transparent 0 40%, color-mix(in srgb, var(--paper-light) 85%, transparent) 48%, color-mix(in srgb, var(--paper-light) 85%, transparent) 52%, transparent 60%);
   background-size: 300% 100%;
   background-position: 120% 0;
   mask-size: 100% 100%;
@@ -5529,7 +5543,7 @@ button.chip:focus-visible {
 }
 
 .bot-sweep.cape {
-  background-image: linear-gradient(115deg, transparent 0 40%, rgba(255, 236, 160, 0.95) 48%, rgba(127, 211, 242, 0.9) 52%, transparent 60%);
+  background-image: linear-gradient(115deg, transparent 0 40%, color-mix(in srgb, var(--gold-300) 95%, transparent) 48%, color-mix(in srgb, var(--cyan-300) 90%, transparent) 52%, transparent 60%);
   mix-blend-mode: screen;
   animation-duration: 3.6s;
 }
@@ -5552,9 +5566,9 @@ button.chip:focus-visible {
   margin: -3px 0 0 -3px;
   pointer-events: none;
   background:
-    linear-gradient(#fff, #fff) center / 100% 2px no-repeat,
-    linear-gradient(#fff, #fff) center / 2px 100% no-repeat;
-  filter: drop-shadow(0 0 3px var(--gold));
+    linear-gradient(var(--paper-light), var(--paper-light)) center / 100% 2px no-repeat,
+    linear-gradient(var(--paper-light), var(--paper-light)) center / 2px 100% no-repeat;
+  filter: drop-shadow(0 0 3px var(--gold-500));
   opacity: 0;
   animation: bot-twinkle 3s ease-in-out infinite;
 }
@@ -5585,7 +5599,7 @@ button.chip:focus-visible {
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  border: 1px solid color-mix(in srgb, var(--paper-light) 90%, transparent);
   opacity: 0;
   animation: bot-bubble 2.4s ease-in infinite;
 }
@@ -5731,11 +5745,11 @@ button.chip:focus-visible {
   height: 14%;
   margin-left: -25%;
   border-radius: 50%;
-  border: var(--halo-bw) solid #f0ffff;
+  border: var(--halo-bw) solid var(--paper-light);
   box-shadow:
-    0 0 calc(var(--halo-bw) * 1.5) rgba(165, 243, 252, 0.95),
-    0 0 calc(var(--halo-bw) * 4) rgba(34, 211, 238, 0.8),
-    inset 0 0 calc(var(--halo-bw) * 1.5) rgba(34, 211, 238, 0.9);
+    0 0 calc(var(--halo-bw) * 1.5) color-mix(in srgb, var(--cyan-300) 95%, transparent),
+    0 0 calc(var(--halo-bw) * 4) color-mix(in srgb, var(--cyan-500) 80%, transparent),
+    inset 0 0 calc(var(--halo-bw) * 1.5) color-mix(in srgb, var(--cyan-500) 90%, transparent);
   pointer-events: none;
   animation: halo-float 3s ease-in-out infinite;
 }
@@ -5745,9 +5759,9 @@ button.chip:focus-visible {
   position: absolute;
   inset: calc(var(--halo-bw) * -1);
   border-radius: 50%;
-  background: conic-gradient(from var(--halo-a, 0deg), #fff 0 30deg, transparent 60deg 360deg);
-  mask: radial-gradient(farthest-side, transparent calc(100% - var(--halo-bw) - 1px), #000 calc(100% - var(--halo-bw)));
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--halo-bw) - 1px), #000 calc(100% - var(--halo-bw)));
+  background: conic-gradient(from var(--halo-a, 0deg), var(--paper-light) 0 30deg, transparent 60deg 360deg);
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--halo-bw) - 1px), var(--ink) calc(100% - var(--halo-bw)));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--halo-bw) - 1px), var(--ink) calc(100% - var(--halo-bw)));
   animation: halo-turn 6s linear infinite;
 }
 
@@ -5793,7 +5807,7 @@ button.chip:focus-visible {
   pointer-events: none;
   mask-size: 100% 100%;
   -webkit-mask-size: 100% 100%;
-  background: linear-gradient(transparent 0 46%, rgba(165, 243, 252, 0.9) 49%, rgba(255, 255, 255, 0.95) 50%, transparent 54%);
+  background: linear-gradient(transparent 0 46%, color-mix(in srgb, var(--cyan-300) 90%, transparent) 49%, color-mix(in srgb, var(--paper-light) 95%, transparent) 50%, transparent 54%);
   background-size: 100% 300%;
   mix-blend-mode: screen;
   animation: bot-scan 3.2s linear infinite;
@@ -5823,7 +5837,7 @@ button.chip:focus-visible {
     filter: brightness(1);
   }
   50% {
-    filter: brightness(1.7) drop-shadow(0 0 3px var(--gold));
+    filter: brightness(1.7) drop-shadow(0 0 3px var(--gold-500));
   }
 }
 
@@ -5840,7 +5854,7 @@ button.chip:focus-visible {
   background:
     linear-gradient(#fff, #fff) center / 100% 2px no-repeat,
     linear-gradient(#fff, #fff) center / 2px 100% no-repeat;
-  filter: drop-shadow(0 0 3px var(--cyan));
+  filter: drop-shadow(0 0 3px var(--cyan-500));
   opacity: 0;
   animation: bot-twinkle 2.6s ease-in-out infinite;
 }
@@ -5878,18 +5892,18 @@ button.chip:focus-visible {
 }
 
 .bot-spot.tier-durian_king .bot-jet b {
-  background: linear-gradient(#fff 0 15%, var(--gold) 38%, var(--mint) 70%, rgba(0, 236, 151, 0) 100%);
-  box-shadow: 0 0 8px var(--gold);
+  background: linear-gradient(#fff 0 15%, var(--gold-500) 38%, var(--mint-500) 70%, rgba(0, 236, 151, 0) 100%);
+  box-shadow: 0 0 8px var(--gold-500);
 }
 
 .bot-spot.tier-durian_king .bot-jet i {
-  background: var(--gold);
-  box-shadow: 0 0 4px var(--gold);
+  background: var(--gold-500);
+  box-shadow: 0 0 4px var(--gold-500);
 }
 
 .bot-spot.tier-legend .bot-jet b {
-  background: linear-gradient(#fff 0 20%, #a5f3fc 45%, var(--cyan) 70%, rgba(34, 211, 238, 0) 100%);
-  box-shadow: 0 0 10px var(--cyan);
+  background: linear-gradient(#fff 0 20%, #a5f3fc 45%, var(--cyan-500) 70%, rgba(34, 211, 238, 0) 100%);
+  box-shadow: 0 0 10px var(--cyan-500);
 }
 
 /* Legend: a hologram ripple where it lands. */
@@ -5902,7 +5916,7 @@ button.chip:focus-visible {
   margin-left: -30%;
   border-radius: 50%;
   border: 2px solid rgba(165, 243, 252, 0.9);
-  box-shadow: 0 0 8px var(--cyan);
+  box-shadow: 0 0 8px var(--cyan-500);
   opacity: 0;
   pointer-events: none;
 }
@@ -5991,8 +6005,8 @@ button.chip:focus-visible {
   }
   61%,
   100% {
-    background: var(--mint);
-    box-shadow: 0 0 4px var(--mint);
+    background: var(--mint-500);
+    box-shadow: 0 0 4px var(--mint-500);
   }
 }
 
@@ -6013,7 +6027,7 @@ button.chip:focus-visible {
 
 .flyby-shadow {
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.22);
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
   filter: blur(1px);
 }
 
@@ -6118,7 +6132,7 @@ button.chip:focus-visible {
   }
   48%,
   70% {
-    filter: brightness(0) invert(1) drop-shadow(0 0 16px var(--mint));
+    filter: brightness(0) invert(1) drop-shadow(0 0 16px var(--mint-500));
   }
   100% {
     filter: none;
@@ -6131,8 +6145,8 @@ button.chip:focus-visible {
   right: -10%;
   height: 4px;
   bottom: 0;
-  background: linear-gradient(90deg, transparent, #fff 20%, var(--mint) 50%, #fff 80%, transparent);
-  box-shadow: 0 0 12px var(--mint);
+  background: linear-gradient(90deg, transparent, #fff 20%, var(--mint-500) 50%, #fff 80%, transparent);
+  box-shadow: 0 0 12px var(--mint-500);
   pointer-events: none;
   animation: bot-evolve-scan 1.4s ease-in-out 0.9s both;
 }
@@ -6172,8 +6186,8 @@ button.chip:focus-visible {
   bottom: -4px;
   width: 16px;
   height: 14px;
-  background: var(--gold);
-  border: 2px solid #1b1b2f;
+  background: var(--gold-500);
+  border: 2px solid var(--ink);
   border-radius: 3px;
 }
 
@@ -6184,7 +6198,7 @@ button.chip:focus-visible {
   top: -8px;
   width: 8px;
   height: 8px;
-  border: 2px solid #1b1b2f;
+  border: 2px solid var(--ink);
   border-bottom: 0;
   border-radius: 5px 5px 0 0;
 }
@@ -6195,7 +6209,7 @@ button.chip:focus-visible {
   top: 3px;
   width: 2px;
   height: 4px;
-  background: #1b1b2f;
+  background: var(--ink);
 }
 
 /* Reduced motion: still TaniBots, no flying drones, no sparkles. */
@@ -6277,13 +6291,13 @@ button.chip:focus-visible {
 }
 
 .chip-judge {
-  color: #1b1b2f;
-  background: var(--gold);
-  border-color: #000;
+  color: var(--ink);
+  background: var(--gold-500);
+  border-color: var(--ink);
 }
 
 .chip-judge.done {
-  background: var(--mint);
+  background: var(--mint-500);
 }
 
 .judge-steps {
@@ -6300,20 +6314,20 @@ button.chip:focus-visible {
   align-items: flex-start;
   gap: 10px;
   padding: 10px;
-  background: #fffaf0;
-  border: 2px solid rgba(0, 0, 0, 0.15);
+  background: var(--paper-light);
+  border: 2px solid color-mix(in srgb, var(--ink) 15%, transparent);
   border-radius: var(--r-panel);
   corner-shape: var(--corner);
 }
 
 .judge-step.next {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.35);
+  border-color: var(--gold-500);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--gold-500) 35%, transparent);
 }
 
 .judge-step.done {
-  background: #e9fbf2;
-  border-color: var(--leaf);
+  background: var(--paper-light);
+  border-color: var(--leaf-500);
 }
 
 .judge-step .grow {
@@ -6330,14 +6344,14 @@ button.chip:focus-visible {
   width: 28px;
   height: 28px;
   font-weight: 700;
-  color: #fff;
-  background: #6b4a2f;
+  color: var(--paper-light);
+  background: var(--soil-500);
   border-radius: var(--r-btn);
   corner-shape: var(--corner);
 }
 
 .judge-step.done .judge-num {
-  background: var(--leaf);
+  background: var(--leaf-500);
 }
 
 .judge-do,
@@ -6347,7 +6361,7 @@ button.chip:focus-visible {
 }
 
 .judge-see {
-  color: #4b5563;
+  color: var(--ink-soft);
 }
 
 .judge-proof a {
@@ -6392,7 +6406,7 @@ button.chip:focus-visible {
    frame; Durian King and Legend get a still version of their in-game aura. */
 .avatar-bot {
   position: relative;
-  background: var(--bot-bg, #bde8f5);
+  background: var(--bot-bg, var(--cyan-300));
 }
 
 .avatar-bot svg {
@@ -6402,22 +6416,22 @@ button.chip:focus-visible {
 /* Durian King: a golden durian of light (round glow with spikes). */
 .avatar-bot.bot-bg-durian_king {
   background:
-    radial-gradient(circle at 50% 56%, rgba(255, 236, 160, 0.95) 0 24%, rgba(245, 197, 66, 0.75) 36%, rgba(245, 197, 66, 0) 50%),
-    repeating-conic-gradient(from 0deg at 50% 56%, rgba(255, 206, 84, 0.85) 0 6deg, rgba(255, 206, 84, 0) 6deg 22.5deg),
-    #fbe5a3;
+    radial-gradient(circle at 50% 56%, color-mix(in srgb, var(--gold-300) 95%, transparent) 0 24%, color-mix(in srgb, var(--gold-500) 75%, transparent) 36%, transparent 50%),
+    repeating-conic-gradient(from 0deg at 50% 56%, color-mix(in srgb, var(--gold-500) 85%, transparent) 0 6deg, transparent 6deg 22.5deg),
+    var(--gold-300);
 }
 
 /* Legend: a white-cyan circle of light with a soft outer ring, and the halo above the hat. */
 .avatar-bot.bot-bg-legend {
   background:
-    radial-gradient(ellipse 24% 7% at 50% 10%, rgba(255, 255, 255, 0) 50%, #ffffff 60%, #a5f3fc 75%, rgba(34, 211, 238, 0) 100%),
-    radial-gradient(circle at 50% 60%, transparent 0 44%, rgba(165, 243, 252, 0.95) 46%, transparent 50%),
-    radial-gradient(circle at 50% 60%, #ffffff 0 20%, rgba(186, 250, 255, 0.95) 32%, rgba(34, 211, 238, 0.6) 40%, rgba(34, 211, 238, 0) 44%),
-    #bdeff6;
+    radial-gradient(ellipse 24% 7% at 50% 10%, transparent 50%, var(--paper-light) 60%, var(--cyan-300) 75%, transparent 100%),
+    radial-gradient(circle at 50% 60%, transparent 0 44%, color-mix(in srgb, var(--cyan-300) 95%, transparent) 46%, transparent 50%),
+    radial-gradient(circle at 50% 60%, var(--paper-light) 0 20%, color-mix(in srgb, var(--cyan-300) 95%, transparent) 32%, color-mix(in srgb, var(--cyan-500) 60%, transparent) 40%, transparent 44%),
+    var(--cyan-300);
 }
 
 .avatar-bot.locked {
-  background: #3a3f4b;
+  background: var(--ink-soft);
 }
 
 /* =====================================================================
@@ -6442,8 +6456,8 @@ button.chip:focus-visible {
   gap: 16px;
   min-height: 96px;
   padding: 12px 8px 8px;
-  background: linear-gradient(#bde8f5, #e8f7e1 70%, #8a6a45 70%, #6b4a2f);
-  border: 2px solid #000;
+  background: linear-gradient(var(--cyan-300), var(--paper) 70%, var(--soil-300) 70%, var(--soil-500));
+  border: 2px solid var(--ink);
   border-radius: var(--r-panel);
   corner-shape: var(--corner);
   overflow: hidden;
@@ -6481,8 +6495,8 @@ button.chip:focus-visible {
   flex: 0 0 36px;
   height: 36px;
   overflow: hidden;
-  background: #0f2a1e;
-  border: 2px solid #000;
+  background: var(--ink);
+  border: 2px solid var(--ink);
   border-radius: var(--r-btn);
   corner-shape: var(--corner);
 }
@@ -6508,13 +6522,13 @@ button.chip:focus-visible {
   width: 10px;
   height: 10px;
   padding: 0;
-  background: #c9b98f;
-  border: 2px solid #000;
+  background: var(--gold-300);
+  border: 2px solid var(--ink);
   cursor: pointer;
 }
 
 .howto-dot.active {
-  background: var(--mint);
+  background: var(--mint-500);
 }
 
 /* Laptop: bigger text, wider window. */
@@ -6554,13 +6568,13 @@ button.chip:focus-visible {
 .coach {
   display: flex;
   align-items: flex-end;
-  color: #1b1b2f;
+  color: var(--ink);
   gap: 10px;
   margin: 0 0 12px;
   padding: 10px 12px;
-  background: #fffaf0;
-  border: 2px solid #000;
-  box-shadow: 0 0 0 3px var(--mint), 4px 4px 0 rgba(0, 0, 0, 0.35);
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
+  box-shadow: 0 0 0 3px var(--mint-500), 4px 4px 0 color-mix(in srgb, var(--ink) 35%, transparent);
   border-radius: var(--r-panel);
   corner-shape: var(--corner);
   animation: coach-in 220ms ease-out;
@@ -6594,7 +6608,7 @@ button.chip:focus-visible {
 .coach-progress {
   font-size: var(--fs-xs);
   font-weight: 700;
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -6614,7 +6628,7 @@ button.chip:focus-visible {
 
 .coach-skip {
   font-size: var(--fs-xs);
-  color: #6b7280;
+  color: var(--soil-300);
 }
 
 /* Laptop, menu open: the coach sits at the top of the menu (it stays while panels scroll). */
@@ -6671,10 +6685,10 @@ button.chip:focus-visible {
 @keyframes tut-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 3px var(--gold), 0 0 10px 2px rgba(245, 197, 66, 0.6);
+    box-shadow: 0 0 0 3px var(--gold-500), 0 0 10px 2px color-mix(in srgb, var(--gold-500) 60%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 4px #fff3c4, 0 0 18px 6px rgba(245, 197, 66, 0.9);
+    box-shadow: 0 0 0 4px var(--paper), 0 0 18px 6px color-mix(in srgb, var(--gold-500) 90%, transparent);
   }
 }
 
@@ -6948,8 +6962,8 @@ button.chip:focus-visible {
 
 .firefly {
   border-radius: 50%;
-  background: #f4ff9e;
-  box-shadow: 0 0 4px 2px rgba(214, 255, 110, 0.9);
+  background: var(--gold-300);
+  box-shadow: 0 0 4px 2px color-mix(in srgb, var(--gold-300) 90%, transparent);
   animation: firefly-blink 3.4s ease-in-out infinite, firefly-wander 9s ease-in-out infinite alternate;
 }
 
@@ -7138,15 +7152,15 @@ button.chip:focus-visible {
 @media (hover: hover) and (pointer: fine) {
   .hotspot:hover,
   .hotspot:focus-visible {
-    outline: 1px solid rgba(165, 255, 220, 0.95);
-    box-shadow: 0 0 6px 1px rgba(0, 236, 151, 0.75), inset 0 0 8px rgba(0, 236, 151, 0.35);
+    outline: 1px solid color-mix(in srgb, var(--mint-300) 95%, transparent);
+    box-shadow: 0 0 6px 1px color-mix(in srgb, var(--mint-500) 75%, transparent), inset 0 0 8px color-mix(in srgb, var(--mint-500) 35%, transparent);
   }
 
 }
 
 .hotspot.active {
-  outline: 1px solid rgba(165, 255, 220, 0.95);
-  box-shadow: 0 0 6px 1px rgba(0, 236, 151, 0.75);
+  outline: 1px solid color-mix(in srgb, var(--mint-300) 95%, transparent);
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--mint-500) 75%, transparent);
 }
 
 /* Phones: a bubble with the name and an Open button. */
@@ -7160,12 +7174,12 @@ button.chip:focus-visible {
   min-width: 140px;
   max-width: 200px;
   padding: 8px 10px;
-  color: #1b1b2f;
+  color: var(--ink);
   font-size: var(--fs-xs);
   text-align: center;
-  background: #fffaf0;
-  border: 2px solid #000;
-  box-shadow: 0 0 0 2px var(--mint), 3px 3px 0 rgba(0, 0, 0, 0.35);
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
+  box-shadow: 0 0 0 2px var(--mint-500), 3px 3px 0 color-mix(in srgb, var(--ink) 35%, transparent);
   border-radius: var(--r-panel);
   corner-shape: var(--corner);
   pointer-events: auto;
@@ -7191,8 +7205,8 @@ button.chip:focus-visible {
    The frame is the inner .pin-frame (cut by clip-path); the glow is a filter on the pin itself,
    so the clip does not cut it off. Whole-pixel sizes keep Tiny5 and the icons sharp. */
 .place-pin {
-  --pin-edge: rgba(0, 236, 151, 0.9);
-  --pin-glow: rgba(0, 236, 151, 0.55);
+  --pin-edge: color-mix(in srgb, var(--mint-500) 90%, transparent);
+  --pin-glow: color-mix(in srgb, var(--mint-500) 55%, transparent);
   position: absolute;
   z-index: 4;
   display: inline-flex;
@@ -7202,11 +7216,11 @@ button.chip:focus-visible {
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
-  color: #ffffff;
-  text-shadow: 1px 1px 0 #000;
+  color: var(--paper-light);
+  text-shadow: 1px 1px 0 var(--ink);
   background: none;
   border: 0;
-  filter: drop-shadow(0 0 4px var(--pin-glow)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 0 4px var(--pin-glow)) drop-shadow(0 2px 2px color-mix(in srgb, var(--ink) 45%, transparent));
   cursor: pointer;
   pointer-events: auto;
   animation: pin-bob 3.2s ease-in-out infinite;
@@ -7219,9 +7233,9 @@ button.chip:focus-visible {
   align-items: center;
   gap: 5px;
   padding: 4px 9px 4px 5px;
-  background: rgba(6, 18, 13, 0.92);
+  background: color-mix(in srgb, var(--ink) 92%, transparent);
   border: 2px solid var(--pin-edge);
-  box-shadow: inset 0 0 0 1px #000;
+  box-shadow: inset 0 0 0 1px var(--ink);
   clip-path: polygon(
     0 calc(var(--n) * 2), var(--n) calc(var(--n) * 2), var(--n) var(--n), calc(var(--n) * 2) var(--n), calc(var(--n) * 2) 0,
     calc(100% - var(--n) * 2) 0, calc(100% - var(--n) * 2) var(--n), calc(100% - var(--n)) var(--n), calc(100% - var(--n)) calc(var(--n) * 2), 100% calc(var(--n) * 2),
@@ -7231,8 +7245,8 @@ button.chip:focus-visible {
 }
 
 .place-pin.soon {
-  --pin-edge: rgba(34, 211, 238, 0.9);
-  --pin-glow: rgba(34, 211, 238, 0.5);
+  --pin-edge: color-mix(in srgb, var(--cyan-500) 90%, transparent);
+  --pin-glow: color-mix(in srgb, var(--cyan-500) 50%, transparent);
 }
 
 @keyframes pin-bob {
@@ -7259,24 +7273,24 @@ button.chip:focus-visible {
   --n: 1px;
   padding: 2px 4px;
   font-size: var(--fs-2xs);
-  color: #062b33;
+  color: var(--hud);
   text-shadow: none;
-  background: var(--cyan);
+  background: var(--cyan-500);
   clip-path: polygon(0 1px, 1px 1px, 1px 0, calc(100% - 1px) 0, calc(100% - 1px) 1px, 100% 1px, 100% calc(100% - 1px), calc(100% - 1px) calc(100% - 1px), calc(100% - 1px) 100%, 1px 100%, 1px calc(100% - 1px), 0 calc(100% - 1px));
 }
 
 /* Hover or tap: the pin grows a little and glows; the full label shows (laptop). */
 .place-pin.lit {
-  --pin-edge: var(--mint);
-  --pin-glow: rgba(0, 236, 151, 0.85);
+  --pin-edge: var(--mint-500);
+  --pin-glow: color-mix(in srgb, var(--mint-500) 85%, transparent);
   z-index: 5;
   opacity: 1;
   transform: scale(1.12);
 }
 
 .place-pin.soon.lit {
-  --pin-edge: var(--cyan);
-  --pin-glow: rgba(34, 211, 238, 0.8);
+  --pin-edge: var(--cyan-500);
+  --pin-glow: color-mix(in srgb, var(--cyan-500) 80%, transparent);
 }
 
 /* First visit: every pin blinks softly twice. */
@@ -7287,7 +7301,7 @@ button.chip:focus-visible {
 @keyframes pin-hint {
   50% {
     opacity: 1;
-    filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 7px rgba(245, 197, 66, 0.9));
+    filter: drop-shadow(0 0 2px var(--gold-500)) drop-shadow(0 0 7px color-mix(in srgb, var(--gold-500) 90%, transparent));
   }
 }
 
@@ -7373,9 +7387,9 @@ button.chip:focus-visible {
   /* Edge to edge on the phone (also on phones wider than the 430 px page); no sideways panning. */
   margin: 0 calc(50% - 50vw);
   overflow: clip;
-  border-top: var(--px) solid #000;
-  border-bottom: var(--px) solid #000;
-  box-shadow: 0 0 18px rgba(0, 236, 151, 0.18);
+  border-top: var(--px) solid var(--ink);
+  border-bottom: var(--px) solid var(--ink);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--mint-500) 18%, transparent);
 }
 
 .phone-scene-box.v1 {
@@ -7447,7 +7461,7 @@ button.chip:focus-visible {
   flex: 1;
   margin: 0;
   font-size: var(--fs-body);
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
 }
 
 .sheet-grip {
@@ -7457,7 +7471,7 @@ button.chip:focus-visible {
   width: 36px;
   height: 4px;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.25);
+  background: color-mix(in srgb, var(--ink) 25%, transparent);
   border-radius: 2px;
 }
 
@@ -7467,7 +7481,7 @@ button.chip:focus-visible {
 
 .sheet-chevron {
   font-size: var(--fs-sm);
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
 }
 
 .sheet-help-btn {
@@ -7476,16 +7490,16 @@ button.chip:focus-visible {
   flex: none;
   font-size: var(--fs-body);
   font-weight: 700;
-  color: #1b1b2f;
-  background: #fff3c4;
-  border: 2px solid #1b1b2f;
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
 }
 
 .sheet-help {
   margin: 0 0 8px;
   padding: 6px 8px;
-  background: #eefbf3;
-  border: 2px solid var(--mint-dim);
+  background: var(--paper-light);
+  border: 2px solid color-mix(in srgb, var(--mint-500) 35%, transparent);
 }
 
 .sheet-status {
@@ -7575,11 +7589,11 @@ button.chip:focus-visible {
 }
 
 .plot.selected .soil.mound svg {
-  filter: drop-shadow(0 calc(var(--px) * -1) 0 var(--mint)) drop-shadow(0 0 6px var(--mint));
+  filter: drop-shadow(0 calc(var(--px) * -1) 0 var(--mint-500)) drop-shadow(0 0 6px var(--mint-500));
 }
 
 .plot.selected .soil.mound .mound-front {
-  filter: drop-shadow(0 var(--px) 0 var(--mint)) drop-shadow(0 0 6px rgba(0, 236, 151, 0.8));
+  filter: drop-shadow(0 var(--px) 0 var(--mint-500)) drop-shadow(0 0 6px rgba(0, 236, 151, 0.8));
 }
 
 /* Fertilized: a soft green glow that breathes. */
@@ -7599,7 +7613,7 @@ button.chip:focus-visible {
 
 .plot.selected .plot-art.fertilized + .soil.mound .mound-back {
   animation: none;
-  filter: drop-shadow(0 calc(var(--px) * -1) 0 var(--mint)) drop-shadow(0 0 8px #b6ed08);
+  filter: drop-shadow(0 calc(var(--px) * -1) 0 var(--mint-500)) drop-shadow(0 0 8px #b6ed08);
 }
 
 .immersive-scene .plot.locked .soil.mound {
@@ -7815,11 +7829,11 @@ button.chip:focus-visible {
 }
 
 .phase-night .plot.selected .soil.mound svg {
-  filter: brightness(0.6) saturate(0.85) drop-shadow(0 calc(var(--px) * -1) 0 var(--mint)) drop-shadow(0 0 6px var(--mint));
+  filter: brightness(0.6) saturate(0.85) drop-shadow(0 calc(var(--px) * -1) 0 var(--mint-500)) drop-shadow(0 0 6px var(--mint-500));
 }
 
 .phase-dusk .plot.selected .soil.mound svg {
-  filter: brightness(0.85) drop-shadow(0 calc(var(--px) * -1) 0 var(--mint)) drop-shadow(0 0 6px var(--mint));
+  filter: brightness(0.85) drop-shadow(0 calc(var(--px) * -1) 0 var(--mint-500)) drop-shadow(0 0 6px var(--mint-500));
 }
 
 /* Phones: an empty plot's seeds are one row of small cards (the note is behind "?"). */
@@ -7944,8 +7958,8 @@ button.chip:focus-visible {
 .billboard svg {
   width: 100%;
   height: 100%;
-  fill: #c8fff0;
-  filter: drop-shadow(0 0 1px #00ec97) drop-shadow(0 0 3px rgba(0, 236, 151, 0.75));
+  fill: var(--cyan-300);
+  filter: drop-shadow(0 0 1px var(--mint-500)) drop-shadow(0 0 3px color-mix(in srgb, var(--mint-500) 75%, transparent));
   animation: billboard-glow 3.4s ease-in-out infinite;
 }
 
@@ -8021,7 +8035,7 @@ button.chip:focus-visible {
 
 /* Selected: a mint outline all around and a soft glow. */
 .plot.selected .soil.mound.art {
-  --m-sel: drop-shadow(1px 0 0 var(--mint)) drop-shadow(-1px 0 0 var(--mint)) drop-shadow(0 1px 0 var(--mint)) drop-shadow(0 -1px 0 var(--mint)) drop-shadow(0 0 5px rgba(0, 236, 151, 0.8));
+  --m-sel: drop-shadow(1px 0 0 var(--mint-500)) drop-shadow(-1px 0 0 var(--mint-500)) drop-shadow(0 1px 0 var(--mint-500)) drop-shadow(0 -1px 0 var(--mint-500)) drop-shadow(0 0 5px rgba(0, 236, 151, 0.8));
 }
 
 /* Fertilized: a green glow that breathes. */
@@ -8117,7 +8131,7 @@ button.chip:focus-visible {
 
 .seed-count {
   font-size: var(--fs-sm);
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
 }
 
 .seed-dot {
@@ -8126,24 +8140,24 @@ button.chip:focus-visible {
   top: -1px;
   width: 9px;
   height: 9px;
-  border: 2px solid #1b1b2f;
+  border: 2px solid var(--ink);
   border-radius: 50%;
 }
 
 .seed-card.seed-rare .seed-dot {
-  background: var(--purple);
+  background: var(--purple-500);
 }
 
 .seed-card.seed-gold .seed-dot {
-  background: var(--gold);
+  background: var(--gold-500);
 }
 
 .seed-card.compact.seed-rare {
-  border-color: var(--purple);
+  border-color: var(--purple-500);
 }
 
 .seed-card.compact.seed-gold {
-  border-color: #c99a1a;
+  border-color: var(--gold-700);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -8306,9 +8320,9 @@ button.chip:focus-visible {
   padding: 0;
   vertical-align: middle;
   font: 700 var(--fs-xs)/1 var(--font-ui);
-  color: #fff;
-  background: #0b6b86;
-  border: 2px solid #1b1b2f;
+  color: var(--paper-light);
+  background: var(--cyan-700);
+  border: 2px solid var(--ink);
   border-radius: 50%;
   cursor: pointer;
   flex: none;
@@ -8322,12 +8336,12 @@ button.chip:focus-visible {
 
 .info-i:hover,
 .info-i.open {
-  background: var(--cyan);
-  color: #1b1b2f;
+  background: var(--cyan-500);
+  color: var(--ink);
 }
 
 .info-i:focus-visible {
-  outline: 3px solid var(--cyan);
+  outline: 3px solid var(--cyan-500);
   outline-offset: 2px;
 }
 
@@ -8337,11 +8351,11 @@ button.chip:focus-visible {
   width: max-content;
   max-width: min(290px, calc(100vw - 16px));
   padding: 10px 34px 10px 12px;
-  color: #1b1b2f;
-  background: #fffaf0;
-  border: 2px solid #1b1b2f;
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
   border-radius: 8px;
-  box-shadow: 0 0 0 2px var(--cyan), 0 6px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 2px var(--cyan-500), 0 6px 18px color-mix(in srgb, var(--ink) 35%, transparent);
   animation: info-in 140ms ease-out;
 }
 
@@ -8362,7 +8376,7 @@ button.chip:focus-visible {
   padding: 0;
   font-size: var(--fs-h3);
   line-height: 1;
-  color: #5b5546;
+  color: var(--ink-soft);
   background: none;
   border: 0;
   cursor: pointer;
@@ -8574,7 +8588,7 @@ li b,
 .small b {
   font-family: inherit;
   font-weight: 400;
-  color: var(--leaf-dark);
+  color: var(--leaf-700);
 }
 
 .login-points li b,
@@ -8675,26 +8689,26 @@ li b,
 }
 
 .panel {
-  border: 6px solid var(--bamboo-a) !important;
+  border: 6px solid var(--gold-500) !important;
   border-image: none !important;
-  box-shadow: inset 0 0 0 2px #1b1b2f, inset -5px -6px 0 rgba(42, 25, 12, 0.22) !important;
+  box-shadow: inset 0 0 0 2px var(--ink), inset -5px -6px 0 color-mix(in srgb, var(--soil-700) 22%, transparent) !important;
 }
 
 /* Windows and the HUD frames: dark wood outline. */
 .hud {
   border-width: 6px !important;
-  box-shadow: inset -5px -6px 0 rgba(0, 0, 0, 0.3) !important;
+  box-shadow: inset -5px -6px 0 color-mix(in srgb, var(--ink) 30%, transparent) !important;
 }
 
 /* Buttons: dark outline, light top edge, darker bottom/right edge (pressed: flipped). */
 .btn {
-  border: 4px solid #1b1b2f !important;
-  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.45), inset -3px -5px 0 rgba(0, 0, 0, 0.22) !important;
+  border: 4px solid var(--ink) !important;
+  box-shadow: inset 0 3px 0 color-mix(in srgb, var(--paper-light) 45%, transparent), inset -3px -5px 0 color-mix(in srgb, var(--ink) 22%, transparent) !important;
 }
 
 .btn:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow: inset 3px 4px 0 rgba(0, 0, 0, 0.25) !important;
+  box-shadow: inset 3px 4px 0 color-mix(in srgb, var(--ink) 25%, transparent) !important;
 }
 
 .btn-small {
@@ -8717,30 +8731,30 @@ li b,
 .sheet-help {
   border-width: 4px !important;
   border-style: solid !important;
-  box-shadow: inset -3px -4px 0 rgba(0, 0, 0, 0.12) !important;
+  box-shadow: inset -3px -4px 0 color-mix(in srgb, var(--ink) 12%, transparent) !important;
 }
 
 .bot-style.selected {
-  border-color: var(--mint) !important;
-  box-shadow: inset 0 0 0 2px #0b8f5f, inset -3px -4px 0 rgba(0, 0, 0, 0.12) !important;
+  border-color: var(--mint-500) !important;
+  box-shadow: inset 0 0 0 2px var(--mint-700), inset -3px -4px 0 color-mix(in srgb, var(--ink) 12%, transparent) !important;
 }
 
 .toast,
 .coach,
 .info-bubble {
-  border: 4px solid #1b1b2f !important;
-  box-shadow: inset 0 0 0 2px var(--cyan), inset -4px -5px 0 rgba(0, 0, 0, 0.18) !important;
+  border: 4px solid var(--ink) !important;
+  box-shadow: inset 0 0 0 2px var(--cyan-500), inset -4px -5px 0 color-mix(in srgb, var(--ink) 18%, transparent) !important;
 }
 
 .coach {
   border-width: 6px !important;
-  box-shadow: inset 0 0 0 3px var(--mint), inset -5px -6px 0 rgba(0, 0, 0, 0.18) !important;
+  box-shadow: inset 0 0 0 3px var(--mint-500), inset -5px -6px 0 color-mix(in srgb, var(--ink) 18%, transparent) !important;
 }
 
 .chip,
 .hud-capsule {
   border-width: 4px !important;
-  box-shadow: inset -3px -4px 0 rgba(0, 0, 0, 0.25) !important;
+  box-shadow: inset -3px -4px 0 color-mix(in srgb, var(--ink) 25%, transparent) !important;
 }
 
 .calendar .cal-day {
@@ -8749,7 +8763,7 @@ li b,
 
 .share-card {
   --n: 3px;
-  border: 6px solid #1b1b2f;
+  border: 6px solid var(--ink);
 }
 
 /* Tutorial highlight on clipped boxes: the glow pulses inside (an outer glow would be cut). */
@@ -8761,10 +8775,10 @@ li b,
 @keyframes tut-glow-inner {
   0%,
   100% {
-    box-shadow: inset 0 0 0 3px var(--gold), inset 0 0 10px 2px rgba(245, 197, 66, 0.7);
+    box-shadow: inset 0 0 0 3px var(--gold-500), inset 0 0 10px 2px color-mix(in srgb, var(--gold-500) 70%, transparent);
   }
   50% {
-    box-shadow: inset 0 0 0 4px #fff3c4, inset 0 0 16px 6px rgba(245, 197, 66, 0.95);
+    box-shadow: inset 0 0 0 4px var(--paper), inset 0 0 16px 6px color-mix(in srgb, var(--gold-500) 95%, transparent);
   }
 }
 
@@ -8793,14 +8807,14 @@ li b,
   top: calc(0.75em - 4px);
   width: 8px;
   height: 8px;
-  background: var(--mint);
-  box-shadow: 2px 2px 0 #0b3b27;
+  background: var(--mint-500);
+  box-shadow: 2px 2px 0 var(--hud);
 }
 
 .info-body ul li::before,
 .lp-list li::before {
-  background: #2e7d4f;
-  box-shadow: 2px 2px 0 #1b1b2f;
+  background: var(--leaf-500);
+  box-shadow: 2px 2px 0 var(--ink);
 }
 
 /* Seeds of an empty plot (garden.tsx SeedRow): one row; when it does not fit it scrolls with arrows. */
@@ -8838,9 +8852,9 @@ li b,
   height: 44px;
   padding: 0;
   font: 400 var(--fs-h2)/1 var(--font-ui);
-  color: #1b1b2f;
-  background: var(--gold);
-  border: 4px solid #1b1b2f;
+  color: var(--ink);
+  background: var(--gold-500);
+  border: 4px solid var(--ink);
   cursor: pointer;
   clip-path: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
 }
@@ -8892,10 +8906,10 @@ li b,
   line-height: 1 !important;
   white-space: nowrap;
   text-decoration: none;
-  color: #1b1b2f;
-  background: rgba(255, 250, 240, 0.95);
-  border: 3px solid #1b1b2f !important;
-  box-shadow: inset -2px -3px 0 rgba(0, 0, 0, 0.15) !important;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--paper-light) 95%, transparent);
+  border: 3px solid var(--ink) !important;
+  box-shadow: inset -2px -3px 0 color-mix(in srgb, var(--ink) 15%, transparent) !important;
   --n: 2px;
   animation: toast-in 160ms steps(3);
   pointer-events: auto;
@@ -8908,13 +8922,13 @@ li b,
 
 .toasts > .toast-chain,
 .toasts > .toast-success {
-  color: var(--mint);
-  background: rgba(10, 29, 20, 0.94);
-  border-color: var(--mint) !important;
+  color: var(--mint-500);
+  background: color-mix(in srgb, var(--ink) 94%, transparent);
+  border-color: var(--mint-500) !important;
 }
 
 .toasts > .toast-error {
-  background: #ffe1e1;
+  background: var(--paper);
 }
 
 .toast-text {
@@ -8928,13 +8942,13 @@ li b,
   flex: none;
   padding: 2px 5px;
   font-size: var(--fs-xs);
-  color: #1b1b2f;
-  background: var(--gold);
+  color: var(--ink);
+  background: var(--gold-500);
 }
 
 .toast-tx {
   flex: none;
-  color: var(--cyan);
+  color: var(--cyan-500);
   text-decoration: underline;
 }
 
@@ -8984,20 +8998,20 @@ li b,
 
 .qty-slider::-webkit-slider-runnable-track {
   height: 10px;
-  background: #fffaf0;
-  border: 3px solid #1b1b2f;
-  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.18);
+  background: var(--paper-light);
+  border: 3px solid var(--ink);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--ink) 18%, transparent);
 }
 
 .qty-slider::-moz-range-track {
   height: 4px;
-  background: #fffaf0;
-  border: 3px solid #1b1b2f;
+  background: var(--paper-light);
+  border: 3px solid var(--ink);
 }
 
 .qty-slider::-moz-range-progress {
   height: 4px;
-  background: var(--mint);
+  background: var(--mint-500);
 }
 
 .qty-slider::-webkit-slider-thumb {
@@ -9006,22 +9020,22 @@ li b,
   width: 22px;
   height: 26px;
   margin-top: -11px;
-  background: var(--gold);
-  border: 3px solid #1b1b2f;
+  background: var(--gold-500);
+  border: 3px solid var(--ink);
   border-radius: 0;
-  box-shadow: inset -3px -4px 0 rgba(0, 0, 0, 0.22), inset 2px 2px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: inset -3px -4px 0 color-mix(in srgb, var(--ink) 22%, transparent), inset 2px 2px 0 color-mix(in srgb, var(--paper-light) 50%, transparent);
 }
 
 .qty-slider::-moz-range-thumb {
   width: 16px;
   height: 20px;
-  background: var(--gold);
-  border: 3px solid #1b1b2f;
+  background: var(--gold-500);
+  border: 3px solid var(--ink);
   border-radius: 0;
 }
 
 .qty-slider:focus-visible::-webkit-slider-thumb {
-  outline: 3px solid var(--cyan);
+  outline: 3px solid var(--cyan-500);
 }
 
 .qty-slider:disabled {
@@ -9079,11 +9093,11 @@ html.page-locked body {
 
 /* The HUD floats over the sky: see-through capsules, still easy to read. */
 .shell.phone-fit .topbar > .hud-capsule {
-  background: rgba(14, 40, 27, 0.66);
+  background: color-mix(in srgb, var(--ink) 66%, transparent);
 }
 
 .shell.phone-fit .hud-chips .chip-day {
-  background: rgba(40, 26, 14, 0.7);
+  background: color-mix(in srgb, var(--soil-700) 70%, transparent);
 }
 
 .shell.phone-fit > .content {
@@ -9252,9 +9266,9 @@ html.page-locked body {
   position: relative;
   height: 12px;
   margin: 4px 2px 0;
-  background: #2a1c10;
-  border: 2px solid #1b1b2f;
-  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.35);
+  background: var(--soil-700);
+  border: 2px solid var(--ink);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
   cursor: pointer;
   touch-action: none;
 }
@@ -9264,8 +9278,8 @@ html.page-locked body {
   top: 0;
   bottom: 0;
   min-width: 24px;
-  background: var(--gold);
-  box-shadow: inset 0 -2px 0 #c99a1a, inset 0 2px 0 #ffe58a;
+  background: var(--gold-500);
+  box-shadow: inset 0 -2px 0 var(--gold-700), inset 0 2px 0 var(--gold-300);
 }
 
 .seed-swipe-hint {
@@ -9275,10 +9289,10 @@ html.page-locked body {
   z-index: 2;
   padding: 1px 6px;
   font: 400 var(--fs-xs)/1 var(--font-ui);
-  color: #1b1b2f;
-  background: var(--gold);
-  border: 2px solid #1b1b2f;
-  box-shadow: 2px 2px 0 #1b1b2f;
+  color: var(--ink);
+  background: var(--gold-500);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
   pointer-events: none;
   animation: swipe-nudge 0.9s steps(2) infinite;
 }
@@ -9314,7 +9328,7 @@ html.page-locked body {
 }
 
 .inv-toggle:focus-visible {
-  outline: 3px solid var(--mint);
+  outline: 3px solid var(--mint-500);
   outline-offset: 2px;
 }
 
@@ -9381,9 +9395,9 @@ html.page-locked body {
     justify-content: center;
     padding: 16px calc(env(safe-area-inset-right) + 24px) 16px calc(env(safe-area-inset-left) + 24px);
     background:
-      repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 8px),
-      linear-gradient(#143826, #0f2a1e);
-    color: #f6efd9;
+      repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink) 16%, transparent) 0 2px, transparent 2px 8px),
+      linear-gradient(var(--hud), var(--ink));
+    color: var(--paper);
   }
 }
 
@@ -9393,9 +9407,9 @@ html.page-locked body {
   gap: 28px;
   max-width: 640px;
   padding: 20px 26px;
-  background: rgba(20, 56, 38, 0.92);
-  border: 4px solid #1b1b2f;
-  box-shadow: 0 0 0 3px var(--mint-dim), inset 0 -4px 0 rgba(0, 0, 0, 0.3);
+  background: color-mix(in srgb, var(--hud) 92%, transparent);
+  border: 4px solid var(--ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint-500) 35%, transparent), inset 0 -4px 0 color-mix(in srgb, var(--ink) 30%, transparent);
 }
 
 .rotate-inner .tanibot {
@@ -9405,8 +9419,8 @@ html.page-locked body {
 .rotate-logo {
   font: 700 var(--fs-h2)/1.1 var(--font-title);
   text-transform: uppercase;
-  color: var(--mint);
-  text-shadow: 3px 3px 0 #000;
+  color: var(--mint-500);
+  text-shadow: 3px 3px 0 var(--ink);
 }
 
 .rotate-text p {
@@ -9420,8 +9434,8 @@ html.page-locked body {
   margin-top: 10px;
   width: 20px;
   height: 32px;
-  border: 3px solid #f6efd9;
-  box-shadow: 2px 2px 0 #000;
+  border: 3px solid var(--paper);
+  box-shadow: 2px 2px 0 var(--ink);
   animation: rotate-phone 2.4s steps(1) infinite;
 }
 
@@ -9430,7 +9444,7 @@ html.page-locked body {
   width: 6px;
   height: 3px;
   margin: 22px auto 0;
-  background: #f6efd9;
+  background: var(--paper);
 }
 
 @keyframes rotate-phone {
