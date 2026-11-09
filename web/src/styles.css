@@ -9299,6 +9299,11 @@ html.page-locked body {
   image-rendering: pixelated;
 }
 
+/* Below the art the strips show only the bottom bushes (no plain grass band between them). */
+.bg-lawn .ground-layer i.bush {
+  height: calc((var(--art-h) - var(--bush-row)) * var(--k) * 1px);
+}
+
 .bg-lawn .ground-dusk {
   opacity: var(--dusk);
 }

@@ -72,6 +72,8 @@ export interface Village {
   grassRow?: number;
   /** Laptops: first row with only grass and bushes (no buildings, fences or palms) across the whole width. */
   lawnRow?: number;
+  /** Laptops: first row of the bottom bushes (the lawn below the art repeats rows bushRow..h). */
+  bushRow?: number;
   lanterns: Box[];
   holograms: Box[];
   falls: Box[];
@@ -287,6 +289,7 @@ export const V3_WEB: Village = {
   w: 240,
   h: 135,
   lawnRow: 106,
+  bushRow: 121,
   skyBottom: 61,
   src: v3Src('web'),
   bedRow: 121,

@@ -164,11 +164,15 @@ export function Backdrop({
           village's grass row down: the art's own bottom rows (only grass and bushes, no
           buildings) repeated sideways, upright, in strips stacked downwards. */}
       {groundWide && (
-        <div class="bg-lawn" style={{ '--art-w': String(v.w), '--art-h': String(v.h), '--lawn-row': String(v.lawnRow ?? v.h - 30) }}>
+        <div
+          class="bg-lawn"
+          style={{ '--art-w': String(v.w), '--art-h': String(v.h), '--lawn-row': String(v.lawnRow ?? v.h - 30), '--bush-row': String(v.bushRow ?? v.h - 15) }}
+        >
           {(['day', 'dusk', 'night'] as const).map((light) => (
             <div key={light} class={`ground-layer ground-${light}`}>
-              {Array.from({ length: 8 }, (_, i) => (
-                <i key={i} style={{ backgroundImage: `url(${src(light)})` }} />
+              {/* First strip: grass + bushes, level with the art. Below the art: bushes only. */}
+              {Array.from({ length: 10 }, (_, i) => (
+                <i key={i} class={i === 0 ? undefined : 'bush'} style={{ backgroundImage: `url(${src(light)})` }} />
               ))}
             </div>
           ))}

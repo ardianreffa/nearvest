@@ -1,12 +1,14 @@
-// The landing page at / (the game itself is at /play). Same pixel-art world as the game: the v3
-// village under the code sky, the six TaniBots, Mr. Darto, trees and fruit. Light on phones (no
-// game code, only the art it shows) and still with prefers-reduced-motion (landing.css).
+// The landing page at / (the game itself is at /play). Full-screen sections like a game site:
+// the hero (the game's own village at midday with all its animations), then one screen each for
+// the Living Tree NFT, TaniBot, $PANEN, "Play first, own later" and the closing call. Each
+// section has its own palette colour; the borders are stepped pixel dithers (Dither). A floating
+// "Play for free" appears once the hero is scrolled away. Still with prefers-reduced-motion.
 // A signed-in player (or an old link with game options such as ?record=1) goes straight to /play
 // (inline script in index.html, before anything loads). "Try as Judge" opens /play?judge=1, which
 // makes the judge garden right away, exactly like the button on the sign-in page.
 
 import { render } from 'preact';
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import './fonts.css';
 import './styles.css';
 import './landing.css';
@@ -14,9 +16,10 @@ import { API_URL } from './api';
 import { DARTO_IDLE, DARTO_PALETTE } from './art/darto-sprite';
 import { Backdrop } from './art/backdrop';
 import { V3_PHONE, V3_WEB } from './art/village';
-import { TaniBot, TIER_TITLE, TIERS } from './art/tanibot';
+import { Avatar } from './art/avatars';
+import { TaniBot } from './art/tanibot';
 import { TreePixels } from './art/trees';
-import { Pixels, Sprite } from './sprites';
+import { Pixels, Sprite, type SpriteName } from './sprites';
 
 const EXPLORER = 'https://testnet.nearblocks.io';
 const HOUR = 11; // a sunny late morning in Tandur: the landing is always day (no clock, no weather)
@@ -45,50 +48,14 @@ function useNarrow(): boolean {
   return narrow;
 }
 
-/**
- * TaniBot flies slowly left and right in the band between the hero text and the buttons, so it
- * never covers either (hidden when the band is too small). Its height follows the window.
- */
-function useBotBand(hero: { current: HTMLElement | null }) {
-  useLayoutEffect(() => {
-    const place = () => {
-      const h = hero.current;
-      const bot = h?.querySelector<HTMLElement>('.lp-hero-bot');
-      const top = h?.querySelector('.lp-hero-top');
-      const cta = h?.querySelector('.lp-cta');
-      if (!h || !bot || !top || !cta) return;
-      const hr = h.getBoundingClientRect();
-      const from = top.getBoundingClientRect().bottom - hr.top + 12;
-      const to = cta.getBoundingClientRect().top - hr.top - 12;
-      const bh = bot.offsetHeight;
-      bot.style.visibility = to - from >= bh ? 'visible' : 'hidden';
-      bot.style.top = `${Math.round(from + Math.max(0, (to - from - bh) * 0.45))}px`;
-    };
-    place();
-    const t = setTimeout(place, 600); // after the fonts have loaded
-    window.addEventListener('resize', place);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener('resize', place);
-    };
-  }, []);
-}
-
 function Hero() {
   const narrow = useNarrow();
-  const hero = useRef<HTMLElement>(null);
-  useBotBand(hero);
   return (
-    <header class={`lp-hero${narrow ? ' narrow' : ' wide'}`} ref={hero}>
+    <header class={`lp-hero${narrow ? ' narrow' : ' wide'}`} id="top">
       {/* The game's own village and sky, always at midday: waterfalls, rotors, train, volcano smoke,
           lanterns, drones, sun, clouds and birds move exactly as in the garden. */}
       <div class="lp-backdrop" aria-label="The farming village of Tandur" role="img">
         <Backdrop fraction={DAY} hd village={narrow ? V3_PHONE : V3_WEB} skyTop={narrow ? PHONE_SKY_TOP : undefined} />
-      </div>
-      <div class="lp-hero-bot" aria-hidden="true">
-        <div class="lp-bot-fly">
-          <TaniBot tier="farmer" scale={narrow ? 1 : 2} />
-        </div>
       </div>
       <div class="lp-hero-top">
         <h1 class="logo lp-logo">NEARvest</h1>
@@ -105,6 +72,7 @@ function Hero() {
         <span class="lp-cta-note">Sign in with Google or a NEAR wallet. No fees, testnet.</span>
         <span class="lp-cta-note lp-device-note">Plays on phones and laptops. For the best view, use Chrome on a laptop.</span>
       </div>
+      <Dither to="--leaf-500" id="d0" />
       <a class="lp-more" href="#trees" aria-label="See how it works">
         ▼
       </a>
@@ -112,217 +80,265 @@ function Hero() {
   );
 }
 
-function Section({ id, title, children, art }: { id?: string; title: string; children: preact.ComponentChildren; art: preact.ComponentChildren }) {
+/**
+ * The stepped pixel border at the bottom of a section: three rows of 8 px squares in the next
+ * section's colour, 25% -> 50% -> 75% filled (an ordered dither), then the next section starts.
+ */
+function Dither({ to, id }: { to: `--${string}`; id: string }) {
+  const sq = 8;
   return (
-    <section class="lp-section" id={id}>
-      <div class="lp-art-box" aria-hidden="true">
-        {art}
+    <svg class="lp-dither" style={{ color: `var(${to})` }} aria-hidden="true" height={sq * 6} preserveAspectRatio="none">
+      <defs>
+        <pattern id={`${id}-25`} width={sq * 2} height={sq * 2} patternUnits="userSpaceOnUse">
+          <rect width={sq} height={sq} fill="currentColor" />
+        </pattern>
+        <pattern id={`${id}-50`} width={sq * 2} height={sq * 2} patternUnits="userSpaceOnUse">
+          <rect width={sq} height={sq} fill="currentColor" />
+          <rect x={sq} y={sq} width={sq} height={sq} fill="currentColor" />
+        </pattern>
+        <pattern id={`${id}-75`} width={sq * 2} height={sq * 2} patternUnits="userSpaceOnUse">
+          <rect width={sq * 2} height={sq} fill="currentColor" />
+          <rect x={sq} y={sq} width={sq} height={sq} fill="currentColor" />
+        </pattern>
+      </defs>
+      <rect y={0} width="100%" height={sq * 2} fill={`url(#${id}-25)`} />
+      <rect y={sq * 2} width="100%" height={sq * 2} fill={`url(#${id}-50)`} />
+      <rect y={sq * 4} width="100%" height={sq * 2} fill={`url(#${id}-75)`} />
+    </svg>
+  );
+}
+
+/** One full-screen section: its colour, the art, the title and the points (all within one screen). */
+function Screen({ id, tone, next, title, art, children }: { id: string; tone: string; next?: `--${string}`; title: string; art?: preact.ComponentChildren; children: preact.ComponentChildren }) {
+  return (
+    <section class={`lp-screen tone-${tone}`} id={id}>
+      <div class="lp-screen-inner">
+        {art && <div class="lp-screen-art">{art}</div>}
+        <div class="lp-screen-text">
+          <h2>{title}</h2>
+          {children}
+        </div>
       </div>
-      <div class="lp-text">
-        <h2>{title}</h2>
-        {children}
-      </div>
+      {next && <Dither to={next} id={`d-${id}`} />}
     </section>
   );
 }
 
+function Points({ items }: { items: [SpriteName, preact.ComponentChildren][] }) {
+  return (
+    <ul class="lp-points">
+      {items.map(([icon, text], i) => (
+        <li key={i}>
+          <span class="lp-point-icon">
+            <Sprite name={icon} scale={2} />
+          </span>
+          <span>{text}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Live numbers from the testnet contracts (small, under the $PANEN points). */
 function LiveStats() {
   const [s, setS] = useState<Stats | null>(null);
-  const [failed, setFailed] = useState(false);
   useEffect(() => {
     fetch(`${API_URL}/api/stats`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then(setS)
-      .catch(() => setFailed(true));
+      .catch(() => undefined);
   }, []);
-  const items: [string, string, string][] = s
-    ? [
-        ['Farmers', fmt(s.village.players), `${EXPLORER}/address/nearvest.testnet`],
-        ['Harvests', fmt(s.village.harvests), `${EXPLORER}/token/panen.nearvest.testnet`],
-        ['PANEN burned', fmt(s.panen.totalBurned), `${EXPLORER}/token/panen.nearvest.testnet`],
-        ['Tree NFTs', fmt(s.treeNfts), `${EXPLORER}/nft-token/pohon.nearvest.testnet`],
-      ]
-    : [];
+  if (!s) return null;
+  const items: [string, string, string][] = [
+    ['Farmers', fmt(s.village.players), `${EXPLORER}/address/nearvest.testnet`],
+    ['PANEN burned', fmt(s.panen.totalBurned), `${EXPLORER}/token/panen.nearvest.testnet`],
+    ['Tree NFTs', fmt(s.treeNfts), `${EXPLORER}/nft-token/pohon.nearvest.testnet`],
+  ];
   return (
-    <section class="lp-section lp-stats-section" id="stats">
-      <div class="lp-text lp-wide">
-        <h2>Live from Tandur</h2>
-        {failed ? (
-          <p>The village stats are resting right now. Open the game to see them.</p>
-        ) : !s ? (
-          <p>Counting the harvest...</p>
-        ) : (
-          <div class="lp-stats">
-            {items.map(([label, value, link]) => (
-              <a key={label} class="lp-stat" href={link} target="_blank" rel="noreferrer">
-                <b>{value}</b>
-                <span>{label}</span>
-                <i>proof on nearblocks ↗</i>
-              </a>
-            ))}
-          </div>
-        )}
-        {s && (
-          <p class="lp-small">
-            Season {s.panen.season}: harvest rewards {Math.round(100 / s.panen.rewardDivisor)}%. Everything here is read live from the testnet contracts.
-          </p>
-        )}
-      </div>
-    </section>
+    <div class="lp-live">
+      {items.map(([label, value, link]) => (
+        <a key={label} href={link} target="_blank" rel="noreferrer">
+          <b>{value}</b> {label}
+        </a>
+      ))}
+      <span>Season {s.panen.season} · live on testnet ↗</span>
+    </div>
+  );
+}
+
+/** Sections fade in once as they enter the screen (none with prefers-reduced-motion: CSS). */
+function useReveal() {
+  useEffect(() => {
+    const els = [...document.querySelectorAll('.lp-screen')];
+    if (typeof IntersectionObserver !== 'function') {
+      els.forEach((e) => e.classList.add('in'));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => e.isIntersecting && (e.target.classList.add('in'), io.unobserve(e.target))),
+      { threshold: 0.25 },
+    );
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  }, []);
+}
+
+/** The floating "Play for free": shown once the hero's own buttons are out of view. */
+function FloatingPlay() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const cta = document.querySelector('.lp-hero .lp-cta');
+    const end = document.querySelector('.lp-end .lp-end-buttons');
+    if (!cta || typeof IntersectionObserver !== 'function') return;
+    const seen = new Map<Element, boolean>();
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => seen.set(e.target, e.isIntersecting));
+      // Hidden while the hero's or the closing section's own buttons are on screen.
+      setShow(![...seen.values()].some(Boolean));
+    });
+    io.observe(cta);
+    if (end) io.observe(end);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <a class={`btn btn-mint lp-float${show ? ' show' : ''}`} href="/play" aria-hidden={!show} tabIndex={show ? 0 : -1}>
+      Play for free
+    </a>
   );
 }
 
 function Landing() {
+  useReveal();
+  const narrow = useNarrow();
+  const treeScale = narrow ? 2 : 4;
   return (
     <>
       <Hero />
       <main class="lp-main">
-        <Section
+        <Screen
           id="trees"
-          title="Living Tree NFTs"
+          tone="leaf"
+          next="--soil-500"
+          title="Your tree is a living NFT"
           art={
-            <div class="lp-trees">
-              <TreePixels species="mango" stage="sprout" quality="common" scale={4} seed={1} />
-              <TreePixels species="rambutan" stage="tree" quality="rare" scale={4} seed={2} />
-              <TreePixels species="durian" stage="fruiting" quality="gold" scale={4} seed={3} />
-            </div>
-          }
-        >
-          <p>Plant a seed and a Tree NFT is born in your NEAR account. It grows, fruits and ages on chain as you water it, and an old tree drops a superior seed for the next generation.</p>
-        </Section>
-
-        <Section
-          title="TaniBot, your AI farmer"
-          art={
-            <div class="lp-bots">
-              {TIERS.map((t) => (
-                <figure key={t}>
-                  <TaniBot tier={t} scale={1} />
-                  <figcaption>{TIER_TITLE[t]}</figcaption>
+            <div class="lp-tree-row">
+              {(
+                [
+                  ['sprout', 'Sprout', 'common'],
+                  ['tree', 'Tree', 'rare'],
+                  ['fruiting', 'Fruiting', 'gold'],
+                  ['old', 'Memorial', 'common'],
+                ] as const
+              ).map(([stage, label, q], i) => (
+                <figure key={stage}>
+                  <TreePixels species={i === 2 ? 'durian' : 'mango'} stage={stage} quality={q} scale={treeScale} seed={i + 1} />
+                  <figcaption>{label}</figcaption>
                 </figure>
               ))}
             </div>
           }
         >
-          <p>TaniBot waters, harvests and sells while you sleep. It has its own NEAR wallet and a budget you give it; the PANEN contract enforces its daily spending limit, so it can never spend more. It evolves with your title.</p>
-        </Section>
+          <Points
+            items={[
+              ['seedPacket', <>Plant a seed and a <b>Tree NFT</b> is born in your NEAR account.</>],
+              ['droplet', <>It <b>grows, fruits and ages</b> on chain as you water it.</>],
+              ['sprout', <><b>Lineage:</b> an old tree drops a superior seed for its next generation.</>],
+              ['sparkle', <>Then it becomes a <b>Memorial Tree</b> that stays in your garden.</>],
+            ]}
+          />
+        </Screen>
 
-        <Section
-          title="$PANEN with real mechanics"
+        <Screen
+          id="tanibot"
+          tone="soil"
+          next="--hud"
+          title="TaniBot, your AI farmer"
+          art={
+            <div class="lp-bot-stand">
+              <TaniBot tier="farmer" scale={narrow ? 1 : 4} effects={false} />
+            </div>
+          }
+        >
+          <Points
+            items={[
+              ['bolt', <>Its <b>own NEAR wallet</b>: a sub-account just for your bot.</>],
+              ['coin', <>You give it a <b>budget</b>; the PANEN contract enforces its <b>daily spending limit</b>.</>],
+              ['droplet', <>It waters, harvests and sells <b>while you sleep</b>.</>],
+              ['seedPacket', <>Every action is in its <b>Log</b>, with a link to the transaction.</>],
+            ]}
+          />
+        </Screen>
+
+        <Screen
+          id="panen"
+          tone="hud"
+          next="--purple-700"
+          title="$PANEN"
           art={
             <div class="lp-panen">
-              <Pixels rows={DARTO_IDLE} palette={DARTO_PALETTE} scale={2} class="lp-darto" />
+              <Pixels rows={DARTO_IDLE} palette={DARTO_PALETTE} scale={narrow ? 2 : 4} class="lp-darto" />
               <span class="lp-coins">
-                <Sprite name="coin" scale={6} />
-                <Sprite name="fire" scale={6} />
+                <Sprite name="coin" scale={narrow ? 4 : 8} />
+                <Sprite name="fire" scale={narrow ? 4 : 8} />
               </span>
             </div>
           }
         >
-          <ul class="lp-list">
-            <li>
-              <b>Fair launch:</b> 0% team, no pre-mint. Earned only by farming.
-            </li>
-            <li>
-              <b>Seasons:</b> harvest rewards halve as more PANEN exists.
-            </li>
-            <li>
-              <b>Burn:</b> every PANEN spent in the Shop is burned forever.
-            </li>
-          </ul>
-        </Section>
+          <Points
+            items={[
+              ['coin', <><b>Fair launch:</b> 0% team, no pre-mint. Earned only by farming.</>],
+              ['sparkle', <><b>Seasons:</b> harvest rewards halve as more PANEN exists.</>],
+              ['fire', <><b>Burn:</b> every PANEN spent in the Shop is burned forever.</>],
+            ]}
+          />
+          <LiveStats />
+        </Screen>
 
-        <section class="lp-section lp-steps-section">
-          <div class="lp-text lp-wide">
-            <h2>How to play</h2>
-            <ol class="lp-steps">
-              <li>
-                <Sprite name="seedPacket" scale={4} />
-                <b>Plant</b>
-                <span>a seed: a Tree NFT is born</span>
-              </li>
-              <li>
-                <Sprite name="droplet" scale={4} />
-                <b>Water</b>
-                <span>daily, or let TaniBot do it</span>
-              </li>
-              <li>
-                <Sprite name="durian" scale={4} />
-                <b>Harvest</b>
-                <span>ripe fruit (Rare x2, Gold x5)</span>
-              </li>
-              <li>
-                <Sprite name="coin" scale={4} />
-                <b>Sell</b>
-                <span>to Mr. Darto for PANEN</span>
-              </li>
-            </ol>
+        <Screen
+          id="own"
+          tone="purple"
+          next="--ink"
+          title="Play first, own later"
+          art={
+            <div class="lp-own">
+              <Avatar id="farmer_hat" size={narrow ? 96 : 224} />
+            </div>
+          }
+        >
+          <Points
+            items={[
+              ['sprout', <><b>Sign in with Google</b>: the game creates your NEAR account.</>],
+              ['bolt', <><b>No gas fees</b>: the game pays for every transaction.</>],
+              ['lock', <><b>No wallet popups</b> while you play.</>],
+              ['coin', <><b>NEAR wallet optional</b>: sign in with Meteor and others too.</>],
+              ['sparkle', <><b>Testnet</b>: tokens have no real value.</>],
+            ]}
+          />
+        </Screen>
+
+        <section class="lp-screen lp-end tone-ink" id="play">
+          <div class="lp-screen-inner lp-end-inner">
+            <h2 class="logo lp-end-logo">NEARvest</h2>
+            <div class="lp-end-line">Grow. Harvest. Own.</div>
+            <div class="lp-end-buttons">
+              <a class="btn btn-mint" href="/play">
+                Play for free
+              </a>
+              <a class="btn btn-gold" href="/play?judge=1">
+                Try as Judge
+              </a>
+            </div>
+            <p class="lp-end-note">Built for the NEAR Hackathon. Testnet: tokens have no real value.</p>
+            <nav class="lp-end-links">
+              <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> ·{' '}
+              <a href="https://x.com/intent/post?text=I%20found%20NEARvest%3A%20a%20pixel%20farming%20game%20where%20your%20tree%20is%20a%20living%20NFT.%20%40NEARProtocol%20%23NEARHackathon%20https%3A%2F%2Fnearvest-six.vercel.app" target="_blank" rel="noreferrer">
+                Share on X
+              </a>
+            </nav>
           </div>
-        </section>
-
-        <LiveStats />
-
-        <section class="lp-section">
-          <div class="lp-text lp-wide">
-            <h2>Built on NEAR</h2>
-            <ul class="lp-tech">
-              <li>
-                <b>NEP-141</b> $PANEN token
-              </li>
-              <li>
-                <b>NEP-171</b> Living Tree NFTs
-              </li>
-              <li>
-                <b>Sub-accounts</b> for every player and TaniBot
-              </li>
-              <li>
-                <b>Function call keys</b> + contract spending limit
-              </li>
-              <li>
-                <b>NEP-366</b> meta transactions: the game pays gas
-              </li>
-              <li>
-                <b>NEP-413</b> wallet sign-in (near-connect)
-              </li>
-              <li>
-                <b>NEAR AI Cloud</b> TaniBot's brain
-              </li>
-            </ul>
-          </div>
-        </section>
-
-        <section class="lp-section">
-          <div class="lp-text lp-wide">
-            <h2>Roadmap</h2>
-            <ol class="lp-roadmap">
-              <li class="done">
-                <b>Now</b> Plant, water, harvest, sell, Shop burn, Seasons, TaniBot with its own wallet, Try as Judge
-              </li>
-              <li>
-                <b>Next</b> Weather and volcano events, garden visits, P2P market, Arena duels
-              </li>
-              <li>
-                <b>Later</b> Mainnet launch (after legal advice), $PANEN/NEAR pool on a NEAR DEX
-              </li>
-            </ol>
-          </div>
-        </section>
-
-        <section class="lp-final">
-          <TaniBot tier="seedling" scale={2} />
-          <a class="btn btn-mint lp-play" href="/play">
-            Play for free
-          </a>
         </section>
       </main>
-      <footer class="lp-footer">
-        <a href="/privacy">Privacy</a>
-        <a href="/terms">Terms</a>
-        <a href="https://x.com/intent/post?text=I%20found%20NEARvest%3A%20a%20pixel%20farming%20game%20where%20your%20tree%20is%20a%20living%20NFT.%20%40NEARProtocol%20%23NEARHackathon%20https%3A%2F%2Fnearvest-six.vercel.app" target="_blank" rel="noreferrer">
-          Share on X
-        </a>
-        <span>Built for the NEAR Hackathon. Testnet: tokens have no real value.</span>
-      </footer>
+      <FloatingPlay />
     </>
   );
 }
