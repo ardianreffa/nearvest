@@ -60,7 +60,7 @@ The Judge tour window ticks each step and links its proof. Judge gardens are lim
 
 **`nfts`: NFTs That Do Something.** Each tree is a dynamic NEP-171 NFT in the player's own account: it grows, fruits and ages on chain as it is cared for, its stage and harvest count change in its metadata, and an old tree drops a superior seed (lineage) before becoming a Memorial Tree.
 
-**`agents`: Agent Economy.** TaniBot has its own NEAR sub-account with a function call key, a budget the player sends it, and a **daily spending limit enforced by the PANEN contract** (`set_bot` / `bot_accept`; a bot can only burn within its limit and can never transfer). It earns for its player (harvest, sell) and spends from its own budget (buys seeds); every action is logged with its transaction.
+**`agents`: Agent Economy.** TaniBot has its own NEAR sub-account with a function call key, a budget the player sends it, and a **daily spending limit enforced by the PANEN contract** (`set_bot` / `bot_accept`; a bot can only burn within its limit and can never transfer). It earns for its player (harvest, sell) and spends from its own budget (buys seeds); every action is logged with its transaction. TaniBot's decisions come from an LLM on NEAR AI Cloud, checked by the game rules.
 
 ---
 
@@ -82,7 +82,7 @@ NEAR features used:
 - **Contract-enforced spending limit**: the PANEN contract stores each bot's daily limit and refuses anything above it.
 - **NEP-366 meta transactions**: burns are signed by the player's key and relayed by `game.nearvest.testnet`, which pays the gas.
 - **NEP-413** signed-message login for NEAR wallets, through `@hot-labs/near-connect`.
-- **NEAR AI Cloud**: TaniBot's planner can ask an LLM (`Qwen/Qwen3-VL-30B-A3B-Instruct`); every suggestion is checked by the game rules, with a rule-based fallback. It is switched on per server (`TANIBOT_AI`); without it TaniBot uses the rules only.
+- **NEAR AI Cloud**: On the hosted demo, TaniBot's planner runs on NEAR AI Cloud (`Qwen/Qwen3-VL-30B-A3B-Instruct`); every suggestion is checked by the game rules, with a rule-based fallback.
 
 ---
 

@@ -60,6 +60,8 @@ mode (`/health` ok), the backup service command run from the staged release.
 
 Steps 2-9 done on 2026-11-08 (each with Ardian's OK; Entropy stayed PID 1904180 throughout). Server: `https://150-109-24-35.sslip.io` (release `nearvest-1a2fa33`, `/opt/nearvest/app`), web: `https://nearvest-six.vercel.app` (Vercel, root `web/`, `VITE_API_URL=https://150-109-24-35.sslip.io`). Backups daily at 03:30 in `/var/backups/nearvest`. Step 10 (playing on the live site) is Ardian's.
 
+**Entropy reference PID (for the read-only check in rule 6): 3665978** since 2026-11-09. Ardian restarted Entropy himself that day (an API update), not because of NEARvest; before that it was 1904180.
+
 ## Step 2: read-only check right before deploying (no change)
 
 ```sh
