@@ -12,7 +12,8 @@ import { useFullscreen } from './fullscreen';
 import { HowToPlay, Modal, PanenInfo } from './help';
 import { RECORD_MODE } from './record';
 import { holdShareCards, ShareHost, shareMomentOnce } from './share';
-import { burnAt, coinsToBalance, confetti, floatText, FxLayer } from './fx';
+import { MomentFxLayer } from './moment-fx';
+import { burnAt, coinsToBalance, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
 import { laptopLayout } from './scene';
 import { bgVersion } from './art/village';
@@ -185,17 +186,14 @@ export function App() {
       }
       if (lastTitle.current !== null && lastTitle.current !== s.player.title) {
         const evolved = tierRank(tierOf(s.player.title)) > tierRank(tierOf(lastTitle.current));
-        playSound('levelup');
-        confetti();
-        floatText(`${s.player.title}!`, 'mint', window.innerWidth / 2, window.innerHeight / 3);
         toast({ kind: 'info', text: evolved ? `New title: ${s.player.title}! TaniBot evolved.` : `New title: ${s.player.title}!` });
         const id = s.player.accountId;
-        // ?record=1 (demo recording, record.ts): no share card on this moment.
-        if (!RECORD_MODE) {
-          if (s.player.title === 'Legend') shareMomentOnce(id, { kind: 'legend' }, 2600);
-          else if (evolved) shareMomentOnce(id, { kind: 'evolved', title: s.player.title }, 2600);
-          else shareMomentOnce(id, { kind: 'title', title: s.player.title }, 2600);
-        }
+        // The moment's own animation + sound (banner, confetti, fanfare...), then its share card.
+        // ?record=1 (demo recording, record.ts): the animation only, no share card.
+        const popup = !RECORD_MODE;
+        if (s.player.title === 'Legend') shareMomentOnce(id, { kind: 'legend' }, { popup });
+        else if (evolved) shareMomentOnce(id, { kind: 'evolved', title: s.player.title }, { popup });
+        else shareMomentOnce(id, { kind: 'title', title: s.player.title }, { popup });
       }
       lastTitle.current = s.player.title;
       setState(withWeather(s));
@@ -224,7 +222,7 @@ export function App() {
       toast({ kind: 'error', text: 'Eruption! Ash covers your trees and stops them growing. Tap a tree and Clean ash (free).' });
     } else if (state.plots.some((x) => x.tree)) {
       toast({ kind: 'success', text: 'The eruption is over: trees you cleaned grow faster on Volcanic soil.' });
-      shareMomentOnce(state.player.accountId, { kind: 'eruption' }, 2600);
+      shareMomentOnce(state.player.accountId, { kind: 'eruption' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, eruptionKey]);
@@ -847,6 +845,7 @@ export function App() {
         </Modal>
       )}
       <ShareHost state={state} />
+      <MomentFxLayer />
       <FxLayer />
     </main>
   );
@@ -870,6 +869,8 @@ function moments(path: string, result: unknown, s: GameState) {
   const r = (result ?? {}) as { kind?: string; firstHarvest?: boolean; species?: Species; quality?: Quality; calendarDay?: number };
   const id = s.player.accountId;
   if (path === '/api/harvest' && r.kind === 'fruit' && r.firstHarvest) shareMomentOnce(id, { kind: 'first_harvest', species: r.species, quality: r.quality });
+  if (path === '/api/harvest' && r.kind === 'fruit' && r.species === 'durian' && (r.quality === 'rare' || r.quality === 'gold'))
+    shareMomentOnce(id, { kind: 'big_durian', species: 'durian', quality: r.quality });
   if (path === '/api/plant' && r.quality === 'gold') shareMomentOnce(id, { kind: 'first_gold', species: r.species, quality: 'gold' });
   if (path === '/api/checkin' && r.calendarDay === 7) shareMomentOnce(id, { kind: 'streak7' });
 }

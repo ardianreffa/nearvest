@@ -10130,3 +10130,354 @@ html.page-locked body {
     max-height: 280px;
   }
 }
+
+/* ---------- Moment animations (moment-fx.tsx), before the share popup ---------- */
+
+.mfx {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
+  pointer-events: none;
+  overflow: hidden;
+  /* A light veil so the moment reads against the busy village. */
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
+  animation: mfx-veil 0.3s steps(3) both;
+}
+
+.mfx-center {
+  position: absolute;
+  left: 50%;
+  top: 32%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+}
+
+/* A soft light behind the moment's object. */
+.mfx-center::before {
+  content: '';
+  position: absolute;
+  inset: -48px;
+  z-index: -1;
+  background: radial-gradient(circle, color-mix(in srgb, var(--paper-light) 70%, transparent) 0, transparent 68%);
+}
+
+/* Pixel outline around the fruit and durian sprites. */
+.mfx-fruit svg,
+.mfx-drop svg,
+.mfx-goldtree svg {
+  filter: drop-shadow(3px 0 0 var(--ink)) drop-shadow(-3px 0 0 var(--ink)) drop-shadow(0 3px 0 var(--ink)) drop-shadow(0 -3px 0 var(--ink));
+}
+
+.mfx .pixel,
+.mfx svg,
+.mfx canvas {
+  image-rendering: pixelated;
+}
+
+/* Banner: a paper plate with a gold frame, rising from below. */
+.mfx-banner {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 220px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 20px 12px;
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 4px solid var(--gold-500);
+  box-shadow: 0 0 0 4px var(--soil-700), 0 8px 0 4px color-mix(in srgb, var(--ink) 35%, transparent);
+  transform: translate(-50%, 0);
+  animation: mfx-rise 0.5s steps(5) both;
+}
+
+.mfx-banner-top {
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--soil-500);
+  text-transform: uppercase;
+}
+
+.mfx-banner-main {
+  font-family: var(--font-title);
+  font-size: var(--fs-h2);
+  color: var(--leaf-700);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.mfx-legend .mfx-banner-main {
+  color: var(--gold-700);
+}
+
+.mfx-evolved .mfx-banner {
+  border-color: var(--cyan-500);
+}
+
+.mfx-eruption .mfx-banner {
+  border-color: var(--red-500);
+}
+
+/* First harvest: the basket pops, three fruits bounce in. */
+.mfx-basket {
+  width: 120px;
+  height: 120px;
+}
+
+.mfx-basket-body {
+  position: absolute;
+  bottom: 8px;
+  width: 96px;
+  height: 52px;
+  background: var(--soil-500);
+  border: 4px solid var(--soil-700);
+  box-shadow: inset 0 -8px 0 var(--soil-700), inset 0 8px 0 var(--soil-300);
+  animation: mfx-pop 0.45s steps(4) both;
+}
+
+.mfx-basket-body i {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: -28px;
+  height: 28px;
+  border: 4px solid var(--soil-700);
+  border-bottom: 0;
+}
+
+.mfx-fruit {
+  position: absolute;
+  top: 0;
+  left: calc(50% - 24px + var(--x));
+  z-index: 1;
+  animation: mfx-fruit-in 0.6s cubic-bezier(0.3, 0, 0.6, 1) both;
+}
+
+/* First Gold tree: a golden band sweeps across, the fruit glows, sparkles twinkle. */
+.mfx-shine {
+  position: absolute;
+  inset: -20% -60%;
+  background: linear-gradient(105deg, transparent 40%, color-mix(in srgb, var(--gold-300) 70%, transparent) 50%, transparent 60%);
+  animation: mfx-shine 1.2s ease-in-out both;
+}
+
+.mfx-goldtree {
+  padding: 24px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold-300) 80%, transparent) 0, transparent 70%);
+  animation: mfx-pop 0.45s steps(4) both;
+}
+
+.mfx-sparkle {
+  position: absolute;
+  animation: mfx-twinkle 0.7s steps(4) both;
+}
+
+/* Rare durian: drops from the top, heavy bounce, dust. */
+.mfx-durian {
+  width: 160px;
+  height: 160px;
+}
+
+.mfx-drop {
+  animation: mfx-drop 1s cubic-bezier(0.5, 0, 0.75, 0) both;
+}
+
+.mfx-dust {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+}
+
+.mfx-dust i {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--soil-300);
+  animation: mfx-dust 0.6s steps(4) 0.45s both;
+}
+
+/* TaniBot evolved: cyan scan lines sweep down the screen. */
+.mfx-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: repeating-linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--cyan-300) 55%, transparent) 0 4px,
+    transparent 4px 8px
+  );
+  box-shadow: 0 0 32px 8px color-mix(in srgb, var(--cyan-500) 45%, transparent);
+  animation: mfx-scan 1.4s linear both;
+}
+
+/* 7-day streak: a calendar page flips to 7, coins rain down. */
+.mfx-calendar {
+  perspective: 400px;
+}
+
+.mfx-page {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 104px;
+  background: var(--paper-light);
+  border: 4px solid var(--ink);
+  border-top: 20px solid var(--red-500);
+  animation: mfx-flip 0.8s steps(6) both;
+}
+
+.mfx-page b {
+  font-family: var(--font-title);
+  font-size: var(--fs-h1);
+  color: var(--ink);
+}
+
+.mfx-coin {
+  position: absolute;
+  top: -24px;
+  animation: mfx-coin-rain 1.2s linear both;
+}
+
+/* Legend: pixel fireworks. */
+.mfx-burst {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.mfx-burst i {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px;
+  background: currentColor;
+  transform: rotate(var(--a)) translateY(0);
+  animation: mfx-ray 0.9s steps(6) var(--delay) both;
+}
+
+.mfx-burst.tone-gold {
+  color: var(--gold-500);
+}
+
+.mfx-burst.tone-mint {
+  color: var(--mint-500);
+}
+
+.mfx-burst.tone-cyan {
+  color: var(--cyan-500);
+}
+
+.mfx-burst.tone-purple {
+  color: var(--purple-500);
+}
+
+/* Reduced motion: everything stands still (banner, basket, tree, durian, calendar). */
+.mfx.still *,
+.mfx.still {
+  animation: none !important;
+}
+
+@keyframes mfx-veil {
+  from { background-color: transparent; }
+}
+
+@keyframes mfx-rise {
+  from { opacity: 0; transform: translate(-50%, 48px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes mfx-pop {
+  0% { opacity: 0; transform: scale(0.2); }
+  70% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes mfx-fruit-in {
+  0% { opacity: 0; transform: translateY(-120px); }
+  60% { opacity: 1; transform: translateY(44px); }
+  80% { transform: translateY(30px); }
+  100% { opacity: 1; transform: translateY(40px); }
+}
+
+@keyframes mfx-shine {
+  from { transform: translateX(-60%); }
+  to { transform: translateX(60%); }
+}
+
+@keyframes mfx-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes mfx-drop {
+  0% { opacity: 1; transform: translateY(-60vh); }
+  45% { transform: translateY(0) scale(1.15, 0.8); animation-timing-function: cubic-bezier(0.2, 0.6, 0.4, 1); }
+  65% { transform: translateY(-36px) scale(0.95, 1.05); animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0); }
+  80% { transform: translateY(0) scale(1.08, 0.92); }
+  90% { transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mfx-dust {
+  from { opacity: 1; transform: translate(0, 0); }
+  to { opacity: 0; transform: translate(calc(var(--d) * 20px), -24px); }
+}
+
+@keyframes mfx-scan {
+  from { transform: translateY(-110%); opacity: 1; }
+  90% { opacity: 1; }
+  to { transform: translateY(260%); opacity: 0; }
+}
+
+@keyframes mfx-flip {
+  0% { opacity: 0; transform: rotateX(90deg); }
+  50% { opacity: 1; transform: rotateX(-30deg); }
+  100% { opacity: 1; transform: rotateX(0); }
+}
+
+@keyframes mfx-coin-rain {
+  from { opacity: 1; transform: translateY(0); }
+  85% { opacity: 1; }
+  to { opacity: 0; transform: translateY(70vh); }
+}
+
+@keyframes mfx-ray {
+  0% { opacity: 1; transform: rotate(var(--a)) translateY(0); }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-72px); }
+}
+
+/* Village "Share to X": cards kept with "Later" in the share popup (share.tsx). */
+.share-later {
+  margin: 10px 0;
+}
+
+.share-later-title {
+  margin: 0 0 6px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+
+.share-later-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Laptops: the moment's object and banner 1.5x (the same pixel art, a bigger screen). */
+@media (min-width: 1024px) {
+  .mfx-center,
+  .mfx-banner {
+    scale: 1.5;
+  }
+
+  .mfx-banner {
+    transform-origin: top center;
+  }
+}

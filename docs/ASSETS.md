@@ -59,6 +59,11 @@ Converted to AAC (`.m4a`, `afconvert` on macOS) so they are small and play in ev
 | `ambient-night.m4a` (garden at night: crickets, loop) | "Crickets Ambient Noise - loopable" (`crickets_1.mp3`) | Wolfgang_ | CC0 (OpenGameArt page, checked 2026-11-09) | https://opengameart.org/content/crickets-ambient-noise-loopable |
 | `ambient-rain.m4a` (rain, loop) | "Rain (loopable)" (`Rain MP3.zip`, file `1.mp3`) | Ylmir | CC0 (OpenGameArt page, checked 2026-11-09) | https://opengameart.org/content/rain-loopable |
 | `ambient-rumble.m4a` (Mount Tandur rumbling, once) | "Rain + Long Thunder" (`rain-thunder.ogg`, seconds 18-30, mixed to mono with 0.5 s fades) | WuxiaScrub | CC0 (OpenGameArt page, checked 2026-11-09) | https://opengameart.org/content/rain-long-thunder |
+| `moment-harvest.m4a` (share moment: first harvest) | Music Jingles `jingles_NES13.ogg` (8-Bit jingles) | Kenney | CC0 (kenney.nl page "License: Creative Commons CC0" + bundled License.txt, checked 2026-11-09) | https://kenney.nl/assets/music-jingles |
+| `moment-gold.m4a` (share moment: first Gold tree) | Music Jingles `jingles_STEEL02.ogg` (Steel jingles) | Kenney | CC0 (same, checked 2026-11-09) | https://kenney.nl/assets/music-jingles |
+| `moment-durian.m4a` (share moment: Rare / Gold durian harvest) | Impact Sounds `impactPunch_heavy_000.ogg` | Kenney | CC0 (kenney.nl page + bundled License.txt, checked 2026-11-09) | https://kenney.nl/assets/impact-sounds |
+| `moment-evolve.m4a` (share moment: TaniBot evolved) | Sci-Fi Sounds `computerNoise_002.ogg`, first 1.2 s with a 30 ms fade-in and 150 ms fade-out | Kenney | CC0 (kenney.nl page + bundled License.txt, checked 2026-11-09) | https://kenney.nl/assets/sci-fi-sounds |
+| `moment-legend.m4a` (share moment: Legend) | Music Jingles `jingles_NES00.ogg` (8-Bit jingles) | Kenney | CC0 (same, checked 2026-11-09) | https://kenney.nl/assets/music-jingles |
 
 Ambient files (2026-11-09): converted on the Mac with `afconvert` to AAC mono 22 kHz 32 kbps (about 50-185 KB each); the rumble was cut with a small Node script first. They play quietly under the music, follow the Sound switch (not the music switch) and start only after the first tap.
 

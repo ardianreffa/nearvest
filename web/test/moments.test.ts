@@ -1,8 +1,19 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { enqueueMoment, orderMoments, type Moment } from '../src/moments.ts';
+import {
+  addLater,
+  enqueueMoment,
+  orderMoments,
+  POPUP_AFTER_FX_MS,
+  popupDelay,
+  removeLater,
+  SHARE_LATER_MAX,
+  type Moment,
+  type QueuedMoment,
+} from '../src/moments.ts';
 
 const kinds = (list: Moment[]) => list.map((m) => (m.title ? `${m.kind}:${m.title}` : m.kind));
+const auto = (m: Moment): QueuedMoment => ({ m, fx: true });
 
 describe('share card order', () => {
   it('first harvest comes before the new title and TaniBot evolution (demo XP x5 gives both at once)', () => {
@@ -22,17 +33,52 @@ describe('share card order', () => {
     assert.deepEqual(kinds(orderMoments(list)), ['first_harvest', 'first_gold', 'title:Farmer', 'evolved:Farmhand']);
   });
 
-  it('the dialog queue: the card on screen stays, a later first harvest jumps ahead of a waiting title', () => {
-    let q: Moment[] = [];
-    q = enqueueMoment(q, { kind: 'streak7' }); // on screen
-    q = enqueueMoment(q, { kind: 'evolved', title: 'Farmhand' });
-    q = enqueueMoment(q, { kind: 'first_harvest' });
-    q = enqueueMoment(q, { kind: 'first_harvest' }); // duplicate: ignored
-    assert.deepEqual(kinds(q), ['streak7', 'first_harvest', 'evolved:Farmhand']);
+  it('the waiting queue: a later first harvest jumps ahead of a waiting title; duplicates are ignored', () => {
+    let q: QueuedMoment[] = [];
+    q = enqueueMoment(q, auto({ kind: 'evolved', title: 'Farmhand' }));
+    q = enqueueMoment(q, auto({ kind: 'big_durian', quality: 'rare' }));
+    q = enqueueMoment(q, auto({ kind: 'first_harvest' }));
+    q = enqueueMoment(q, auto({ kind: 'first_harvest' }));
+    assert.deepEqual(kinds(q.map((x) => x.m)), ['first_harvest', 'big_durian', 'evolved:Farmhand']);
   });
 
-  it('a first harvest that arrives after a new title still opens first when nothing is on screen', () => {
-    const q = enqueueMoment(enqueueMoment([], { kind: 'first_harvest' }), { kind: 'evolved', title: 'Farmhand' });
-    assert.deepEqual(kinds(q), ['first_harvest', 'evolved:Farmhand']);
+  it('a card the player opens goes before the automatic ones', () => {
+    let q: QueuedMoment[] = [auto({ kind: 'first_harvest' })];
+    q = enqueueMoment(q, { m: { kind: 'profile' }, fx: false, manual: true });
+    assert.deepEqual(kinds(q.map((x) => x.m)), ['profile', 'first_harvest']);
+  });
+});
+
+describe('share popup timing', () => {
+  it('opens 1.5 s after the moment animation ends', () => {
+    assert.equal(POPUP_AFTER_FX_MS, 1500);
+    assert.equal(popupDelay(auto({ kind: 'first_harvest' }), 1600), 3100);
+  });
+
+  it('a card whose animation already played (held by the tutorial / Judge tour) waits 1.5 s', () => {
+    assert.equal(popupDelay({ m: { kind: 'title', title: 'Farmer' }, fx: false }, 1800), 1500);
+  });
+
+  it('a card the player opened opens at once', () => {
+    assert.equal(popupDelay({ m: { kind: 'profile' }, fx: false, manual: true }, 0), 0);
+  });
+});
+
+describe('Share later list', () => {
+  it('newest first, one entry per moment', () => {
+    let l: Moment[] = [];
+    l = addLater(l, { kind: 'first_harvest' });
+    l = addLater(l, { kind: 'title', title: 'Farmer' });
+    l = addLater(l, { kind: 'first_harvest' });
+    assert.deepEqual(kinds(l), ['first_harvest', 'title:Farmer']);
+  });
+
+  it('keeps at most 10 and removes one', () => {
+    let l: Moment[] = [];
+    for (let i = 0; i < 14; i++) l = addLater(l, { kind: 'title', title: `T${i}` });
+    assert.equal(l.length, SHARE_LATER_MAX);
+    assert.equal(l[0].title, 'T13');
+    l = removeLater(l, { kind: 'title', title: 'T13' });
+    assert.equal(l[0].title, 'T12');
   });
 });

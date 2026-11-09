@@ -5,7 +5,7 @@ import { ACTIVITY_LABELS, api, nearblocksAccount, nearblocksNft, type GameState,
 import type { Act } from './garden';
 import { DartoFace, DartoFigure, HoverCart, type DartoPose } from './art/darto';
 import { MarketBackdrop, ShopBackdrop } from './art/scenes';
-import { MOMENT_LABELS, openShare, type MomentKind } from './share';
+import { MOMENT_LABELS, openShare, playMoment, removeShareLater, useShareLater, type MomentKind } from './share';
 import { ShopStall } from './art/shop';
 import { Sprite } from './sprites';
 import { TreePixels } from './art/trees';
@@ -510,6 +510,66 @@ function MemorialList({ memorials, pohon }: { memorials?: MemorialView[]; pohon:
   );
 }
 
+/** Share to X: the farmer card, cards kept with "Later", and previews of every moment. */
+function ShareToX({ accountId }: { accountId: string }) {
+  const later = useShareLater(accountId);
+  return (
+    <Panel title="Share to X">
+      <p class="muted small">
+        Big moments (first harvest, first Gold tree, a Rare durian, TaniBot evolving, a 7-day streak, a new title) play a short animation, then open a share card.
+      </p>
+      <div class="share-buttons">
+        <button class="btn btn-mint" onClick={() => openShare({ kind: 'profile' })}>
+          Share my farmer card
+        </button>
+      </div>
+      {later.length > 0 && (
+        <div class="share-later">
+          <h4 class="share-later-title">Share later ({later.length})</h4>
+          <ul class="list share-later-list">
+            {later.map((m) => (
+              <li key={`${m.kind}:${m.title ?? ''}`} class="share-later-row">
+                <span class="grow">
+                  {MOMENT_LABELS[m.kind]}
+                  {m.title && m.kind !== 'legend' ? `: ${m.title}` : ''}
+                </span>
+                <button class="btn btn-small btn-mint" onClick={() => openShare(m, true)}>
+                  Share
+                </button>
+                <button class="link-btn" onClick={() => removeShareLater(accountId, m)} aria-label={`Remove ${MOMENT_LABELS[m.kind]} from Share later`}>
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <details class="share-preview">
+        <summary class="btn btn-small">Preview share cards ▾</summary>
+        <p class="muted small">Plays the moment (animation, sound, then its card) without changing your garden.</p>
+        <div class="share-buttons">
+          {(['first_harvest', 'first_gold', 'big_durian', 'evolved', 'streak7', 'title', 'legend', 'eruption'] as MomentKind[]).map((k) => (
+            <button
+              key={k}
+              class="btn btn-small"
+              onClick={() =>
+                playMoment({
+                  kind: k,
+                  species: k === 'first_gold' || k === 'big_durian' ? 'durian' : 'mango',
+                  quality: k === 'first_gold' ? 'gold' : k === 'big_durian' ? 'rare' : 'common',
+                  title: k === 'title' ? 'Orchard Master' : k === 'evolved' ? 'Farmer' : undefined,
+                })
+              }
+            >
+              {MOMENT_LABELS[k]}
+            </button>
+          ))}
+        </div>
+      </details>
+    </Panel>
+  );
+}
+
 export function Village({ state, config, onBot }: { state: GameState; config: ServerConfig; onBot: () => void }) {
   const [stats, setStats] = useState<VillageStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -574,28 +634,7 @@ export function Village({ state, config, onBot }: { state: GameState; config: Se
           </a>
         </p>
       </Panel>
-      <Panel title="Share to X">
-        <p class="muted small">Big moments (first harvest, first Gold tree, TaniBot evolving, a 7-day streak, a new title) open a share card automatically.</p>
-        <div class="share-buttons">
-          <button class="btn btn-mint" onClick={() => openShare({ kind: 'profile' })}>
-            Share my farmer card
-          </button>
-        </div>
-        <details class="share-preview">
-          <summary class="btn btn-small">Preview share cards ▾</summary>
-          <div class="share-buttons">
-            {(['first_harvest', 'first_gold', 'evolved', 'streak7', 'title', 'legend', 'eruption'] as MomentKind[]).map((k) => (
-              <button
-                key={k}
-                class="btn btn-small"
-                onClick={() => openShare({ kind: k, species: k === 'first_gold' ? 'durian' : 'mango', quality: k === 'first_gold' ? 'gold' : 'common', title: k === 'title' ? 'Orchard Master' : undefined })}
-              >
-                {MOMENT_LABELS[k]}
-              </button>
-            ))}
-          </div>
-        </details>
-      </Panel>
+      <ShareToX accountId={state.player.accountId} />
       <Panel title="Your on-chain log">
         <p class="muted small">
           Your account:{' '}

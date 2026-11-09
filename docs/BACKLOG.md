@@ -63,7 +63,7 @@ Never call these "seasons": Season is the PANEN halving.
 - By time and weather: day = birds/wind, night = crickets, rain = rain sound (once weather exists).
 - Separate from music: plays whether music is on or muted; follows the Sound (sfx) toggle.
 
-**5. Share-to-X popup and moment animations**
+**5. Share-to-X popup and moment animations** - built 2026-11-09 (docs/PLAN-social.md section 2), Ardian reviews
 - Popup appears 1.5 s after the moment's animation; an outside click does NOT close it; X and "Later" buttons; popups are queued, one at a time.
 - Each moment has its own animation and sound:
   - First harvest: basket pop + cheerful jingle.

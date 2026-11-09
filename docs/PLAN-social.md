@@ -1,6 +1,6 @@
 # Plan: social package (garden visits, share popup, referral)
 
-Status: PLAN ONLY (2026-11-09). No code yet. Covers docs/BACKLOG.md item 5 (share popup + moment
+Status: PLAN (2026-11-09), decisions by Ardian the same day (below). Building starts with the share popup (web only). Covers docs/BACKLOG.md item 5 (share popup + moment
 animations), item 6 (referral) and the Thursday "simple garden visits". Draft numbers live in
 `server/src/rules.ts` once built and are tuned in testing. Everything stays on NEAR testnet.
 
@@ -27,7 +27,9 @@ Who is shown:
   in the last 7 real days (new column `players.last_seen_at`, updated at most once per 10 minutes on
   `/api/me`).
 - **Judge gardens are NOT listed** (they are throwaway `judge-xxxx` gardens; 50 a day would fill the
-  list). Judges CAN open the list, visit and help water: the list is what they test.
+  list), **but the list is never empty** (Ardian 2026-11-09): with fewer than 5 non-judge farmers it
+  is topped up with the newest judge gardens (up to 5 rows). Judges CAN open the list, visit and help
+  water: the list is what they test.
 - The player's own garden is not in the list.
 
 Order:
@@ -80,6 +82,12 @@ farmers". The Arena pin stays "Soon".
 ---
 
 ## 2. Share popup per moment (BACKLOG item 5)
+
+**Built 2026-11-09 (web only, local commit, waiting for Ardian's review):** `web/src/moment-fx.tsx`
+(animations + sounds), `share.tsx` (queue, X / Later, no outside click, waits for windows),
+`moments.ts` (pure queue / timing / Share later logic, `web/test/moments.test.ts`), Village "Share
+later" list, previews play the whole moment. New moment "Rare durian" (first Rare / Gold durian
+harvest, its own card). 5 new CC0 Kenney sounds (docs/ASSETS.md).
 
 Existing: share cards (`share.tsx`), the moment queue (`moments.ts`: once per moment, ranked), the
 hold during the tutorial and the Judge tour (`holdShareCards`), the fx layer (`fx.tsx`: confetti,
@@ -138,14 +146,13 @@ Anti-cheat (server):
 - The device id is the existing random id in localStorage (`nearvest.judgeDevice`, renamed in code to
   a general device id, value kept). It can be cleared, so the IP limit is the second line.
 
-**Rewards (draft): referrer 10 PANEN, friend 5 PANEN. Recommendation:**
+**Rewards (decided by Ardian 2026-11-09): referrer 20 PANEN with `mint_reward` (Season rule), friend 5 PANEN with exact `mint`.** The reasoning:
 - **Friend 5 PANEN with exact `mint`**: it is part of the welcome, like the 50 PANEN welcome pack and
   the check-in, which use exact `mint` by the agreed $PANEN rules.
 - **Referrer 10 PANEN with `mint_reward`** (follows the Season rule): it is an earned reward like
   harvest sales and the planned Arena prize, and it shrinks as supply grows, so farming fake
   accounts pays less over time. Note: the live server is in Season 3 now (rewards / 4), so a referrer
-  would get 2.5 PANEN today. If that feels too small, raise the base to 20 (= 5 today) rather than
-  switching to exact mint.
+  would have got 2.5 PANEN with a base of 10; the base is therefore 20 (= 5 PANEN in Season 3).
 
 ---
 
@@ -164,7 +171,7 @@ Anti-cheat (server):
 
 **Server:**
 - `rules.ts`: HELP_XP_HELPER 5, HELP_XP_OWNER 3, HELP_OWNER_XP_PER_DAY 3, STICKERS, REF_REWARD_REFERRER
-  10, REF_REWARD_FRIEND 5, REF_PER_DAY_PER_DEVICE 3, REF_PER_DAY_PER_IP 3.
+  20, REF_REWARD_FRIEND 5, REF_PER_DAY_PER_DEVICE 3, REF_PER_DAY_PER_IP 3.
 - New `server/src/social.ts`: farmer list, public garden view, help water, stickers, referrals.
 - `game.ts`: water code shared with help water; first-harvest hook pays the referral; `state()` gets
   `visitors` (stickers + helps) and `referral` (link, pending / paid counts).

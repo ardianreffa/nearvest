@@ -13,7 +13,12 @@ export type SoundName =
   | 'checkin'
   | 'levelup'
   | 'chain'
-  | 'error';
+  | 'error'
+  | 'momentHarvest'
+  | 'momentGold'
+  | 'momentDurian'
+  | 'momentEvolve'
+  | 'momentLegend';
 
 const SOUND_FILES: Record<SoundName, string> = {
   click: '/assets/audio/click.m4a',
@@ -26,6 +31,12 @@ const SOUND_FILES: Record<SoundName, string> = {
   levelup: '/assets/audio/levelup.m4a',
   chain: '/assets/audio/chain.m4a',
   error: '/assets/audio/error.m4a',
+  // Share moments (moment-fx.tsx): CC0 Kenney jingles and sounds, docs/ASSETS.md.
+  momentHarvest: '/assets/audio/moment-harvest.m4a',
+  momentGold: '/assets/audio/moment-gold.m4a',
+  momentDurian: '/assets/audio/moment-durian.m4a',
+  momentEvolve: '/assets/audio/moment-evolve.m4a',
+  momentLegend: '/assets/audio/moment-legend.m4a',
 };
 const MUSIC_FILE = '/assets/audio/music-apple-cider.m4a';
 const MUSIC_VOLUME = 0.3;

@@ -4,7 +4,7 @@
 // where supported) and attached to the post.
 
 import { token } from './tokens';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { GameState, Quality, Species } from './api';
 import { botSprite, TIER_TITLE, tierOf, type Tier } from './art/tanibot';
 import { AVATARS, type AvatarId } from './art/avatars';
@@ -15,13 +15,15 @@ import { celestial, skyBands, SKY_BAND } from './art/sky-colors';
 import { withArticle } from './text';
 import { formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
-import { enqueueMoment, momentId, orderMoments, type Moment, type MomentKind } from './moments';
+import { addLater, enqueueMoment, momentId, orderMoments, popupDelay, removeLater, type Moment, type MomentKind, type QueuedMoment } from './moments';
+import { MOMENT_FX_MS, playMomentFx } from './moment-fx';
 
 export type { Moment, MomentKind };
 
 export const MOMENT_LABELS: Record<MomentKind, string> = {
   first_harvest: 'First harvest',
   first_gold: 'First Gold tree',
+  big_durian: 'Rare durian',
   evolved: 'TaniBot evolved',
   streak7: '7-day streak',
   title: 'New title',
@@ -34,11 +36,25 @@ const TAGS = '@NEARProtocol #NEARHackathon';
 
 
 // ---------- Opening the share dialog ----------
+//
+// Automatic moments: the moment's animation + sound (moment-fx.tsx), then the popup
+// POPUP_AFTER_FX_MS later, one at a time (moments.ts). Popups also wait while another window is
+// open, and while the tutorial or the Judge tour runs (the animation still plays right away then).
 
-const listeners = new Set<(m: Moment) => void>();
+const listeners = new Set<(item: QueuedMoment) => void>();
 
-export function openShare(m: Moment): void {
-  for (const l of listeners) l(m);
+function queueCard(item: QueuedMoment): void {
+  for (const l of listeners) l(item);
+}
+
+/** Opens a card the player asked for (profile card, "Share later"): no animation, no wait. */
+export function openShare(m: Moment, fromLater = false): void {
+  queueCard({ m, fx: false, manual: true, fromLater });
+}
+
+/** Plays a moment as if it just happened: animation, then the popup (Village previews). */
+export function playMoment(m: Moment): void {
+  queueCard({ m: { ...m, hour: m.hour ?? villageHour() }, fx: true });
 }
 
 /** True while new cards wait (Judge tour or tutorial running). */
@@ -72,8 +88,9 @@ let heldMemory: Moment[] = [];
 
 /**
  * Holds new share cards (e.g. until a judge finishes the Judge tour or a new player the tutorial).
- * The waiting cards are saved per account, so a page reload does not lose them. Releasing opens
- * them one after another in showing order (moments.ts: the first harvest before a new title).
+ * The waiting cards are saved per account, so a page reload does not lose them. Releasing queues
+ * them in showing order (moments.ts: the first harvest before a new title); their animations
+ * already played, so each popup comes POPUP_AFTER_FX_MS after the one before.
  */
 export function holdShareCards(hold: boolean, accountId?: string): void {
   if (accountId) heldAccount = accountId;
@@ -88,7 +105,7 @@ export function holdShareCards(hold: boolean, accountId?: string): void {
   const waiting = orderMoments([...stored, ...heldMemory]);
   heldMemory = [];
   if (heldAccount) writeHeld(heldAccount, []);
-  if (waiting.length) window.setTimeout(() => waiting.forEach(openShare), 1200);
+  for (const m of waiting) queueCard({ m, fx: false });
 }
 
 function seenKey(accountId: string) {
@@ -102,6 +119,56 @@ function hold(accountId: string, m: Moment) {
   heldMemory = orderMoments([...heldMemory, m]);
 }
 
+// ---------- "Share later" (per account, this browser) ----------
+
+const laterListeners = new Set<() => void>();
+
+function laterKey(accountId: string) {
+  return `nearvest.shareLater.${accountId}`;
+}
+
+export function readLater(accountId: string): Moment[] {
+  try {
+    return JSON.parse(localStorage.getItem(laterKey(accountId)) ?? '[]') as Moment[];
+  } catch {
+    return laterMemory;
+  }
+}
+
+let laterMemory: Moment[] = [];
+
+function writeLater(accountId: string, list: Moment[]) {
+  laterMemory = list;
+  try {
+    if (list.length) localStorage.setItem(laterKey(accountId), JSON.stringify(list));
+    else localStorage.removeItem(laterKey(accountId));
+  } catch {
+    // Storage blocked: kept for this visit only.
+  }
+  for (const l of laterListeners) l();
+}
+
+/** The "Share later" cards of an account (newest first); updates when the list changes. */
+export function useShareLater(accountId: string): Moment[] {
+  const [list, setList] = useState(() => readLater(accountId));
+  useEffect(() => {
+    const on = () => setList(readLater(accountId));
+    on();
+    laterListeners.add(on);
+    return () => void laterListeners.delete(on);
+  }, [accountId]);
+  return list;
+}
+
+export function removeShareLater(accountId: string, m: Moment): void {
+  writeLater(accountId, removeLater(readLater(accountId), m));
+}
+
+/** True while another window (check-in, TaniBot, How to play, a question...) is open. */
+function otherWindowOpen(): boolean {
+  return !!document.querySelector('[role="dialog"]:not(.share-dialog)');
+}
+
 /** The latest game state seen by the share dialog (for the village hour of a moment). */
 let lastState: GameState | null = null;
 
@@ -113,8 +180,11 @@ export function villageHour(s: GameState | null = lastState): number {
   return hourOf(1 - Math.max(0, s.clock.msUntilNextDay) / s.clock.dayLengthMs);
 }
 
-/** Opens the share dialog for a moment the first time it happens to this player. */
-export function shareMomentOnce(accountId: string, moment: Moment, delayMs = 1600): void {
+/**
+ * A big moment happened: the first time for this player, play its animation and sound, then show
+ * its share popup (`popup: false`: the animation only, e.g. ?record=1 demo recordings).
+ */
+export function shareMomentOnce(accountId: string, moment: Moment, opts: { popup?: boolean } = {}): void {
   // The card shows the sky of the moment itself, even if it opens later (held during a tour).
   const m: Moment = { ...moment, hour: moment.hour ?? villageHour() };
   // Title and evolution cards come once per title; the others once ever.
@@ -131,12 +201,21 @@ export function shareMomentOnce(accountId: string, moment: Moment, delayMs = 160
   } catch {
     // Storage blocked: the moment may be offered again next visit.
   }
+  if (opts.popup === false) {
+    window.setTimeout(() => playMomentFx(m), FX_START_MS);
+    return;
+  }
   if (holding) {
+    // The tutorial / Judge tour runs: celebrate now, the popup waits until it is over.
+    window.setTimeout(() => playMomentFx(m), FX_START_MS);
     hold(accountId, m);
     return;
   }
-  window.setTimeout(() => (holding ? hold(accountId, m) : openShare(m)), delayMs);
+  queueCard({ m, fx: true });
 }
+
+/** The moment's animation starts a little after the action's own effects (coins, fruit). */
+const FX_START_MS = 500;
 
 // ---------- Texts ----------
 
@@ -156,6 +235,14 @@ function texts(m: Moment, s: GameState): { headline: string; sub: string; post: 
         sub: `A Gold ${fruit} tree grows in ${p.name}'s garden`,
         post: `I grew my first Gold ${fruit} tree in NEARvest. It is a living Tree NFT that changes as it grows. ${TAGS}`,
       };
+    case 'big_durian': {
+      const q = m.quality === 'gold' ? 'Gold' : 'Rare';
+      return {
+        headline: `${q} durian!`,
+        sub: `${p.name} harvested ${withArticle(`${q} durian`)}, the king of fruits`,
+        post: `I harvested ${withArticle(`${q} durian`)} in NEARvest, a pixel farming game where every tree is a living NFT. ${TAGS}`,
+      };
+    }
     case 'evolved':
       return {
         headline: 'TaniBot evolved!',
@@ -481,8 +568,8 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   const centre = { x: botCx, y: botY + botH * 0.56 };
 
   // The moment's object, behind / beside TaniBot (a bit smaller).
-  if (m.kind === 'first_gold' || m.kind === 'first_harvest') {
-    const species = m.species ?? 'mango';
+  if (m.kind === 'first_gold' || m.kind === 'first_harvest' || m.kind === 'big_durian') {
+    const species = m.kind === 'big_durian' ? 'durian' : (m.species ?? 'mango');
     const T = 6; // 32x40 tree -> 192x240, beside TaniBot
     const tx = M - 4;
     const ty = GROUND + 4 - 37 * T;
@@ -490,6 +577,14 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
       const glow = ctx.createRadialGradient(tx + 16 * T, ty + 14 * T, 10, tx + 16 * T, ty + 14 * T, 170);
       glow.addColorStop(0, 'rgba(255, 220, 110, 0.75)');
       glow.addColorStop(1, 'rgba(255, 220, 110, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(tx - 60, ty - 60, 32 * T + 120, 40 * T + 60);
+    }
+    if (m.kind === 'big_durian') {
+      const tone = m.quality === 'gold' ? '--gold-300' : '--purple-300';
+      const glow = ctx.createRadialGradient(tx + 16 * T, ty + 14 * T, 10, tx + 16 * T, ty + 14 * T, 170);
+      glow.addColorStop(0, tokenAlpha(tone, 0.75));
+      glow.addColorStop(1, tokenAlpha(tone, 0));
       ctx.fillStyle = glow;
       ctx.fillRect(tx - 60, ty - 60, 32 * T + 120, 40 * T + 60);
     }
@@ -580,19 +675,65 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
 
 export function ShareHost({ state }: { state: GameState }) {
   lastState = state;
-  // Moments wait in a queue so two at once (first harvest + new title) both get shown.
-  const [queue, setQueue] = useState<Moment[]>([]);
-  const moment = queue[0] ?? null;
-  const setMoment = (m: Moment | null) => setQueue((q) => (m ? [...q, m] : q.slice(1)));
+  // Cards wait in a queue so two moments at once (first harvest + new title) both get shown, one
+  // after the other: animation, POPUP_AFTER_FX_MS, popup; the next starts when it is closed.
+  const [shown, setShown] = useState<QueuedMoment | null>(null);
+  const moment = shown?.m ?? null;
   const [image, setImage] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const queue = useRef<QueuedMoment[]>([]);
+  const onScreen = useRef<QueuedMoment | null>(null);
+  /** A card is being prepared (animation / wait): only one at a time. */
+  const preparing = useRef(false);
+  const timer = useRef(0);
+
+  /** Prepares the next card when nothing is on screen: its animation, the wait, then the popup. */
+  const pump = () => {
+    if (onScreen.current || preparing.current || queue.current.length === 0) return;
+    const item = queue.current.shift()!;
+    preparing.current = true;
+    let fxPlayed = !item.fx;
+    // Waits while another window is open or the tutorial / Judge tour holds the cards.
+    const blocked = () => !item.manual && (holding || otherWindowOpen());
+    const step = (wait: number) => {
+      timer.current = window.setTimeout(() => {
+        if (blocked()) return step(400);
+        if (!fxPlayed) {
+          fxPlayed = true;
+          return step(popupDelay(item, playMomentFx(item.m)));
+        }
+        preparing.current = false;
+        onScreen.current = item;
+        setShown(item);
+      }, wait);
+    };
+    step(item.fx ? 0 : popupDelay(item, MOMENT_FX_MS[item.m.kind]));
+  };
 
   useEffect(() => {
-    // Waiting cards keep their showing order (the first harvest before a new title).
-    const on = (m: Moment) => setQueue((q) => enqueueMoment(q, m));
+    const on = (item: QueuedMoment) => {
+      queue.current = enqueueMoment(queue.current, item);
+      pump();
+    };
     listeners.add(on);
-    return () => void listeners.delete(on);
+    return () => {
+      listeners.delete(on);
+      window.clearTimeout(timer.current);
+    };
   }, []);
+
+  /** X: closes the card (opened from "Share later": also removes it there). Later: keeps it there. */
+  const close = (later: boolean) => {
+    if (shown) {
+      const account = state.player.accountId;
+      const list = readLater(account);
+      if (later) writeLater(account, addLater(list, shown.m));
+      else if (shown.fromLater) writeLater(account, removeLater(list, shown.m));
+    }
+    onScreen.current = null;
+    setShown(null);
+    pump();
+  };
 
   useEffect(() => {
     if (!moment) return;
@@ -616,19 +757,20 @@ export function ShareHost({ state }: { state: GameState }) {
   const canShareFile = !!file && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] });
 
   return (
-    <div class="dialog-backdrop" role="presentation" onClick={(e) => e.target === e.currentTarget && setMoment(null)}>
+    // A click outside does not close it: X or Later (the player may tap the garden by mistake).
+    <div class="dialog-backdrop share-backdrop" role="presentation">
       <div class="dialog panel share-dialog" role="dialog" aria-modal="true" aria-label="Share to X">
         <header class="panel-head">
           <h2>Share: {MOMENT_LABELS[moment.kind]}</h2>
-          <button class="icon-btn info-close share-x" onClick={() => setMoment(null)} aria-label="Close">
+          <button class="icon-btn info-close share-x" onClick={() => close(false)} aria-label="Close">
             x
           </button>
         </header>
         <div class="share-card">{image ? <img src={image} alt={`NEARvest card: ${MOMENT_LABELS[moment.kind]}`} /> : <p class="muted">Drawing your card...</p>}</div>
         <p class="share-text">{post}</p>
         <div class="dialog-actions share-actions">
-          <button class="btn" onClick={() => setMoment(null)}>
-            Close
+          <button class="btn" onClick={() => close(true)}>
+            Later
           </button>
           {image && (
             <a class="btn" href={image} download={`nearvest-${moment.kind}.png`}>
