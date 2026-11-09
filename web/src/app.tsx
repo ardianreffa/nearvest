@@ -956,7 +956,12 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
       {error && <p class="error-text">{error}</p>}
       <div class="login-gap" aria-hidden="true" />
       <footer class="login-bottom">
-        <p class="login-foot small">
+        {/* The note is shown in the middle of the empty grass (absolutely placed); an invisible copy
+            keeps its old place in the column, so the title and the buttons do not move. */}
+        <p class="login-foot small login-foot-ghost" aria-hidden="true">
+          Sign in with <b>Google</b> or a <b>NEAR wallet</b>. With Google you need no wallet: the game creates your NEAR {config.network} account and pays all fees. Testnet tokens have no real value.
+        </p>
+        <p class="login-foot small login-foot-grass">
           Sign in with <b>Google</b> or a <b>NEAR wallet</b>. With Google you need no wallet: the game creates your NEAR {config.network} account and pays all fees. Testnet tokens have no real value.
         </p>
         <p class="login-legal small">

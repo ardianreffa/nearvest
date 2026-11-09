@@ -3282,6 +3282,34 @@ input:focus-visible {
   text-shadow: none;
 }
 
+/* The note in the middle of the plain grass of the background village (cover, bottom-anchored):
+   laptops rows 104-120 of the 135-row art (middle 112: 23/135 of its drawn height from the
+   bottom), phones rows 130-163 of 180 (middle 146.5: 33.5/180). */
+.login-page {
+  --art-h: max(100dvh, 100vw * 135 / 240);
+  --grass-mid: calc(var(--art-h) * 23 / 135);
+}
+
+@media (max-width: 1023px) {
+  .login-page {
+    --art-h: max(100dvh, 100vw * 180 / 120);
+    --grass-mid: calc(var(--art-h) * 33.5 / 180);
+  }
+}
+
+.login-page .login-foot-ghost {
+  visibility: hidden;
+}
+
+.login-page .login-foot-grass {
+  position: absolute;
+  left: 50%;
+  bottom: var(--grass-mid);
+  width: min(560px, calc(100% - 32px));
+  box-sizing: border-box;
+  transform: translate(-50%, 50%);
+}
+
 .login-page .login-legal {
   margin: 0;
   padding: 2px 10px;
