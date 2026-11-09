@@ -10110,3 +10110,23 @@ html.page-locked body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Memorial Trees (panels.tsx MemorialList), open and long: the list scrolls inside its own box, so
+   Village Stats and the log below stay reachable. About 5 rows are visible. */
+.memorial-list.scroll {
+  max-height: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+/* Rows keep their own height inside the scrolling box (the list is a flex column). */
+.memorial-list.scroll > li {
+  flex-shrink: 0;
+}
+
+@media (max-width: 1023px) {
+  .memorial-list.scroll {
+    max-height: 280px;
+  }
+}
