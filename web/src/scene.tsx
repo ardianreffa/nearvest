@@ -9,6 +9,7 @@ import { TreePixels, treeTopRow } from './art/trees';
 import { leafBurst } from './fx';
 import { Pixels, Sprite } from './sprites';
 import { formatDuration } from './ui';
+import { lookOf } from './weather';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 export type ActionKind = 'plant' | 'water' | 'harvest' | 'fertilize' | 'chop';
@@ -62,7 +63,11 @@ import { Mound, MOUND, MOUND_ART, MOUND_BASE, MoundArt } from './art/mound';
 const TIME_LOCKED = import.meta.env.DEV && typeof location !== 'undefined' ? lockedFraction(location.search) : null;
 
 function status(tree: TreeView, elapsed: number) {
+  // Weather first: ash and wilting need the player now (missing on older servers = false).
+  if (tree.ash) return { text: 'Ash!', cls: 'ash' };
   if (tree.ready) return { text: tree.stage === 'old' ? 'Seed ready' : 'Ready!', cls: 'ready' };
+  if (tree.wilting) return { text: 'Wilting!', cls: 'thirsty wilting' };
+  if ((tree.waterNeed ?? 1) > 1 && !tree.wateredToday) return { text: `Water ${tree.waterCount ?? 0}/${tree.waterNeed}`, cls: 'thirsty' };
   if (!tree.isWatered) return { text: 'Thirsty', cls: 'thirsty' };
   return { text: formatDuration(tree.msToReady - elapsed), cls: 'growing' };
 }
@@ -158,6 +163,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         // the village's bottom bushes continue, so the panels sit on grass, not on a plain fill.
         groundBelow={phone ? phone.artBottom > 0 : !!immersive && immersive.artBottom > 0}
         groundWide={!!immersive && !phone}
+        weather={lookOf(state.weather)}
+        phone={!!phone}
       />
 
       <Stage immersive={immersive}>
@@ -171,7 +178,9 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
               onClick={() => onSelect(p.plot)}
               aria-label={`Plot ${p.plot + 1}${p.tree ? `: ${p.tree.species}, ${p.tree.stage}` : p.locked ? ': locked' : ': empty'}`}
             >
-              <div class={`plot-art${p.tree?.isFertilized && p.tree.fertMsLeft - elapsed > 0 ? ' fertilized' : ''}${!p.tree && !p.locked ? ' empty' : ''}`}>
+              <div
+                class={`plot-art${p.tree?.isFertilized && p.tree.fertMsLeft - elapsed > 0 ? ' fertilized' : ''}${!p.tree && !p.locked ? ' empty' : ''}${p.tree?.ash ? ' ashy' : ''}${p.tree?.wilting || p.tree?.wiltedRecently ? ' wilting' : ''}${p.tree?.volcanicSoil ? ' volcanic' : ''}`}
+              >
                 {p.locked ? (
                   <Sprite name="lock" scale={mound ? px : px * 2} title="Locked" />
                 ) : p.tree ? (
@@ -192,7 +201,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
                     // v3: the label sits just above the tree's real top (a sprout's label stays low).
                     style={moundArt && p.tree ? { '--tree-top': `${treeTopRow(p.tree.species, p.tree.stage, p.tree.tokenId ?? p.tree.id) * px}px` } : undefined}
                   >
-                    {st.cls === 'thirsty' && <Sprite name="droplet" scale={2} />}
+                    {st.cls.startsWith('thirsty') && <Sprite name="droplet" scale={2} />}
                     {st.cls === 'ready' && <Sprite name="sparkle" scale={2} />}
                     {st.text}
                   </span>

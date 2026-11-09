@@ -9814,3 +9814,216 @@ html.page-locked body {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* =====================================================================
+   Village weather (art/weather.tsx, weather.ts). Palette colours only; pixel steps; few particles.
+   Drawn inside the backdrop art, under the place pins, plots, TaniBot and the HUD.
+   ===================================================================== */
+.wx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.wx-tint {
+  position: absolute;
+  inset: 0;
+}
+
+/* Rain: a grey sky, darker at the top; the sun almost hidden. */
+.wx-rain .wx-tint {
+  background: linear-gradient(color-mix(in srgb, var(--ink) 55%, transparent), color-mix(in srgb, var(--ink) 32%, transparent) 55%, color-mix(in srgb, var(--ink) 16%, transparent));
+}
+
+.wx-look-rain .sky-sun,
+.wx-look-rain .sun-glow {
+  opacity: 0.15;
+}
+
+.wx-look-rain .cloud {
+  filter: brightness(0.75);
+}
+
+/* Drought: a warm gold haze over the sky. */
+.wx-drought .wx-tint {
+  background: linear-gradient(color-mix(in srgb, var(--gold-500) 30%, transparent), color-mix(in srgb, var(--gold-300) 12%, transparent) 55%, transparent);
+}
+
+/* Eruption: a red sky, darkest at the top. Warning: a slight smoky dimming. */
+.wx-eruption .wx-tint {
+  background: linear-gradient(color-mix(in srgb, var(--red-500) 48%, transparent), color-mix(in srgb, var(--red-500) 24%, transparent) 45%, color-mix(in srgb, var(--ink) 12%, transparent));
+}
+
+.wx-warning .wx-tint {
+  background: linear-gradient(color-mix(in srgb, var(--ink-soft) 28%, transparent), transparent 50%);
+}
+
+.wx-look-eruption .sky-sun,
+.wx-look-eruption .sun-glow {
+  opacity: 0.3;
+}
+
+/* Volcanic soil: a faint warm glow over the fields. */
+.wx-volcanic .wx-tint {
+  background: linear-gradient(transparent 60%, color-mix(in srgb, var(--purple-500) 14%, transparent));
+}
+
+/* Thick crater smoke (warning and eruption): big pixel puffs. */
+.wx-smoke {
+  position: absolute;
+  background: color-mix(in srgb, var(--ink-soft) 80%, var(--paper));
+  clip-path: polygon(25% 0, 75% 0, 75% 25%, 100% 25%, 100% 75%, 75% 75%, 75% 100%, 25% 100%, 25% 75%, 0 75%, 0 25%, 25% 25%);
+  opacity: 0;
+  animation: wx-smoke 4.2s steps(12) infinite;
+}
+
+.wx-eruption .wx-smoke {
+  background: color-mix(in srgb, var(--ink) 75%, var(--ink-soft));
+}
+
+@keyframes wx-smoke {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.7); }
+  15% { opacity: 0.95; }
+  100% { opacity: 0; transform: translate(40%, -360%) scale(2.6); }
+}
+
+/* Lava glow at the crater. */
+.wx-lava {
+  position: absolute;
+  background: radial-gradient(ellipse at 50% 70%, var(--gold-300) 0 18%, var(--red-500) 40%, color-mix(in srgb, var(--red-500) 0%, transparent) 72%);
+  animation: wx-lava 1.2s steps(3) infinite alternate;
+}
+
+@keyframes wx-lava {
+  from { opacity: 0.75; }
+  to { opacity: 1; }
+}
+
+/* Particles: rain streaks and ash, a fixed small number (art/weather.tsx). */
+.wx-particles i {
+  position: absolute;
+  top: -12%;
+  display: block;
+  animation-name: wx-fall;
+  animation-timing-function: steps(10);
+  animation-iteration-count: infinite;
+}
+
+.wx-particles.rain i {
+  width: 3px;
+  height: 18px;
+  background: color-mix(in srgb, var(--cyan-300) 90%, var(--paper-light));
+}
+
+.wx-particles.ash i {
+  width: 4px;
+  height: 4px;
+  background: color-mix(in srgb, var(--ink-soft) 85%, var(--paper));
+  animation-name: wx-ash;
+}
+
+@keyframes wx-fall {
+  to { transform: translate(-12px, 125vh); }
+}
+
+@keyframes wx-ash {
+  50% { transform: translate(10px, 60vh); }
+  to { transform: translate(-6px, 125vh); }
+}
+
+/* A small shake now and then (warning: rare; eruption: more often). The pins shake with the art. */
+.wx-look-warning .bg-art {
+  animation: wx-shake 6s steps(1) infinite;
+}
+
+.wx-look-eruption .bg-art {
+  animation: wx-shake 2.4s steps(1) infinite;
+}
+
+@keyframes wx-shake {
+  0%, 88%, 100% { translate: 0 0; }
+  90% { translate: 1px 0; }
+  92% { translate: -1px 1px; }
+  94% { translate: 1px -1px; }
+  96% { translate: -1px 0; }
+}
+
+/* Trees: ash (grey), wilting (yellowing leaves), Volcanic soil (a warm glow on the bed). */
+.plot-art.ashy .tree {
+  filter: grayscale(0.85) brightness(0.92);
+}
+
+.plot-art.wilting .tree {
+  filter: sepia(0.55) saturate(0.85);
+}
+
+.plot-art.volcanic::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4%;
+  height: 26%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--purple-500) 70%, transparent), transparent 72%);
+  animation: wx-lava 1.6s steps(3) infinite alternate;
+}
+
+.badge.ash {
+  color: var(--paper-light);
+  background: var(--ink-soft);
+}
+
+.badge.wilting {
+  color: var(--ink);
+  background: var(--gold-300);
+}
+
+/* Weather chip in the HUD grid (app.tsx). */
+.chip-weather {
+  color: var(--paper-light);
+  background: color-mix(in srgb, var(--hud) 82%, transparent);
+  border-color: var(--cyan-700);
+}
+
+.chip-weather.wx-rain {
+  border-color: var(--cyan-500);
+}
+
+.chip-weather.wx-drought {
+  color: var(--ink);
+  background: var(--gold-300);
+  border-color: var(--gold-700);
+}
+
+.chip-weather.wx-warning {
+  color: var(--ink);
+  background: var(--gold-500);
+  border-color: var(--ink);
+}
+
+.chip-weather.wx-eruption {
+  background: var(--red-500);
+  border-color: var(--ink);
+}
+
+.chip-weather.wx-volcanic {
+  background: var(--purple-700);
+  border-color: var(--purple-300);
+}
+
+/* Nothing moves or shakes with reduced motion: only the still tints stay. */
+@media (prefers-reduced-motion: reduce) {
+  .wx-particles,
+  .wx-smoke {
+    display: none;
+  }
+
+  .wx-lava,
+  .plot-art.volcanic::after,
+  .wx-look-warning .bg-art,
+  .wx-look-eruption .bg-art {
+    animation: none;
+  }
+}

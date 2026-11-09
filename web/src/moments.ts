@@ -6,7 +6,7 @@
 
 import type { Quality, Species } from './api';
 
-export type MomentKind = 'first_harvest' | 'first_gold' | 'evolved' | 'streak7' | 'title' | 'legend' | 'profile';
+export type MomentKind = 'first_harvest' | 'first_gold' | 'evolved' | 'streak7' | 'title' | 'legend' | 'profile' | 'eruption';
 
 export interface Moment {
   kind: MomentKind;
@@ -21,6 +21,7 @@ const RANK: Record<MomentKind, number> = {
   first_harvest: 0,
   first_gold: 1,
   streak7: 2,
+  eruption: 2,
   title: 3,
   evolved: 3,
   legend: 4,

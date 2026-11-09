@@ -47,6 +47,8 @@ const ACTION_ICON: Record<string, string> = {
   style: '>',
   ignored: 'x',
   summary: '=',
+  clean: '*',
+  weather: '!',
 };
 
 function timeOf(ms: number): string {

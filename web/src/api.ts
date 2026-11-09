@@ -27,6 +27,41 @@ export interface TreeView {
   maxHarvests: number;
   msToReady: number;
   ageDays: number;
+  // Weather (servers before the weather release do not send these: treat missing as false / none).
+  /** Waterings today and how many are needed (2 in a drought, 0 in the rain). */
+  waterCount?: number;
+  waterNeed?: number;
+  /** No water for a while; `wilting`: it goes back one stage soon. */
+  thirsty?: boolean;
+  wilting?: boolean;
+  msToWilt?: number | null;
+  /** Went back one stage from thirst within the last game day. */
+  wiltedRecently?: boolean;
+  /** Covered in volcanic ash (no growth until cleaned with POST /api/clean, free). */
+  ash?: boolean;
+  /** Cleaned during the eruption: faster growth and a better Gold chance now. */
+  volcanicSoil?: boolean;
+}
+
+export type WeatherKind = 'clear' | 'rain' | 'drought';
+export type EruptionPhase = 'warning' | 'eruption' | 'volcanic';
+
+/** The village weather (the same for every garden of a mode). Never called a "season". */
+export interface Weather {
+  kind: WeatherKind;
+  tomorrow: WeatherKind;
+  waterNeed: number;
+  wiltDays: number;
+  eruption: null | {
+    phase: EruptionPhase;
+    msSinceWarning: number;
+    msToEruption: number;
+    msToEnd: number;
+    msToVolcanicEnd: number;
+    msLeft: number;
+    /** Stable id of this eruption (for once-only notices and the share card). */
+    id: string;
+  };
 }
 
 export interface Activity {
@@ -48,6 +83,8 @@ export interface DartoPrice {
 }
 
 export interface GameState {
+  /** Missing on servers from before the weather release. */
+  weather?: Weather;
   player: {
     name: string;
     accountId: string;

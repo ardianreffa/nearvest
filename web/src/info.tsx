@@ -33,6 +33,7 @@ export const INFO = {
   dartoPrice:
     "Mr. Darto's price changes every game day and never drops below the seed price. The amount on Sell is what you receive.",
   demo: "Demo mode: 1 game day = 1 minute, so the whole loop fits in a few minutes. Testnet tokens have no real value.",
+  weather: "The village weather is the same for everyone: rain waters every tree for free, a drought needs two waterings, and Mount Tandur sometimes erupts. Trees never die.",
   budget:
     "PANEN in TaniBot's own NEAR wallet. It can only spend it in the Shop, within the daily limit.",
   lockedPlot: "Plot 3 opens at 50 XP (Farmhand). You get XP from harvests.",
@@ -44,7 +45,7 @@ export type InfoKey = keyof typeof INFO;
 
 let closeOpen: (() => void) | null = null;
 
-export function Info({ k, label }: { k: InfoKey; label?: string }) {
+export function Info({ k, label, text }: { k: InfoKey; label?: string; /** Overrides the fixed text (e.g. today's weather). */ text?: string }) {
   const [open, setOpen] = useState(false);
   const btn = useRef<HTMLButtonElement>(null);
   const bubble = useRef<HTMLDivElement>(null);
@@ -128,7 +129,7 @@ export function Info({ k, label }: { k: InfoKey; label?: string }) {
                 : { visibility: "hidden", left: 0, top: 0 }
             }
           >
-            <p>{INFO[k]}</p>
+            <p>{text ?? INFO[k]}</p>
             <button
               type="button"
               class="info-bubble-x"

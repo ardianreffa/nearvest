@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Place } from './art/hotspots';
-import type { GameState, Quality, ServerConfig } from './api';
+import type { GameState, Quality, ServerConfig, TreeView } from './api';
 import { floatText } from './fx';
 import { phoneFill, phoneLayout } from './layout';
 import { bgVersion, villageFor } from './art/village';
@@ -53,6 +53,13 @@ interface Props {
   /** Opens the TaniBot window (click on TaniBot). */
   onBot?: () => void;
   onPlace?: (p: Place) => void;
+}
+
+/** The Water button's words: rain, a drought (1/2), or the usual. Older servers: the usual. */
+function waterLabel(t: TreeView, short: boolean): string {
+  if ((t.waterNeed ?? 1) === 0) return short ? 'Rain' : 'Watered by rain';
+  if ((t.waterNeed ?? 1) > 1) return t.wateredToday ? (short ? 'Watered' : 'Watered twice') : `Water ${t.waterCount ?? 0}/${t.waterNeed}`;
+  return t.wateredToday ? (short ? 'Watered' : 'Watered today') : 'Water';
 }
 
 export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop, big, immersive, onBot, onPlace }: Props) {
@@ -563,22 +570,34 @@ function PlotPanel({
     }
     await act('/api/harvest', plot, t.stage === 'old' ? 'Got a superior seed!' : 'Harvested!');
   };
-  const statusText = t.ready
+  const statusText = t.ash
+    ? 'Volcanic ash stops this tree from growing. Clean it (free) to get Volcanic soil after the eruption.'
+    : t.ready
     ? t.stage === 'old'
       ? 'This old tree is ready to drop a superior seed. After that it becomes a Memorial Tree.'
       : 'Fruit is ripe. Harvest it!'
-    : t.isWatered
-      ? `Growing. Ready in about ${formatDuration(t.msToReady - Math.min(elapsed, t.msToReady))}.`
-      : 'Thirsty: water it, trees only grow while watered.';
+    : t.wilting
+      ? `Wilting! Water it now, or it goes back one stage${t.msToWilt ? ` in about ${formatDuration(t.msToWilt - Math.min(elapsed, t.msToWilt))}` : ''} (it never dies).`
+      : (t.waterNeed ?? 1) > 1 && !t.wateredToday
+        ? `Drought: a watering only lasts half a day. Water it ${t.waterNeed! - (t.waterCount ?? 0)} more time${t.waterNeed! - (t.waterCount ?? 0) === 1 ? '' : 's'} today.`
+        : t.isWatered
+          ? `${t.volcanicSoil ? 'Volcanic soil: growing faster. ' : ''}Growing. Ready in about ${formatDuration(t.msToReady - Math.min(elapsed, t.msToReady))}.`
+          : 'Thirsty: water it, trees only grow while watered.';
   const helpText =
     t.stage === 'old'
       ? 'Old trees give no more fruit or XP. Harvest the seed to plant a new generation.'
       : `XP comes from harvests: +${xpGain} XP per ${SPECIES_NAME[t.species]}${state.player.xpMultiplier > 1 ? ` (demo: ${state.player.xpMultiplier}x)` : ''}. Watering is required: trees only grow while watered (1 day per watering). Fertilizer: 1.5x speed for 1 day and better fruit odds on the next harvest.`;
   const actions = (
     <div class="actions">
-      <button class="btn btn-cyan act-water" disabled={busy || t.wateredToday} onClick={() => act('/api/water', plot, 'Watered!')}>
-        <Sprite name="droplet" scale={2} /> {t.wateredToday ? (sheet ? 'Watered' : 'Watered today') : 'Water'}
-      </button>
+      {t.ash ? (
+        <button class="btn btn-mint act-clean" disabled={busy} onClick={() => act('/api/clean', plot, 'Ash cleaned!')}>
+          <Sprite name="sparkle" scale={2} /> Clean ash
+        </button>
+      ) : (
+        <button class="btn btn-cyan act-water" disabled={busy || t.wateredToday} onClick={() => act('/api/water', plot, 'Watered!')}>
+          <Sprite name="droplet" scale={2} /> {waterLabel(t, sheet)}
+        </button>
+      )}
       <button class="btn act-fertilize" disabled={busy || t.isFertilized || fertilizer < 1} onClick={() => act('/api/fertilize', plot, 'Fertilized!')}>
         <Sprite name="fertilizer" scale={2} /> Fertilize ({fertilizer})
       </button>
@@ -709,9 +728,15 @@ function PlotPanel({
         </p>
       )}
       <div class="actions">
-        <button class="btn btn-cyan act-water" disabled={busy || t.wateredToday} onClick={() => act('/api/water', plot, 'Watered!')}>
-          <Sprite name="droplet" scale={2} /> {t.wateredToday ? 'Watered today' : 'Water'}
-        </button>
+        {t.ash ? (
+          <button class="btn btn-mint act-clean" disabled={busy} onClick={() => act('/api/clean', plot, 'Ash cleaned!')}>
+            <Sprite name="sparkle" scale={2} /> Clean ash
+          </button>
+        ) : (
+          <button class="btn btn-cyan act-water" disabled={busy || t.wateredToday} onClick={() => act('/api/water', plot, 'Watered!')}>
+            <Sprite name="droplet" scale={2} /> {waterLabel(t, false)}
+          </button>
+        )}
         <button class="btn act-fertilize" disabled={busy || t.isFertilized || fertilizer < 1} onClick={() => act('/api/fertilize', plot, 'Fertilized!')}>
           <Sprite name="fertilizer" scale={2} /> Fertilize ({fertilizer})
         </button>

@@ -4,8 +4,10 @@ import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
 import { DartoHead } from './art/darto';
+import { LOOK_LABEL, lookOf, lookText, withWeather, type WeatherLook } from './weather';
+import { phaseOf } from './art/backdrop';
 import { TaniBot, TaniBotHead, tierOf, tierRank } from './art/tanibot';
-import { getAudioPrefs, initAudio, onAudioPrefsChange, playSound, setAudioPrefs, type SoundName } from './audio';
+import { getAudioPrefs, initAudio, onAudioPrefsChange, playRumble, playSound, setAmbient, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
 import { HowToPlay, Modal, PanenInfo } from './help';
 import { RECORD_MODE } from './record';
@@ -49,6 +51,7 @@ const ACTION_SOUNDS: Record<string, SoundName> = {
   '/api/sell': 'coins',
   '/api/shop/buy': 'burn',
   '/api/chop': 'click',
+  '/api/clean': 'harvest',
   '/api/seeds/sell': 'coins',
   '/api/seeds/discard': 'click',
 };
@@ -195,11 +198,45 @@ export function App() {
         }
       }
       lastTitle.current = s.player.title;
-      setState(s);
+      setState(withWeather(s));
       setLoadedAt(Date.now());
     },
     [toast],
   );
+
+  // Village weather: a notice once per eruption phase (the warning also rumbles), the share
+  // card after an eruption, and the quiet ambient loop (day / night / rain; Sound switch).
+  const eruptionKey = state?.weather?.eruption ? `${state.weather.eruption.id}:${state.weather.eruption.phase}` : null;
+  useEffect(() => {
+    const e = state?.weather?.eruption;
+    if (phase !== 'play' || !state || !e || !eruptionKey) return;
+    const key = `nearvest.wx.${state.player.accountId}.${eruptionKey}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, '1');
+    } catch {
+      // Storage blocked: the notice may show again after a reload, that is all.
+    }
+    if (e.phase === 'warning') {
+      toast({ kind: 'warn', text: 'Mount Tandur is rumbling! Ash will fall soon. Cleaning it is free, and trees never die.' });
+      void playRumble();
+    } else if (e.phase === 'eruption') {
+      toast({ kind: 'error', text: 'Eruption! Ash covers your trees and stops them growing. Tap a tree and Clean ash (free).' });
+    } else if (state.plots.some((x) => x.tree)) {
+      toast({ kind: 'success', text: 'The eruption is over: trees you cleaned grow faster on Volcanic soil.' });
+      shareMomentOnce(state.player.accountId, { kind: 'eruption' }, 2600);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, eruptionKey]);
+  const ambientLook = lookOf(state?.weather);
+  const ambientNight = state
+    ? phaseOf(1 - Math.max(0, state.clock.msUntilNextDay - (now - loadedAt)) / state.clock.dayLengthMs) === 'night'
+    : false;
+  useEffect(() => {
+    setAmbient(phase === 'play' && state ? (ambientLook === 'rain' ? 'rain' : ambientNight ? 'night' : 'day') : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, !!state, ambientLook, ambientNight]);
+  useEffect(() => () => setAmbient(null), []);
 
   // Back from Google after "Continue with Google" in the Profile (iPhone / iPad redirect): link
   // that Google account to this garden with the existing link route, then say how it went.
@@ -662,6 +699,16 @@ export function App() {
         </span>
         {p.demo && <Info k="demo" label="Demo mode" />}
       </span>
+      {/* Village weather (servers before the weather release send none: no chip). */}
+      {state.weather && (
+        <span class="chip-day-group chip-weather-group">
+          <span class={`chip chip-weather wx-${lookOf(state.weather)}`} title={lookText(state.weather)}>
+            <Sprite name={WEATHER_ICON[lookOf(state.weather)]} scale={2} />
+            {LOOK_LABEL[lookOf(state.weather)]}
+          </span>
+          <Info k="weather" label="the weather" text={lookText(state.weather)} />
+        </span>
+      )}
       <JudgeTourChip state={state} onOpen={() => (playSound('click'), setInfo('judge'))} />
     </div>
   );
@@ -881,6 +928,16 @@ function DevLogin({
     </form>
   );
 }
+
+/** Weather chip icons (existing sprites only). */
+const WEATHER_ICON: Record<WeatherLook, 'sparkle' | 'droplet' | 'fire' | 'sprout'> = {
+  clear: 'sparkle',
+  rain: 'droplet',
+  drought: 'fire',
+  warning: 'fire',
+  eruption: 'fire',
+  volcanic: 'sprout',
+};
 
 /** Width of every sign-in button (px); the Google button is drawn at the same width. */
 const LOGIN_BUTTON_W = 300;

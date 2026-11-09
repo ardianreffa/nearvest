@@ -15,6 +15,8 @@ import { Drone } from './tanibot';
 import { SlopeTrain, Train } from './train';
 import { Hotspots, type Place } from './hotspots';
 import { SkyBack, SkyBands, SkyFront } from './sky';
+import { WeatherFx } from './weather';
+import type { WeatherLook } from '../weather';
 import { skyBands } from './sky-colors';
 import { boxIn, V1, type Village } from './village';
 import { VillageDarto, VillageRobot } from './village-life';
@@ -111,6 +113,8 @@ export function Backdrop({
   skyTop,
   groundBelow = false,
   groundWide = false,
+  weather = 'clear',
+  phone = false,
 }: {
   fraction: number;
   blurFill?: boolean;
@@ -126,6 +130,10 @@ export function Backdrop({
   groundBelow?: boolean;
   /** Laptops: a lawn of the art's own grass rows fills everything beside and below the art. */
   groundWide?: boolean;
+  /** The village weather to draw (the landing page always passes nothing: a clear day). */
+  weather?: WeatherLook;
+  /** Phones: fewer weather particles. */
+  phone?: boolean;
 }) {
   const v = village;
   const v2 = v.key !== 'v1';
@@ -146,7 +154,7 @@ export function Backdrop({
   const skyBox = v.h > v.w ? at(0, skyTop ?? v.h - skyH * 1.6, v.w, skyH) : at(0, 0, v.w, v.h);
 
   return (
-    <div class={`backdrop village-${v.key}`} style={vars} aria-hidden={onPlace ? undefined : 'true'}>
+    <div class={`backdrop village-${v.key} wx-look-${weather}`} style={vars} aria-hidden={onPlace ? undefined : 'true'}>
       {/* v2: the sky's colour bands fill the whole scene, so the art (whose sky is transparent) never shows a seam. */}
       {v2 && <SkyBands hour={hour} />}
       {blurFill && (
@@ -182,6 +190,12 @@ export function Backdrop({
       {/* v1 phones: above the art, the top band of the sky. */}
       {!v2 && <div class="bg-sky-fill" style={{ background: skyBands(hour)[0] }} />}
 
+      {/* The weather's colour also over the sky bands, the blurred sides and the lawn (behind the art). */}
+      {weather !== 'clear' && (
+        <div class={`wx wx-back wx-${weather}`} aria-hidden="true">
+          <div class="wx-tint" />
+        </div>
+      )}
       <div class="bg-art" style={{ aspectRatio: `${v.w} / ${v.h}`, '--art-w': String(v.w) }}>
         <div class="sky-box" style={skyBox}>
           <SkyBack hour={hour} bands={!v2} />
@@ -231,6 +245,8 @@ export function Backdrop({
           <SkyFront />
         </div>
         <div class="bg-night-shade" />
+        {/* The weather: over the village, under the place pins (and the plots, TaniBot and HUD). */}
+        <WeatherFx look={weather} v={v} phone={phone} />
         {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} />}
       </div>
       {/* The plain ground colour below the art: only where there is no lawn (laptops have one). */}

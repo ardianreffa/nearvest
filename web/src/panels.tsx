@@ -514,7 +514,7 @@ export function Village({ state, config, onBot }: { state: GameState; config: Se
         <details class="share-preview">
           <summary class="btn btn-small">Preview share cards ▾</summary>
           <div class="share-buttons">
-            {(['first_harvest', 'first_gold', 'evolved', 'streak7', 'title', 'legend'] as MomentKind[]).map((k) => (
+            {(['first_harvest', 'first_gold', 'evolved', 'streak7', 'title', 'legend', 'eruption'] as MomentKind[]).map((k) => (
               <button
                 key={k}
                 class="btn btn-small"

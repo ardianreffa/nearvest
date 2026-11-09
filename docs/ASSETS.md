@@ -55,6 +55,12 @@ Converted to AAC (`.m4a`, `afconvert` on macOS) so they are small and play in ev
 | `coins.m4a` (sell) | RPG Audio `handleCoins.ogg` | Kenney | CC0 (bundled license.txt) | https://opengameart.org/content/50-rpg-sound-effects |
 | `burn.m4a` (shop) | Digital SFX `lowDown.mp3` | Kenney | CC0 (OpenGameArt page) | https://opengameart.org/content/63-digital-sound-effects-lasers-phasers-space-etc |
 | `levelup.m4a` | Digital SFX `powerUp2.mp3` | Kenney | CC0 (OpenGameArt page) | https://opengameart.org/content/63-digital-sound-effects-lasers-phasers-space-etc |
+| `ambient-day.m4a` (garden by day: birds and wind, loop) | "Forest Ambience" (`Forest_Ambience.mp3`) | TinyWorlds | CC0 (OpenGameArt page, checked 2026-11-09) | https://opengameart.org/content/forest-ambience |
+| `ambient-night.m4a` (garden at night: crickets, loop) | "Crickets Ambient Noise - loopable" (`crickets_1.mp3`) | Wolfgang_ | CC0 (OpenGameArt page, checked 2026-11-09) | https://opengameart.org/content/crickets-ambient-noise-loopable |
+| `ambient-rain.m4a` (rain, loop) | "Rain (loopable)" (`Rain MP3.zip`, file `1.mp3`) | Ylmir | CC0 (OpenGameArt page, checked 2026-11-09) | https://opengameart.org/content/rain-loopable |
+| `ambient-rumble.m4a` (Mount Tandur rumbling, once) | "Rain + Long Thunder" (`rain-thunder.ogg`, seconds 18-30, mixed to mono with 0.5 s fades) | WuxiaScrub | CC0 (OpenGameArt page, checked 2026-11-09) | https://opengameart.org/content/rain-long-thunder |
+
+Ambient files (2026-11-09): converted on the Mac with `afconvert` to AAC mono 22 kHz 32 kbps (about 50-185 KB each); the rumble was cut with a small Node script first. They play quietly under the music, follow the Sound switch (not the music switch) and start only after the first tap.
 
 Credits (copy into README): music "Apple Cider" by Zane Little Music; sound effects by Kenney (www.kenney.nl).
 

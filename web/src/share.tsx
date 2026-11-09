@@ -27,6 +27,7 @@ export const MOMENT_LABELS: Record<MomentKind, string> = {
   title: 'New title',
   legend: 'Legend',
   profile: 'Profile card',
+  eruption: 'Survived the eruption',
 };
 
 const TAGS = '@NEARProtocol #NEARHackathon';
@@ -167,6 +168,12 @@ function texts(m: Moment, s: GameState): { headline: string; sub: string; post: 
         sub: `${p.name} checked in 7 days in a row and got a Gold seed`,
         post: `7 days in a row on my NEARvest farm, and a Gold seed as the reward. ${TAGS}`,
       };
+    case 'eruption':
+      return {
+        headline: 'I survived the eruption!',
+        sub: `Mount Tandur erupted and ${p.name}'s TaniBot cleaned the ash: Volcanic soil now`,
+        post: `Mount Tandur erupted in NEARvest and my trees survived (they never die). Now they grow on Volcanic soil. ${TAGS}`,
+      };
     case 'legend':
       return {
         headline: 'Legend!',
@@ -306,6 +313,11 @@ function drawHalo(ctx: CanvasRenderingContext2D, x: number, y: number, rx: numbe
   ctx.restore();
 }
 
+/** A palette token with transparency (canvas only). */
+function tokenAlpha(name: `--${string}`, a: number): string {
+  return alpha(token(name), a);
+}
+
 /** `#rrggbb` token colour with transparency (canvas only). */
 function alpha(hex: string, a: number): string {
   const h = hex.replace('#', '');
@@ -432,6 +444,18 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   } catch {
     // Image blocked: the sky alone.
   }
+  // The eruption card: a red sky and falling ash over the village (palette colours).
+  if (m.kind === 'eruption') {
+    const red = ctx.createLinearGradient(0, 0, 0, CARD_H);
+    red.addColorStop(0, tokenAlpha('--red-500', 0.55));
+    red.addColorStop(0.6, tokenAlpha('--red-500', 0.15));
+    red.addColorStop(1, tokenAlpha('--red-500', 0));
+    ctx.fillStyle = red;
+    ctx.fillRect(0, 0, CARD_W, CARD_H);
+    ctx.fillStyle = tokenAlpha('--ink-soft', 0.85);
+    for (let i = 0; i < 70; i++) ctx.fillRect(Math.round((i * 61.8 * 7) % CARD_W), Math.round((i * 37.3 * 5) % (CARD_H - 60)), 8, 8);
+  }
+
   // The text column sits on a dark, see-through pixel panel (stepped corners, its left edge fading
   // in three 8 px steps) instead of a heavy black gradient over the whole right side.
   drawTextPanel(ctx, Math.round(CARD_W * 0.56) - 32, 28, CARD_W - 28, CARD_H - 28);
