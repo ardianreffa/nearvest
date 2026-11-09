@@ -185,7 +185,7 @@ function useWindowSize() {
  * all three plots in view (no panning); the selected plot's panel is a compact sheet above the
  * tabs. Dev builds with ?bg=v1 show the first village in the classic phone scene.
  */
-function PhoneGarden({
+export function PhoneGarden({
   state,
   selected,
   onSelect,
@@ -196,6 +196,7 @@ function PhoneGarden({
   onPlace,
   sheet,
   hint,
+  visit = false,
 }: {
   state: GameState;
   selected: number;
@@ -207,6 +208,8 @@ function PhoneGarden({
   onPlace?: (p: Place) => void;
   sheet: preact.ComponentChildren;
   hint: boolean;
+  /** Visiting a friend's garden (friends.tsx): no TaniBot. */
+  visit?: boolean;
 }) {
   const { w, h } = useWindowSize();
   const version = bgVersion();
@@ -266,7 +269,7 @@ function PhoneGarden({
   return (
     <div class="garden-screen phone-garden">
       <div class={`phone-scene-box${v1 ? ' v1' : ''}`} ref={sceneBox} style={room || v1 ? undefined : { visibility: 'hidden' }}>
-        <GardenScene state={state} selected={selected} onSelect={onSelect} elapsed={elapsed} fx={fx} big={big} phone={v1 ? undefined : zoom} onBot={onBot} onPlace={onPlace} />
+        <GardenScene state={state} selected={selected} onSelect={onSelect} elapsed={elapsed} fx={fx} big={big} phone={v1 ? undefined : zoom} onBot={onBot} onPlace={onPlace} visit={visit} />
       </div>
       <div class="garden-sheet" ref={sheetBox}>
         {sheet}

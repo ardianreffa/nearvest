@@ -570,7 +570,7 @@ function ShareToX({ accountId }: { accountId: string }) {
   );
 }
 
-export function Village({ state, config, onBot }: { state: GameState; config: ServerConfig; onBot: () => void }) {
+export function Village({ state, config, onBot, onFarmers }: { state: GameState; config: ServerConfig; onBot: () => void; onFarmers?: () => void }) {
   const [stats, setStats] = useState<VillageStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -596,6 +596,16 @@ export function Village({ state, config, onBot }: { state: GameState; config: Se
           Open TaniBot
         </button>
       </Panel>
+      {onFarmers && (
+        <Panel title="Farmers of Tandur">
+          <p class="muted small">Visit other gardens and water one thirsty tree a day: XP for you and for them.</p>
+          <div class="share-buttons">
+            <button class="btn btn-mint" onClick={onFarmers}>
+              Visit farmers
+            </button>
+          </div>
+        </Panel>
+      )}
       <MemorialList memorials={state.memorials} pohon={config.contracts.pohon} />
       <Panel title="Village Stats">
         {error && <p class="error-text">{error}</p>}

@@ -13,6 +13,8 @@ import { HowToPlay, Modal, PanenInfo } from './help';
 import { RECORD_MODE } from './record';
 import { holdShareCards, ShareHost, shareMomentOnce } from './share';
 import { MomentFxLayer } from './moment-fx';
+import { FarmersWindow, VisitGarden } from './friends';
+import { SPECIES_NAME as SPECIES_LABEL } from './ui';
 import { burnAt, coinsToBalance, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
 import { laptopLayout } from './scene';
@@ -127,6 +129,9 @@ export function App() {
   const [audio, setAudio] = useState(getAudioPrefs());
   const fullscreen = useFullscreen();
   const [info, setInfo] = useState<'help' | 'panen' | 'profile' | 'tanibot' | 'checkin' | 'judge' | null>(null);
+  /** Garden visits (friends.tsx): the farmer list window, and the friend's garden being visited. */
+  const [farmersOpen, setFarmersOpen] = useState(false);
+  const [visiting, setVisiting] = useState<string | null>(null);
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
@@ -167,6 +172,35 @@ export function App() {
       // Judge gardens: share cards wait until the Judge tour is complete; new gardens until the
       // tutorial is over. Then they come one by one.
       holdShareCards((!!s.judgeTour && !s.judgeTour.every((t) => t.done)) || !!s.tutorial, s.player.accountId);
+      // Friends who watered our trees since we last looked (garden visits): one notice.
+      if (s.helps?.length) {
+        const key = `nearvest.helpsSeen.${s.player.accountId}`;
+        let seen = 0;
+        try {
+          seen = Number(localStorage.getItem(key) ?? 0);
+        } catch {
+          seen = Number.MAX_SAFE_INTEGER; // storage blocked: no notice rather than the same one again and again
+        }
+        const fresh = s.helps.filter((h) => h.id > seen);
+        if (fresh.length) {
+          try {
+            localStorage.setItem(key, String(Math.max(...s.helps.map((h) => h.id))));
+          } catch {
+            // Storage blocked: shown once this visit.
+          }
+          const h = fresh[0];
+          const xp = fresh.reduce((n, x) => n + x.xp, 0);
+          // A moment after the garden shows, and long enough to read.
+          window.setTimeout(() => toast({
+            kind: 'success',
+            long: true,
+            text:
+              fresh.length === 1
+                ? `${h.helper} watered your ${SPECIES_LABEL[h.species]} on plot ${h.plot + 1}${xp ? `: +${xp} XP` : ''}. Thanks, neighbour!`
+                : `${[...new Set(fresh.map((x) => x.helper))].join(', ')} watered ${fresh.length} of your trees${xp ? `: +${xp} XP` : ''}.`,
+          }), 1200);
+        }
+      }
       const done = s.activity.filter((a) => a.status === 'done');
       if (seenDone.current === null) {
         seenDone.current = new Set(done.map((a) => a.id));
@@ -629,8 +663,28 @@ export function App() {
       big={wide}
       immersive={immersive}
       onBot={openBot}
-      onPlace={(p) => (playSound('click'), wide ? openSide(p) : setTab(p))}
+      onPlace={(p) => (playSound('click'), p === 'friends' ? setFarmersOpen(true) : wide ? openSide(p) : setTab(p))}
     />
+  );
+  const startVisit = (name: string) => {
+    setFarmersOpen(false);
+    setVisiting(name);
+    if (!wide) setTab('garden');
+  };
+  const view = visiting ? (
+    <VisitGarden
+      key={visiting}
+      name={visiting}
+      mine={state}
+      elapsed={elapsed}
+      big={wide}
+      immersive={immersive}
+      onBack={() => setVisiting(null)}
+      onState={applyState}
+      notify={toast}
+    />
+  ) : (
+    garden
   );
   const panelFor = (t: SideTab) =>
     t === 'storage' ? (
@@ -640,7 +694,7 @@ export function App() {
     ) : t === 'market' ? (
       <Market state={state} config={config} sell={sell} act={act} busy={busy} />
     ) : (
-      <Village state={state} config={config} onBot={openBot} />
+      <Village state={state} config={config} onBot={openBot} onFarmers={Array.isArray(state.helps) ? () => (playSound('click'), setFarmersOpen(true)) : undefined} />
     );
 
   const tabIcons: Record<Tab, ComponentChildren> = {
@@ -757,7 +811,7 @@ export function App() {
     >
       {wide ? (
         <>
-          {garden}
+          {view}
           {/* Two floating capsules; the middle stays open so the village shows through. */}
           {/* Top left: the player's status. Top right: only system controls. The middle stays open. */}
           <header class="hud-top">
@@ -820,11 +874,11 @@ export function App() {
             {/* Garden: the coach floats over the top (sky) of the scene, so it never pushes the
                 village and the mounds down. Other tabs: above the panel as before. */}
             {coach && (tab === 'garden' ? <div class="coach-float">{coach}</div> : coach)}
-            {tab === 'garden' ? garden : panelFor(tab)}
+            {tab === 'garden' ? view : panelFor(tab)}
           </div>
           <nav class="tabs">
             {(['garden', 'storage', 'shop', 'market', 'village'] as Tab[]).map((t) => (
-              <TabButton key={t} tab={t} current={tab} set={(x) => (playSound('click'), setTab(x))} icon={tabIcons[t]} label={tabLabels[t]} />
+              <TabButton key={t} tab={t} current={tab} set={(x) => (playSound('click'), setVisiting(null), setTab(x))} icon={tabIcons[t]} label={tabLabels[t]} />
             ))}
             <button class="tab tab-bot" onClick={openBot} aria-label={botDotTitle}>
               <span class="tab-icon">{botIcon}</span>
@@ -838,6 +892,7 @@ export function App() {
       <ToastStrip shown={toastShown} dismiss={dismissToast} />
       {dialogView}
       {infoView}
+      {farmersOpen && <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} />}
       {info === 'checkin' && (
         <Modal title="Daily check-in" onClose={() => setInfo(null)} closeLabel="Close" class="checkin-dialog">
           <CheckinBanner state={state} act={act} ask={ask} busy={busy} elapsed={elapsed} />

@@ -96,6 +96,98 @@ export interface DartoPrice {
   max: number;
 }
 
+/** A friend watered one of your trees (garden visits). */
+export interface HelpView {
+  id: number;
+  plot: number;
+  /** XP you got for it (0 after 3 helps a day, or while your garden is less than a day old). */
+  xp: number;
+  at: number;
+  helper: string;
+  species: Species;
+}
+
+/** A row of the farmer list (GET /api/farmers): public data only. */
+export interface FarmerRow {
+  name: string;
+  avatar: string;
+  title: string;
+  trees: number;
+  /** Trees a visitor can help water now. */
+  thirsty: number;
+  helpedYou: boolean;
+  /** A Try as Judge garden (only while there are fewer than 5 farmers). */
+  judge: boolean;
+}
+
+export interface HelpRules {
+  /** XP the viewer gets for helping (0 while their garden is less than a day old). */
+  helperXp: number;
+  youngGarden: boolean;
+  perDay: number;
+}
+
+export interface FarmersResponse {
+  farmers: FarmerRow[];
+  /** The friend's garden the viewer helped today (one per day), if any. */
+  helpedToday: { name: string; plot: number } | null;
+  help: HelpRules;
+}
+
+/** A friend's garden as visitors see it (read only). */
+export interface PublicGarden {
+  name: string;
+  accountId: string;
+  avatar: string;
+  title: string;
+  demo: boolean;
+  weather: { kind: string; waterNeed: number };
+  plots: {
+    plot: number;
+    locked: boolean;
+    tree: {
+      tokenId: string | null;
+      species: Species;
+      quality: Quality;
+      stage: Stage;
+      growthPercent: number;
+      ready: boolean;
+      harvestCount: number;
+      maxHarvests: number;
+      waterCount: number;
+      waterNeed: number;
+      isWatered: boolean;
+      thirsty: boolean;
+      wilting: boolean;
+      ash: boolean;
+      volcanicSoil: boolean;
+      /** A visitor can help water it now. */
+      needsWater: boolean;
+    } | null;
+    memorial: { species: Species; quality: Quality; tokenId: string | null; harvestCount: number } | null;
+  }[];
+}
+
+export interface VisitResponse {
+  garden: PublicGarden;
+  own: boolean;
+  helpedToday: { name: string; plot: number } | null;
+  help: HelpRules;
+}
+
+export interface HelpResult {
+  watered: boolean;
+  owner: string;
+  plot: number;
+  species: Species;
+  waterings: number;
+  needed: number;
+  helperXp: number;
+  ownerXp: number;
+  noXpReason: 'young' | null;
+  titleUp: string | null;
+}
+
 export interface GameState {
   /** Missing on servers from before the weather release. */
   weather?: Weather;
@@ -134,6 +226,8 @@ export interface GameState {
   plots: { plot: number; locked: boolean; tree: TreeView | null; memorial?: MemorialView | null }[];
   /** The player's Memorial Trees, newest first (missing on older servers). */
   memorials?: MemorialView[];
+  /** Friends who helped water this garden lately (newest first). Missing on servers without garden visits. */
+  helps?: HelpView[];
   seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null; source: string }[];
   seedSlots: { used: number; max: number };
   fruits: { species: Species; quality: Quality; qty: number }[];

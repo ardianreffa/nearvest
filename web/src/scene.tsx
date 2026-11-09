@@ -72,6 +72,14 @@ function status(tree: TreeView, elapsed: number) {
   return { text: formatDuration(tree.msToReady - elapsed), cls: 'growing' };
 }
 
+/** A friend's tree (visits): only what a visitor needs (no countdowns of someone else's garden). */
+function visitStatus(tree: TreeView) {
+  if (tree.ash) return { text: 'Ash!', cls: 'ash' };
+  if (tree.ready) return { text: tree.stage === 'old' ? 'Old tree' : 'Ready!', cls: 'ready' };
+  if (!tree.isWatered) return { text: 'Thirsty', cls: tree.wilting ? 'thirsty wilting' : 'thirsty' };
+  return { text: 'Watered', cls: 'growing' };
+}
+
 const FRUIT_SPRITE = { mango: 'mango', rambutan: 'rambutan', durian: 'durian' } as const;
 
 interface Props {
@@ -88,9 +96,11 @@ interface Props {
   onPlace?: (p: Place) => void;
   /** Phones: the zoomed garden (the scene box is wider than the screen and pans sideways). */
   phone?: PhoneZoom;
+  /** Visiting a friend's garden (friends.tsx): their trees, no TaniBot. */
+  visit?: boolean;
 }
 
-export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive: wideLayout, onBot, onPlace, phone }: Props) {
+export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive: wideLayout, onBot, onPlace, phone, visit = false }: Props) {
   const immersive = wideLayout ?? phone;
   const village = immersive?.village;
   const v2 = !!village && village.key !== 'v1';
@@ -130,7 +140,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
     <div
       class={`scene phase-${phase}${immersive ? ' immersive-scene' : ''}${phone ? ' phone-scene' : ''}${moundArt ? ' mound-art' : ''}`}
       role="group"
-      aria-label="Your garden"
+      aria-label={visit ? `${state.player.name}'s garden` : 'Your garden'}
       style={
         immersive
           ? {
@@ -163,6 +173,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         // the village's bottom bushes continue, so the panels sit on grass, not on a plain fill.
         groundBelow={phone ? phone.artBottom > 0 : !!immersive && immersive.artBottom > 0}
         groundWide={!!immersive && !phone}
+        // Garden visits are live on servers that send `helps` (older servers: the Friends pin stays "Soon").
+        friends={Array.isArray(state.helps)}
         weather={lookOf(state.weather)}
         phone={!!phone}
       />
@@ -170,7 +182,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
       <Stage immersive={immersive}>
       <div class="plots">
         {state.plots.map((p) => {
-          const st = p.tree ? status(p.tree, elapsed) : null;
+          const st = p.tree ? (visit ? visitStatus(p.tree) : status(p.tree, elapsed)) : null;
           return (
             <button
               key={p.plot}
@@ -236,6 +248,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           <i />
         </span>
       )}
+      {!visit && (
       <div
         ref={botSpot}
         class={`bot-spot tier-${tier} ${motion.cls}${evolving ? ' evolving' : ''}${phone && v2 && !village?.moundArt ? ' bot-front' : ''}${phone && village?.moundArt ? ' bot-beside' : ''}`}
@@ -316,6 +329,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           </div>
         )}
       </div>
+      )}
 
       {fx && <ActionEffect fx={fx} from={botX(fx.plot, lane)} to={plotCenter(fx.plot, lane)} tier={tier} px={px} droneScale={droneScale} key={fx.id} />}
       </Stage>

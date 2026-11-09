@@ -10492,3 +10492,207 @@ html.page-locked body {
     transform-origin: top center;
   }
 }
+
+/* ---------- Garden visits (friends.tsx) ---------- */
+
+/* Farmers of Tandur: one row per farmer, Visit on the right. */
+.farmers-intro {
+  margin: 0 0 8px;
+}
+
+.farmers-done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  font-size: var(--fs-sm);
+  background: color-mix(in srgb, var(--cyan-300) 45%, var(--paper-light));
+  border-left: 4px solid var(--cyan-700);
+}
+
+.farmer-list {
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.farmer-list > li {
+  flex-shrink: 0;
+}
+
+.farmer-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.farmer-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.farmer-name {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farmer-meta {
+  font-size: var(--fs-xs);
+  color: var(--ink-soft);
+}
+
+.farmer-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.farmer-tags:empty {
+  display: none;
+}
+
+.farmer-tags .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  border: 2px solid currentColor;
+}
+
+.tag-thirsty {
+  color: var(--cyan-700);
+  background: var(--cyan-300);
+}
+
+.tag-helped {
+  color: var(--mint-700);
+  background: var(--mint-300);
+}
+
+.tag-judge {
+  color: var(--purple-700);
+  background: var(--purple-300);
+}
+
+/* The visit panel: phones = the paper sheet above the tabs; laptops = the dark wood bar. */
+.visit-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.visit-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.visit-title b {
+  font-family: var(--font-title);
+  font-size: var(--fs-body);
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visit-kicker,
+.visit-sub {
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  color: var(--ink-soft);
+}
+
+.visit-kicker {
+  text-transform: uppercase;
+  color: var(--cyan-700);
+}
+
+.visit-back {
+  flex: none;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.visit-line {
+  margin: 0 0 6px;
+}
+
+.visit-note {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+.visit-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+}
+
+/* Laptop bar: paper text on dark wood. */
+.visit-panel.bar .visit-kicker {
+  color: var(--cyan-300);
+}
+
+.visit-panel.bar .visit-sub,
+.visit-panel.bar .visit-note {
+  color: var(--paper);
+}
+
+.visit-panel.bar .visit-help {
+  width: auto;
+  min-width: 260px;
+}
+
+/* Phones: the title on one line with Back; the button fits a 390 px screen. */
+@media (max-width: 1023px) {
+  .visit-back {
+    padding-left: 10px;
+    padding-right: 10px;
+    font-size: var(--fs-sm);
+  }
+}
+
+/* Laptop bar: two rows inside its 128 px: whose garden + Back, then the tree + Help water side by side. */
+.hud-bar > .visit-panel.bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 4px;
+}
+
+.visit-panel.bar .visit-head {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.visit-panel.bar .visit-line {
+  margin: 0;
+}
+
+.visit-panel.bar .visit-line b,
+.visit-panel.bar .visit-title b {
+  color: var(--gold-300);
+}
+
+.visit-panel.bar .visit-help {
+  min-height: 40px;
+}

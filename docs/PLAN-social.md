@@ -19,6 +19,13 @@ Ground rules for the whole package:
 
 ## 1. Simple garden visits
 
+**Built 2026-11-09 (local commits, NOT released; the VPS release waits for Ardian's OK):** server
+`server/src/social.ts` (+ `Game.waterTree / publicGarden / helpsReceived / touch`, table `garden_help`,
+column `players.last_seen_at`; tests `server/test/social.test.ts`), web `web/src/friends.tsx` (Farmers
+of Tandur window, visit mode, Help water), live Friends pin, owner notice. Stickers and referral: later.
+"A tree that needs water" = its water has run out, it is not watered enough for today (a drought needs
+two) and it is not raining; old trees never. Help XP follows the demo XP multiplier (x5 in demo gardens).
+
 ### 1.1 Farmer list ("Farmers of Tandur")
 Opened from the **Friends** place pin (no longer "Soon") and from the Village tab.
 

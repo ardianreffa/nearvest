@@ -13,7 +13,7 @@ import { Sprite, type SpriteName } from '../sprites';
 import { DartoHead } from './darto';
 import { boxIn, V1, type Box, type Spot, type Village } from './village';
 
-export type Place = 'shop' | 'market' | 'village';
+export type Place = 'shop' | 'market' | 'village' | 'friends';
 
 interface SpotInfo {
   /** Pin name (laptop) and its short form (phones). */
@@ -35,6 +35,8 @@ const SPOTS: Record<Spot, SpotInfo> = {
   arena: { name: 'Arena', short: 'Arena', label: 'Arena: 1v1 duels for PANEN, coming soon', icon: 'sparkle', open: null },
 };
 const IDS = Object.keys(SPOTS) as Spot[];
+/** The Friends pin once garden visits are live (the server sends `helps`). */
+const FRIENDS_LIVE: SpotInfo = { name: 'Friends', short: 'Friends', label: 'Visit farmers and help water a tree', icon: 'sprout', open: 'friends' };
 /** Whole-number scales so every pin icon fits its 16 px box and stays sharp (Mr. Darto: his small head, 15 x 14). */
 const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2, sparkle: 2, sprout: 1 };
 
@@ -207,8 +209,9 @@ function placePin(el: HTMLElement, host: HTMLElement, v: Village, x: number, y: 
   el.style.top = `${best!.t - hr.top}px`;
 }
 
-export function Hotspots({ onPlace, account, village = V1 }: { onPlace: (p: Place) => void; account?: string; village?: Village }) {
+export function Hotspots({ onPlace, account, village = V1, friends = false }: { onPlace: (p: Place) => void; account?: string; village?: Village; friends?: boolean }) {
   const v = village;
+  const spot = (id: Spot): SpotInfo => (id === 'friends' && friends ? FRIENDS_LIVE : SPOTS[id]);
   const [bubble, setBubble] = useState<Spot | null>(null);
   const [hover, setHover] = useState<Spot | null>(null);
   const [hint, setHint] = useState(false);
@@ -269,18 +272,18 @@ export function Hotspots({ onPlace, account, village = V1 }: { onPlace: (p: Plac
   }, [bubble, hover, v]);
 
   const tap = (id: Spot) => {
-    const s = SPOTS[id];
+    const s = spot(id);
     if (s.open && canHover()) {
       setBubble(null);
       onPlace(s.open);
     } else setBubble(bubble === id ? null : id);
   };
 
-  const b = bubble ? SPOTS[bubble] : null;
+  const b = bubble ? spot(bubble) : null;
   return (
     <div class={`hotspots${hint ? ' pins-hint' : ''}`} ref={host}>
       {IDS.map((id) => {
-        const s = SPOTS[id];
+        const s = spot(id);
         const lit = hover === id || bubble === id;
         return (
           <button
@@ -295,7 +298,7 @@ export function Hotspots({ onPlace, account, village = V1 }: { onPlace: (p: Plac
         );
       })}
       {IDS.map((id, i) => {
-        const s = SPOTS[id];
+        const s = spot(id);
         const lit = hover === id || bubble === id;
         return (
           <button

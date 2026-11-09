@@ -14,6 +14,8 @@ export interface Toast {
   kind: 'info' | 'warn' | 'error' | 'chain' | 'success';
   text: string;
   link?: string;
+  /** Stays as long as an alert (news the player should not miss, e.g. a friend watered a tree). */
+  long?: boolean;
 }
 
 interface Shown {
@@ -35,7 +37,7 @@ export function useToasts() {
   const [shown, setShown] = useState<Shown | null>(null);
   const timer = useRef(0);
   const toast = useCallback((t: Omit<Toast, 'id'>) => {
-    const life = isAlert(t.kind) ? ERROR_MS : LIFE_MS;
+    const life = isAlert(t.kind) || t.long ? ERROR_MS : LIFE_MS;
     setShown((cur) => ({
       toast: { ...t, id: Math.random() },
       more: cur && cur.until > Date.now() ? cur.more + 1 : 0,
