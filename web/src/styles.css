@@ -10164,8 +10164,7 @@ html.page-locked body {
 
 /* Pixel outline around the fruit and durian sprites. */
 .mfx-fruit svg,
-.mfx-drop svg,
-.mfx-goldtree svg {
+.mfx-drop svg {
   filter: drop-shadow(3px 0 0 var(--ink)) drop-shadow(-3px 0 0 var(--ink)) drop-shadow(0 3px 0 var(--ink)) drop-shadow(0 -3px 0 var(--ink));
 }
 
@@ -10268,7 +10267,19 @@ html.page-locked body {
 .mfx-goldtree {
   padding: 24px;
   background: radial-gradient(circle, color-mix(in srgb, var(--gold-300) 80%, transparent) 0, transparent 70%);
+}
+
+/* The Gold tree: the game's own tree art turned to gold, with a pixel outline and a golden glow. */
+.mfx-gilded {
+  display: block;
+  position: relative;
   animation: mfx-pop 0.45s steps(4) both;
+}
+
+.mfx-gilded .tree,
+.mfx-gilded .tree.q-gold {
+  filter: sepia(1) saturate(3.4) hue-rotate(2deg) brightness(1.35) drop-shadow(3px 0 0 var(--ink)) drop-shadow(-3px 0 0 var(--ink))
+    drop-shadow(0 3px 0 var(--ink)) drop-shadow(0 -3px 0 var(--ink)) drop-shadow(0 0 10px var(--gold-500));
 }
 
 .mfx-sparkle {

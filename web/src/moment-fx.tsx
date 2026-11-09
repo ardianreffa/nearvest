@@ -2,12 +2,12 @@
 // (share.tsx opens it POPUP_AFTER_FX_MS after the animation ends). Pixel shapes and palette tokens
 // only, CSS transform / opacity animations (styles.css "Moment animations"), never taking a click.
 //   first harvest   basket pops up, fruits bounce in                     cheerful 8-bit jingle
-//   first Gold tree golden shine sweeps across the screen + sparkles      steel-drum chime
+//   first Gold tree the Gold tree (its species) gilded, a golden shine + sparkles   steel-drum chime
 //   Rare durian     a durian drops with a heavy bounce, dust puff         heavy punch
 //   new title       banner rises with the title + confetti               level-up
 //   TaniBot evolved scan-line glow sweeps down + banner                  robot beeps
 //   7-day streak    calendar page flips to 7 + coin rain                 coins
-//   Legend          pixel fireworks + banner                             8-bit fanfare
+//   Legend          pixel fireworks + banner                             8-bit victory fanfare (C major, up an octave)
 //   eruption        (the weather is already on screen) banner            level-up
 // With prefers-reduced-motion nothing moves: a still banner for a moment, the sound stays.
 
@@ -16,6 +16,7 @@ import { playSound, type SoundName } from './audio';
 import { confetti } from './fx';
 import type { Moment, MomentKind } from './moments';
 import { Sprite } from './sprites';
+import { TreePixels } from './art/trees';
 
 /** How long each moment's animation runs (ms); the popup waits for it. */
 export const MOMENT_FX_MS: Record<MomentKind, number> = {
@@ -148,7 +149,10 @@ export function MomentFxLayer() {
       )}
       {m.kind === 'first_gold' && (
         <div class="mfx-center mfx-goldtree">
-          <Sprite name={m.species ?? 'mango'} scale={6} />
+          {/* The player's Gold tree itself (its species, with fruit), gilded. */}
+          <span class="mfx-gilded">
+            <TreePixels species={m.species ?? 'mango'} stage="fruiting" quality="gold" scale={4} seed={1} />
+          </span>
         </div>
       )}
       {m.kind === 'big_durian' && (
