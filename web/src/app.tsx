@@ -16,7 +16,7 @@ import { laptopLayout } from './scene';
 import { bgVersion } from './art/village';
 import { Market, Shop, Storage, Village } from './panels';
 import { Sprite } from './sprites';
-import { signShopBurn, walletProof } from './wallet';
+import { signShopBurn, WALLET_LIST_BLOCKED, walletProof } from './wallet';
 import { Profile } from './profile';
 import { TaniBotWindow } from './tanibot';
 import { GoogleButton } from './google';
@@ -866,10 +866,20 @@ const LOGIN_BUTTON_W = 300;
 function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedIn: (token: string, s: GameState | null, note?: string) => void; onHelp: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** The wallet list is being opened (the button says so). */
+  /** Problems of the Google button (shown next to wallet / judge messages, never replacing them). */
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const [walletOpening, setWalletOpening] = useState(false);
 
   const walletLogin = async () => {
     setBusy(true);
+    setWalletOpening(true);
     setError(null);
+    // near-connect shows its wallet list as a .hot-connector-popup element. If it has not appeared
+    // after 10 s, something blocked it: say so instead of a button that seems to do nothing.
+    const noList = window.setTimeout(() => {
+      if (!document.querySelector('.hot-connector-popup')) setError(WALLET_LIST_BLOCKED);
+    }, 10_000);
     try {
       const proof = await walletProof(config);
       const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/near', proof);
@@ -877,7 +887,9 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
+      window.clearTimeout(noList);
       setBusy(false);
+      setWalletOpening(false);
     }
   };
 
@@ -932,10 +944,10 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
             const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/google', { credential });
             onLoggedIn(res.token, res.player);
           }}
-          onError={setError}
+          onError={setGoogleError}
         />
-        <button class="btn btn-wallet" onClick={walletLogin} disabled={busy}>
-          Connect NEAR Wallet
+        <button class="btn btn-wallet" onClick={walletLogin} disabled={busy} aria-busy={walletOpening}>
+          {walletOpening ? 'Opening wallets...' : 'Connect NEAR Wallet'}
         </button>
         <button
           class="btn btn-judge"
@@ -943,7 +955,7 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
           disabled={busy}
           title="One click, no sign-in: your own ready garden with real testnet Tree NFTs, PANEN and TaniBot, plus a 5-step tour."
         >
-          {busy ? 'Preparing your garden...' : 'Try as Judge'}
+          {busy && !walletOpening ? 'Preparing your garden...' : 'Try as Judge'}
         </button>
         <button class="link-btn how-link" onClick={onHelp}>
           How to play
@@ -953,6 +965,7 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
       {/* Dev login: local `npm run dev` only. The whole component is left out of production
           builds (import.meta.env.DEV is false there), not only hidden; the server refuses it too. */}
       {import.meta.env.DEV && config.devLogin && <DevLogin busy={busy} setBusy={setBusy} setError={setError} onLoggedIn={onLoggedIn} />}
+      {googleError && <p class="error-text">{googleError}</p>}
       {error && <p class="error-text">{error}</p>}
       <div class="login-gap" aria-hidden="true" />
       <footer class="login-bottom">

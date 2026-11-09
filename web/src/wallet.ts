@@ -40,10 +40,18 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(s);
 }
 
+/** Shown when no wallet can be listed (the wallet list was blocked or did not load). */
+export const WALLET_LIST_BLOCKED =
+  'The wallet list did not open. A content blocker, iCloud Private Relay or Lockdown Mode can block it: turn it off and try again, or use Google or Try as Judge.';
+
 /** Opens the wallet picker and lets the chosen wallet sign the server's one-time login message. */
 export async function walletProof(config: ServerConfig): Promise<WalletProof> {
   const challenge = await api<{ nonce: string; message: string; recipient: string }>('POST', '/auth/near/challenge');
   const c = await connector(config.network);
+  // The wallet list comes from near-connect's manifest (GitHub / jsDelivr). If it could not load
+  // (blocked or offline), the picker would open empty: say so clearly instead.
+  await c.whenManifestLoaded.catch(() => undefined);
+  if (c.availableWallets.length === 0) throw new Error(WALLET_LIST_BLOCKED);
   let signed: WalletProof | null = null;
   const onSigned = (e: { accounts: { accountId: string; signedMessage: { accountId: string; publicKey: string; signature: string } }[] }) => {
     const m = e.accounts[0]?.signedMessage;

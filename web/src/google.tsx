@@ -19,6 +19,15 @@ declare global {
 
 let scriptPromise: Promise<void> | null = null;
 
+/** Shown when Google's script or button cannot load (often a content blocker or Private Relay). */
+export const GOOGLE_BLOCKED =
+  'The Google button could not load. A content blocker or iCloud Private Relay can block it: turn it off and reload, or use a NEAR wallet or Try as Judge.';
+/** Shown on phones when a tap on the Google button opened nothing. */
+export const GOOGLE_NO_WINDOW =
+  'Google sign-in did not open. Allow pop-ups for this site (Settings > Apps > Safari > Block Pop-ups: off), turn off a content blocker, then try again. Or use Try as Judge.';
+
+const isTouchPhone = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+
 function loadScript(): Promise<void> {
   if (window.google) return Promise.resolve();
   scriptPromise ??= new Promise((resolve, reject) => {
@@ -26,7 +35,10 @@ function loadScript(): Promise<void> {
     script.src = 'https://accounts.google.com/gsi/client?hl=en';
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Could not load Google sign-in'));
+    script.onerror = () => {
+      scriptPromise = null; // allow a retry after a reload of the button
+      reject(new Error(GOOGLE_BLOCKED));
+    };
     document.head.appendChild(script);
   });
   return scriptPromise;
@@ -75,8 +87,36 @@ export function GoogleButton({
         });
       })
       .catch((e: Error) => handlers.current.onError(e.message));
+    // The button never appeared (script blocked or very slow): say so instead of an empty slot.
+    const noButton = window.setTimeout(() => {
+      if (alive && ref.current && !ref.current.querySelector('iframe')) handlers.current.onError(GOOGLE_BLOCKED);
+    }, 10_000);
+    // Phones: Google opens its sign-in page in a new tab, so this page is hidden right after the
+    // tap. If the page stays visible, the tab was blocked: explain it (the tap itself happens
+    // inside Google's iframe, which this page only notices as losing focus).
+    let check = 0;
+    let opened = false;
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') opened = true;
+    };
+    const onBlur = () => {
+      if (!isTouchPhone() || !ref.current) return;
+      const active = document.activeElement;
+      if (!active || active.tagName !== 'IFRAME' || !ref.current.contains(active)) return;
+      opened = false;
+      window.clearTimeout(check);
+      check = window.setTimeout(() => {
+        if (alive && !opened && document.visibilityState === 'visible') handlers.current.onError(GOOGLE_NO_WINDOW);
+      }, 4000);
+    };
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('visibilitychange', onHide);
     return () => {
       alive = false;
+      window.clearTimeout(noButton);
+      window.clearTimeout(check);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('visibilitychange', onHide);
     };
   }, [clientId, text, width]);
 
