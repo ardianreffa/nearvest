@@ -297,7 +297,7 @@ function Landing() {
         <Screen
           id="own"
           tone="purple"
-          next="--ink"
+          next="--cyan-700"
           title="Play first, own later"
           art={
             <div class="lp-own">
@@ -314,6 +314,20 @@ function Landing() {
               ['sparkle', <><b>Testnet</b>: tokens have no real value.</>],
             ]}
           />
+        </Screen>
+
+        <Screen id="near" tone="cyan" next="--ink" title="Built on NEAR">
+          <Points
+            items={[
+              ['coin', <><b>$PANEN</b>: NEP-141 fungible token.</>],
+              ['sprout', <><b>Tree NFT</b>: NEP-171 / 177 / 178 / 181.</>],
+              ['bolt', <><b>TaniBot</b>: its own sub-account, a function call key and a contract-enforced daily limit.</>],
+              ['droplet', <><b>Gasless</b>: NEP-366 meta transactions, relayed by the game.</>],
+              ['lock', <><b>Wallet login</b>: NEP-413 signed message via near-connect.</>],
+              ['sparkle', <><b>TaniBot's brain</b>: NEAR AI Cloud.</>],
+            ]}
+          />
+          <p class="lp-near-note">Everything runs on NEAR testnet. NEAR Intents are not used (there is no Intents testnet).</p>
         </Screen>
 
         <section class="lp-screen lp-end tone-ink" id="play">

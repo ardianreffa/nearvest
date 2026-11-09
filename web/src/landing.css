@@ -248,6 +248,25 @@
   background: var(--purple-700);
 }
 
+.tone-cyan {
+  background: var(--cyan-700);
+}
+
+.lp-near-note {
+  margin: 16px 0 0;
+  padding: 6px 10px;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm) !important;
+  color: var(--paper-light);
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+}
+
+/* "Built on NEAR" has no art: its text column is centred on its own. */
+#near .lp-screen-inner {
+  grid-template-columns: minmax(0, 720px);
+  justify-content: center;
+}
+
 .tone-ink {
   background: var(--ink);
 }
