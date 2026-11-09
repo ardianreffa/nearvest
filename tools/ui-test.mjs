@@ -84,7 +84,8 @@ const clickText = (text, scope = 'button') => evaluate(`(() => {
 const typeInto = (selector, value) => evaluate(`(() => {
   const el = document.querySelector(${JSON.stringify(selector)});
   el.value = ${JSON.stringify(value)}; el.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
-const bodyHas = (t) => `!!document.body && document.body.innerText.includes(${JSON.stringify(t)})`;
+// Case-insensitive: titles are shown in UPPER CASE (text-transform), which innerText reflects.
+const bodyHas = (t) => `!!document.body && document.body.innerText.toLowerCase().includes(${JSON.stringify(t.toLowerCase())})`;
 /** One notice at most, one thin line, never over TaniBot, the plots, the bottom panel, tabs, menu or a window. */
 const TOAST_CHECK = `(() => {
   const ts = [...document.querySelectorAll('.toasts > .toast')].filter(t => getComputedStyle(t).visibility !== 'hidden');
@@ -585,9 +586,9 @@ try {
         for (const o of others) { const q = o.getBoundingClientRect(); for (let x = q.left + 2; x < q.right; x += 4) for (let y = q.top + 2; y < q.bottom; y += 4) { const all = document.elementsFromPoint(x, y); if (all[0] && b.contains(all[0]) && all.some(z => o.contains(z) && z !== o)) hidden++; } }
         return (cut ? 'CUT (' + Math.round(r.top) + '..' + Math.round(r.bottom) + ', visible to ' + Math.round(floor) + ')' : 'fully visible') + ' | over other trees/labels: ' + (hidden ? 'YES ' + hidden + ' points' : 'no');
       })()`));
-      // Fonts: every visible text uses Bungee, DotGothic16 or Tiny5 (no sans-serif anywhere).
+      // Fonts: every visible text uses Silkscreen, DotGothic16 or Tiny5 (the three design-system fonts) (no sans-serif anywhere).
       console.log('fonts:', await evaluate(`(() => {
-        const ok = ['Bungee', 'DotGothic16', 'Tiny5'];
+        const ok = ['Silkscreen', 'DotGothic16', 'Tiny5'];
         const bad = new Map();
         const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
         for (let n; (n = walk.nextNode()); ) {
@@ -596,7 +597,7 @@ try {
           const first = getComputedStyle(el).fontFamily.split(',')[0].replace(/["']/g, '').trim();
           if (!ok.includes(first)) bad.set(first + ' <' + el.tagName.toLowerCase() + '.' + (el.className || '').toString().split(' ')[0] + '>', 1);
         }
-        return bad.size ? 'OTHER FONTS: ' + [...bad.keys()].slice(0, 8).join(', ') : 'only Bungee / DotGothic16 / Tiny5';
+        return bad.size ? 'OTHER FONTS: ' + [...bad.keys()].slice(0, 8).join(', ') : 'only Silkscreen / DotGothic16 / Tiny5';
       })()`));
       // Any sky element bigger than 3 game pixels drawn as a plain box (no picture inside, solid fill)?
       console.log('plain boxes in the sky:', await evaluate(`(() => { const art = document.querySelector('.bg-art').getBoundingClientRect(); const px = art.width / 240; return [...document.querySelectorAll('.sky *, .bg-fx > *')].filter(e => { const r = e.getBoundingClientRect(); const cs = getComputedStyle(e); if (r.width < 3 * px || r.height < 3 * px || e.querySelector('svg, img') || e.tagName === 'svg' || e.closest('svg')) return false; const solid = cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundImage === 'none' && cs.clipPath === 'none' && cs.borderRadius === '0px'; return solid && parseFloat(cs.opacity) > 0.05; }).map(e => e.className).join(', ') || 'none'; })()`));

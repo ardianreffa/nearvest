@@ -333,6 +333,16 @@ function drawCalendar(ctx: CanvasRenderingContext2D, x: number, y: number) {
   }
 }
 
+/** The design-system fonts (CSS tokens --font-title / --font-ui), read once for the canvas. */
+const FONT = {
+  get title() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--font-title').trim() || 'monospace';
+  },
+  get ui() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--font-ui').trim() || 'monospace';
+  },
+};
+
 export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
   canvas.width = CARD_W;
@@ -341,7 +351,7 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   ctx.imageSmoothingEnabled = false;
   // The card is drawn once: make sure both pixel fonts are loaded first.
   try {
-    await Promise.all([document.fonts.load('62px Bungee'), document.fonts.load('32px Tiny5')]);
+    await Promise.all([document.fonts.load(`700 64px ${FONT.title}`), document.fonts.load(`32px ${FONT.ui}`)]);
   } catch {
     // Fonts blocked: the browser's fallback font is used.
   }
@@ -497,17 +507,17 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   const width = CARD_W - left - M;
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#00EC97';
-  ctx.font = '62px Bungee, sans-serif';
+  ctx.font = `700 64px ${FONT.title}`;
   ctx.fillText('NEARVEST', left, M - 4);
   ctx.fillStyle = '#F5C542';
-  ctx.font = '50px Bungee, sans-serif';
+  ctx.font = `700 48px ${FONT.title}`;
   let y = M + 88;
   for (const line of wrap(ctx, headline.toUpperCase(), width)) {
     ctx.fillText(line, left, y);
     y += 58;
   }
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = '32px Tiny5, monospace';
+  ctx.font = `32px ${FONT.ui}`;
   y += 12;
   for (const line of wrap(ctx, sub, width)) {
     ctx.fillText(line, left, y);
@@ -515,7 +525,7 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   }
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#A7F3D0';
-  ctx.font = '26px Tiny5, monospace';
+  ctx.font = `24px ${FONT.ui}`;
   ctx.fillText(`${s.player.accountId}`, left, CARD_H - M - 40);
   ctx.fillStyle = '#FFFFFF';
   ctx.fillText('Grow. Harvest. Own.  ·  on NEAR', left, CARD_H - M);

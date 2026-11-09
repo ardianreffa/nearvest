@@ -58,27 +58,30 @@
 
 .lp-logo {
   margin: 0;
-  font-size: clamp(54px, 9vw, 104px);
+  font-size: var(--fs-logo);
   line-height: 1;
+  white-space: nowrap;
   color: #00ec97;
-  -webkit-text-stroke: 2px #0b3b27;
-  text-shadow: 0 5px 0 #0b3b27, 0 0 24px rgba(0, 236, 151, 0.35);
+  /* Hard pixel outline + drop (a text stroke would blur the pixel font). */
+  text-shadow: 3px 0 0 #0b3b27, -3px 0 0 #0b3b27, 0 3px 0 #0b3b27, 0 -3px 0 #0b3b27, 0 7px 0 #0b3b27, 0 0 24px rgba(0, 236, 151, 0.35);
 }
 
 .lp-tagline {
   margin: 10px 0 0;
   font-family: var(--font-title);
-  font-size: clamp(26px, 3.2vw, 40px);
+  text-transform: uppercase;
+  font-size: var(--fs-tagline);
   font-weight: 700;
+  white-space: nowrap;
   color: #f5c542;
-  -webkit-text-stroke: 1px #3b2a00;
+  text-shadow: 2px 0 0 #3b2a00, -2px 0 0 #3b2a00, 0 2px 0 #3b2a00, 0 -2px 0 #3b2a00, 0 4px 0 #3b2a00;
 }
 
 .lp-lead {
   margin: 12px auto 0;
   max-width: 600px;
-  font-family: var(--font-text);
-  font-size: clamp(17px, 1.6vw, 21px);
+  font-family: var(--font-body);
+  font-size: clamp(var(--fs-body), 1.6vw, var(--fs-h3));
   line-height: 1.45;
   color: #fff;
 }
@@ -107,7 +110,7 @@
   min-width: 240px;
   min-height: 64px;
   padding: 0 28px;
-  font-size: 24px;
+  font-size: var(--fs-h2);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -117,8 +120,8 @@
 .lp-cta-note {
   width: 100%;
   text-align: center;
-  font-family: var(--font-text);
-  font-size: 15px;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
   color: #fff;
   text-shadow: 0 1px 0 #000, 0 0 8px rgba(0, 0, 0, 0.6);
 }
@@ -127,7 +130,7 @@
   position: absolute;
   right: 18px;
   bottom: 14px;
-  font-size: 22px;
+  font-size: var(--fs-h3);
   color: #fff;
   text-decoration: none;
   text-shadow: 0 1px 0 #000;
@@ -191,15 +194,15 @@
     min-width: 0;
     min-height: 56px;
     padding: 0 10px;
-    font-size: 19px;
+    font-size: var(--fs-h3);
   }
 
   .lp-cta-note {
-    font-size: 13px;
+    font-size: var(--fs-sm);
   }
 
   .lp-lead {
-    font-size: 17px;
+    font-size: var(--fs-body);
   }
 
   /* The sky above the art (tall phones) continues in the horizon colour. */
@@ -241,13 +244,14 @@
 .lp-section h2 {
   margin: 0 0 10px;
   font-family: var(--font-title);
-  font-size: clamp(24px, 3vw, 32px);
+  text-transform: uppercase;
+  font-size: clamp(var(--fs-h3), 3vw, var(--fs-h2));
   color: #1e5a38;
 }
 
 .lp-text p,
 .lp-list li {
-  font-size: 17px !important;
+  font-size: var(--fs-body) !important;
   line-height: 1.55 !important;
 }
 
@@ -256,7 +260,7 @@
 }
 
 .lp-small {
-  font-size: 14px !important;
+  font-size: var(--fs-sm) !important;
   color: #5b5546;
 }
 
@@ -291,7 +295,7 @@
 }
 
 .lp-bots figcaption {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: #1b1b2f;
 }
 
@@ -317,7 +321,7 @@
 .lp-list {
   margin: 0;
   padding-left: 20px;
-  font-family: var(--font-text);
+  font-family: var(--font-body);
 }
 
 .lp-steps {
@@ -344,7 +348,7 @@
 }
 
 .lp-steps li b {
-  font-size: 20px;
+  font-size: var(--fs-h3);
   color: #1e5a38;
 }
 
@@ -353,8 +357,8 @@
 }
 
 .lp-steps li span {
-  font-family: var(--font-text);
-  font-size: 15px;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
   line-height: 1.4;
 }
 
@@ -380,18 +384,18 @@
 }
 
 .lp-stat b {
-  font-size: clamp(30px, 4vw, 44px);
+  font-size: clamp(var(--fs-h2), 4vw, var(--fs-h1));
   color: #00ec97;
 }
 
 .lp-stat span {
-  font-size: 16px;
+  font-size: var(--fs-body);
 }
 
 .lp-stat i {
   font-style: normal;
-  font-family: var(--font-text);
-  font-size: 12px;
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
   color: #a7f3d0;
 }
 
@@ -406,8 +410,8 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-family: var(--font-text);
-  font-size: 16px;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
 }
 
 .lp-tech li {
@@ -418,7 +422,7 @@
 }
 
 .lp-tech b {
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font-ui);
   color: #0b6b86;
 }
 
@@ -426,8 +430,8 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-family: var(--font-text);
-  font-size: 16px;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
 }
 
 .lp-roadmap li {
@@ -444,7 +448,7 @@
 .lp-roadmap b {
   flex: none;
   width: 64px;
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font-ui);
   color: #1e5a38;
 }
 
@@ -464,7 +468,7 @@
 .lp-final .btn {
   min-height: 64px;
   padding: 0 32px;
-  font-size: 24px;
+  font-size: var(--fs-h2);
   display: inline-flex;
   align-items: center;
   text-decoration: none;
@@ -476,8 +480,8 @@
   justify-content: center;
   gap: 8px 22px;
   padding: 22px 16px 32px;
-  font-family: var(--font-text);
-  font-size: 15px;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
   color: #9fc4ae;
   border-top: 3px solid #143826;
 }

@@ -39,9 +39,9 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  /* Tiny5 for labels and numbers (clear digits); Bungee titles and DotGothic16 text: see TYPOGRAPHY. */
-  font-family: 'Tiny5', ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 15px;
+  /* Tiny5 for labels and numbers (clear digits); Silkscreen titles and DotGothic16 text: see TYPOGRAPHY. */
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
   line-height: 1.35;
   -webkit-text-size-adjust: 100%;
 }
@@ -71,10 +71,11 @@ h2,
   font-weight: 700;
 }
 
-/* Titles and the logo: Bungee (see TYPOGRAPHY at the end). */
+/* Titles and the logo: Silkscreen (see TYPOGRAPHY at the end). */
 h1,
 .logo {
   font-family: var(--font-title);
+  text-transform: uppercase;
 }
 
 /* Dark outline so small icons stay visible on colored buttons and badges. */
@@ -114,7 +115,7 @@ button {
 }
 
 .logo {
-  font-size: 44px;
+  font-size: var(--fs-h1);
   color: var(--mint);
   text-shadow:
     var(--px) var(--px) 0 var(--leaf-dark),
@@ -123,10 +124,14 @@ button {
 }
 
 .tagline {
-  margin: -6px 0 0;
+  margin: 4px 0 0;
+  font-family: var(--font-title);
+  text-transform: uppercase;
+  font-size: var(--fs-tagline-login);
+  font-weight: 700;
+  white-space: nowrap;
   color: var(--gold);
-  font-size: 18px;
-  font-weight: 600;
+  text-shadow: 2px 0 0 #3b2a00, -2px 0 0 #3b2a00, 0 2px 0 #3b2a00, 0 -2px 0 #3b2a00, 0 3px 0 #3b2a00;
 }
 
 .content {
@@ -158,14 +163,14 @@ button {
 
 .name {
   font-weight: 700;
-  font-size: 18px;
+  font-size: var(--fs-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .title-line {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--gold);
 }
 
@@ -186,7 +191,7 @@ button {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 22px;
+  font-size: var(--fs-h3);
   font-weight: 700;
   color: var(--gold);
   background: #0a1d14;
@@ -201,7 +206,7 @@ button {
   flex-wrap: wrap;
   gap: 4px 8px;
   color: #b9d3c3;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   margin: 8px 2px 10px;
 }
 
@@ -215,7 +220,7 @@ button {
   border: 2px dashed var(--cyan);
   padding: 6px 10px;
   margin: 0 0 10px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 /* ---------- Panels ---------- */
@@ -238,7 +243,7 @@ button {
 }
 
 .panel-head h2 {
-  font-size: 19px;
+  font-size: var(--fs-h3);
   color: var(--leaf-dark);
 }
 
@@ -248,12 +253,12 @@ button {
 }
 
 .small {
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .hint {
   color: #b9d3c3;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   text-align: center;
   margin: 0;
 }
@@ -316,7 +321,7 @@ button {
 .btn-small {
   min-height: 36px;
   padding: 4px 10px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .btn-google {
@@ -350,7 +355,7 @@ button {
   color: #9b2c2c;
   display: block;
   margin: 8px auto 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .link-btn:disabled {
@@ -362,7 +367,7 @@ button {
 .tag {
   display: inline-block;
   padding: 1px 6px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   border: 2px solid var(--line);
   background: #fff;
@@ -545,7 +550,7 @@ button {
 
 .empty-hint {
   color: #fff;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   background: rgba(15, 42, 30, 0.8);
   border: 1px solid var(--mint);
   padding: 2px 6px;
@@ -562,7 +567,7 @@ button {
   align-items: center;
   gap: 3px;
   padding: 1px 6px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   border: 2px solid #000;
   white-space: nowrap;
 }
@@ -1160,7 +1165,7 @@ button {
   border: var(--px) solid var(--line);
   box-shadow: 0 var(--px) 0 #000;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -1172,7 +1177,7 @@ button {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -1198,7 +1203,7 @@ button {
 
 .actions .btn {
   padding: 6px 4px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   flex-direction: column;
   gap: 2px;
   min-height: 56px;
@@ -1246,7 +1251,7 @@ button {
   border: 2px solid #e8a36a;
   padding: 6px 8px;
   margin: 0 0 8px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -1265,7 +1270,7 @@ button {
   background: #fff;
   border: 2px solid var(--line);
   padding: 8px 10px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .prices .grow {
@@ -1295,7 +1300,7 @@ button {
 
 .up,
 .down {
-  font-size: 20px;
+  font-size: var(--fs-h3);
 }
 
 .up {
@@ -1323,12 +1328,12 @@ button {
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-soft);
 }
 
 .stat-value {
-  font-size: 20px;
+  font-size: var(--fs-h3);
   font-weight: 700;
   color: var(--leaf-dark);
   word-break: break-word;
@@ -1339,7 +1344,7 @@ button {
 }
 
 .stat-note {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ink-soft);
 }
 
@@ -1390,7 +1395,7 @@ button {
   background: none;
   border: 0;
   color: #b9d3c3;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1433,7 +1438,7 @@ button {
   background: #fffaf0;
   border: var(--px) solid #000;
   box-shadow: var(--px) var(--px) 0 #000;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   pointer-events: auto;
   animation: slide-in 160ms steps(3);
@@ -1476,7 +1481,7 @@ button {
   flex: none;
   background: var(--mint);
   color: #0a1d14;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   line-height: 1;
 }
 
@@ -1525,7 +1530,7 @@ button {
 }
 
 .dev-login label {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: #b9d3c3;
 }
 
@@ -1541,7 +1546,7 @@ input:not([type]) {
   min-height: 44px;
   padding: 8px 10px;
   font: inherit;
-  font-size: 16px; /* prevents zoom on iPhone */
+  font-size: var(--fs-body); /* prevents zoom on iPhone */
   background: #fffaf0;
   color: var(--ink);
   border: var(--px) solid #000;
@@ -1554,7 +1559,7 @@ input:focus-visible {
 .account-preview {
   margin: 0;
   color: var(--mint);
-  font-size: 14px;
+  font-size: var(--fs-sm);
   word-break: break-all;
 }
 
@@ -1563,7 +1568,7 @@ input:focus-visible {
   align-items: center;
   gap: 8px;
   color: #e8f5ec;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .check input {
@@ -1640,14 +1645,14 @@ input:focus-visible {
 
 .tag-unknown {
   white-space: normal;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 400;
   text-align: center;
   line-height: 1.15;
 }
 
 .tiny {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ink-soft);
 }
 
@@ -1657,13 +1662,13 @@ input:focus-visible {
 
 .checkin-note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: #b9d3c3;
 }
 
 .buy-link {
   margin: 6px 0 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--ink-soft);
 }
 
@@ -1693,7 +1698,7 @@ input:focus-visible {
 
 .dialog p {
   margin: 0 0 12px;
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 .dialog-actions {
@@ -1733,7 +1738,7 @@ input:focus-visible {
 
 .side-tabs .tab {
   min-height: 56px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 /* Pixel art is drawn at 4 px per pixel on wide screens (an integer scale), so it stays sharp. */
@@ -1768,7 +1773,7 @@ input:focus-visible {
 }
 
 .wide .badge {
-  font-size: 15px;
+  font-size: var(--fs-body);
   padding: 3px 10px;
 }
 
@@ -2007,7 +2012,7 @@ input:focus-visible {
   left: 104px;
   right: 12px;
   top: 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   box-shadow: 3px 3px 0 #000;
   z-index: 1;
 }
@@ -2053,9 +2058,9 @@ input:focus-visible {
 .fx-text {
   position: absolute;
   transform: translate(-50%, -50%);
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font-ui);
   font-weight: 700;
-  font-size: 22px;
+  font-size: var(--fs-h3);
   white-space: nowrap;
   text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
   animation: float-up 1.4s ease-out forwards;
@@ -2403,7 +2408,7 @@ input:focus-visible {
   gap: 6px;
   margin: 0 0 8px;
   padding: 3px 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: #08351f;
   background: #b9f7d6;
   border: 2px solid var(--mint);
@@ -2483,7 +2488,7 @@ input:focus-visible {
 
 .qty-count {
   min-width: 40px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .qty-go {
@@ -2499,7 +2504,7 @@ input:focus-visible {
 .notice-inline {
   margin: 0 0 8px;
   padding: 6px 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   background: #fff1e6;
   border: 2px solid #e8a06a;
 }
@@ -2523,7 +2528,7 @@ input:focus-visible {
 
 .darto-thanks .speech {
   position: static;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--gold);
   background: none;
   border: 0;
@@ -2669,7 +2674,7 @@ input:focus-visible {
 }
 
 .share-text {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   background: #fffaf0;
   border: 2px solid #d8cfb1;
   padding: 6px 8px;
@@ -2816,12 +2821,12 @@ input:focus-visible {
 }
 
 .immersive-scene .badge {
-  font-size: 15px;
+  font-size: var(--fs-body);
   padding: 3px 10px;
 }
 
 .immersive-scene .empty-hint {
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 .stage .bot-spot {
@@ -2870,7 +2875,7 @@ input:focus-visible {
 .hud-day {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: #e6d7b5;
 }
 
@@ -2903,7 +2908,8 @@ input:focus-visible {
   justify-content: space-between;
   padding: 6px 8px 6px 12px;
   font-family: var(--font-title);
-  font-size: 18px;
+  text-transform: uppercase;
+  font-size: var(--fs-body);
   border-bottom: 2px solid rgba(201, 152, 84, 0.55);
 }
 
@@ -2911,7 +2917,7 @@ input:focus-visible {
   width: 36px;
   height: 32px;
   color: #fff;
-  font-size: 18px;
+  font-size: var(--fs-body);
 }
 
 .drawer-scroll {
@@ -2948,7 +2954,7 @@ input:focus-visible {
   gap: 2px;
   padding: 6px 2px;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: #f4ead2;
   background: rgba(20, 12, 6, 0.45);
   border: 2px solid transparent;
@@ -3024,7 +3030,7 @@ input:focus-visible {
 
 .plot-bar > .panel-head h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: var(--fs-body);
   line-height: 1.3;
   color: #fff;
 }
@@ -3042,7 +3048,7 @@ input:focus-visible {
 .plot-bar .odds-line,
 .plot-bar .buy-link {
   color: #e6d7b5;
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 .plot-bar .tree-info {
@@ -3073,11 +3079,11 @@ input:focus-visible {
 .plot-bar > .link-btn.danger {
   grid-column: 2;
   justify-self: end;
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 .plot-bar .fert-badge {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   padding: 1px 6px;
   justify-self: start;
 }
@@ -3165,7 +3171,7 @@ input:focus-visible {
 
 .qty-season {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ink-soft);
   text-align: right;
 }
@@ -3198,7 +3204,7 @@ input:focus-visible {
 
 .login-lead {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: var(--fs-body);
   color: #fff;
 }
 
@@ -3206,7 +3212,7 @@ input:focus-visible {
   margin: 0 0 14px;
   padding: 10px 14px 10px 30px;
   text-align: left;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   background: rgba(10, 29, 20, 0.72);
   border: 2px solid rgba(0, 236, 151, 0.45);
@@ -3262,23 +3268,24 @@ input:focus-visible {
 .info-body {
   overflow-y: auto;
   min-height: 0;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .info-body h3 {
   margin: 12px 0 4px;
   font-family: var(--font-title);
-  font-size: 16px;
+  text-transform: uppercase;
+  font-size: var(--fs-body);
   color: var(--leaf-dark);
 }
 
 .info-body p {
   margin: 0 0 6px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .info-lead {
-  font-size: 15px !important;
+  font-size: var(--fs-body) !important;
 }
 
 .steps {
@@ -3312,14 +3319,14 @@ input:focus-visible {
 
 .step-text {
   display: block;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--ink-soft);
 }
 
 .info-box {
   margin: 6px 0;
   padding: 6px 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   background: #eefbf3;
   border: 2px solid var(--mint-dim);
 }
@@ -3354,7 +3361,7 @@ input:focus-visible {
 }
 
 .help-btn {
-  font-size: 18px;
+  font-size: var(--fs-body);
   font-weight: bold;
   color: #fff;
 }
@@ -3396,7 +3403,7 @@ button.balance:focus-visible {
 }
 
 .profile-name {
-  font-size: 22px;
+  font-size: var(--fs-h3);
 }
 
 .profile-facts {
@@ -3422,7 +3429,7 @@ button.balance:focus-visible {
   padding: 18px 12px;
   text-align: center;
   color: var(--leaf-dark);
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .profile-signout {
@@ -3486,7 +3493,7 @@ button.balance:focus-visible {
 .profile-change {
   display: block;
   padding: 4px 0 0;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .avatar-grid {
@@ -3506,7 +3513,7 @@ button.balance:focus-visible {
   border: 2px solid transparent;
   border-radius: 6px;
   font: inherit;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   line-height: 1.2;
   color: var(--ink, #1b1b2f);
   cursor: pointer;
@@ -3569,7 +3576,7 @@ button.balance:focus-visible {
   flex-direction: column;
   gap: 4px;
   margin-bottom: 10px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .bot-field input,
@@ -3614,7 +3621,7 @@ button.balance:focus-visible {
   padding: 6px;
   text-align: left;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1.3;
   background: rgba(255, 255, 255, 0.6);
   border: 2px solid transparent;
@@ -3624,7 +3631,7 @@ button.balance:focus-visible {
 }
 
 .bot-style b {
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .bot-style.selected {
@@ -3647,7 +3654,7 @@ button.balance:focus-visible {
 .bot-log li {
   align-items: flex-start;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.4;
 }
 
@@ -3741,7 +3748,7 @@ button.balance:focus-visible {
   max-width: 330px;
   padding-left: 10px;
   border-left: 2px solid rgba(201, 152, 84, 0.45);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1.5;
 }
 
@@ -3774,7 +3781,7 @@ button.balance:focus-visible {
 }
 
 .topbar .hud-capsule .balance {
-  font-size: 18px;
+  font-size: var(--fs-body);
 }
 
 /* "Tap me!" bubble above TaniBot (until its window was opened once). */
@@ -3788,7 +3795,7 @@ button.balance:focus-visible {
   pointer-events: auto;
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1.35;
   text-align: center;
   color: var(--ink);
@@ -3816,7 +3823,7 @@ button.balance:focus-visible {
 
 .wide .bot-hint,
 .immersive-scene .bot-hint {
-  font-size: 14px;
+  font-size: var(--fs-sm);
   max-width: 240px;
 }
 
@@ -3870,7 +3877,7 @@ button.balance:focus-visible {
   }
 
   .topbar .hud-capsule .balance {
-    font-size: 16px;
+    font-size: var(--fs-body);
     padding: 2px 10px 2px 4px;
   }
 
@@ -3888,14 +3895,14 @@ button.balance:focus-visible {
   .bot-hint {
     bottom: calc(100% + 34px);
     max-width: 170px;
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
 }
 
 /* Log lines decided by the NEAR AI brain. */
 .ai-tag {
   display: inline-block;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   line-height: 1;
   padding: 2px 4px;
   margin-right: 2px;
@@ -3960,7 +3967,7 @@ button.balance:focus-visible {
 }
 
 .seed-card-name {
-  font-size: 15px;
+  font-size: var(--fs-body);
   font-weight: 700;
   color: #1b1b2f;
   line-height: 1.2;
@@ -3971,7 +3978,7 @@ button.balance:focus-visible {
 }
 
 .seed-q {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   line-height: 1;
   padding: 3px 8px;
@@ -3995,7 +4002,7 @@ button.balance:focus-visible {
 }
 
 .seed-q-unknown {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   padding: 2px 6px;
   color: var(--ink-soft);
@@ -4004,13 +4011,13 @@ button.balance:focus-visible {
 }
 
 .seed-card-from {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ink-soft);
 }
 
 .seed-note {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   line-height: 1.4;
   color: var(--ink-soft);
 }
@@ -4053,7 +4060,7 @@ button.balance:focus-visible {
 }
 
 .plot-bar .seed-card-name {
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 /* ---------- TaniBot status at a glance ---------- */
@@ -4063,7 +4070,7 @@ button.balance:focus-visible {
 }
 
 .tab {
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .bot-icon {
@@ -4111,7 +4118,7 @@ button.balance:focus-visible {
   align-items: center;
   gap: 4px;
   padding: 2px 6px 2px 4px;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   line-height: 1;
   border-radius: 999px;
@@ -4148,7 +4155,7 @@ button.balance:focus-visible {
 
 .wide .bot-status,
 .immersive-scene .bot-status {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   padding: 3px 8px 3px 5px;
 }
 
@@ -4189,6 +4196,7 @@ button.balance:focus-visible {
   right: -6px;
   pointer-events: none;
   font-family: var(--font-title);
+  text-transform: uppercase;
   font-weight: 700;
   color: #e0f2fe;
   text-shadow: 1px 1px 0 #1b1b2f;
@@ -4203,16 +4211,16 @@ button.balance:focus-visible {
 }
 
 .bot-zzz i:nth-child(1) {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
 }
 
 .bot-zzz i:nth-child(2) {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   animation-delay: 1s;
 }
 
 .bot-zzz i:nth-child(3) {
-  font-size: 16px;
+  font-size: var(--fs-body);
   animation-delay: 2s;
 }
 
@@ -4279,7 +4287,7 @@ button.balance:focus-visible {
     bottom: -4px;
     margin-left: 0;
     transform: translateX(-50%);
-    font-size: 9px;
+    font-size: var(--fs-2xs);
     padding: 1px 5px 1px 3px;
   }
 }
@@ -4311,7 +4319,7 @@ button.balance:focus-visible {
 
 .bot-nudge-later {
   font: inherit;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: var(--ink-soft);
   background: none;
   border: 0;
@@ -4326,18 +4334,18 @@ button.balance:focus-visible {
   max-width: 112px;
   padding: 3px 6px 2px;
   gap: 0;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   line-height: 1.25;
 }
 
 .wide .bot-hint.bot-nudge,
 .immersive-scene .bot-hint.bot-nudge {
   max-width: 132px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 .bot-hint.bot-nudge .bot-nudge-later {
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   padding: 1px 4px;
 }
 
@@ -4777,7 +4785,7 @@ button.balance:focus-visible {
 
 .market-name {
   font-weight: 700;
-  font-size: 15px;
+  font-size: var(--fs-body);
   color: #1b1b2f;
 }
 
@@ -4787,7 +4795,7 @@ button.balance:focus-visible {
 }
 
 .market-price b {
-  font-size: 20px;
+  font-size: var(--fs-h3);
 }
 
 .market-price b.up {
@@ -4832,7 +4840,7 @@ button.balance:focus-visible {
 
 .owned-chip {
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   line-height: 1;
   padding: 4px 8px;
@@ -4879,7 +4887,7 @@ button.balance:focus-visible {
 .sell-ctl .btn-small {
   min-height: 32px;
   padding: 2px 8px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .sell-step {
@@ -4891,7 +4899,7 @@ button.balance:focus-visible {
   min-width: 26px;
   text-align: center;
   font-weight: 700;
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 .sell-go {
@@ -4931,7 +4939,7 @@ details.sell-seeds[open] > summary h2::before {
 }
 
 .hud .market-scene .speech {
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 /* Goodbye bubble when TaniBot is switched off: shows ~5 s, then fades. */
@@ -4961,7 +4969,7 @@ details.sell-seeds[open] > summary h2::before {
 }
 
 .rail-checkin.done span:last-child {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: #c9f7e3;
 }
 
@@ -4984,7 +4992,7 @@ details.sell-seeds[open] > summary h2::before {
   width: 16px;
   height: 16px;
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   line-height: 13px;
   text-align: center;
   color: #053b26;
@@ -5135,7 +5143,7 @@ details.panel > summary.panel-head {
 .hud-left .notice {
   margin: 0;
   max-width: 360px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 .hud-chips {
@@ -5152,7 +5160,7 @@ details.panel > summary.panel-head {
   height: 32px;
   padding: 0 12px;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
@@ -5173,7 +5181,7 @@ button.chip:focus-visible {
 .chip-panen {
   height: 36px;
   padding: 0 14px 0 8px;
-  font-size: 18px;
+  font-size: var(--fs-body);
   color: #3b2a00;
   background: linear-gradient(#ffe08a, var(--gold));
   border-color: #1b1b2f;
@@ -5181,7 +5189,7 @@ button.chip:focus-visible {
 }
 
 .chip-panen .chip-unit {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.5px;
   opacity: 0.75;
 }
@@ -5221,7 +5229,7 @@ button.chip:focus-visible {
   width: 14px;
   height: 14px;
   font-style: normal;
-  font-size: 9px;
+  font-size: var(--fs-2xs);
   line-height: 11px;
   text-align: center;
   color: #053b26;
@@ -5272,7 +5280,7 @@ button.chip:focus-visible {
 }
 
 .chip-demo {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   padding: 3px 6px;
   color: #062b33;
   background: var(--cyan);
@@ -5366,12 +5374,12 @@ button.chip:focus-visible {
   .chip {
     height: 30px;
     padding: 0 10px;
-    font-size: 12px;
+    font-size: var(--fs-xs);
   }
 
   .chip-panen {
     height: 34px;
-    font-size: 16px;
+    font-size: var(--fs-body);
   }
 
   .topbar .hud-sys .icon-btn {
@@ -5393,12 +5401,12 @@ button.chip:focus-visible {
 /* Dev preview: TaniBot evolutions on a strip of the garden. */
 .evo-note {
   max-width: 900px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .evo-block h3 {
   margin: 12px 0 6px;
-  font-size: 14px;
+  font-size: var(--fs-sm);
 }
 
 .evo-strip {
@@ -5435,7 +5443,7 @@ button.chip:focus-visible {
 
 .evo-cell small {
   color: #fff;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-shadow: 1px 1px 0 #000;
 }
 
@@ -6155,7 +6163,7 @@ button.chip:focus-visible {
 
 .avatar-choice.locked span:last-child {
   color: var(--ink-soft);
-  font-size: 10px;
+  font-size: var(--fs-2xs);
 }
 
 .avatar-lock {
@@ -6260,7 +6268,7 @@ button.chip:focus-visible {
 .btn-judge {
   width: 100%;
   min-height: 48px;
-  font-size: 18px;
+  font-size: var(--fs-body);
 }
 
 .judge-entry p {
@@ -6335,7 +6343,7 @@ button.chip:focus-visible {
 .judge-do,
 .judge-see,
 .judge-proof {
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .judge-see {
@@ -6447,7 +6455,7 @@ button.chip:focus-visible {
 
 .howto-dialog .info-body .howto-title {
   margin: 12px 0 6px;
-  font-size: 18px;
+  font-size: var(--fs-body);
 }
 
 .howto-points {
@@ -6463,7 +6471,7 @@ button.chip:focus-visible {
   display: flex;
   gap: 10px;
   align-items: flex-start;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   line-height: 1.45;
 }
 
@@ -6516,11 +6524,11 @@ button.chip:focus-visible {
   }
 
   .howto-dialog .howto-points li {
-    font-size: 17px;
+    font-size: var(--fs-body);
   }
 
   .howto-dialog .info-body .howto-title {
-    font-size: 24px;
+    font-size: var(--fs-h2);
   }
 
   .howto-icon {
@@ -6584,7 +6592,7 @@ button.chip:focus-visible {
 }
 
 .coach-progress {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--leaf-dark);
   text-transform: uppercase;
@@ -6593,7 +6601,7 @@ button.chip:focus-visible {
 
 .coach-text {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   line-height: 1.45;
 }
 
@@ -6605,7 +6613,7 @@ button.chip:focus-visible {
 }
 
 .coach-skip {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: #6b7280;
 }
 
@@ -6635,7 +6643,7 @@ button.chip:focus-visible {
 }
 
 .coach-hud .coach-text {
-  font-size: 15px;
+  font-size: var(--fs-body);
 }
 
 /* The target of the current step glows and pulses. */
@@ -7153,7 +7161,7 @@ button.chip:focus-visible {
   max-width: 200px;
   padding: 8px 10px;
   color: #1b1b2f;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   text-align: center;
   background: #fffaf0;
   border: 2px solid #000;
@@ -7190,7 +7198,7 @@ button.chip:focus-visible {
   display: inline-flex;
   padding: 0;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   line-height: 1;
   white-space: nowrap;
@@ -7250,7 +7258,7 @@ button.chip:focus-visible {
 .place-pin .pin-soon {
   --n: 1px;
   padding: 2px 4px;
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   color: #062b33;
   text-shadow: none;
   background: var(--cyan);
@@ -7286,7 +7294,7 @@ button.chip:focus-visible {
 /* Phones: a smaller pin (icon + short name), with an invisible touch area of at least 44 px. */
 @media (max-width: 1023px) {
   .place-pin {
-    font-size: 11px;
+    font-size: var(--fs-xs);
   }
 
   .place-pin .pin-frame {
@@ -7314,7 +7322,7 @@ button.chip:focus-visible {
   }
 
   .place-pin .pin-soon {
-    font-size: 8px;
+    font-size: var(--fs-2xs);
     padding: 1px 3px;
   }
 }
@@ -7328,7 +7336,7 @@ button.chip:focus-visible {
 /* Big screens: pins a little larger so they read at 1920 px. */
 @media (min-width: 1600px) {
   .place-pin {
-    font-size: 15px;
+    font-size: var(--fs-body);
   }
 
   .place-pin .pin-frame {
@@ -7438,7 +7446,7 @@ button.chip:focus-visible {
 .sheet-toggle h2 {
   flex: 1;
   margin: 0;
-  font-size: 17px;
+  font-size: var(--fs-body);
   color: var(--leaf-dark);
 }
 
@@ -7458,7 +7466,7 @@ button.chip:focus-visible {
 }
 
 .sheet-chevron {
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--leaf-dark);
 }
 
@@ -7466,7 +7474,7 @@ button.chip:focus-visible {
   width: 36px;
   height: 36px;
   flex: none;
-  font-size: 16px;
+  font-size: var(--fs-body);
   font-weight: 700;
   color: #1b1b2f;
   background: #fff3c4;
@@ -7499,12 +7507,12 @@ button.chip:focus-visible {
 .plot-sheet .actions .btn {
   min-height: 44px;
   padding: 4px 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .plot-sheet .buy-link {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 .sheet-details {
@@ -7516,7 +7524,7 @@ button.chip:focus-visible {
 }
 
 .plot-sheet.plain .panel-head h2 {
-  font-size: 17px;
+  font-size: var(--fs-body);
 }
 
 
@@ -7788,12 +7796,12 @@ button.chip:focus-visible {
 
 /* Phones: smaller tree labels and "Plant" hints on the upright village. */
 .phone-scene .badge {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   padding: 1px 6px;
 }
 
 .phone-scene .empty-hint {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   margin-bottom: 10px;
 }
 
@@ -7853,12 +7861,12 @@ button.chip:focus-visible {
 }
 
 .plot-sheet .seed-card-name {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
 .plot-sheet .seed-q {
-  font-size: 10px;
+  font-size: var(--fs-2xs);
   padding: 2px 5px;
 }
 
@@ -7868,7 +7876,7 @@ button.chip:focus-visible {
 
 .plot-sheet .seed-note {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--fs-xs);
 }
 
 /* Under a lifted art: the ground continues, darker at dusk and night like the village. */
@@ -8108,7 +8116,7 @@ button.chip:focus-visible {
 }
 
 .seed-count {
-  font-size: 14px;
+  font-size: var(--fs-sm);
   color: var(--leaf-dark);
 }
 
@@ -8185,7 +8193,7 @@ button.chip:focus-visible {
 }
 
 .coach-float .coach-text {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   line-height: 1.35;
 }
 
@@ -8297,7 +8305,7 @@ button.chip:focus-visible {
   margin: 0 2px;
   padding: 0;
   vertical-align: middle;
-  font: 700 12px/1 'Tiny5', monospace;
+  font: 700 var(--fs-xs)/1 var(--font-ui);
   color: #fff;
   background: #0b6b86;
   border: 2px solid #1b1b2f;
@@ -8339,7 +8347,7 @@ button.chip:focus-visible {
 
 .info-bubble p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-sm);
   line-height: 1.45;
   text-align: left;
   white-space: normal;
@@ -8352,7 +8360,7 @@ button.chip:focus-visible {
   width: 30px;
   height: 30px;
   padding: 0;
-  font-size: 20px;
+  font-size: var(--fs-h3);
   line-height: 1;
   color: #5b5546;
   background: none;
@@ -8379,12 +8387,9 @@ button.chip:focus-visible {
 
 /* =====================================================================
    Reading font: explanations, descriptions, notes, logs, tooltips, the How to play pages and the
-   coach use DotGothic16 (a readable pixel font). Buttons, HUD labels, tags and numbers: Tiny5.
-   Titles: Bungee. Dialogue (Mr. Darto's speech) stays Tiny5.
+   coach use DotGothic16 (--font-body). Buttons, HUD labels, tags and numbers: Tiny5 (--font-ui).
+   Titles: Silkscreen (--font-title). Dialogue (Mr. Darto's speech) stays Tiny5.
    ===================================================================== */
-:root {
-  --font-text: 'DotGothic16', 'Tiny5', monospace;
-}
 
 p:not(.tagline):not(.speech):not(.odds-line):not(.account-preview),
 .login-points li,
@@ -8396,7 +8401,7 @@ p:not(.tagline):not(.speech):not(.odds-line):not(.account-preview),
 .notice,
 .info-bubble p,
 .share-text {
-  font-family: var(--font-text);
+  font-family: var(--font-body);
   letter-spacing: 0;
 }
 
@@ -8418,37 +8423,61 @@ p b,
 }
 
 /* =====================================================================
-   TYPOGRAPHY (2026-11-08, Ardian): one modular scale, ratio sqrt(golden ratio) = 1.272,
-   so every second step is x1.618:  13 . 16 . 20 . 26 . 33 . 42 . 54 . 68 px.
-     --fs-sm   13  small notes, labels, tags          (text font)
-     --fs-body 16  reading text                       (text font)
-     --fs-h3   20  panel titles, sub headings          (Bungee)
-     --fs-h2   26  window titles, section titles       (Bungee)
-     --fs-h1   42  page titles                         (Bungee)
-     --fs-hero 68  the NEARVEST logo                   (Bungee, up to 104 on big screens)
-   Line heights: text 1.5, titles 1.15. Spacing steps 8 . 13 . 21 px (Fibonacci).
-   Titles: Bungee (heavy). Reading text: DotGothic16 (--font-text, x --text-k).
-   Buttons, HUD labels and numbers: Tiny5. No sans-serif text anywhere.
+   TYPOGRAPHY (design system, Ardian 2026-11-09; see CLAUDE.md "Design system").
+   Three fonts, one job each, always through these tokens (never a font name in CSS or code):
+     --font-title  Silkscreen Bold: logo, page titles, panel titles (always UPPER CASE)
+     --font-body   DotGothic16: all reading text
+     --font-ui     Tiny5: buttons, labels, numbers
+   One size scale (ratio ~1.272):  13 . 16 . 20 . 26 . 42 . 68 px
+     --fs-sm 13   small notes, labels, tags
+     --fs-body 16 reading text, buttons
+     --fs-h3 20   panel titles, sub headings
+     --fs-h2 26   window and section titles
+     --fs-h1 42   page titles
+     --fs-hero 68 big display text
+   Below the scale, only for tiny Tiny5 labels on phones: --fs-xs 12 (chips, tab names),
+   --fs-2xs 10 (badges such as "Soon").
+   The logo and the tagline use multiples of 8 px where they can, the sizes where Silkscreen's
+   pixels are all the same width (sharp): --fs-logo, --fs-logo-login, --fs-tagline.
+   Line heights: text 1.5, titles 1.15. Spacing steps 8 . 13 . 21 px.
    ===================================================================== */
 :root {
+  --font-title: 'Silkscreen', 'Tiny5', monospace;
+  --font-body: 'DotGothic16', 'Tiny5', monospace;
+  --font-ui: 'Tiny5', monospace;
+  --fs-2xs: 10px;
+  --fs-xs: 12px;
   --fs-sm: 13px;
   --fs-body: 16px;
   --fs-h3: 20px;
   --fs-h2: 26px;
   --fs-h1: 42px;
   --fs-hero: 68px;
+  /* Phones: NEARVEST (6.875 em wide) fills the width minus 16 px on each side, at most 56 px
+     (about 1.25x the first Silkscreen draft). Laptops: 104 / 88 px (13 / 11 px per font pixel). */
+  --fs-logo: min(56px, round(down, calc((100vw - 32px) / 6.875), 1px));
+  --fs-logo-login: var(--fs-logo);
+  --fs-tagline: min(24px, round(down, calc((100vw - 32px) / 15), 1px));
+  --fs-tagline-login: var(--fs-tagline);
   --lh-text: 1.5;
   --lh-title: 1.15;
   --sp-1: 8px;
   --sp-2: 13px;
   --sp-3: 21px;
-  --font-title: 'Bungee', 'Tiny5', monospace;
   /* Reading text: DotGothic16 (Ardian's choice, 2026-11-08), a little larger than its 16 px grid. */
-  --font-text: 'DotGothic16', 'Tiny5', monospace;
   --text-k: 1.06;
 }
 
-/* Titles: Bungee everywhere (logo included). */
+@media (min-width: 1024px) {
+  :root {
+    --fs-logo: 104px;
+    --fs-logo-login: 88px;
+    --fs-tagline: 40px;
+    --fs-tagline-login: 32px;
+  }
+}
+
+/* Titles: Silkscreen everywhere (logo included). */
 h1,
 h2,
 h3,
@@ -8458,13 +8487,17 @@ h3,
 .howto-title,
 .sheet-toggle h2 {
   font-family: var(--font-title);
-  font-weight: 400;
+  text-transform: uppercase;
+  font-weight: 700;
   line-height: var(--lh-title);
   letter-spacing: 0.01em;
 }
 
 .logo {
-  font-size: clamp(54px, 13vw, 84px);
+  font-size: var(--fs-logo-login);
+  /* The logo sizes are worked out for NEARVEST with no extra letter spacing. */
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 .panel-head h2,
@@ -8500,7 +8533,7 @@ p:where(:not(.tagline, .speech, .odds-line, .account-preview)),
 .coach-text,
 .share-text,
 .info-bubble p {
-  font-family: var(--font-text);
+  font-family: var(--font-body);
   font-size: calc(var(--fs-body) * var(--text-k)) !important;
   line-height: var(--lh-text) !important;
   letter-spacing: 0;
@@ -8525,7 +8558,7 @@ p.muted.small,
 .lp-cta-note,
 .lp-steps li span,
 .lp-stat i {
-  font-family: var(--font-text);
+  font-family: var(--font-body);
   font-size: calc(var(--fs-sm) * var(--text-k)) !important;
   line-height: var(--lh-text) !important;
 }
@@ -8554,7 +8587,7 @@ li b,
 
 /* Buttons and HUD labels: Tiny5 at two sizes. */
 .btn {
-  font-family: 'Tiny5', monospace;
+  font-family: var(--font-ui);
   font-size: var(--fs-body);
 }
 
@@ -8804,7 +8837,7 @@ li b,
   width: 34px;
   height: 44px;
   padding: 0;
-  font: 400 24px/1 'Tiny5', monospace;
+  font: 400 var(--fs-h2)/1 var(--font-ui);
   color: #1b1b2f;
   background: var(--gold);
   border: 4px solid #1b1b2f;
@@ -8854,8 +8887,8 @@ li b,
   height: 30px;
   min-height: 0;
   padding: 0 10px;
-  font-family: 'Tiny5', monospace;
-  font-size: 13px !important;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm) !important;
   line-height: 1 !important;
   white-space: nowrap;
   text-decoration: none;
@@ -8894,7 +8927,7 @@ li b,
 .toast-more {
   flex: none;
   padding: 2px 5px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: #1b1b2f;
   background: var(--gold);
 }
@@ -8908,7 +8941,7 @@ li b,
 .toasts > .toast .toast-check {
   width: 16px;
   height: 16px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 @keyframes toast-in {
@@ -9241,7 +9274,7 @@ html.page-locked body {
   bottom: -3px;
   z-index: 2;
   padding: 1px 6px;
-  font: 400 12px/1 'Tiny5', monospace;
+  font: 400 var(--fs-xs)/1 var(--font-ui);
   color: #1b1b2f;
   background: var(--gold);
   border: 2px solid #1b1b2f;
@@ -9319,7 +9352,7 @@ html.page-locked body {
 /* On-chain log (Village): when and which transaction, under its name. */
 .log .log-meta {
   display: block;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--ink-soft);
 }
 
@@ -9370,14 +9403,15 @@ html.page-locked body {
 }
 
 .rotate-logo {
-  font: 400 30px/1.1 var(--font-title);
+  font: 700 var(--fs-h2)/1.1 var(--font-title);
+  text-transform: uppercase;
   color: var(--mint);
   text-shadow: 3px 3px 0 #000;
 }
 
 .rotate-text p {
   margin: 10px 0 0;
-  font: 400 calc(18px * var(--text-k, 1)) / 1.45 var(--font-text);
+  font: 400 calc(var(--fs-body) * var(--text-k, 1)) / 1.45 var(--font-body);
 }
 
 /* A small phone that turns from sideways to upright. */
@@ -9420,4 +9454,10 @@ html.page-locked body {
 .shell.phone-fit .plot-sheet,
 .shell.phone-fit .seed-row-wrap > .seed-row {
   overscroll-behavior: contain;
+}
+
+/* Laptop menu drawer: list rows (seeds, fruits, items) use the small step so a name and its count
+   ("Mango seed x5") stay on one line in the narrow drawer. */
+.hud-drawer .list li {
+  font-size: var(--fs-sm);
 }

@@ -63,9 +63,9 @@ Credits (copy into README): music "Apple Cider" by Zane Little Music; sound effe
 | Font | Source | License |
 |---|---|---|
 | Tiny5 (buttons, HUD labels and numbers) | Google Fonts | SIL Open Font License 1.1 |
-| **Bungee** (all titles and the NEARVEST logo, chosen by Ardian 2026-11-08) | Google Fonts | SIL Open Font License 1.1 |
+| **Silkscreen Bold** (all titles, the NEARVEST logo and the tagline; chosen by Ardian 2026-11-09, replaces Bungee). By Jason Kottke, Copyright 2001 The Silkscreen Project Authors. File `silkscreen-700.woff2` = latin subset, weight 700, from the Google Fonts release (packaged by Fontsource, `@fontsource/silkscreen` 5.1.0, license field "OFL-1.1"), downloaded 2026-11-09. Source page: https://fonts.google.com/specimen/Silkscreen | Google Fonts | SIL Open Font License 1.1 |
 | **DotGothic16** (all reading text: descriptions, notes, logs, info bubbles, How to play, landing, Privacy / Terms; chosen by Ardian 2026-11-08) | Google Fonts | SIL Open Font License 1.1 |
-| **All fonts are self-hosted** in `web/public/assets/fonts/` (only Bungee, DotGothic16 and Tiny5; latin subset woff2 files downloaded from Google Fonts on 2026-11-08; `web/src/fonts.css`), no request to Google at runtime, no sans-serif text | | OFL 1.1 allows bundling and redistribution with the game |
+| **All fonts are self-hosted** in `web/public/assets/fonts/` (only Silkscreen Bold, DotGothic16 and Tiny5; latin subset woff2 files from Google Fonts, downloaded 2026-11-08 and Silkscreen 2026-11-09; `web/src/fonts.css`), no request to Google at runtime, no sans-serif text | | OFL 1.1 allows bundling and redistribution with the game |
 
 ## Modified and AI-generated assets
 
