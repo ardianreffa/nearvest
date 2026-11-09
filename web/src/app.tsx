@@ -386,7 +386,8 @@ export function App() {
       // Judge gardens open with the tour.
       if (s.judgeTour) setInfo('judge');
     } else setPhase('create');
-    if (note) toast({ kind: 'info', text: note });
+    // A shared judge garden is worth a warning (whole text shown); a returning judge just info.
+    if (note) toast({ kind: note.startsWith('Many judge gardens') ? 'warn' : 'info', text: note });
   };
 
   // Judge tour: opening TaniBot's window or the Village counts as done (once).

@@ -1,16 +1,17 @@
-// Notifications ("Watered!", "On NEAR: Tree NFT minted · view tx", errors) as ONE thin line at the
-// top of the garden, just below the HUD. Only one shows at a time: notices that arrive while one is
-// showing replace it and are counted ("+2 more"). It hides by itself after 3.5 s (errors 5 s), and a
-// tap opens the transaction when there is one. It never covers TaniBot, the plots, the bottom
-// panel, the tab bar or the side menu; while a window is open it moves to free room above or below
-// the window, or waits hidden until the window closes.
+// Notifications at the top of the garden, just below the HUD. Normal ones ("Watered!", "On NEAR:
+// Tree NFT minted · view tx") are ONE thin line; errors (red) and warnings (gold) show their whole
+// text on up to four lines, stay 6 s and close with a tap (×). Only one shows at a time: notices
+// that arrive while one is showing replace it and are counted ("+2 more"). Normal ones hide after
+// 3.5 s, and a tap opens the transaction when there is one. Nothing ever covers the top HUD, the
+// bottom panel, the tab bar or the side menu (normal lines also keep clear of TaniBot and the
+// plots); while a window is open it moves to free room above or below the window, or waits hidden.
 
 import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Sprite } from './sprites';
 
 export interface Toast {
   id: number;
-  kind: 'info' | 'error' | 'chain' | 'success';
+  kind: 'info' | 'warn' | 'error' | 'chain' | 'success';
   text: string;
   link?: string;
 }
@@ -23,14 +24,18 @@ interface Shown {
 }
 
 const LIFE_MS = 3500;
-const ERROR_MS = 5000;
+/** Errors and warnings: long enough to read two or three lines. */
+const ERROR_MS = 6000;
+
+/** Errors and warnings show their whole text (several lines) and a close mark. */
+const isAlert = (kind: Toast['kind']) => kind === 'error' || kind === 'warn';
 
 /** The toast() function and the strip that shows it. */
 export function useToasts() {
   const [shown, setShown] = useState<Shown | null>(null);
   const timer = useRef(0);
   const toast = useCallback((t: Omit<Toast, 'id'>) => {
-    const life = t.kind === 'error' ? ERROR_MS : LIFE_MS;
+    const life = isAlert(t.kind) ? ERROR_MS : LIFE_MS;
     setShown((cur) => ({
       toast: { ...t, id: Math.random() },
       more: cur && cur.until > Date.now() ? cur.more + 1 : 0,
@@ -45,7 +50,7 @@ export function useToasts() {
 type Rect = { top: number; bottom: number; left: number; right: number; width: number };
 
 /** Where the strip may go: below the HUD, left of an open side menu; around an open window. */
-function placeStrip(h: number): { top: number; left: number; width: number } | null {
+function placeStrip(h: number, alert = false): { top: number; left: number; width: number } | null {
   const W = window.innerWidth;
   const H = window.innerHeight;
   const safeTop = 6;
@@ -70,14 +75,16 @@ function placeStrip(h: number): { top: number; left: number; width: number } | n
     const r = el.getBoundingClientRect();
     if (r.height && r.top < H / 3) below = Math.max(below, r.bottom + 6);
   }
-  const keepClear = [...document.querySelectorAll('.bot-spot .tanibot, .plot-art, .soil, .garden-sheet, .hud-bar, .tabs, .coach-float .coach')]
+  // Alerts may cover the village scene (they must be read) but never the panels.
+  const keepClear = [...document.querySelectorAll(alert ? '.garden-sheet, .hud-bar, .tabs, .coach-float .coach' : '.bot-spot .tanibot, .plot-art, .soil, .garden-sheet, .hud-bar, .tabs, .coach-float .coach')]
     .map((e) => e.getBoundingClientRect())
     .filter((r) => r.width && r.height);
   const free = (top: number) => top + h <= H && !keepClear.some((r) => left < r.right && r.left < left + width && top < r.bottom && r.top < top + h);
   // Below the HUD; with the tutorial bubble there, just below the bubble; else the very top.
   const coach = [...document.querySelectorAll('.coach-float .coach')].map((e) => e.getBoundingClientRect()).find((r) => r.height);
   for (const top of [below, ...(coach ? [Math.round(coach.bottom + 6)] : [])]) if (free(top)) return { top, left, width };
-  return { top: safeTop, left, width };
+  // An alert never goes over the top HUD: just below it, even when that covers part of the scene.
+  return { top: alert ? below : safeTop, left, width };
 }
 
 export function ToastStrip({ shown, dismiss }: { shown: Shown | null; dismiss: () => void }) {
@@ -86,7 +93,7 @@ export function ToastStrip({ shown, dismiss }: { shown: Shown | null; dismiss: (
   useLayoutEffect(() => {
     if (!shown) return;
     const update = () => setPos((p) => {
-      const next = placeStrip(el.current?.offsetHeight || 30);
+      const next = placeStrip(el.current?.offsetHeight || 30, !!shown && isAlert(shown.toast.kind));
       return p && next && p.top === next.top && p.left === next.left && p.width === next.width ? p : next;
     });
     update();
@@ -113,6 +120,11 @@ export function ToastStrip({ shown, dismiss }: { shown: Shown | null; dismiss: (
       </span>
       {shown.more > 0 && <span class="toast-more">+{shown.more} more</span>}
       {t.link && <span class="toast-tx">view tx ›</span>}
+      {isAlert(t.kind) && (
+        <span class="toast-x" aria-hidden="true">
+          ×
+        </span>
+      )}
     </>
   );
   const style = pos ? { top: `${pos.top}px`, left: `${pos.left}px`, width: `${pos.width}px` } : { visibility: 'hidden' as const, top: '0px', left: '0px' };
@@ -123,7 +135,15 @@ export function ToastStrip({ shown, dismiss }: { shown: Shown | null; dismiss: (
           {body}
         </a>
       ) : (
-        <div ref={el} key={t.id} class={`toast toast-${t.kind}`} style={style} onClick={dismiss}>
+        <div
+          ref={el}
+          key={t.id}
+          class={`toast toast-${t.kind}${isAlert(t.kind) ? ' toast-alert' : ''}`}
+          style={style}
+          onClick={dismiss}
+          role={isAlert(t.kind) ? 'alert' : undefined}
+          title={isAlert(t.kind) ? 'Tap to close' : undefined}
+        >
           {body}
         </div>
       )}

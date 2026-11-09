@@ -9054,8 +9054,44 @@ li b,
   border-color: var(--mint-500) !important;
 }
 
+/* Errors and warnings: the whole message on up to four lines, a close mark, tap to close. */
+.toasts > .toast.toast-alert {
+  height: auto;
+  min-height: 30px;
+  align-items: flex-start;
+  padding: 7px 10px;
+  white-space: normal;
+  line-height: 1.3 !important;
+  cursor: pointer;
+}
+
+.toasts > .toast.toast-alert .toast-text {
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
 .toasts > .toast-error {
-  background: var(--paper);
+  color: var(--paper-light);
+  background: color-mix(in srgb, var(--red-500) 94%, transparent);
+}
+
+.toasts > .toast-warn {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--gold-300) 96%, transparent);
+}
+
+.toasts > .toast .toast-x {
+  flex: none;
+  margin: -2px -2px 0 4px;
+  font-size: var(--fs-body);
+  line-height: 1;
+  opacity: 0.85;
 }
 
 .toast-text {
