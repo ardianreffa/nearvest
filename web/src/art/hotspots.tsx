@@ -35,7 +35,7 @@ const SPOTS: Record<Spot, SpotInfo> = {
   arena: { name: 'Arena', short: 'Arena', label: 'Arena: 1v1 duels for PANEN, coming soon', icon: 'sparkle', open: null },
 };
 const IDS = Object.keys(SPOTS) as Spot[];
-/** Whole-number scales so every pin icon is about 16 px and stays sharp. */
+/** Whole-number scales so every pin icon fits its 16 px box and stays sharp (Mr. Darto: his small head, 15 x 14). */
 const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2, sparkle: 2, sprout: 1 };
 
 /**
@@ -263,12 +263,16 @@ export function Hotspots({ onPlace, account, village = V1 }: { onPlace: (p: Plac
             tabIndex={-1}
             aria-hidden="true"
           >
-            <span class="pin-icon">
-              {s.icon === 'dartoHead' ? <DartoHead /> : <Sprite name={s.icon} scale={ICON_SCALE[s.icon] ?? 1} />}
+            {/* The frame (stepped pixel corners) is an inner box so the neon glow on the pin
+                itself is not cut off by the corner clip. */}
+            <span class="pin-frame">
+              <span class="pin-icon">
+                {s.icon === 'dartoHead' ? <DartoHead small /> : <Sprite name={s.icon} scale={ICON_SCALE[s.icon] ?? 1} />}
+              </span>
+              <span class="pin-name">{lit && canHover() ? s.label : s.name}</span>
+              <span class="pin-short">{s.short}</span>
+              {!s.open && !lit && <span class="pin-soon">Soon</span>}
             </span>
-            <span class="pin-name">{lit && canHover() ? s.label : s.name}</span>
-            <span class="pin-short">{s.short}</span>
-            {!s.open && !lit && <span class="pin-soon">Soon</span>}
           </button>
         );
       })}

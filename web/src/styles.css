@@ -7178,15 +7178,17 @@ button.chip:focus-visible {
 
 
 /* Place pins: always visible over each hotspot (icon + short name), bobbing gently.
-   Dark, almost solid chip with a clear mint edge and a soft neon glow, so it reads on the day,
-   dusk and night village alike. Whole-pixel sizes keep Tiny5 sharp. */
+   Dark, almost solid box with a clear mint edge and stepped pixel corners (like every other box
+   in the game), plus a soft neon glow, so it reads on the day, dusk and night village alike.
+   The frame is the inner .pin-frame (cut by clip-path); the glow is a filter on the pin itself,
+   so the clip does not cut it off. Whole-pixel sizes keep Tiny5 and the icons sharp. */
 .place-pin {
+  --pin-edge: rgba(0, 236, 151, 0.9);
+  --pin-glow: rgba(0, 236, 151, 0.55);
   position: absolute;
   z-index: 4;
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 9px 4px 5px;
+  padding: 0;
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -7194,20 +7196,35 @@ button.chip:focus-visible {
   white-space: nowrap;
   color: #ffffff;
   text-shadow: 1px 1px 0 #000;
-  background: rgba(6, 18, 13, 0.9);
-  border: 2px solid rgba(0, 236, 151, 0.85);
-  border-radius: var(--r-pill);
-  corner-shape: var(--corner);
-  box-shadow: 0 0 0 1px #000, 0 0 8px 1px rgba(0, 236, 151, 0.55), 0 3px 8px rgba(0, 0, 0, 0.45);
+  background: none;
+  border: 0;
+  filter: drop-shadow(0 0 4px var(--pin-glow)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
   cursor: pointer;
   pointer-events: auto;
   animation: pin-bob 3.2s ease-in-out infinite;
-  transition: transform 0.15s ease-out, box-shadow 0.15s;
+  transition: transform 0.15s ease-out, filter 0.15s;
+}
+
+.place-pin .pin-frame {
+  --n: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px 4px 5px;
+  background: rgba(6, 18, 13, 0.92);
+  border: 2px solid var(--pin-edge);
+  box-shadow: inset 0 0 0 1px #000;
+  clip-path: polygon(
+    0 calc(var(--n) * 2), var(--n) calc(var(--n) * 2), var(--n) var(--n), calc(var(--n) * 2) var(--n), calc(var(--n) * 2) 0,
+    calc(100% - var(--n) * 2) 0, calc(100% - var(--n) * 2) var(--n), calc(100% - var(--n)) var(--n), calc(100% - var(--n)) calc(var(--n) * 2), 100% calc(var(--n) * 2),
+    100% calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n) * 2) calc(100% - var(--n)), calc(100% - var(--n) * 2) 100%,
+    calc(var(--n) * 2) 100%, calc(var(--n) * 2) calc(100% - var(--n)), var(--n) calc(100% - var(--n)), var(--n) calc(100% - var(--n) * 2), 0 calc(100% - var(--n) * 2)
+  );
 }
 
 .place-pin.soon {
-  border-color: rgba(34, 211, 238, 0.85);
-  box-shadow: 0 0 0 1px #000, 0 0 8px 1px rgba(34, 211, 238, 0.5), 0 3px 8px rgba(0, 0, 0, 0.45);
+  --pin-edge: rgba(34, 211, 238, 0.9);
+  --pin-glow: rgba(34, 211, 238, 0.5);
 }
 
 @keyframes pin-bob {
@@ -7216,26 +7233,14 @@ button.chip:focus-visible {
   }
 }
 
+/* Every icon sits inside a 16 px box (whole-number scales; Mr. Darto's small head is 15 x 14). */
 .place-pin .pin-icon {
   display: grid;
+  flex: none;
   place-items: center;
   width: 16px;
   height: 16px;
   overflow: hidden;
-}
-
-
-/* Market pin: Mr. Darto's head (29 x 27 sprite pixels, 1:1 so it stays sharp) fills the pin's
-   height without making the pin taller. */
-.place-pin .pin-icon .darto-head {
-  flex: none;
-}
-
-.place-pin.pin-market .pin-icon {
-  width: 29px;
-  height: 27px;
-  margin: -5px -2px -5px -2px;
-  overflow: visible;
 }
 
 .place-pin .pin-short {
@@ -7243,27 +7248,27 @@ button.chip:focus-visible {
 }
 
 .place-pin .pin-soon {
+  --n: 1px;
   padding: 2px 4px;
   font-size: 10px;
   color: #062b33;
   text-shadow: none;
   background: var(--cyan);
-  border-radius: var(--r-btn);
-  corner-shape: var(--corner);
+  clip-path: polygon(0 1px, 1px 1px, 1px 0, calc(100% - 1px) 0, calc(100% - 1px) 1px, 100% 1px, 100% calc(100% - 1px), calc(100% - 1px) calc(100% - 1px), calc(100% - 1px) 100%, 1px 100%, 1px calc(100% - 1px), 0 calc(100% - 1px));
 }
 
 /* Hover or tap: the pin grows a little and glows; the full label shows (laptop). */
 .place-pin.lit {
+  --pin-edge: var(--mint);
+  --pin-glow: rgba(0, 236, 151, 0.85);
   z-index: 5;
   opacity: 1;
   transform: scale(1.12);
-  border-color: var(--mint);
-  box-shadow: 0 0 0 1px var(--mint), 0 0 10px rgba(0, 236, 151, 0.75);
 }
 
 .place-pin.soon.lit {
-  border-color: var(--cyan);
-  box-shadow: 0 0 0 1px var(--cyan), 0 0 10px rgba(34, 211, 238, 0.7);
+  --pin-edge: var(--cyan);
+  --pin-glow: rgba(34, 211, 238, 0.8);
 }
 
 /* First visit: every pin blinks softly twice. */
@@ -7274,16 +7279,19 @@ button.chip:focus-visible {
 @keyframes pin-hint {
   50% {
     opacity: 1;
-    box-shadow: 0 0 0 2px var(--gold), 0 0 14px rgba(245, 197, 66, 0.9);
+    filter: drop-shadow(0 0 2px var(--gold)) drop-shadow(0 0 7px rgba(245, 197, 66, 0.9));
   }
 }
 
 /* Phones: a smaller pin (icon + short name), with an invisible touch area of at least 44 px. */
 @media (max-width: 1023px) {
   .place-pin {
+    font-size: 11px;
+  }
+
+  .place-pin .pin-frame {
     gap: 3px;
     padding: 3px 7px 3px 4px;
-    font-size: 11px;
   }
 
   .place-pin::after {
@@ -7321,6 +7329,9 @@ button.chip:focus-visible {
 @media (min-width: 1600px) {
   .place-pin {
     font-size: 15px;
+  }
+
+  .place-pin .pin-frame {
     padding: 5px 11px 5px 6px;
   }
 
@@ -9089,6 +9100,13 @@ html.page-locked body {
   height: var(--art-bottom);
   overflow: hidden;
   pointer-events: none;
+}
+
+/* Laptops: exactly under the art (same left edge and width), so every bush lines up. */
+.bg-ground-below.wide {
+  left: var(--art-left);
+  right: auto;
+  width: calc(var(--art-w) * var(--k) * 1px);
 }
 
 .bg-ground-below .ground-layer {

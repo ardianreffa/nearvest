@@ -110,6 +110,7 @@ export function Backdrop({
   village = V1,
   skyTop,
   groundBelow = false,
+  groundWide = false,
 }: {
   fraction: number;
   blurFill?: boolean;
@@ -123,6 +124,8 @@ export function Backdrop({
    * mirrored strip by strip so every seam matches.
    */
   groundBelow?: boolean;
+  /** Laptops: the ground strip sits exactly under the art (which may be wider or narrower than the window). */
+  groundWide?: boolean;
 }) {
   const v = village;
   const v2 = v.key !== 'v1';
@@ -213,7 +216,7 @@ export function Backdrop({
       </div>
       {blurFill && <div class="bg-soil-ext" style={{ background: v.groundExt }} />}
       {groundBelow && (
-        <div class="bg-ground-below" style={{ '--art-w': String(v.w), '--art-h': String(v.h) }}>
+        <div class={`bg-ground-below${groundWide ? ' wide' : ''}`} style={{ '--art-w': String(v.w), '--art-h': String(v.h) }}>
           {(['day', 'dusk', 'night'] as const).map((light) => (
             <div key={light} class={`ground-layer ground-${light}`}>
               {Array.from({ length: 8 }, (_, i) => (

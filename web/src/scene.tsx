@@ -153,7 +153,10 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         village={village}
         // The sky's top: the first game row shown (above the art when the scene is taller than it).
         skyTop={phone ? phone.village.h - (phone.sceneH - phone.artBottom - (phone.skyFrom ?? 0)) / phone.k : undefined}
-        groundBelow={!!phone && phone.artBottom > 0}
+        // Below the art (phones: under the plot sheet and tabs; laptops: under the plot panel):
+        // the village's bottom bushes continue, so the panels sit on grass, not on a plain fill.
+        groundBelow={phone ? phone.artBottom > 0 : !!immersive && immersive.artBottom > 0}
+        groundWide={!!immersive && !phone}
       />
 
       <Stage immersive={immersive}>

@@ -55,3 +55,6 @@ server/data/
 
 # Local backups (old contract wasm for rollback)
 backups/
+
+# Local screenshots (UI tests, before/after); never committed
+screenshots/

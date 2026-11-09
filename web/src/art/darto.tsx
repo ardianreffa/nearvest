@@ -7,6 +7,7 @@
 
 import type { Species } from '../api';
 import { Pixels } from '../sprites';
+import { shrink } from './village-life';
 import { CART, CART_CORE, CART_JETS, DARTO_ANCHOR, DARTO_DURIAN, DARTO_IDLE, DARTO_PALETTE, DARTO_WAVE } from './darto-sprite';
 
 export type DartoPose = 'idle' | 'wave' | 'hold';
@@ -155,6 +156,11 @@ export const DARTO_HEAD: string[] = DARTO_WAVE.slice(0, HEAD_BOX.y1).map((row, y
 export const DARTO_HEAD_W = DARTO_HEAD[0].length;
 export const DARTO_HEAD_H = DARTO_HEAD.length;
 
-export function DartoHead({ scale = 1, class: className }: { scale?: number; class?: string }) {
-  return <Pixels rows={DARTO_HEAD} palette={DARTO_PALETTE} scale={scale} class={`darto-head${className ? ` ${className}` : ''}`} title="Mr. Darto" />;
+/**
+ * Mr. Darto's head. `small`: half size (15 x 14), made with the same `shrink` as the small
+ * Mr. Darto in the village (each 2 x 2 block keeps its most common colour), for 16 px pin icons.
+ */
+export function DartoHead({ scale = 1, small = false, class: className }: { scale?: number; small?: boolean; class?: string }) {
+  const rows = small ? shrink(DARTO_HEAD, 2, 'darto-head') : DARTO_HEAD;
+  return <Pixels rows={rows} palette={DARTO_PALETTE} scale={scale} class={`darto-head${className ? ` ${className}` : ''}`} title="Mr. Darto" />;
 }
