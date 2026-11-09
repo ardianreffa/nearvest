@@ -6,6 +6,8 @@ A pixel farming game where your tree is a living NFT and an AI farmer tends it w
 
 - Live demo: **https://nearvest-six.vercel.app** (game: https://nearvest-six.vercel.app/play)
 - Network: **NEAR testnet only**. Tokens and NFTs have no real value.
+- On chain so far (testnet, 9 Nov 2026; the numbers keep growing): [139 Tree NFTs minted](https://testnet.nearblocks.io/nft-token/pohon.nearvest.testnet), [5,487 PANEN supply across 43 holders](https://testnet.nearblocks.io/token/panen.nearvest.testnet), [1,386 transactions sent by game.nearvest.testnet](https://testnet.nearblocks.io/address/game.nearvest.testnet).
+- Demo video: coming soon.
 - Built during the NEAR Hackathon (first commit 2026-11-05) by a solo builder, with Claude Code. License: MIT.
 
 ![NEARvest: the pixel village of Tandur with TaniBot](web/public/og-image.png)
@@ -36,8 +38,8 @@ Best on a laptop with Chrome. Phones work too (portrait).
 |---|---|---|
 | 1 | Open https://nearvest-six.vercel.app and click **Try as Judge** (or open https://nearvest-six.vercel.app/play?judge=1). | A new garden `judge-xxxx.nearvest.testnet` opens in a few seconds: 3 Tree NFTs (a ripe Rare Durian on plot 1), 100 PANEN, seeds, and TaniBot switched on. A gold **Judge tour 0/5** chip is in the top-left status bar. |
 | 2 | Click **Judge tour** → **Go to the garden** → click plot 1 → **Harvest**. | A Rare Durian goes to your Storage. The Tree NFT on `pohon.nearvest.testnet` is updated (stage, harvest count). The tour step gets a **View transaction on nearblocks** link. |
-| 3 | Open the **Market** (Mr. Darto) and sell the fruit. | PANEN is minted to your account with `mint_reward` (the current Season rule halves the reward). The tour links the transaction. |
-| 4 | Open the **Shop** and buy **Fertilizer**. | The PANEN you spend is **burned** on chain (`burn` on `panen.nearvest.testnet`). Your balance and the burned total go up / down. |
+| 3 | Open the **Market** (Mr. Darto) and sell the fruit. | PANEN is minted to your account with `mint_reward`; the reward follows the Season halving (Season 3 on testnet now = rewards ÷ 4). The tour links the transaction. |
+| 4 | Open the **Shop** and buy **Fertilizer**. | The PANEN you spend is **burned** on chain (`burn` on `panen.nearvest.testnet`). Your PANEN balance goes down and the burned total goes up. |
 | 5 | Open **TaniBot** (robot button in the menu header on laptops, TaniBot tab on phones). | Its **Log**: every action (water, harvest, sell) with its reason and a transaction link, sent from TaniBot's own account `bot.judge-xxxx.nearvest.testnet`. Its budget and daily spending limit are enforced by the PANEN contract. |
 | 6 | Open the **Village** tab. | Village Stats read live from the contracts: PANEN supply, total burned, Season and halving, plus your on-chain activity with nearblocks links. |
 
