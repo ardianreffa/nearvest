@@ -19,7 +19,7 @@ import { Sprite } from './sprites';
 import { signShopBurn, WALLET_LIST_BLOCKED, walletProof } from './wallet';
 import { Profile } from './profile';
 import { TaniBotWindow } from './tanibot';
-import { GoogleButton, takeGoogleRedirect } from './google';
+import { GoogleButton, pendingGoogleRedirect, takeGoogleRedirect } from './google';
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Coach } from './tutorial';
 import { predict } from './optimistic';
@@ -200,6 +200,27 @@ export function App() {
     },
     [toast],
   );
+
+  // Back from Google after "Continue with Google" in the Profile (iPhone / iPad redirect): link
+  // that Google account to this garden with the existing link route, then say how it went.
+  const linkChecked = useRef(false);
+  useEffect(() => {
+    if (phase !== 'play' || !state || linkChecked.current) return;
+    linkChecked.current = true;
+    if (pendingGoogleRedirect() !== 'link') return;
+    const back = takeGoogleRedirect();
+    if (!back) return;
+    if ('error' in back) {
+      toast({ kind: 'error', text: back.error });
+      return;
+    }
+    api<GameState>('POST', '/api/google/link', { credential: back.credential })
+      .then((s) => {
+        applyState(s);
+        toast({ kind: 'success', text: 'Google account linked. You can now sign in to this garden with Google too.' });
+      })
+      .catch((e) => toast({ kind: 'error', text: `Google account not linked: ${e instanceof Error ? e.message : String(e)}` }));
+  }, [phase, state]);
 
   const resetSession = () => {
     seenDone.current = null;
@@ -916,8 +937,13 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
   // The landing page's "Try as Judge" opens /play?judge=1: make the judge garden right away.
   // Back from Google's sign-in page (iPhone / iPad redirect): sign in with the ID token.
   useEffect(() => {
+    const purpose = pendingGoogleRedirect();
     const back = takeGoogleRedirect();
     if (!back) return;
+    if (purpose === 'link') {
+      setGoogleError('Sign in to your garden first, then link Google from your Profile.');
+      return;
+    }
     if ('error' in back) {
       setGoogleError(back.error);
       return;

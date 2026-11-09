@@ -65,12 +65,27 @@ function randomToken(): string {
   return [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
 }
 
+/** Why the player went to Google: sign in, or link Google to the signed-in (wallet) garden. */
+export type GoogleRedirectPurpose = 'login' | 'link';
+
+/** The purpose of a pending Google return in the address, without consuming it. */
+export function pendingGoogleRedirect(): GoogleRedirectPurpose | null {
+  if (typeof location === 'undefined' || !location.hash) return null;
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (!h.has('state') || (!h.has('id_token') && !h.has('error'))) return null;
+  try {
+    return JSON.parse(sessionStorage.getItem(REDIRECT_KEY) ?? '{}').purpose === 'link' ? 'link' : 'login';
+  } catch {
+    return 'login';
+  }
+}
+
 /** Leaves for Google's sign-in page (same tab, no pop-up). */
-export function startGoogleRedirect(clientId: string): void {
+export function startGoogleRedirect(clientId: string, purpose: GoogleRedirectPurpose = 'login'): void {
   const state = randomToken();
   const nonce = randomToken();
   try {
-    sessionStorage.setItem(REDIRECT_KEY, JSON.stringify({ state, nonce }));
+    sessionStorage.setItem(REDIRECT_KEY, JSON.stringify({ state, nonce, purpose }));
   } catch {
     // Storage blocked: the check on return fails safely with a clear message.
   }
@@ -130,13 +145,14 @@ export function GoogleButton({
   text?: 'signin_with' | 'continue_with';
   /** Button width in px (Google allows 200-400), so it lines up with the game's buttons. */
   width?: number;
-  /** iPhone / iPad: sign in by a full-page redirect to Google instead of Google's button. */
-  redirectOnIOS?: boolean;
+  /** iPhone / iPad: go to Google by a full-page redirect instead of Google's button ('login' or 'link'). */
+  redirectOnIOS?: boolean | GoogleRedirectPurpose;
 }) {
   if (redirectOnIOS && clientId && isIOS()) {
+    const purpose: GoogleRedirectPurpose = redirectOnIOS === 'link' ? 'link' : 'login';
     return (
-      <button type="button" class="btn btn-google-redirect" onClick={() => startGoogleRedirect(clientId)}>
-        Sign in with Google
+      <button type="button" class="btn btn-google-redirect" onClick={() => startGoogleRedirect(clientId, purpose)}>
+        {text === 'continue_with' ? 'Continue with Google' : 'Sign in with Google'}
       </button>
     );
   }

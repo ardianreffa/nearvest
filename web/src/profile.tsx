@@ -130,6 +130,7 @@ function GooglePanel({ state, config, onState }: { state: GameState; config: Ser
           <GoogleButton
             clientId={config.googleClientId}
             text="continue_with"
+            redirectOnIOS="link"
             onCredential={async (credential) => {
               setError(null);
               onState(await api<GameState>('POST', '/api/google/link', { credential }));
