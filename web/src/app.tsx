@@ -19,7 +19,7 @@ import { Sprite } from './sprites';
 import { signShopBurn, WALLET_LIST_BLOCKED, walletProof } from './wallet';
 import { Profile } from './profile';
 import { TaniBotWindow } from './tanibot';
-import { GoogleButton } from './google';
+import { GoogleButton, takeGoogleRedirect } from './google';
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Coach } from './tutorial';
 import { predict } from './optimistic';
@@ -914,6 +914,22 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
   };
 
   // The landing page's "Try as Judge" opens /play?judge=1: make the judge garden right away.
+  // Back from Google's sign-in page (iPhone / iPad redirect): sign in with the ID token.
+  useEffect(() => {
+    const back = takeGoogleRedirect();
+    if (!back) return;
+    if ('error' in back) {
+      setGoogleError(back.error);
+      return;
+    }
+    setBusy(true);
+    api<{ token: string; player: GameState | null }>('POST', '/auth/google', { credential: back.credential })
+      .then((res) => onLoggedIn(res.token, res.player))
+      .catch((err) => setGoogleError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setBusy(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const q = new URLSearchParams(location.search);
     if (!q.has('judge')) return;
@@ -940,6 +956,7 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
         <GoogleButton
           clientId={config.googleClientId}
           width={LOGIN_BUTTON_W}
+          redirectOnIOS
           onCredential={async (credential) => {
             const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/google', { credential });
             onLoggedIn(res.token, res.player);

@@ -3357,6 +3357,15 @@ input:focus-visible {
   justify-content: center;
 }
 
+/* iPhone / iPad: the game's own "Sign in with Google" (full-page redirect, no pop-up). */
+.login-actions > .btn-google-redirect {
+  min-height: 44px;
+  font-size: var(--fs-body);
+  color: var(--paper-light);
+  background: var(--ink);
+  border-color: var(--paper-light) !important;
+}
+
 .login-actions > .btn-wallet {
   min-height: 44px;
   font-size: var(--fs-body);
