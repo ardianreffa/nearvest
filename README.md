@@ -24,7 +24,7 @@ NEARvest does it the other way round: **play first, own later.**
 - No wallet pop-ups while you play. The chain works in the background: your trees are NFTs, your coins are a token, your AI helper has its own wallet.
 - A NEAR wallet is optional. If you already have one (Meteor and others via near-connect), you can sign in with it and keep everything in your own account.
 
-The core loop: daily check-in → plant a seed (a Tree NFT is born) → water / fertilize (you or TaniBot) → harvest → sell to Mr. Darto (earn $PANEN) → spend in the Shop (the PANEN is burned) → plant again. Old trees drop a better seed and become Memorial Trees.
+The core loop: daily check-in → plant a seed (a Tree NFT is born) → water / fertilize (you or TaniBot) → harvest → sell to Mr. Darto (earn $PANEN) → spend in the Shop (the PANEN is burned) → plant again. Old trees drop a better seed and become Memorial Trees that stay visible in the garden.
 
 ---
 
@@ -58,7 +58,7 @@ The Judge tour window ticks each step and links its proof. Judge gardens are lim
 
 **`memecoins`: Memecoins With Mechanics.** $PANEN (NEP-141) has no pre-mint and 0% team: it is only minted when players farm. Harvest rewards halve per **Season** as total supply grows, and every PANEN spent in the Shop is **burned**. Live supply, burned total and Season are on the Village tab.
 
-**`nfts`: NFTs That Do Something.** Each tree is a dynamic NEP-171 NFT in the player's own account: it grows, fruits and ages on chain as it is cared for, its stage and harvest count change in its metadata, and an old tree drops a superior seed (lineage) before becoming a Memorial Tree.
+**`nfts`: NFTs That Do Something.** Each tree is a dynamic NEP-171 NFT in the player's own account: it grows, fruits and ages on chain as it is cared for, its stage and harvest count change in its metadata, and an old tree drops a superior seed (lineage) before becoming a Memorial Tree. The Memorial Tree keeps standing on its plot until the player plants a new seed there, and is listed with its harvests and NFT link in the Village tab; its NFT (marked `memorial` on chain) stays in the player's account. Ending an old tree and planting over a Memorial Tree are always the player's decisions: TaniBot never does either.
 
 **`agents`: Agent Economy.** TaniBot has its own NEAR sub-account with a function call key, a budget the player sends it, and a **daily spending limit enforced by the PANEN contract** (`set_bot` / `bot_accept`; a bot can only burn within its limit and can never transfer). It earns for its player (harvest, sell) and spends from its own budget (buys seeds); every action is logged with its transaction. TaniBot's decisions come from an LLM on NEAR AI Cloud, checked by the game rules.
 

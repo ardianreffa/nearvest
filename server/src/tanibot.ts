@@ -148,6 +148,28 @@ export class TaniBotService {
       .run(playerId, action, reason, 'rules', short, this.d.now());
   }
 
+  /** Once per tree: an old tree's superior seed is the player's decision (harvesting it ends the tree). */
+  private oldTreeNotice(playerId: number, plot: number, species: Species, treeId: number): void {
+    this.logOnceSince(
+      playerId,
+      'keep',
+      `The old ${label(species)} on plot ${plot + 1} has a superior seed ready. Harvesting it ends the tree (it becomes a Memorial Tree), so that is your call. (tree #${treeId})`,
+      0,
+      'A superior seed is ready!',
+    );
+  }
+
+  /** Once per Memorial Tree: TaniBot never plants over it. */
+  private memorialNotice(playerId: number, plot: number, species: Species, treeId: number): void {
+    this.logOnceSince(
+      playerId,
+      'keep',
+      `A Memorial ${label(species)} stands on plot ${plot + 1}. Planting there moves it to your Memorial list, so I leave that to you. (tree #${treeId})`,
+      0,
+      'A Memorial Tree stands here.',
+    );
+  }
+
   /** Start of the current village day of this player's mode. */
   private dayStart(playerId: number): number {
     const demo = this.d.game.getPlayer(playerId).demo === 1;
@@ -438,7 +460,7 @@ export class TaniBotService {
       if (last && now - last.at < QUICK_REACTION_MS) continue;
       const plots = this.d.game.state(player_id).plots;
       const sig = plots
-        .filter((x) => x.tree && (x.tree.ready || !x.tree.wateredToday || x.tree.ash))
+        .filter((x) => x.tree && ((x.tree.ready && x.tree.stage !== 'old') || !x.tree.wateredToday || x.tree.ash))
         .map((x) => `${x.plot}:${x.tree!.ash ? 'ash' : x.tree!.ready ? 'ripe' : 'dry'}`)
         .join(',');
       if (!sig) continue;
@@ -541,7 +563,8 @@ export class TaniBotService {
       darto: st.darto.prices.map((p) => ({ species: p.species, price: p.price, normal: p.base })),
       shop: { fertilizer: SHOP_ITEMS.fertilizer.price, mangoSeed: SHOP_ITEMS.seed_mango.price },
       autoPlant: b.auto_plant === 'common',
-      emptyPlots: st.plots.filter((x) => !x.tree && !x.locked).map((x) => x.plot + 1),
+      // Plots with a Memorial Tree are not "empty" for TaniBot: planting there is the player's call.
+      emptyPlots: st.plots.filter((x) => !x.tree && !x.memorial && !x.locked).map((x) => x.plot + 1),
       plantableSeeds: this.plantableSeeds(playerId).length,
     };
   }
@@ -623,6 +646,11 @@ export class TaniBotService {
           ignored.push(`plant on plot ${a.plot} (not an empty plot)`);
           continue;
         }
+        if (plot.memorial) {
+          ignored.push(`plant on plot ${a.plot} (a Memorial Tree stands there: the player's call)`);
+          this.memorialNotice(playerId, plot.plot, plot.memorial.species, plot.memorial.id);
+          continue;
+        }
         if (this.plantableSeeds(playerId).length === 0) {
           if (b.style === 'thrifty' || boughtSeed) {
             ignored.push(`plant on plot ${a.plot} (no Common seed${b.style === 'thrifty' ? '; Thrifty never buys' : ''})`);
@@ -662,6 +690,11 @@ export class TaniBotService {
         if (a.action === 'harvest') {
           if (!t.ready) {
             ignored.push(`harvest on plot ${a.plot} (not ripe)`);
+            continue;
+          }
+          if (t.stage === 'old') {
+            ignored.push(`harvest on plot ${a.plot} (an old tree: its superior seed is the player's call)`);
+            this.oldTreeNotice(playerId, plot.plot, t.species, t.id);
             continue;
           }
           doIt(a, () => {
@@ -809,9 +842,14 @@ export class TaniBotService {
       this.logOnceSince(playerId, 'weather', 'Mount Tandur is rumbling! When the ash falls I will clean your trees right away.', warnedFrom, 'Mount Tandur is rumbling!');
     }
 
-    // 1. Harvest everything that is ripe.
+    // 1. Harvest everything that is ripe. An OLD tree's superior seed is the player's call:
+    //    harvesting it ends the tree (it becomes a Memorial Tree), so TaniBot only says so, once.
     for (const plot of game.state(playerId).plots) {
       const t = plot.tree;
+      if (t?.ready && t.stage === 'old') {
+        if (mode !== 'safety') this.oldTreeNotice(playerId, plot.plot, t.species, t.id);
+        continue;
+      }
       if (t?.ready) {
         act('harvest', () => {
           const r = game.harvest(playerId, plot.plot);
@@ -826,6 +864,11 @@ export class TaniBotService {
     if (b.auto_plant === 'common' && mode !== 'safety') {
       let boughtSeed = false;
       for (const plot of game.state(playerId).plots.filter((x) => !x.tree && !x.locked)) {
+        // A Memorial Tree stands here: planting over it is the player's decision.
+        if (plot.memorial) {
+          this.memorialNotice(playerId, plot.plot, plot.memorial.species, plot.memorial.id);
+          continue;
+        }
         if (this.plantableSeeds(playerId).length === 0) {
           if (quick || b.style === 'thrifty' || boughtSeed) break;
           act('buy', () => {

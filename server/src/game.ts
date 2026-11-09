@@ -184,6 +184,34 @@ export function nameError(name: string): string | null {
   return null;
 }
 
+/** A Memorial Tree as the web game shows it. */
+export interface MemorialView {
+  id: number;
+  tokenId: string | null;
+  species: Species;
+  quality: Quality;
+  harvestCount: number;
+  maxHarvests: number;
+  plantedAt: number;
+  diedAt: number | null;
+  /** The plot it still stands on (until a new seed is planted there), or null. */
+  plot: number | null;
+}
+
+function memorialView(t: TreeRow & { died_at?: number | null }): MemorialView {
+  return {
+    id: t.id,
+    tokenId: t.token_id,
+    species: t.species,
+    quality: t.quality,
+    harvestCount: t.harvest_count,
+    maxHarvests: t.max_harvests,
+    plantedAt: t.planted_at,
+    diedAt: t.died_at ?? null,
+    plot: t.plot,
+  };
+}
+
 function growthOf(t: TreeRow): TreeGrowth {
   return {
     growth: t.growth,
@@ -668,6 +696,8 @@ export class Game {
       this.assertAccountOk(p);
       if (!Number.isInteger(plot) || plot < 0 || plot >= plotCount(p.xp)) throw new GameError('This plot is locked');
       if (this.treeOnPlot(p.id, plot)) throw new GameError('This plot already has a tree');
+      // A Memorial Tree standing here moves to the player's Memorial list (its NFT stays).
+      this.db.prepare("UPDATE trees SET plot = NULL WHERE player_id = ? AND plot = ? AND status = 'dead'").run(p.id, plot);
       const seed = this.db.prepare('SELECT * FROM seeds WHERE id = ? AND player_id = ?').get(seedId, p.id) as
         | { id: number; species: Species; quality: Quality | null; parent_tree_id: number | null }
         | undefined;
@@ -826,6 +856,19 @@ export class Game {
     });
   }
 
+  /** The Memorial Tree standing on a plot (an old or cut-down tree), if any. */
+  memorialOnPlot(playerId: number, plot: number): MemorialView | null {
+    const t = this.db
+      .prepare("SELECT * FROM trees WHERE player_id = ? AND plot = ? AND status = 'dead' ORDER BY died_at DESC LIMIT 1")
+      .get(playerId, plot) as unknown as TreeRow | undefined;
+    return t ? memorialView(t) : null;
+  }
+
+  /** Every Memorial Tree of a player, newest first (standing on a plot or not). */
+  memorials(playerId: number): MemorialView[] {
+    return (this.db.prepare("SELECT * FROM trees WHERE player_id = ? AND status = 'dead' ORDER BY died_at DESC").all(playerId) as unknown as TreeRow[]).map(memorialView);
+  }
+
   /** Volcanic soil: a better Gold chance for trees cleaned during the eruption, until it ends. */
   private volcanicGoldBonus(p: PlayerRow, t: TreeRow, now: number): number {
     const at = eruptionAt(this.sky(p.demo === 1), now);
@@ -873,7 +916,9 @@ export class Game {
 
   private killTree(p: PlayerRow, t: TreeRow): void {
     const now = this.d.now();
-    this.db.prepare("UPDATE trees SET status = 'dead', plot = NULL, died_at = ? WHERE id = ?").run(now, t.id);
+    // The Memorial Tree keeps standing on its plot until the player plants a new seed there
+    // (plantNow moves it to the Memorial list). The plot counts as free for planting.
+    this.db.prepare("UPDATE trees SET status = 'dead', died_at = ? WHERE id = ?").run(now, t.id);
     enqueue(this.db, p.id, { kind: 'make_memorial', treeId: t.id }, now);
   }
 
@@ -1217,7 +1262,7 @@ export class Game {
           ageDays: Math.floor((now - t.planted_at) / dayMs),
         };
       }
-      plotViews.push({ plot, locked: plot >= plots, tree });
+      plotViews.push({ plot, locked: plot >= plots, tree, memorial: tree ? null : this.memorialOnPlot(p.id, plot) });
     }
 
     const nextTitle = TITLES.find((t) => t.xp > p.xp) ?? null;
@@ -1237,6 +1282,8 @@ export class Game {
     return {
       /** Village weather and events (weather.ts); the same for every garden of this mode. */
       weather,
+      /** The player's Memorial Trees (old or cut-down trees; their NFTs stay), newest first. */
+      memorials: this.memorials(p.id),
       player: {
         name: p.name,
         accountId: p.account_id,

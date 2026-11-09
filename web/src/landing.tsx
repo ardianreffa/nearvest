@@ -243,7 +243,7 @@ function Landing() {
               ['seedPacket', <>Plant a seed and a <b>Tree NFT</b> is born in your NEAR account.</>],
               ['droplet', <>It <b>grows, fruits and ages</b> on chain as you water it.</>],
               ['sprout', <><b>Lineage:</b> an old tree drops a superior seed for its next generation.</>],
-              ['sparkle', <>Then it becomes a <b>Memorial Tree</b> that stays in your garden.</>],
+              ['sparkle', <>Then it becomes a <b>Memorial Tree</b>: it stands on its plot until you plant again, and stays in your Memorial list.</>],
             ]}
           />
         </Screen>

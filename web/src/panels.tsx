@@ -1,13 +1,14 @@
 // Storage, Shop, Market (Mr. Darto) and Village Stats screens.
 
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { ACTIVITY_LABELS, api, nearblocksAccount, type GameState, type Quality, type ServerConfig, type Species, type VillageStats } from './api';
+import { ACTIVITY_LABELS, api, nearblocksAccount, nearblocksNft, type GameState, type MemorialView, type Quality, type ServerConfig, type Species, type VillageStats } from './api';
 import type { Act } from './garden';
 import { DartoFace, DartoFigure, HoverCart, type DartoPose } from './art/darto';
 import { MarketBackdrop, ShopBackdrop } from './art/scenes';
 import { MOMENT_LABELS, openShare, type MomentKind } from './share';
 import { ShopStall } from './art/shop';
 import { Sprite } from './sprites';
+import { TreePixels } from './art/trees';
 import { Info, type InfoKey } from './info';
 import { clampQty, saleTotal, seasonPayout, stepQty } from './qty';
 import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QtyPicker, QualityTag, QUALITY_NAME, SPECIES_NAME, type SeedGroup } from './ui';
@@ -441,6 +442,45 @@ function SeedSellRow({ group, unitPrice, season, busy, onSell }: { group: SeedGr
   );
 }
 
+/**
+ * The player's Memorial Trees (old trees that dropped their seed, or cut-down trees), newest first:
+ * the tree, its species and quality, its harvests and its NFT on nearblocks. Older servers send no
+ * list: then nothing is shown.
+ */
+function MemorialList({ memorials, pohon }: { memorials?: MemorialView[]; pohon: string }) {
+  if (!memorials || memorials.length === 0) return null;
+  return (
+    <Panel title={`Memorial Trees (${memorials.length})`}>
+      <p class="muted small">Old trees that gave their superior seed, and trees that were cut down. Their Tree NFTs stay in your account with their whole history.</p>
+      <ul class="list memorial-list">
+        {memorials.map((m) => (
+          <li key={m.id} class="memorial-row">
+            <span class="memorial-art" aria-hidden="true">
+              <TreePixels species={m.species} stage="old" quality={m.quality} scale={1} seed={m.tokenId ?? m.id} />
+            </span>
+            <span class="grow">
+              <b>
+                {QUALITY_NAME[m.quality]} {SPECIES_NAME[m.species]}
+              </b>
+              <span class="memorial-meta">
+                {m.harvestCount} harvest{m.harvestCount === 1 ? '' : 's'}
+                {m.plot !== null ? ` · stands on plot ${m.plot + 1}` : ''}
+              </span>
+            </span>
+            {m.tokenId ? (
+              <a class="memorial-nft" href={nearblocksNft(pohon, m.tokenId)} target="_blank" rel="noreferrer">
+                NFT #{m.tokenId} ↗
+              </a>
+            ) : (
+              <span class="memorial-nft muted">NFT pending</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
 export function Village({ state, config, onBot }: { state: GameState; config: ServerConfig; onBot: () => void }) {
   const [stats, setStats] = useState<VillageStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -467,6 +507,7 @@ export function Village({ state, config, onBot }: { state: GameState; config: Se
           Open TaniBot
         </button>
       </Panel>
+      <MemorialList memorials={state.memorials} pohon={config.contracts.pohon} />
       <Panel title="Village Stats">
         {error && <p class="error-text">{error}</p>}
         {!stats ? (

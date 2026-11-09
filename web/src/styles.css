@@ -10046,3 +10046,67 @@ html.page-locked body {
     animation: none;
   }
 }
+
+/* Memorial Trees: standing on their plot (scene.tsx) and the list in the Village tab (panels.tsx). */
+.plot-art.memorial .memorial-tree .tree {
+  filter: grayscale(0.55) brightness(0.95);
+}
+
+.badge.memorial {
+  color: var(--paper-light);
+  background: var(--purple-700);
+}
+
+.memorial-note {
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--purple-300) 45%, var(--paper-light));
+  border-left: 4px solid var(--purple-700);
+}
+
+.memorial-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.memorial-art {
+  flex: none;
+  display: grid;
+  place-items: end center;
+  width: 40px;
+  height: 44px;
+  overflow: hidden;
+}
+
+.memorial-row .grow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.memorial-meta {
+  font-size: var(--fs-xs);
+  color: var(--ink-soft);
+}
+
+.memorial-nft {
+  flex: none;
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  color: var(--cyan-700);
+}
+
+/* Phones' plot sheet (at most ~20% of the screen): one short line, the seed row stays visible. */
+.memorial-note.short {
+  margin-bottom: 4px;
+  padding: 2px 6px;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

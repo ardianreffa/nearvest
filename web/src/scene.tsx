@@ -176,15 +176,20 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
               key={p.plot}
               class={`plot${p.plot === selected ? ' selected' : ''}${p.locked ? ' locked' : ''}${fx?.kind === 'water' && fx.plot === p.plot ? ' watering' : ''}`}
               onClick={() => onSelect(p.plot)}
-              aria-label={`Plot ${p.plot + 1}${p.tree ? `: ${p.tree.species}, ${p.tree.stage}` : p.locked ? ': locked' : ': empty'}`}
+              aria-label={`Plot ${p.plot + 1}${p.tree ? `: ${p.tree.species}, ${p.tree.stage}` : p.locked ? ': locked' : p.memorial ? `: Memorial ${p.memorial.species} tree` : ': empty'}`}
             >
               <div
-                class={`plot-art${p.tree?.isFertilized && p.tree.fertMsLeft - elapsed > 0 ? ' fertilized' : ''}${!p.tree && !p.locked ? ' empty' : ''}${p.tree?.ash ? ' ashy' : ''}${p.tree?.wilting || p.tree?.wiltedRecently ? ' wilting' : ''}${p.tree?.volcanicSoil ? ' volcanic' : ''}`}
+                class={`plot-art${p.tree?.isFertilized && p.tree.fertMsLeft - elapsed > 0 ? ' fertilized' : ''}${!p.tree && !p.locked && !p.memorial ? ' empty' : ''}${!p.tree && p.memorial ? ' memorial' : ''}${p.tree?.ash ? ' ashy' : ''}${p.tree?.wilting || p.tree?.wiltedRecently ? ' wilting' : ''}${p.tree?.volcanicSoil ? ' volcanic' : ''}`}
               >
                 {p.locked ? (
                   <Sprite name="lock" scale={mound ? px : px * 2} title="Locked" />
                 ) : p.tree ? (
                   <TreePixels species={p.tree.species} stage={p.tree.stage} quality={p.tree.quality} scale={px} seed={p.tree.tokenId ?? p.tree.id} />
+                ) : p.memorial ? (
+                  // A Memorial Tree keeps standing on its plot until the player plants a new seed here.
+                  <span class="memorial-tree" title={`Memorial ${p.memorial.species}`}>
+                    <TreePixels species={p.memorial.species} stage="old" quality={p.memorial.quality} scale={px} seed={p.memorial.tokenId ?? p.memorial.id} />
+                  </span>
                 ) : (
                   <span class="empty-hint">Plant</span>
                 )}
@@ -193,6 +198,14 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
                     {[0, 1, 2, 3, 4].map((i) => (
                       <i key={i} style={{ left: `${15 + i * 17}%`, animationDelay: `${i * 0.35}s` }} />
                     ))}
+                  </span>
+                )}
+                {!p.tree && p.memorial && (
+                  <span
+                    class="badge memorial"
+                    style={moundArt ? { '--tree-top': `${treeTopRow(p.memorial.species, 'old', p.memorial.tokenId ?? p.memorial.id) * px}px` } : undefined}
+                  >
+                    Memorial
                   </span>
                 )}
                 {st && (

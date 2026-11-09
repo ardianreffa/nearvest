@@ -518,7 +518,7 @@ function PlotPanel({
     const groups = groupSeeds(state.seeds, true);
     return (
       <Panel
-        title={`Plot ${plotIndex + 1} · empty`}
+        title={p.memorial ? `Plot ${plotIndex + 1} · Memorial` : `Plot ${plotIndex + 1} · empty`}
         class={`plot-empty${bar ? ' plot-bar' : ''}${sheet ? ' plot-sheet plain' : ''}`}
         right={
           sheet && (
@@ -528,6 +528,13 @@ function PlotPanel({
           )
         }
       >
+        {p.memorial && (
+          <p class={`memorial-note${sheet ? ' short' : ''}`}>
+            {sheet
+              ? `Memorial ${SPECIES_NAME[p.memorial.species]} · planting moves it to Village`
+              : `A Memorial ${SPECIES_NAME[p.memorial.species]} stands here (${p.memorial.harvestCount} harvests). Planting a seed moves it to your Memorial list in the Village tab; its NFT stays yours.`}
+          </p>
+        )}
         {groups.length === 0 ? (
           <p class="muted">You have no seeds.</p>
         ) : (
@@ -574,7 +581,7 @@ function PlotPanel({
     ? 'Volcanic ash stops this tree from growing. Clean it (free) to get Volcanic soil after the eruption.'
     : t.ready
     ? t.stage === 'old'
-      ? 'This old tree is ready to drop a superior seed. After that it becomes a Memorial Tree.'
+      ? 'This old tree is ready to drop a superior seed. After that it stands here as a Memorial Tree until you plant a new seed. TaniBot leaves this choice to you.'
       : 'Fruit is ripe. Harvest it!'
     : t.wilting
       ? `Wilting! Water it now, or it goes back one stage${t.msToWilt ? ` in about ${formatDuration(t.msToWilt - Math.min(elapsed, t.msToWilt))}` : ''} (it never dies).`
@@ -619,7 +626,7 @@ function PlotPanel({
       class="link-btn danger"
       disabled={busy}
       onClick={async () => {
-        if (await ask('Cut this tree down? It becomes a Memorial Tree and the plot is freed.', 'Cut down')) {
+        if (await ask('Cut this tree down? It becomes a Memorial Tree that stands here until you plant a new seed (its NFT stays yours).', 'Cut down')) {
           await act('/api/chop', plot, 'Tree cut down');
         }
       }}
@@ -708,7 +715,7 @@ function PlotPanel({
       <p class="muted small">
         {t.ready
           ? t.stage === 'old'
-            ? 'This old tree is ready to drop a superior seed. After that it becomes a Memorial Tree.'
+            ? 'This old tree is ready to drop a superior seed. After that it stands here as a Memorial Tree until you plant a new seed. TaniBot leaves this choice to you.'
             : 'Fruit is ripe. Harvest it!'
           : t.isWatered
             ? `Growing. Ready in about ${formatDuration(t.msToReady - Math.min(elapsed, t.msToReady))}.`
@@ -765,7 +772,7 @@ function PlotPanel({
         class="link-btn danger"
         disabled={busy}
         onClick={async () => {
-          if (await ask('Cut this tree down? It becomes a Memorial Tree and the plot is freed.', 'Cut down')) {
+          if (await ask('Cut this tree down? It becomes a Memorial Tree that stands here until you plant a new seed (its NFT stays yours).', 'Cut down')) {
             await act('/api/chop', plot, 'Tree cut down');
           }
         }}

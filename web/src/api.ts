@@ -43,6 +43,20 @@ export interface TreeView {
   volcanicSoil?: boolean;
 }
 
+/** A Memorial Tree: an old tree that dropped its seed, or a tree that was cut down. Its NFT stays. */
+export interface MemorialView {
+  id: number;
+  tokenId: string | null;
+  species: Species;
+  quality: Quality;
+  harvestCount: number;
+  maxHarvests: number;
+  plantedAt: number;
+  diedAt: number | null;
+  /** The plot it still stands on (until a new seed is planted there), or null. */
+  plot: number | null;
+}
+
 export type WeatherKind = 'clear' | 'rain' | 'drought';
 export type EruptionPhase = 'warning' | 'eruption' | 'volcanic';
 
@@ -116,7 +130,10 @@ export interface GameState {
   };
   clock: { day: number; farmDay: number; msUntilNextDay: number; dayLengthMs: number };
   checkin: { available: boolean; streak: number; nextCalendarDay: number; calendar: { day: number; reward: string }[] };
-  plots: { plot: number; locked: boolean; tree: TreeView | null }[];
+  /** `memorial`: a Memorial Tree standing on the plot (missing on older servers). */
+  plots: { plot: number; locked: boolean; tree: TreeView | null; memorial?: MemorialView | null }[];
+  /** The player's Memorial Trees, newest first (missing on older servers). */
+  memorials?: MemorialView[];
   seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null; source: string }[];
   seedSlots: { used: number; max: number };
   fruits: { species: Species; quality: Quality; qty: number }[];
@@ -290,6 +307,11 @@ export const ACTIVITY_LABELS: Record<string, string> = {
   bot_withdraw: 'PANEN taken back from TaniBot',
   bot_burn: 'TaniBot bought (PANEN burned)',
 };
+
+/** A Tree NFT on nearblocks (testnet). */
+export function nearblocksNft(contractId: string, tokenId: string): string {
+  return `https://testnet.nearblocks.io/nft-token/${contractId}/${encodeURIComponent(tokenId)}`;
+}
 
 export function nearblocksAccount(accountId: string): string {
   return `https://testnet.nearblocks.io/address/${accountId}`;
