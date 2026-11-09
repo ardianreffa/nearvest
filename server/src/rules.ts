@@ -64,6 +64,21 @@ export const PLOT3_XP = 50;
 export const FIRST_HARVEST_MS = 3 * 60 * 1000;
 /** Watering keeps a tree growing for one game day. */
 export const WATER_DAYS = 1;
+
+// ---------- Garden visits (social.ts; docs/PLAN-social.md, Ardian 2026-11-09) ----------
+/** XP for helping water a friend's tree (the demo XP multiplier applies, like every XP). */
+export const HELP_XP_HELPER = 5;
+/** XP for the garden's owner when a friend waters one of their trees... */
+export const HELP_XP_OWNER = 3;
+/** ...at most this many times per village day (more helps still water, without XP). */
+export const HELP_OWNER_XP_PER_DAY = 3;
+/** Gardens younger than this (real time) water and get watered, but get no help XP. */
+export const HELP_MIN_GARDEN_AGE_MS = 24 * 60 * 60 * 1000;
+/** The farmer list: at most this many rows, gardens active within this many days. */
+export const FARMER_LIST_MAX = 30;
+export const FARMER_ACTIVE_DAYS = 7;
+/** Fewer real farmers than this: the newest judge gardens fill the list (never empty). */
+export const FARMER_LIST_MIN = 5;
 /** Fertilizer adds +50% growth speed for one game day. */
 export const FERTILIZER_DAYS = 1;
 export const FERTILIZER_BOOST = 0.5;

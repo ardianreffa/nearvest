@@ -734,24 +734,142 @@ export class Game {
 
   water(playerId: number, plot: number) {
     return tx(this.db, () => {
-      const p = this.getPlayer(playerId);
-      const t = this.tickedTree(p, plot);
-      const today = this.today(p);
-      const now = this.d.now();
-      const kind = this.sky(p.demo === 1).kind(today);
-      if (kind === 'rain') throw new GameError("It's raining: your trees are watered for free today.", 409, { code: 'rain' });
-      const count = t.water_day === today ? t.water_count : 0;
-      if (kind === 'drought') {
-        // A drought: each watering lasts half a day, so a tree is watered twice.
-        if (count >= DROUGHT_WATERINGS) throw new GameError('This tree was already watered twice today');
-        const until = Math.max(now, t.water_until) + DROUGHT_WATER_DAYS * this.dayMs(p);
-        this.db.prepare('UPDATE trees SET water_until = ?, water_day = ?, water_count = ? WHERE id = ?').run(until, today, count + 1, t.id);
-        return { watered: true, weather: kind, waterings: count + 1, needed: DROUGHT_WATERINGS };
-      }
-      if (count >= 1) throw new GameError('This tree was already watered today');
-      this.db.prepare('UPDATE trees SET water_until = ?, water_day = ?, water_count = 1 WHERE id = ?').run(now + WATER_DAYS * this.dayMs(p), today, t.id);
-      return { watered: true, weather: kind, waterings: 1, needed: 1 };
+      const { treeId: _treeId, species: _species, ...result } = this.waterTree(this.getPlayer(playerId), plot);
+      return result;
     });
+  }
+
+  /**
+   * Waters a tree of `p` with the weather rules (call inside a transaction). `helping`: a friend
+   * waters it (social.ts), allowed only when the tree needs water now (`needsWater`).
+   */
+  waterTree(p: PlayerRow, plot: number, opts: { helping?: boolean } = {}) {
+    const t = this.tickedTree(p, plot);
+    const today = this.today(p);
+    const now = this.d.now();
+    const kind = this.sky(p.demo === 1).kind(today);
+    if (kind === 'rain')
+      throw new GameError(opts.helping ? "It's raining in Tandur: every tree is watered for free today." : "It's raining: your trees are watered for free today.", 409, { code: 'rain' });
+    if (opts.helping && !this.needsWater(p, t, now))
+      throw new GameError('This tree has enough water right now. Help a thirsty one!', 409, { code: 'not_thirsty' });
+    const count = t.water_day === today ? t.water_count : 0;
+    const done = { treeId: t.id, species: t.species };
+    if (kind === 'drought') {
+      // A drought: each watering lasts half a day, so a tree is watered twice.
+      if (count >= DROUGHT_WATERINGS) throw new GameError('This tree was already watered twice today');
+      const until = Math.max(now, t.water_until) + DROUGHT_WATER_DAYS * this.dayMs(p);
+      this.db.prepare('UPDATE trees SET water_until = ?, water_day = ?, water_count = ? WHERE id = ?').run(until, today, count + 1, t.id);
+      return { watered: true, weather: kind, waterings: count + 1, needed: DROUGHT_WATERINGS, ...done };
+    }
+    if (count >= 1) throw new GameError('This tree was already watered today');
+    this.db.prepare('UPDATE trees SET water_until = ?, water_day = ?, water_count = 1 WHERE id = ?').run(now + WATER_DAYS * this.dayMs(p), today, t.id);
+    return { watered: true, weather: kind, waterings: 1, needed: 1, ...done };
+  }
+
+  /**
+   * A friend may help water this tree now: its water has run out, it is not watered enough for
+   * today (a drought needs two), it is not raining, and it still grows (not an old tree).
+   */
+  private needsWater(p: PlayerRow, t: TreeRow, now: number): boolean {
+    if (t.harvest_count >= t.max_harvests) return false;
+    const today = this.today(p);
+    const kind = this.sky(p.demo === 1).kind(today);
+    if (kind === 'rain') return false;
+    const count = t.water_day === today ? t.water_count : 0;
+    return count < (kind === 'drought' ? DROUGHT_WATERINGS : 1) && t.water_until <= now;
+  }
+
+  getPlayerByName(name: string): PlayerRow | null {
+    return (this.db.prepare('SELECT * FROM players WHERE name = ?').get(name) as unknown as PlayerRow | undefined) ?? null;
+  }
+
+  /** Remembers when the player was last in the game (the farmer list shows active gardens); at most every 10 minutes. */
+  touch(playerId: number): void {
+    const now = this.d.now();
+    this.db.prepare('UPDATE players SET last_seen_at = ? WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at < ?)').run(now, playerId, now - 10 * 60_000);
+  }
+
+  /** How many trees of a garden need water now (the farmer list's water drop). */
+  thirstyTrees(p: PlayerRow): number {
+    const now = this.d.now();
+    let n = 0;
+    for (let plot = 0; plot < 3; plot++) {
+      const t = this.treeOnPlot(p.id, plot);
+      if (t && this.needsWater(p, t, now)) n++;
+    }
+    return n;
+  }
+
+  /**
+   * A garden as visitors see it (read only): name, title, avatar and the trees on its plots. No
+   * balance, seeds, fruit, items, TaniBot budget, sign-in or wallet data.
+   */
+  publicGarden(p: PlayerRow) {
+    const now = this.d.now();
+    const demo = p.demo === 1;
+    const dayMs = this.dayMs(p);
+    const today = this.today(p);
+    const sky = this.sky(demo);
+    const weather = this.weatherView(demo);
+    const plots = [];
+    for (let plot = 0; plot < 3; plot++) {
+      const t = this.treeOnPlot(p.id, plot);
+      let tree = null;
+      if (t) {
+        const g = advance(growthOf(t), now, dayMs, sky);
+        const thirst = thirstOf(g, now, sky);
+        const at = eruptionAt(sky, now);
+        const old = t.harvest_count >= t.max_harvests;
+        const cleaned = !!at && cleanedOf(at.eruption, t.ash_clean_at);
+        const waterCount = t.water_day === today ? t.water_count : 0;
+        tree = {
+          tokenId: t.token_id,
+          species: t.species,
+          quality: t.quality,
+          stage: stageOf(g) as Stage,
+          growthPercent: Math.round((g.growth / g.target) * 100),
+          ready: isReady(g),
+          harvestCount: t.harvest_count,
+          maxHarvests: t.max_harvests,
+          waterCount,
+          waterNeed: weather.waterNeed,
+          isWatered: t.water_until > now || weather.kind === 'rain',
+          thirsty: thirst.thirsty,
+          wilting: thirst.wilting,
+          ash: !!at && at.phase === 'eruption' && !old && !cleaned,
+          volcanicSoil: !!at && at.phase === 'volcanic' && !old && cleaned,
+          /** A visitor can help water it now (social.ts). */
+          needsWater: this.needsWater(p, t, now),
+        };
+      }
+      const m = tree ? null : this.memorialOnPlot(p.id, plot);
+      plots.push({
+        plot,
+        locked: plot >= plotCount(p.xp),
+        tree,
+        memorial: m ? { species: m.species, quality: m.quality, tokenId: m.tokenId, harvestCount: m.harvestCount } : null,
+      });
+    }
+    return {
+      name: p.name,
+      accountId: p.account_id,
+      avatar: p.avatar,
+      title: titleFor(p.xp),
+      demo,
+      weather: { kind: weather.kind, waterNeed: weather.waterNeed },
+      plots,
+    };
+  }
+
+  /** Friends who helped water this garden in the last 3 days (newest first; the owner's notices). */
+  helpsReceived(ownerId: number) {
+    return this.db
+      .prepare(
+        `SELECT h.id, h.plot, h.owner_xp AS xp, h.created_at AS at, hp.name AS helper, t.species
+         FROM garden_help h JOIN players hp ON hp.id = h.helper_id JOIN trees t ON t.id = h.tree_id
+         WHERE h.owner_id = ? AND h.created_at > ? ORDER BY h.id DESC LIMIT 10`,
+      )
+      .all(ownerId, this.d.now() - 3 * 24 * 60 * 60 * 1000) as unknown as { id: number; plot: number; xp: number; at: number; helper: string; species: Species }[];
   }
 
   /** Cleans the volcanic ash off a tree during an eruption (free). Cleaned trees get the Volcanic soil bonus. */
@@ -1326,6 +1444,8 @@ export class Game {
       tutorial: this.tutorial(p.id),
       /** Try as Judge gardens only: the 5-step tour. */
       judgeTour: signIn === 'judge' ? this.judgeTour(p.id) : null,
+      /** Friends who helped water this garden lately (garden visits, social.ts). */
+      helps: this.helpsReceived(p.id),
     };
   }
 

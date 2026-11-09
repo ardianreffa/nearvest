@@ -10,6 +10,7 @@ import type { Config } from './config.ts';
 import type { DB } from './db.ts';
 import { Game, GameError, type JudgeStep, type SignedBurn } from './game.ts';
 import type { JudgeService } from './judge.ts';
+import { Social } from './social.ts';
 import {
   BURN_GAS,
   BURN_TTL_BLOCKS,
@@ -43,6 +44,7 @@ const WALLET_SYNC_MS = 30_000;
 
 export function createApp(deps: AppDeps) {
   const { db, game, chain, config, now, tanibot, judge } = deps;
+  const social = new Social(db, game, now);
   const app = new Hono<Env>();
 
   // maxAge: browsers remember the CORS preflight (Chrome up to 2 h), so each game action is one
@@ -292,6 +294,7 @@ export function createApp(deps: AppDeps) {
       lastWalletSync.set(pid, now());
       await syncWallet(pid).catch((err) => console.warn('wallet balance sync failed:', err instanceof Error ? err.message : err));
     }
+    game.touch(pid);
     return c.json(game.state(pid));
   });
 
@@ -358,6 +361,16 @@ export function createApp(deps: AppDeps) {
   app.post('/api/water', async (c) => respond(c, game.water(playerId(c), plotOf(await body(c)))));
   app.post('/api/fertilize', async (c) => respond(c, game.fertilize(playerId(c), plotOf(await body(c)))));
   app.post('/api/clean', async (c) => respond(c, game.cleanAsh(playerId(c), plotOf(await body(c)))));
+
+  // Garden visits (social.ts): the farmer list, a garden (read only), help water one tree per day.
+  app.get('/api/farmers', (c) => c.json(social.farmers(playerId(c))));
+  app.get('/api/farmers/:name', (c) => c.json(social.visit(playerId(c), c.req.param('name'))));
+  app.post('/api/farmers/:name/water', async (c) => {
+    const pid = playerId(c);
+    const name = c.req.param('name');
+    const result = social.help(pid, name, plotOf(await body(c)));
+    return c.json({ result, state: game.state(pid), visit: social.visit(pid, name) });
+  });
   app.post('/api/harvest', async (c) => {
     const b = await body(c);
     const then = b.then === 'plant' || b.then === 'sell' ? b.then : undefined;

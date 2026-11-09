@@ -201,6 +201,21 @@ CREATE TABLE IF NOT EXISTS judge_steps (
   created_at INTEGER NOT NULL,
   PRIMARY KEY (player_id, step)
 );
+
+-- Garden visits: a player helped water another player's tree (1 per helper per village day).
+CREATE TABLE IF NOT EXISTS garden_help (
+  id INTEGER PRIMARY KEY,
+  helper_id INTEGER NOT NULL REFERENCES players(id),
+  owner_id INTEGER NOT NULL REFERENCES players(id),
+  tree_id INTEGER NOT NULL REFERENCES trees(id),
+  plot INTEGER NOT NULL,
+  help_day INTEGER NOT NULL,       -- village day (normal 07:00 WIB day, also for demo gardens)
+  helper_xp INTEGER NOT NULL,
+  owner_xp INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  UNIQUE (helper_id, help_day)
+);
+CREATE INDEX IF NOT EXISTS garden_help_owner ON garden_help (owner_id, created_at);
 `;
 
 /** tutorial_step value of a finished (or skipped) tutorial. */
@@ -228,6 +243,7 @@ function migrate(db: DB): void {
   if (!has('players', 'google_sub')) db.exec('ALTER TABLE players ADD COLUMN google_sub TEXT');
   if (!has('players', 'avatar')) db.exec("ALTER TABLE players ADD COLUMN avatar TEXT NOT NULL DEFAULT 'farmer_hat'");
   // Tutorial step (game.ts TUTORIAL_STEPS); gardens made before the tutorial existed count as done.
+  if (!has('players', 'last_seen_at')) db.exec('ALTER TABLE players ADD COLUMN last_seen_at INTEGER');
   if (!has('players', 'tutorial_step')) db.exec(`ALTER TABLE players ADD COLUMN tutorial_step INTEGER NOT NULL DEFAULT ${TUTORIAL_DONE}`);
   // Judge gardens: TaniBot waits for the judge's first harvest (at most until this time).
   // TaniBot auto-plant: 'off' | 'common' (only Common or unknown seeds, never Rare or Gold).
