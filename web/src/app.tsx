@@ -915,8 +915,13 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
     <div class="login-page">
       <div class="login-bg" aria-hidden="true" />
     <main class="shell center login">
-      <h1 class="logo">NEARvest</h1>
-      <p class="tagline">Grow. Harvest. Own.</p>
+      {/* Top to bottom: title near the sky, buttons in the middle, the note on the grass, links last.
+          The two flexible gaps around the buttons are equal (login-gap). */}
+      <header class="login-head">
+        <h1 class="logo">NEARvest</h1>
+        <p class="tagline">Grow. Harvest. Own.</p>
+      </header>
+      <div class="login-gap" aria-hidden="true" />
 
       {/* One column, every button the same width (pixel-game style sign-in). */}
       <div class="login-actions">
@@ -949,12 +954,15 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
           builds (import.meta.env.DEV is false there), not only hidden; the server refuses it too. */}
       {import.meta.env.DEV && config.devLogin && <DevLogin busy={busy} setBusy={setBusy} setError={setError} onLoggedIn={onLoggedIn} />}
       {error && <p class="error-text">{error}</p>}
-      <p class="login-foot small">
-        Sign in with <b>Google</b> or a <b>NEAR wallet</b>. With Google you need no wallet: the game creates your NEAR {config.network} account and pays all fees. Testnet tokens have no real value.
-      </p>
-      <p class="login-legal small">
-        <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
-      </p>
+      <div class="login-gap" aria-hidden="true" />
+      <footer class="login-bottom">
+        <p class="login-foot small">
+          Sign in with <b>Google</b> or a <b>NEAR wallet</b>. With Google you need no wallet: the game creates your NEAR {config.network} account and pays all fees. Testnet tokens have no real value.
+        </p>
+        <p class="login-legal small">
+          <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+        </p>
+      </footer>
     </main>
     </div>
   );

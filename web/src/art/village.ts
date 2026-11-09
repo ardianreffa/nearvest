@@ -70,6 +70,8 @@ export interface Village {
   shownFrom?: number;
   /** v3 phones: the top row of the open grass; tree labels never go above it (they stay off the village). */
   grassRow?: number;
+  /** Laptops: first row with only grass and bushes (no buildings, fences or palms) across the whole width. */
+  lawnRow?: number;
   lanterns: Box[];
   holograms: Box[];
   falls: Box[];
@@ -284,6 +286,7 @@ export const V3_WEB: Village = {
   key: 'v3-web',
   w: 240,
   h: 135,
+  lawnRow: 106,
   skyBottom: 61,
   src: v3Src('web'),
   bedRow: 121,

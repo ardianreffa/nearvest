@@ -3226,6 +3226,68 @@ input:focus-visible {
   }
 }
 
+/* Sign-in page layout: one screen, no scrolling. Title near the top (sky / volcano), buttons in
+   the middle, the note and the links at the bottom on the grass; the two gaps (login-gap) share
+   the free height equally. */
+.login-page .login.shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  justify-content: flex-start;
+  gap: 0;
+  padding: calc(env(safe-area-inset-top) + max(16px, 5dvh)) 16px calc(env(safe-area-inset-bottom) + 12px);
+  box-sizing: border-box;
+}
+
+/* Phones: the village art fills the screen height, its volcano peak at about 34% of it; the title
+   sits in the sky right above the peak (no empty band between the tagline and the mountain). */
+@media (max-width: 1023px) {
+  .login-page .login.shell {
+    padding-top: max(calc(env(safe-area-inset-top) + 16px), calc(34dvh - 150px));
+  }
+}
+
+.login-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-head .tagline {
+  margin: 0;
+}
+
+.login-gap {
+  flex: 1 1 0;
+  min-height: 16px;
+}
+
+.login-page .login-actions {
+  margin: 0 auto;
+}
+
+.login-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: min(560px, 100%);
+}
+
+/* The note sits on the grass: a see-through ink panel keeps it readable. */
+.login-page .login-foot {
+  margin: 0;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--ink) 70%, transparent);
+  text-shadow: none;
+}
+
+.login-page .login-legal {
+  margin: 0;
+  padding: 2px 10px;
+  background: color-mix(in srgb, var(--ink) 70%, transparent);
+}
+
 .login-page .login {
   color: var(--paper);
   max-width: 520px;
@@ -9165,30 +9227,51 @@ html.page-locked body {
   pointer-events: none;
 }
 
-/* Laptops: exactly under the art (same left edge and width), so every bush lines up. */
-.bg-ground-below.wide {
-  left: var(--art-left);
-  right: auto;
-  width: calc(var(--art-w) * var(--k) * 1px);
-}
-
-/* Laptops: mirrored copies of the art (and of its ground strip) left and right of it: the edge
-   pixels meet their own mirror image, so there is no seam beside or under the menu. */
-.immersive-scene .bg-art.bg-art-mirror,
-.bg-ground-below.wide.mirror-left,
-.bg-ground-below.wide.mirror-right {
-  transform: scaleX(-1);
+/* Laptops: the lawn behind the art. It starts at the art's lawn row and reaches the bottom of
+   the scene across the full width; each strip shows the art's rows lawn-row .. bottom, repeated
+   sideways (lined up with the art) and stacked downwards, never flipped. */
+.bg-lawn {
+  --strip: calc((var(--art-h) - var(--lawn-row)) * var(--k) * 1px);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--art-bottom) + var(--strip));
+  overflow: hidden;
   pointer-events: none;
 }
 
-.immersive-scene .bg-art.bg-art-mirror.right,
-.bg-ground-below.wide.mirror-right {
-  left: calc(var(--art-left) + var(--art-w) * var(--k) * 1px);
+.bg-lawn .ground-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.immersive-scene .bg-art.bg-art-mirror.left,
-.bg-ground-below.wide.mirror-left {
-  left: calc(var(--art-left) - var(--art-w) * var(--k) * 1px);
+.bg-lawn .ground-layer i {
+  flex: none;
+  display: block;
+  height: var(--strip);
+  margin-bottom: -0.5px;
+  background-size: calc(var(--k) * var(--art-w) * 1px) calc(var(--k) * var(--art-h) * 1px);
+  background-position: var(--art-left) 100%;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
+}
+
+.bg-lawn .ground-dusk {
+  opacity: var(--dusk);
+}
+
+.bg-lawn .ground-night {
+  opacity: var(--night);
+}
+
+.bg-lawn .ground-shade {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
+  opacity: var(--night);
 }
 
 .bg-ground-below .ground-layer {

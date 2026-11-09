@@ -124,7 +124,7 @@ export function Backdrop({
    * mirrored strip by strip so every seam matches.
    */
   groundBelow?: boolean;
-  /** Laptops: the ground strip sits exactly under the art (which may be wider or narrower than the window). */
+  /** Laptops: a lawn of the art's own grass rows fills everything beside and below the art. */
   groundWide?: boolean;
 }) {
   const v = village;
@@ -158,6 +158,21 @@ export function Backdrop({
           <img src={src('day')} alt="" />
           <img class="bg-img-dusk" src={src('dusk')} alt="" />
           <img class="bg-img-night" src={src('night')} alt="" />
+        </div>
+      )}
+      {/* Laptops: a lawn behind the art, filling everything left / right / below it from the
+          village's grass row down: the art's own bottom rows (only grass and bushes, no
+          buildings) repeated sideways, upright, in strips stacked downwards. */}
+      {groundWide && (
+        <div class="bg-lawn" style={{ '--art-w': String(v.w), '--art-h': String(v.h), '--lawn-row': String(v.lawnRow ?? v.h - 30) }}>
+          {(['day', 'dusk', 'night'] as const).map((light) => (
+            <div key={light} class={`ground-layer ground-${light}`}>
+              {Array.from({ length: 8 }, (_, i) => (
+                <i key={i} style={{ backgroundImage: `url(${src(light)})` }} />
+              ))}
+            </div>
+          ))}
+          <div class="ground-shade" />
         </div>
       )}
       {/* v1 phones: above the art, the top band of the sky. */}
@@ -214,31 +229,20 @@ export function Backdrop({
         <div class="bg-night-shade" />
         {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} />}
       </div>
-      {blurFill && <div class="bg-soil-ext" style={{ background: v.groundExt }} />}
-      {/* Laptops: a mirrored copy of the village on each side of the art, so whatever the art does
-          not cover (under and beside the menu) continues the village sharply, with no seam. */}
-      {groundWide &&
-        (['left', 'right'] as const).map((side) => (
-          <div key={side} class={`bg-art bg-art-mirror ${side}`} style={{ aspectRatio: `${v.w} / ${v.h}`, '--art-w': String(v.w) }}>
-            <img class="bg-img" src={src('day')} alt="" />
-            <img class="bg-img bg-img-dusk" src={src('dusk')} alt="" />
-            <img class="bg-img bg-img-night" src={src('night')} alt="" />
-            <div class="bg-night-shade" />
-          </div>
-        ))}
-      {groundBelow &&
-        (groundWide ? (['', ' mirror-left', ' mirror-right'] as const) : ([''] as const)).map((extra) => (
-          <div key={extra} class={`bg-ground-below${groundWide ? ' wide' : ''}${extra}`} style={{ '--art-w': String(v.w), '--art-h': String(v.h) }}>
-            {(['day', 'dusk', 'night'] as const).map((light) => (
-              <div key={light} class={`ground-layer ground-${light}`}>
-                {Array.from({ length: 8 }, (_, i) => (
-                  <i key={i} class={i % 2 === 0 ? 'flip' : undefined} style={{ backgroundImage: `url(${src(light)})` }} />
-                ))}
-              </div>
-            ))}
-            <div class="ground-shade" />
-          </div>
-        ))}
+      {/* The plain ground colour below the art: only where there is no lawn (laptops have one). */}
+      {blurFill && !groundWide && <div class="bg-soil-ext" style={{ background: v.groundExt }} />}
+      {groundBelow && !groundWide && (
+        <div class="bg-ground-below" style={{ '--art-w': String(v.w), '--art-h': String(v.h) }}>
+          {(['day', 'dusk', 'night'] as const).map((light) => (
+            <div key={light} class={`ground-layer ground-${light}`}>
+              {Array.from({ length: 8 }, (_, i) => (
+                <i key={i} class={i % 2 === 0 ? 'flip' : undefined} style={{ backgroundImage: `url(${src(light)})` }} />
+              ))}
+            </div>
+          ))}
+          <div class="ground-shade" />
+        </div>
+      )}
 
       <div class="bg-tint" />
     </div>
