@@ -860,6 +860,9 @@ function DevLogin({
   );
 }
 
+/** Width of every sign-in button (px); the Google button is drawn at the same width. */
+const LOGIN_BUTTON_W = 300;
+
 function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedIn: (token: string, s: GameState | null, note?: string) => void; onHelp: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -914,34 +917,33 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
     <main class="shell center login">
       <h1 class="logo">NEARvest</h1>
       <p class="tagline">Grow. Harvest. Own.</p>
-      <p class="login-lead">A pixel farming game where your tree is a living NFT and an AI farmer tends it while you sleep.</p>
-      <ul class="login-points">
-        <li>Plant a seed and a Tree NFT is born on NEAR. It grows and changes as you water it.</li>
-        <li>Harvest fruit, sell it to Mr. Darto and earn $PANEN. Spend it in the Shop (it is burned).</li>
-        <li>Goal: build the best orchard in Tandur and rise from Seedling to Legend.</li>
-      </ul>
-      <button class="btn how-btn" onClick={onHelp}>
-        How to play
-      </button>
 
-      <div class="judge-entry">
-        <button class="btn btn-gold btn-judge" onClick={judgeLogin} disabled={busy}>
+      {/* One column, every button the same width (pixel-game style sign-in). */}
+      <div class="login-actions">
+        <GoogleButton
+          clientId={config.googleClientId}
+          width={LOGIN_BUTTON_W}
+          onCredential={async (credential) => {
+            const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/google', { credential });
+            onLoggedIn(res.token, res.player);
+          }}
+          onError={setError}
+        />
+        <button class="btn btn-wallet" onClick={walletLogin} disabled={busy}>
+          Connect NEAR Wallet
+        </button>
+        <button
+          class="btn btn-judge"
+          onClick={judgeLogin}
+          disabled={busy}
+          title="One click, no sign-in: your own ready garden with real testnet Tree NFTs, PANEN and TaniBot, plus a 5-step tour."
+        >
           {busy ? 'Preparing your garden...' : 'Try as Judge'}
         </button>
-        <p class="small">One click, no sign-in: your own ready garden with real testnet Tree NFTs, PANEN and TaniBot, plus a 5-step tour.</p>
+        <button class="link-btn how-link" onClick={onHelp}>
+          How to play
+        </button>
       </div>
-
-      <GoogleButton
-        clientId={config.googleClientId}
-        onCredential={async (credential) => {
-          const res = await api<{ token: string; player: GameState | null }>('POST', '/auth/google', { credential });
-          onLoggedIn(res.token, res.player);
-        }}
-        onError={setError}
-      />
-      <button class="btn btn-wallet" onClick={walletLogin} disabled={busy}>
-        Connect NEAR Wallet
-      </button>
 
       {/* Dev login: local `npm run dev` only. The whole component is left out of production
           builds (import.meta.env.DEV is false there), not only hidden; the server refuses it too. */}

@@ -335,11 +335,12 @@ export const V3_WEB: Village = {
     sprite: 'slope',
   },
   spots: {
+    // Pins: the point just above each building's own roof (Ardian 2026-11-09).
     shop: { box: [14, 62, 37, 36], pin: [33, 69] },
-    market: { box: [146, 67, 30, 21], pin: [161, 74], onBody: true },
-    village: { box: [149, 29, 37, 46], pin: [167, 47], onBody: true },
-    friends: { box: [184, 62, 38, 34], pin: [203, 62] },
-    arena: { box: [101, 64, 36, 14], pin: [119, 64] },
+    market: { box: [146, 67, 30, 21], pin: [161, 68] }, // Mr. Darto's kiosk canopy
+    village: { box: [149, 29, 37, 46], pin: [168, 29] }, // above the green farm towers
+    friends: { box: [184, 62, 38, 34], pin: [203, 62] }, // the right-hand house
+    arena: { box: [101, 64, 36, 14], pin: [119, 63] }, // the "1 VS 1" gazebo
   },
   darto: { x: 151, y: 94, shrink: 3 },
   // In front of the Friends house, on the grass (left of the side menu on every laptop).
@@ -392,11 +393,13 @@ export const V3_PHONE: Village = {
   // The rail is only about 48 game px long on phones (40% of the screen): too short for the big train.
   rail: null,
   spots: {
+    // Pins: the point just above each building's own roof (Ardian 2026-11-09). Market a little
+    // left of the kiosk's middle so its pin never touches the Friends pin.
     shop: { box: [7, 100, 22, 23], pin: [20, 104] },
-    market: { box: [70, 101, 23, 15], pin: [81, 108], onBody: true },
-    village: { box: [77, 66, 21, 33], pin: [88, 80], onBody: true },
-    friends: { box: [93, 97, 24, 23], pin: [105, 97] },
-    arena: { box: [49, 92, 23, 10], pin: [60.5, 92] },
+    market: { box: [70, 101, 23, 15], pin: [75, 101] }, // Mr. Darto's kiosk canopy (left part: room for the Friends pin)
+    village: { box: [77, 66, 21, 33], pin: [88, 65] }, // above the green farm towers' tops
+    friends: { box: [93, 97, 24, 23], pin: [105, 100] }, // the right-hand house
+    arena: { box: [49, 92, 23, 10], pin: [60.5, 92] }, // the "1 VS 1" gazebo
   },
   darto: { x: 74, y: 120.5, shrink: 4 },
   robot: { x: 100.5, y: 128.5, homeX: 100.5, stay: true },

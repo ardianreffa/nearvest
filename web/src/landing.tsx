@@ -6,19 +6,23 @@
 // makes the judge garden right away, exactly like the button on the sign-in page.
 
 import { render } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import './fonts.css';
 import './styles.css';
 import './landing.css';
 import { API_URL } from './api';
 import { DARTO_IDLE, DARTO_PALETTE } from './art/darto-sprite';
-import { SkyBack } from './art/sky';
-import { Drone, TaniBot, TIER_TITLE, TIERS } from './art/tanibot';
+import { Backdrop } from './art/backdrop';
+import { V3_PHONE, V3_WEB } from './art/village';
+import { TaniBot, TIER_TITLE, TIERS } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import { Pixels, Sprite } from './sprites';
 
 const EXPLORER = 'https://testnet.nearblocks.io';
-const HOUR = 11; // a sunny late morning in Tandur
+const HOUR = 11; // a sunny late morning in Tandur: the landing is always day (no clock, no weather)
+const DAY = (HOUR - 7) / 24; // village clock fraction (the day starts at 07:00)
+/** Phones: the sky's sun, clouds and birds sit just above the village (game rows; the art is 120 x 180). */
+const PHONE_SKY_TOP = 38;
 
 interface Stats {
   panen: { totalMinted: number; totalBurned: number; season: number; rewardDivisor: number };
@@ -28,24 +32,63 @@ interface Stats {
 
 const fmt = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}k` : Math.round(n).toLocaleString('en-US'));
 
+/** Phones and small tablets use the upright village. */
+function useNarrow(): boolean {
+  const query = '(max-width: 1023px)';
+  const [narrow, setNarrow] = useState(() => typeof matchMedia === 'function' && matchMedia(query).matches);
+  useEffect(() => {
+    const m = matchMedia(query);
+    const on = () => setNarrow(m.matches);
+    m.addEventListener('change', on);
+    return () => m.removeEventListener('change', on);
+  }, []);
+  return narrow;
+}
+
+/**
+ * TaniBot flies slowly left and right in the band between the hero text and the buttons, so it
+ * never covers either (hidden when the band is too small). Its height follows the window.
+ */
+function useBotBand(hero: { current: HTMLElement | null }) {
+  useLayoutEffect(() => {
+    const place = () => {
+      const h = hero.current;
+      const bot = h?.querySelector<HTMLElement>('.lp-hero-bot');
+      const top = h?.querySelector('.lp-hero-top');
+      const cta = h?.querySelector('.lp-cta');
+      if (!h || !bot || !top || !cta) return;
+      const hr = h.getBoundingClientRect();
+      const from = top.getBoundingClientRect().bottom - hr.top + 12;
+      const to = cta.getBoundingClientRect().top - hr.top - 12;
+      const bh = bot.offsetHeight;
+      bot.style.visibility = to - from >= bh ? 'visible' : 'hidden';
+      bot.style.top = `${Math.round(from + Math.max(0, (to - from - bh) * 0.45))}px`;
+    };
+    place();
+    const t = setTimeout(place, 600); // after the fonts have loaded
+    window.addEventListener('resize', place);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', place);
+    };
+  }, []);
+}
+
 function Hero() {
+  const narrow = useNarrow();
+  const hero = useRef<HTMLElement>(null);
+  useBotBand(hero);
   return (
-    <header class="lp-hero" style={{ '--day': '1', '--dusk': '0', '--night': '0' }}>
-      <div class="lp-sky">
-        <SkyBack hour={HOUR} />
+    <header class={`lp-hero${narrow ? ' narrow' : ' wide'}`} ref={hero}>
+      {/* The game's own village and sky, always at midday: waterfalls, rotors, train, volcano smoke,
+          lanterns, drones, sun, clouds and birds move exactly as in the garden. */}
+      <div class="lp-backdrop" aria-label="The farming village of Tandur" role="img">
+        <Backdrop fraction={DAY} hd village={narrow ? V3_PHONE : V3_WEB} skyTop={narrow ? PHONE_SKY_TOP : undefined} />
       </div>
-      <picture>
-        <source media="(max-width: 1023px)" srcset="/assets/bg/village3-phone-day.png" />
-        <img class="lp-village" src="/assets/bg/village3-web-day.png" alt="The farming village of Tandur" />
-      </picture>
-      <span class="lp-drone d1" aria-hidden="true">
-        <Drone scale={2} />
-      </span>
-      <span class="lp-drone d2" aria-hidden="true">
-        <Drone scale={2} />
-      </span>
       <div class="lp-hero-bot" aria-hidden="true">
-        <TaniBot tier="farmer" scale={2} />
+        <div class="lp-bot-fly">
+          <TaniBot tier="farmer" scale={narrow ? 1 : 2} />
+        </div>
       </div>
       <div class="lp-hero-top">
         <h1 class="logo lp-logo">NEARvest</h1>

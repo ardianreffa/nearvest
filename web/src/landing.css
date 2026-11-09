@@ -14,35 +14,44 @@
   background: var(--cyan-300);
 }
 
-.lp-sky {
+/* The game's Backdrop (art/backdrop.tsx) at midday: code sky, village and all its animations. */
+.lp-backdrop {
   position: absolute;
   inset: 0;
-}
-
-.lp-sky {
   pointer-events: none;
 }
 
-/* The code sky keeps its 240x135 shape (sun, clouds and birds are not stretched on tall phones). */
-.lp-sky .sky {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: auto;
-  aspect-ratio: 240 / 135;
-}
-
-.lp-village {
-  position: absolute;
+/* Laptops: as before, the village fills the width (at least 82% of a 16:9 cover), anchored at the
+   bottom; the sky box starts at the top of the hero (sun and clouds where they always were). */
+.lp-hero.wide .bg-art {
   left: 50%;
   bottom: 0;
   width: 100%;
   min-width: calc(100svh * 240 / 135 * 0.82);
   transform: translateX(-50%);
-  image-rendering: pixelated;
-  pointer-events: none;
-  user-select: none;
+}
+
+.lp-hero.wide .bg-art .sky-box {
+  translate: 0 calc(-1 * max(0px, 100svh - max(100vw, 100svh * 240 / 135 * 0.82) * 135 / 240));
+}
+
+/* Phones: the upright village across the full width; its sky (sun, clouds, birds, drones) sits
+   just above the rooftops, the code sky's bands fill the rest up to the top. */
+.lp-hero.narrow .bg-art {
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  transform: none;
+}
+
+/* Phones: no empty sky between the text and the village. The upright art (120 x 180, 150vw
+   high) is transparent above row ~88; the sun / clouds band sits at rows 38-48 (PHONE_SKY_TOP in
+   landing.tsx), so the text ends just above row 38 (150vw x (1 - 38/180) = 118.3vw from the
+   bottom). Above the text the code sky's bands run from deep blue at the top to light blue. */
+@media (max-width: 1023px) {
+  .lp-hero.narrow .lp-hero-top {
+    top: max(16px, calc(100svh - 118.3vw - 8px - 236px));
+  }
 }
 
 /* The hero text sits in the sky above the village. */
@@ -86,12 +95,32 @@
   color: var(--paper-light);
 }
 
-/* TaniBot on the grass. */
+/* TaniBot flies slowly left and right between the hero text and the buttons (its top is set by
+   useBotBand in landing.tsx), hovering up and down as it goes. */
 .lp-hero-bot {
   position: absolute;
-  left: 22%;
-  bottom: calc(100vw * 135 / 240 * 0.13);
+  left: 0;
+  right: 0;
+  top: 40%;
+  pointer-events: none;
+}
+
+.lp-bot-fly {
+  display: inline-block;
+  animation: lp-patrol 28s ease-in-out infinite alternate;
+}
+
+.lp-bot-fly .tanibot {
   animation: lp-bob 2.6s ease-in-out infinite;
+}
+
+@keyframes lp-patrol {
+  from {
+    transform: translateX(4vw);
+  }
+  to {
+    transform: translateX(calc(100vw - 100% - 4vw));
+  }
 }
 
 .lp-cta {
@@ -137,29 +166,6 @@
   animation: lp-bob 1.8s ease-in-out infinite;
 }
 
-/* Two drones cross the sky now and then. */
-.lp-drone {
-  position: absolute;
-  left: -60px;
-  animation: lp-fly 22s linear infinite;
-}
-
-.lp-drone.d1 {
-  top: 22%;
-}
-
-.lp-drone.d2 {
-  top: 34%;
-  animation-delay: -11s;
-  animation-duration: 27s;
-}
-
-@keyframes lp-fly {
-  to {
-    transform: translateX(calc(100vw + 120px));
-  }
-}
-
 @keyframes lp-bob {
   50% {
     transform: translateY(-6px);
@@ -168,22 +174,6 @@
 
 /* Phones: the upright village; TaniBot on the left of the grass, the buttons side by side. */
 @media (max-width: 1023px) {
-  .lp-village {
-    min-width: 0;
-    width: 100%;
-  }
-
-  /* On the grass just above the buttons and their notes. */
-  .lp-hero-bot {
-    left: 4%;
-    bottom: 168px;
-  }
-
-  .lp-hero-bot .tanibot {
-    transform: scale(0.62);
-    transform-origin: bottom left;
-  }
-
   .lp-cta {
     bottom: 14px;
     gap: 10px;
@@ -522,14 +512,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp-hero-bot,
-  .lp-more,
-  .lp-drone {
+  /* TaniBot stays still on the left of its band; the village keeps its still pictures (styles.css). */
+  .lp-bot-fly,
+  .lp-bot-fly .tanibot,
+  .lp-more {
     animation: none;
   }
 
-  .lp-drone {
-    display: none;
+  .lp-bot-fly {
+    transform: translateX(6vw);
   }
 }
 

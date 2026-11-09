@@ -119,6 +119,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const evolving = useEvolution(tier);
   const botSpot = useRef<HTMLDivElement>(null);
   useHintPlacement(botSpot, `${bye}|${nudge.key}|${flash?.id ?? ''}|${bx}`);
+  useSkyClearOfHud();
 
   return (
     <div
@@ -596,6 +597,42 @@ function useHintPlacement(spot: { current: HTMLDivElement | null }, key: string)
     const t = setTimeout(place, 1100);
     return () => clearTimeout(t);
   }, [key]);
+}
+
+/**
+ * The sun and the moon are never hidden behind the HUD (profile box and status chips): when the
+ * low morning sun or the moon would pass behind them, it dips just below them for that while
+ * (smoothly, CSS `translate`), then follows its own path again.
+ */
+function useSkyClearOfHud() {
+  useEffect(() => {
+    const check = () => {
+      const hud = [...document.querySelectorAll('.hud-left, .phone-hud > .hud-capsule-left, .phone-hud > .hud-chips, .phone-hud .hud-capsule-left')]
+        .map((e) => e.getBoundingClientRect())
+        .filter((r) => r.width > 0);
+      for (const el of document.querySelectorAll<HTMLElement>('.scene .sky-sun, .scene .sky-moon')) {
+        const shift = Number(el.dataset.hudShift ?? 0);
+        const r = el.getBoundingClientRect();
+        const top = r.top - shift; // where it would be without the dip
+        const bottom = r.bottom - shift;
+        let need = 0;
+        for (const h of hud) {
+          if (r.left < h.right && h.left < r.right && top < h.bottom + 4 && h.top < bottom) need = Math.max(need, h.bottom + 6 - top);
+        }
+        if (need !== shift) {
+          el.dataset.hudShift = String(need);
+          el.style.translate = need ? `0 ${Math.round(need)}px` : '';
+        }
+      }
+    };
+    check();
+    const id = setInterval(check, 1000);
+    window.addEventListener('resize', check);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener('resize', check);
+    };
+  }, []);
 }
 
 type IdleAct = 'glance' | 'blink' | 'leds' | 'wave' | 'look';

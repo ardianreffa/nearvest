@@ -306,6 +306,29 @@ function drawHalo(ctx: CanvasRenderingContext2D, x: number, y: number, rx: numbe
   ctx.restore();
 }
 
+/** `#rrggbb` token colour with transparency (canvas only). */
+function alpha(hex: string, a: number): string {
+  const h = hex.replace('#', '');
+  return `rgba(${parseInt(h.slice(0, 2), 16)}, ${parseInt(h.slice(2, 4), 16)}, ${parseInt(h.slice(4, 6), 16)}, ${a})`;
+}
+
+/** Dark see-through panel behind the card's text: stepped pixel corners, a soft 3-step left edge. */
+function drawTextPanel(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number) {
+  const ink = token('--ink');
+  const S = 8; // one corner step
+  const panel = (x: number, a: number) => {
+    ctx.fillStyle = alpha(ink, a);
+    ctx.fillRect(x + 2 * S, y0, x1 - x - 4 * S, y1 - y0);
+    ctx.fillRect(x + S, y0 + S, x1 - x - 2 * S, y1 - y0 - 2 * S);
+    ctx.fillRect(x, y0 + 2 * S, x1 - x, y1 - y0 - 4 * S);
+  };
+  // Three thin steps on the left, then the panel itself (each layer adds to the last).
+  panel(x0 - 3 * S, 0.12);
+  panel(x0 - 2 * S, 0.12);
+  panel(x0 - S, 0.12);
+  panel(x0, 0.3);
+}
+
 /** A 7-day calendar with every day ticked and day 7 in gold (streak card). */
 function drawCalendar(ctx: CanvasRenderingContext2D, x: number, y: number) {
   const cell = 46;
@@ -409,13 +432,9 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   } catch {
     // Image blocked: the sky alone.
   }
-  const shade = ctx.createLinearGradient(0, 0, CARD_W, 0);
-  shade.addColorStop(0, 'rgba(6, 20, 14, 0.2)');
-  shade.addColorStop(0.42, 'rgba(6, 20, 14, 0.45)');
-  shade.addColorStop(0.55, 'rgba(6, 20, 14, 0.82)');
-  shade.addColorStop(1, 'rgba(6, 20, 14, 0.9)');
-  ctx.fillStyle = shade;
-  ctx.fillRect(0, 0, CARD_W, CARD_H);
+  // The text column sits on a dark, see-through pixel panel (stepped corners, its left edge fading
+  // in three 8 px steps) instead of a heavy black gradient over the whole right side.
+  drawTextPanel(ctx, Math.round(CARD_W * 0.56) - 32, 28, CARD_W - 28, CARD_H - 28);
 
   // Frame in NEAR mint.
   ctx.fillStyle = token('--mint-500');

@@ -160,6 +160,53 @@ function place(el: HTMLElement, host: HTMLElement, v: Village, x: number, y: num
   el.style.top = `${best!.t - hr.top}px`;
 }
 
+/**
+ * What a pin may never cover: the player's trees and their labels (the only reason a pin moves),
+ * Mr. Darto (weighted a lot) and the HUD panels. Other pins are added by the caller.
+ */
+const PIN_OBSTACLES = '.plot-art, .badge, .village-darto, .hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .coach-float, .topbar, .toasts, .garden-sheet';
+function pinObstacleRects(): Rect[] {
+  return [...document.querySelectorAll(PIN_OBSTACLES)]
+    .map((e) => {
+      const r = e.getBoundingClientRect();
+      const darto = e.classList.contains('village-darto');
+      const pad = darto ? Math.max(3, r.width * 0.4) : 0;
+      return { left: r.left - pad, top: r.top - (darto ? 6 : 0), right: r.right + pad, bottom: r.bottom, weight: darto ? 20 : 1, w: r.width };
+    })
+    .filter((r) => r.w > 0 && r.bottom > r.top);
+}
+
+/**
+ * A place pin sits at a FIXED point just above its own building's roof (village.ts `pin`): its
+ * bottom middle on that point. It only moves a little (at most 24 px sideways or 16 px up) when it
+ * would cover a tree, a label, Mr. Darto, another pin or the HUD; never to a far-away free spot.
+ */
+function placePin(el: HTMLElement, host: HTMLElement, v: Village, x: number, y: number, area: Rect, obstacles: Rect[]) {
+  const hr = host.getBoundingClientRect();
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  const ax = hr.left + (x / v.w) * hr.width;
+  const ay = hr.top + (y / v.h) * hr.height;
+  const cost = (r: Rect) =>
+    obstacles.reduce((sum, o) => {
+      if (!overlaps(r, o)) return sum;
+      const a = (Math.min(r.right, o.right) - Math.max(r.left, o.left)) * (Math.min(r.bottom, o.bottom) - Math.max(r.top, o.top));
+      return sum + a * (o.weight ?? 1);
+    }, 0);
+  let best: { l: number; t: number; c: number } | null = null;
+  search: for (const dy of [0, -8, -16]) {
+    for (const dx of [0, -8, 8, -16, 16, -24, 24]) {
+      const l = Math.min(Math.max(ax - w / 2 + dx, area.left), area.right - w);
+      const t = Math.min(Math.max(ay - h - 2 + dy, area.top), area.bottom - h);
+      const c = cost({ left: l, top: t, right: l + w, bottom: t + h });
+      if (!best || c < best.c) best = { l, t, c };
+      if (c === 0) break search;
+    }
+  }
+  el.style.left = `${best!.l - hr.left}px`;
+  el.style.top = `${best!.t - hr.top}px`;
+}
+
 export function Hotspots({ onPlace, account, village = V1 }: { onPlace: (p: Place) => void; account?: string; village?: Village }) {
   const v = village;
   const [bubble, setBubble] = useState<Spot | null>(null);
@@ -198,11 +245,12 @@ export function Hotspots({ onPlace, account, village = V1 }: { onPlace: (p: Plac
       const area = visibleArea(h);
       const obstacles = obstacleRects(h, v);
       const placed: Rect[] = [];
+      const pinObstacles = pinObstacleRects();
       for (const id of IDS) {
         const el = pins.current[id];
         if (!el) continue;
-        const { pin: [x, y], onBody } = v.spots[id];
-        place(el, h, v, x, y, area, [...obstacles, ...placed], false, !!onBody);
+        const { pin: [x, y] } = v.spots[id];
+        placePin(el, h, v, x, y, area, [...pinObstacles, ...placed.map((r) => ({ ...r, weight: 10 }))]);
         placed.push(el.getBoundingClientRect());
       }
       if (bubble && bubbleEl.current) {

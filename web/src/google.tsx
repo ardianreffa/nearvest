@@ -38,12 +38,15 @@ export function GoogleButton({
   onCredential,
   onError,
   text = 'signin_with',
+  width,
 }: {
   clientId: string | null;
   onCredential: (credential: string) => Promise<void>;
   onError: (message: string) => void;
   /** Google's button wording: 'signin_with' ("Sign in with Google") or 'continue_with' ("Continue with Google"). */
   text?: 'signin_with' | 'continue_with';
+  /** Button width in px (Google allows 200-400), so it lines up with the game's buttons. */
+  width?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   // The latest handlers: Google keeps the callback given at initialize time.
@@ -62,13 +65,20 @@ export function GoogleButton({
             handlers.current.onCredential(credential).catch((e) => handlers.current.onError(e instanceof Error ? e.message : String(e)));
           },
         });
-        window.google!.accounts.id.renderButton(ref.current, { theme: 'filled_black', size: 'large', shape: 'pill', text, locale: 'en' });
+        window.google!.accounts.id.renderButton(ref.current, {
+          theme: 'filled_black',
+          size: 'large',
+          shape: width ? 'rectangular' : 'pill',
+          text,
+          locale: 'en',
+          ...(width ? { width, logo_alignment: 'center' } : {}),
+        });
       })
       .catch((e: Error) => handlers.current.onError(e.message));
     return () => {
       alive = false;
     };
-  }, [clientId, text]);
+  }, [clientId, text, width]);
 
   if (!clientId) {
     return (

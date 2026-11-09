@@ -1257,13 +1257,18 @@ button {
   color: var(--soil-500);
 }
 
+/* "Every PANEN you spend here is burned": a warm fire tint from the palette (red + gold), a red
+   edge and a gold flame stripe on the left. */
 .burn-note {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--paper);
-  border: 2px solid var(--gold-500);
-  padding: 6px 8px;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--red-500) 22%, transparent), color-mix(in srgb, var(--gold-500) 28%, transparent)),
+    var(--paper-light);
+  border: 2px solid var(--red-500);
+  box-shadow: inset 6px 0 0 var(--gold-500);
+  padding: 6px 8px 6px 14px;
   margin: 0 0 8px;
   font-size: var(--fs-sm);
   font-weight: 600;
@@ -3203,11 +3208,22 @@ input:focus-visible {
   position: fixed;
   inset: 0;
   z-index: -1;
+  /* The v3 village at midday (its bottom rows are grass and bushes), under a dark veil that is
+     lighter at the bottom so the grass shows; the art's see-through sky shows the cyan behind. */
   background:
-    linear-gradient(color-mix(in srgb, var(--ink) 72%, transparent), color-mix(in srgb, var(--ink) 62%, transparent) 45%, color-mix(in srgb, var(--ink) 85%, transparent)),
-    url('/assets/bg/bg-day-hd.png') center bottom / cover no-repeat,
-    var(--leaf-700);
+    linear-gradient(color-mix(in srgb, var(--ink) 74%, transparent), color-mix(in srgb, var(--ink) 62%, transparent) 55%, color-mix(in srgb, var(--ink) 40%, transparent)),
+    url('/assets/bg/village3-web-day.png') center bottom / cover no-repeat,
+    linear-gradient(var(--cyan-700), var(--cyan-500));
   image-rendering: pixelated;
+}
+
+@media (max-width: 1023px) {
+  .login-bg {
+    background:
+      linear-gradient(color-mix(in srgb, var(--ink) 74%, transparent), color-mix(in srgb, var(--ink) 62%, transparent) 55%, color-mix(in srgb, var(--ink) 40%, transparent)),
+      url('/assets/bg/village3-phone-day.png') center bottom / cover no-repeat,
+      linear-gradient(var(--cyan-700), var(--cyan-500));
+  }
 }
 
 .login-page .login {
@@ -3216,28 +3232,54 @@ input:focus-visible {
   text-shadow: 0 2px 0 color-mix(in srgb, var(--ink) 55%, transparent);
 }
 
-.login-lead {
-  margin: 0 0 8px;
+/* Sign-in buttons: one centred column, every button the same width (the Google button is drawn
+   at LOGIN_BUTTON_W in app.tsx); Try as Judge is the smaller, secondary one; How to play a link. */
+.login-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  width: 300px;
+  max-width: 100%;
+  margin: 28px auto 12px;
+}
+
+.login-actions > .btn,
+.login-actions > .google-slot {
+  width: 100%;
+  margin: 0;
+}
+
+.login-actions > .google-slot {
+  display: flex;
+  justify-content: center;
+}
+
+.login-actions > .btn-wallet {
+  min-height: 44px;
   font-size: var(--fs-body);
-  color: var(--paper-light);
 }
 
-.login-points {
-  margin: 0 0 14px;
-  padding: 10px 14px 10px 30px;
-  text-align: left;
+.login-actions > .btn-judge {
+  min-height: 36px;
   font-size: var(--fs-sm);
-  line-height: 1.5;
-  background: color-mix(in srgb, var(--ink) 72%, transparent);
-  border: 2px solid color-mix(in srgb, var(--mint-500) 45%, transparent);
+  color: var(--gold-500);
+  background: color-mix(in srgb, var(--ink) 60%, transparent);
+  border-color: var(--gold-500) !important;
 }
 
-.login-points li + li {
-  margin-top: 4px;
+.login-actions > .how-link {
+  align-self: center;
+  height: auto;
+  padding: 2px 6px;
+  font-size: var(--fs-sm);
+  color: var(--mint-300);
+  text-decoration: underline;
+  cursor: pointer;
 }
 
-.how-btn {
-  margin-bottom: 14px;
+.login-page .login-foot b {
+  color: var(--mint-300);
 }
 
 .login-foot {
@@ -6269,25 +6311,10 @@ button.chip:focus-visible {
    Try as Judge (judge.tsx): login button, status chip, tour window
    ===================================================================== */
 
-.judge-entry {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  width: 100%;
-  max-width: 320px;
-  margin: 8px 0 12px;
-}
-
 .btn-judge {
   width: 100%;
   min-height: 48px;
   font-size: var(--fs-body);
-}
-
-.judge-entry p {
-  margin: 0;
-  text-align: center;
 }
 
 .chip-judge {
@@ -8406,7 +8433,6 @@ button.chip:focus-visible {
    ===================================================================== */
 
 p:not(.tagline):not(.speech):not(.odds-line):not(.account-preview),
-.login-points li,
 .howto-points li,
 .info-body li,
 .bot-log .grow,
@@ -8426,8 +8452,7 @@ p:not(.tagline):not(.speech):not(.odds-line):not(.account-preview) {
 
 /* Words in bold inside a sentence stay in the same font (bold Inter). */
 p b,
-.howto-points li b,
-.login-points li b {
+.howto-points li b {
   font-weight: 700;
 }
 
@@ -8539,7 +8564,6 @@ h3,
 
 /* Reading text: one size, one line height. */
 p:where(:not(.tagline, .speech, .odds-line, .account-preview)),
-.login-points li,
 .howto-points li,
 .info-body li,
 .lp-list li,
@@ -8591,7 +8615,6 @@ li b,
   color: var(--leaf-700);
 }
 
-.login-points li b,
 .lp-list li b {
   color: inherit;
   text-decoration: underline;
@@ -8638,7 +8661,6 @@ li b,
 .coach,
 .seed-card,
 .stat,
-.login-points,
 .info-bubble,
 .market-row,
 .bot-style,
@@ -8651,7 +8673,6 @@ li b,
 .share-card,
 .checkin,
 .calendar .cal-day,
-.judge-entry,
 .sheet-help {
   --n: 2px;
   border-radius: 0 !important;
@@ -8725,9 +8746,7 @@ li b,
 .lp-steps li,
 .lp-tech li,
 .lp-art-box,
-.login-points,
 .checkin,
-.judge-entry,
 .sheet-help {
   border-width: 4px !important;
   border-style: solid !important;
@@ -8783,7 +8802,6 @@ li b,
 }
 
 /* Bullets: small pixel squares instead of dots. */
-.login-points,
 .info-body ul,
 .lp-list,
 .howto-points {
@@ -8791,14 +8809,12 @@ li b,
   padding-left: 0;
 }
 
-.login-points li,
 .info-body ul li,
 .lp-list li {
   position: relative;
   padding-left: 20px;
 }
 
-.login-points li::before,
 .info-body ul li::before,
 .lp-list li::before {
   content: '';
@@ -9156,6 +9172,25 @@ html.page-locked body {
   width: calc(var(--art-w) * var(--k) * 1px);
 }
 
+/* Laptops: mirrored copies of the art (and of its ground strip) left and right of it: the edge
+   pixels meet their own mirror image, so there is no seam beside or under the menu. */
+.immersive-scene .bg-art.bg-art-mirror,
+.bg-ground-below.wide.mirror-left,
+.bg-ground-below.wide.mirror-right {
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+.immersive-scene .bg-art.bg-art-mirror.right,
+.bg-ground-below.wide.mirror-right {
+  left: calc(var(--art-left) + var(--art-w) * var(--k) * 1px);
+}
+
+.immersive-scene .bg-art.bg-art-mirror.left,
+.bg-ground-below.wide.mirror-left {
+  left: calc(var(--art-left) - var(--art-w) * var(--k) * 1px);
+}
+
 .bg-ground-below .ground-layer {
   position: absolute;
   inset: 0;
@@ -9474,4 +9509,83 @@ html.page-locked body {
    ("Mango seed x5") stay on one line in the narrow drawer. */
 .hud-drawer .list li {
   font-size: var(--fs-sm);
+}
+
+/* =====================================================================
+   HUD status chips (Ardian 2026-11-09): a tidy 2-column grid right under the player's profile
+   box and exactly as wide as it (PANEN | Check in, Day + Demo + (i) | Judge tour), so they never
+   cross the sky's sun or moon. Laptops: the left HUD column is as wide as the wider of the two
+   and both stretch to it. Phones: the phone HUD is a grid (profile | system buttons) and the
+   chips sit in the profile's column.
+   ===================================================================== */
+.hud-chips {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  justify-items: stretch;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-chips > .chip,
+.hud-chips > .chip-day-group {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+.hud-chips > .chip-day-group > .chip-day {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.hud-left {
+  display: grid;
+  width: max-content;
+  max-width: 100%;
+  justify-items: stretch;
+  align-items: start;
+}
+
+.hud-left > .hud-capsule-left {
+  width: auto;
+}
+
+/* Notices follow the column's width instead of widening it. */
+.hud-left .notice {
+  width: 0;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+
+.phone-hud {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space);
+  align-items: start;
+}
+
+.phone-hud > .topbar {
+  display: contents;
+}
+
+.phone-hud > .topbar > .hud-sys {
+  grid-column: 2;
+  align-self: center;
+}
+
+.phone-hud > .hud-chips {
+  grid-column: 1;
+  margin: var(--space) 0;
+}
+
+.phone-hud > .notice,
+.phone-hud > p {
+  grid-column: 1 / -1;
+}
+
+/* The sun and moon dip below the HUD smoothly when their path would pass behind it (scene.tsx). */
+.scene .sky-sun,
+.scene .sky-moon {
+  transition: translate 1.2s ease-in-out;
 }

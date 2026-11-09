@@ -215,18 +215,30 @@ export function Backdrop({
         {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} />}
       </div>
       {blurFill && <div class="bg-soil-ext" style={{ background: v.groundExt }} />}
-      {groundBelow && (
-        <div class={`bg-ground-below${groundWide ? ' wide' : ''}`} style={{ '--art-w': String(v.w), '--art-h': String(v.h) }}>
-          {(['day', 'dusk', 'night'] as const).map((light) => (
-            <div key={light} class={`ground-layer ground-${light}`}>
-              {Array.from({ length: 8 }, (_, i) => (
-                <i key={i} class={i % 2 === 0 ? 'flip' : undefined} style={{ backgroundImage: `url(${src(light)})` }} />
-              ))}
-            </div>
-          ))}
-          <div class="ground-shade" />
-        </div>
-      )}
+      {/* Laptops: a mirrored copy of the village on each side of the art, so whatever the art does
+          not cover (under and beside the menu) continues the village sharply, with no seam. */}
+      {groundWide &&
+        (['left', 'right'] as const).map((side) => (
+          <div key={side} class={`bg-art bg-art-mirror ${side}`} style={{ aspectRatio: `${v.w} / ${v.h}`, '--art-w': String(v.w) }}>
+            <img class="bg-img" src={src('day')} alt="" />
+            <img class="bg-img bg-img-dusk" src={src('dusk')} alt="" />
+            <img class="bg-img bg-img-night" src={src('night')} alt="" />
+            <div class="bg-night-shade" />
+          </div>
+        ))}
+      {groundBelow &&
+        (groundWide ? (['', ' mirror-left', ' mirror-right'] as const) : ([''] as const)).map((extra) => (
+          <div key={extra} class={`bg-ground-below${groundWide ? ' wide' : ''}${extra}`} style={{ '--art-w': String(v.w), '--art-h': String(v.h) }}>
+            {(['day', 'dusk', 'night'] as const).map((light) => (
+              <div key={light} class={`ground-layer ground-${light}`}>
+                {Array.from({ length: 8 }, (_, i) => (
+                  <i key={i} class={i % 2 === 0 ? 'flip' : undefined} style={{ backgroundImage: `url(${src(light)})` }} />
+                ))}
+              </div>
+            ))}
+            <div class="ground-shade" />
+          </div>
+        ))}
 
       <div class="bg-tint" />
     </div>
