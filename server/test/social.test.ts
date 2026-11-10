@@ -14,7 +14,8 @@ import { DAY, makeWorld } from './helpers.ts';
 type World = ReturnType<typeof makeWorld>;
 
 /** Fields that must never be in what visitors get (balances, storage, sign-in, keys, IP...). */
-const PRIVATE_KEY = /balance|seeds|fruits|items|email|google|wallet|custody|secret|public_?key|^ip$|_ip$|created_ip|budget|signin|provider|subject|session|xp$|streak|checkin|tanibot|activity/i;
+const PRIVATE_KEY =
+  /balance|seeds|fruits|items|email|google|wallet|custody|secret|public_?key|^ip$|_ip$|created_ip|budget|signin|provider|subject|session|xp$|streak|checkin|tanibot.|bot_?account|limit|spent|style|status|log$|activity/i;
 
 /** Every key name in a JSON value (nested). */
 function keysOf(v: unknown, out: string[] = []): string[] {
@@ -27,7 +28,20 @@ function keysOf(v: unknown, out: string[] = []): string[] {
   return out;
 }
 
+/** Every value stored under the key `name` (nested). */
+function valuesOf(v: unknown, name: string, out: unknown[] = []): unknown[] {
+  if (Array.isArray(v)) v.forEach((x) => valuesOf(x, name, out));
+  else if (v && typeof v === 'object')
+    for (const [k, x] of Object.entries(v)) {
+      if (k === name) out.push(x);
+      valuesOf(x, name, out);
+    }
+  return out;
+}
+
 function assertPublic(v: unknown) {
+  // A visited garden's TaniBot is decoration: ON / OFF and nothing else.
+  for (const bot of valuesOf(v, 'tanibot')) if (bot !== null) assert.deepEqual(Object.keys(bot as object), ['on'], 'TaniBot: only on/off');
   const bad = keysOf(v).filter((k) => PRIVATE_KEY.test(k));
   assert.deepEqual(bad, [], `private fields in a public view: ${bad.join(', ')}`);
   assert.doesNotMatch(JSON.stringify(v), /@|10\.0\.0\.|ed25519:/, 'no email, IP address or key');
@@ -152,6 +166,32 @@ describe('visiting a garden (read only)', () => {
     assertPublic(v.garden);
     assert.equal(social.visit(me.id, 'sari').own, true);
     assert.throws(() => social.visit(me.id, 'nobody'), /Garden not found/);
+  });
+
+  it("shows the owner's TaniBot as ON / OFF only (no budget, limit, account, style or log)", async () => {
+    const w = makeWorld();
+    const social = new Social(w.db, w.game, w.now);
+    const me = await garden(w, 'sari');
+    const budi = await garden(w, 'budi');
+    assert.equal(social.visit(me.id, 'budi').garden.tanibot, null, 'no TaniBot yet: none shown');
+    w.tanibot.setup(budi.id, { dailyLimit: 10, budget: 20 });
+    await w.worker.drain();
+    const on = social.visit(me.id, 'budi').garden;
+    assert.deepEqual(on.tanibot, { on: true });
+    assertPublic(on);
+    const json = JSON.stringify(on);
+    assert.doesNotMatch(json, /bot\.budi|nearvest\.testnet"?[^"]*bot|"budget|"dailyLimit|"style|"log/, 'no TaniBot account or settings');
+    w.tanibot.settings(budi.id, { enabled: false });
+    assert.deepEqual(social.visit(me.id, 'budi').garden.tanibot, { on: false });
+    // Over HTTP too (the same view).
+    const login = await w.app.request('/auth/dev', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'tester' }) });
+    const { token } = (await login.json()) as { token: string };
+    const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+    await w.app.request('/api/player', { method: 'POST', headers: auth, body: JSON.stringify({ name: 'tester' }) });
+    await w.worker.drain();
+    const body = (await (await w.app.request('/api/farmers/budi', { headers: auth })).json()) as { garden: { tanibot: unknown } };
+    assert.deepEqual(body.garden.tanibot, { on: false });
+    assertPublic(body.garden);
   });
 
   it('over HTTP: the farmer list and a visit need a session and carry no private data', async () => {

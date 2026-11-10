@@ -1,9 +1,10 @@
 // Garden visits (docs/PLAN-social.md): the farmer list ("Farmers of Tandur", from the Friends pin
 // or the Village tab), visiting a friend's garden (read only, the same village scene with their
-// trees and no TaniBot) and helping water one thirsty tree per village day. The server checks
-// every rule (server/src/social.ts); visitors only get public data.
+// trees, a "<NAME>'S GARDEN" sign and their TaniBot as decoration: floating when ON, asleep when
+// OFF, a tap says hello) and helping water one thirsty tree per village day. The server checks
+// every rule (server/src/social.ts); visitors only get public data (TaniBot: ON / OFF only).
 
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { api, type FarmersResponse, type GameState, type HelpResult, type PublicGarden, type VisitResponse } from './api';
 import { Avatar } from './art/avatars';
 import { playSound } from './audio';
@@ -202,19 +203,59 @@ export function VisitGarden({
       plots: mine.plots.map((p) => ({ plot: p.plot, locked: false, tree: null, memorial: null })),
     },
   );
+  const g = visit?.garden;
+  // Their TaniBot (servers before 2026-11-10 send no `tanibot`: none is shown).
+  const visitBot = g?.tanibot ? { on: g.tanibot.on, owner: g.name } : null;
+  const sign = <VisitSign name={g?.name ?? name} title={g?.title ?? ''} />;
   const panel = <VisitPanel name={name} visit={visit} error={error} selected={selected} busy={busy} onHelp={help} onBack={back} bar={!!immersive} />;
 
   if (immersive) {
     return (
       <>
-        <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} immersive={immersive} visit />
+        <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} immersive={immersive} visit visitBot={visitBot} />
+        {sign}
         <div class="hud-bar visit-bar" role="region" aria-label={`Visiting ${name}'s garden`}>
           {panel}
         </div>
       </>
     );
   }
-  return <PhoneGarden state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} sheet={panel} hint={false} visit />;
+  return (
+    <>
+      <PhoneGarden state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} sheet={panel} hint={false} visit visitBot={visitBot} />
+      {sign}
+    </>
+  );
+}
+
+/** Selectors of the top HUD (the sign hangs just below its lowest part). */
+const HUD_TOP = '.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys, .phone-hud > *';
+
+/**
+ * The wooden sign over a visited garden: "<NAME>'S GARDEN" and the owner's title. It hangs in the
+ * sky just below the HUD, centred over the garden; place pins treat it as an obstacle (hotspots.tsx), so they
+ * never sit under it.
+ */
+function VisitSign({ name, title }: { name: string; title: string }) {
+  const [at, setAt] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    const place = () => {
+      const bottoms = [...document.querySelectorAll(HUD_TOP)].map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.top < innerHeight / 3);
+      // Laptops: centred over the garden (the visit bar), not over the menu drawer.
+      const bar = document.querySelector('.visit-bar')?.getBoundingClientRect();
+      setAt({ top: Math.round(Math.max(8, ...bottoms.map((r) => r.bottom)) + 8), left: Math.round(bar?.width ? bar.left + bar.width / 2 : innerWidth / 2) });
+    };
+    place();
+    const t = window.setTimeout(place, 400);
+    addEventListener('resize', place);
+    return () => (clearTimeout(t), removeEventListener('resize', place));
+  }, []);
+  return (
+    <div class="visit-sign" style={at ? { top: `${at.top}px`, left: `${at.left}px` } : { visibility: 'hidden' }} role="heading" aria-level={1}>
+      <b class="visit-sign-name">{name}'s garden</b>
+      {title && <span class="visit-sign-title">{title}</span>}
+    </div>
+  );
 }
 
 /** The visit panel: whose garden, Back to my garden, the selected tree and Help water. */

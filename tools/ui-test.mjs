@@ -17,6 +17,9 @@
 //   Add &bg=v1 to UI_URL for the first village. REDUCED_MOTION=1 emulates prefers-reduced-motion.
 // Tutorial on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tutorial=<newDevUser> [w] [h]
 // Phone garden fit on a NEW dev garden (fake-chain server; FAKE_DB=<its sqlite> adds seeds, fruit, items): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --phonefit=<newDevUser> [w] [h]
+// Garden visit of an EXISTING dev garden (fake-chain server): opens <friend>'s garden from the farmer list, checks the
+//   "<NAME>'S GARDEN" sign (not over pins, Mr. Darto, HUD or Back button), their TaniBot (tier, ON / asleep, no menu) and its hello bubble:
+//   UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --visit=<devUser>:<friend> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
@@ -512,6 +515,57 @@ try {
       console.log('Esc closes the bubble:', await evaluate(`!document.querySelector('.info-bubble')`));
     });
     throw Object.assign(new Error('info done'), { done: true });
+  }
+  if (name.startsWith('--visit=')) {
+    await step('visit a friend garden (EXISTING dev garden; fake-chain server)', async () => {
+      const [user, friend] = name.slice('--visit='.length).split(':');
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      await sleep(1500);
+      // Open the farmer list from the Friends pin, then Visit <friend>.
+      await waitFor(`!!document.querySelector('.place-pin[aria-label*="Friends" i], .place-pin')`, 'pins');
+      const opened = await evaluate(`(() => { const p = [...document.querySelectorAll('.place-pin')].find(e => /friends/i.test(e.innerText + (e.getAttribute('aria-label') || ''))); if (!p) return false; p.click(); return true; })()`);
+      if (!opened) throw new Error('no Friends pin');
+      await sleep(400);
+      // Touch screens: the pin opens a small bubble first; its button opens the place.
+      await evaluate(`document.querySelector('.hotspots .btn-mint')?.click()`);
+      await waitFor(bodyHas('Farmers of Tandur'), 'farmer list');
+      await waitFor(`!!document.querySelector('.farmer-row')`, 'farmer rows');
+      const ok = await evaluate(`(() => { const row = [...document.querySelectorAll('.farmer-row')].find(r => r.querySelector('.farmer-name')?.innerText.trim().toLowerCase() === ${JSON.stringify(friend.toLowerCase())}); if (!row) return false; row.querySelector('button').click(); return true; })()`);
+      if (!ok) throw new Error('friend not in the list: ' + friend);
+      await waitFor(`!!document.querySelector('.visit-panel .visit-sub')`, 'visit loaded');
+      await sleep(2500);
+      await screenshot('visit-' + friend);
+      const report = await evaluate(`(() => {
+        const r = (e) => e && e.getBoundingClientRect();
+        const hit = (a, b) => a && b && b.width && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        const sign = document.querySelector('.visit-sign');
+        const sr = r(sign);
+        const covers = [['pin', '.place-pin'], ['Darto', '.village-darto'], ['Back button', '.visit-back'], ['HUD', '.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys, .phone-hud > *'], ['TaniBot', '.bot-spot .tanibot'], ['tree label', '.badge'], ['toast', '.toasts > .toast']]
+          .filter(([, q]) => [...document.querySelectorAll(q)].some(e => hit(sr, r(e)))).map(([n]) => n);
+        const bot = document.querySelector('.bot-spot');
+        return 'sign "' + (sign ? sign.innerText.replace(/\\n/g, ' / ') : 'MISSING') + '" ' + (sr ? Math.round(sr.left) + ',' + Math.round(sr.top) + ' ' + Math.round(sr.width) + 'x' + Math.round(sr.height) : '')
+          + ' | covers: ' + (covers.join(', ') || 'nothing')
+          + ' | inside screen: ' + (sr ? sr.left >= 0 && sr.right <= innerWidth : '-')
+          + ' | TaniBot: ' + (bot ? bot.className.match(/tier-\\S+/)[0] + (bot.querySelector('.bot-click.asleep') ? ' asleep' : ' awake') + ' | ON/OFF chip: ' + !!bot.querySelector('.bot-status') + ' | other bubbles: ' + !!bot.querySelector('.bot-nudge, .bot-bye') : 'none')
+          + ' | pins visible: ' + [...document.querySelectorAll('.place-pin')].filter(p => getComputedStyle(p).visibility !== 'hidden').length;
+      })()`);
+      console.log('visit:', report);
+      if (await evaluate(`!!document.querySelector('.bot-spot .bot-click')`)) {
+        await evaluate(`document.querySelector('.bot-spot .bot-click').click()`);
+        await sleep(600);
+        console.log('hello:', await evaluate(`(() => { const b = document.querySelector('.bot-hello'); if (!b) return 'NO BUBBLE'; const br = b.getBoundingClientRect(); const hit = (q) => [...document.querySelectorAll(q)].some(e => { const o = e.getBoundingClientRect(); return o.width && br.left < o.right && o.left < br.right && br.top < o.bottom && o.top < br.bottom; }); return '"' + b.innerText + '" | inside screen: ' + (br.left >= 0 && br.right <= innerWidth && br.top >= 0) + ' | covers pin: ' + hit('.place-pin') + ' | covers sign: ' + hit('.visit-sign') + ' | covers Darto: ' + hit('.village-darto') + ' | a window opened: ' + !!document.querySelector('.dialog-backdrop'); })()`));
+        await screenshot('visit-' + friend + '-hello');
+        await sleep(4200);
+        console.log('hello gone after ~4 s:', await evaluate(`!document.querySelector('.bot-hello')`));
+      }
+      await clickText('Back to my garden');
+      await sleep(800);
+      console.log('back home: sign gone', await evaluate(`!document.querySelector('.visit-sign')`), '| my TaniBot chip:', await evaluate(`!!document.querySelector('.bot-status')`));
+    });
+    throw { done: true };
   }
   if (name.startsWith('--scene=')) {
     await step('garden scene (EXISTING dev garden; add ?time=day|dusk|night to UI_URL)', async () => {

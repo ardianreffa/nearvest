@@ -4,6 +4,7 @@
 import { loadToken, type GameState, type TreeView } from './api';
 import { Backdrop, lockedFraction, phaseOf } from './art/backdrop';
 import type { Place } from './art/hotspots';
+import { playSound } from './audio';
 import { BASKET, Drone, droneCount, HOE, TaniBot, TANIBOT_H, TANIBOT_W, tierOf, tierRank, type Tier } from './art/tanibot';
 import { TreePixels, treeTopRow } from './art/trees';
 import { leafBurst } from './fx';
@@ -96,11 +97,17 @@ interface Props {
   onPlace?: (p: Place) => void;
   /** Phones: the zoomed garden (the scene box is wider than the screen and pans sideways). */
   phone?: PhoneZoom;
-  /** Visiting a friend's garden (friends.tsx): their trees, no TaniBot. */
+  /** Visiting a friend's garden (friends.tsx): their trees; their TaniBot only as decoration. */
   visit?: boolean;
+  /**
+   * Visits: the owner's TaniBot (public ON / OFF only; its look follows the owner's title). It
+   * floats or sleeps, never acts, and has no menu: a tap only says hello. Missing (older servers or
+   * no TaniBot): none is shown.
+   */
+  visitBot?: { on: boolean; owner: string } | null;
 }
 
-export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive: wideLayout, onBot, onPlace, phone, visit = false }: Props) {
+export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immersive: wideLayout, onBot, onPlace, phone, visit = false, visitBot = null }: Props) {
   const immersive = wideLayout ?? phone;
   const village = immersive?.village;
   const v2 = !!village && village.key !== 'v1';
@@ -120,20 +127,23 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   /** Drone size: about a third of TaniBot's width at every scale. */
   const droneScale = Math.max(1, botScale);
   const bx = botX(selected, lane);
-  const working = fx !== null;
-  const tb = state.player.tanibot;
-  const on = !!tb && tb.enabled && tb.status === 'ready';
+  // A visited garden's TaniBot never works (the visitor's watering drone flies on its own).
+  const working = fx !== null && !visit;
+  const tb = visit ? null : state.player.tanibot;
+  const on = visit ? !!visitBot?.on : !!tb && tb.enabled && tb.status === 'ready';
   /** Not active, switched off or failed: TaniBot sleeps and asks to be switched on. */
   const asleep = !on;
   // During the tutorial TaniBot's coach bubble does the talking (no "Turn me on" nudge).
-  const askOn = !state.tutorial && (!tb || tb.status === 'failed' || (tb.status === 'ready' && !tb.enabled));
+  const askOn = !visit && !state.tutorial && (!tb || tb.status === 'failed' || (tb.status === 'ready' && !tb.enabled));
   const flash = useActionBubble(on, tb?.last ?? null);
   const nudge = useTurnOnNudge(askOn, state);
   const motion = useBotMotion(bx, on, working, selected);
   const bye = useGoodbye(on, tb?.status === 'ready');
-  const evolving = useEvolution(tier);
+  // Visits: the owner's look appears when their garden loads (that is not an evolution).
+  const evolving = useEvolution(tier, !visit);
+  const hello = useHello();
   const botSpot = useRef<HTMLDivElement>(null);
-  useHintPlacement(botSpot, `${bye}|${nudge.key}|${flash?.id ?? ''}|${bx}`);
+  useHintPlacement(botSpot, `${bye}|${nudge.key}|${flash?.id ?? ''}|${hello.id}|${bx}`);
   useSkyClearOfHud();
 
   return (
@@ -248,10 +258,10 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           <i />
         </span>
       )}
-      {!visit && (
+      {(!visit || visitBot) && (
       <div
         ref={botSpot}
-        class={`bot-spot tier-${tier} ${motion.cls}${evolving ? ' evolving' : ''}${phone && v2 && !village?.moundArt ? ' bot-front' : ''}${phone && village?.moundArt ? ' bot-beside' : ''}`}
+        class={`bot-spot tier-${tier} ${motion.cls}${visit ? ' visit-bot' : ''}${evolving ? ' evolving' : ''}${phone && v2 && !village?.moundArt ? ' bot-front' : ''}${phone && village?.moundArt ? ' bot-beside' : ''}`}
         style={{
           left: `${bx}%`,
           '--bot-w': `${TANIBOT_W * botScale}px`,
@@ -280,7 +290,13 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
             ))}
           </div>
         )}
-        {bye ? (
+        {visit ? (
+          hello.id > 0 && (
+            <p class="bot-hint bot-hint-flash bot-hello" role="status" key={hello.id}>
+              Hi! I'm {visitBot!.owner}'s TaniBot. Thanks for visiting!
+            </p>
+          )
+        ) : bye ? (
           <button class="bot-hint bot-bye" onClick={onBot} key={bye}>
             Okay, going to sleep. Tap me when you need me!
           </button>
@@ -304,9 +320,9 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         )}
         <button
           class={`bot-click${asleep ? ' asleep' : ''}`}
-          onClick={onBot}
-          aria-label={`TaniBot is ${on ? 'on' : 'off'}: open its log and settings`}
-          title="TaniBot: log and settings"
+          onClick={visit ? hello.show : onBot}
+          aria-label={visit ? `${visitBot!.owner}'s TaniBot (${on ? 'on' : 'asleep'}): say hello` : `TaniBot is ${on ? 'on' : 'off'}: open its log and settings`}
+          title={visit ? `${visitBot!.owner}'s TaniBot` : 'TaniBot: log and settings'}
         >
           <TaniBot tier={tier} scale={botScale} working={working && on} effects={on} />
           {evolving > 0 && <span class="bot-evolve-scan" key={evolving} aria-hidden="true" />}
@@ -319,11 +335,13 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
             </span>
           )}
         </button>
-        <span class={`bot-status ${on ? 'on' : 'off'}`} aria-hidden="true">
-          <i />
-          {on ? 'ON' : 'OFF'}
-        </span>
-        {fx?.kind === 'harvest' && (
+        {!visit && (
+          <span class={`bot-status ${on ? 'on' : 'off'}`} aria-hidden="true">
+            <i />
+            {on ? 'ON' : 'OFF'}
+          </span>
+        )}
+        {fx?.kind === 'harvest' && !visit && (
           <div class="basket" key={fx.id}>
             <Pixels rows={BASKET} palette={{ H: '#9A7438', h: '#C9A35A' }} scale={px} />
           </div>
@@ -589,7 +607,7 @@ function useTurnOnNudge(askOn: boolean, state: GameState): { text: string | null
 }
 
 /** Places that TaniBot's speech bubble must never cover: place pins, Mr. Darto, the HUD, plot labels. */
-const HINT_AVOID = '.place-pin, .village-darto, .hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .topbar, .badge, .coach-hud, .coach-float';
+const HINT_AVOID = '.place-pin, .village-darto, .visit-sign, .hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .topbar, .badge, .coach-hud, .coach-float';
 
 /**
  * Keeps TaniBot's speech bubble next to its head without covering a place pin or Mr. Darto:
@@ -755,6 +773,17 @@ function useBotMotion(x: number, on: boolean, working: boolean, plot: number) {
   return { cls, dust };
 }
 
+/** Visits: a tap on the friend's TaniBot shows a short hello bubble (~4 s; a new tap restarts it). */
+function useHello(): { id: number; show: () => void } {
+  const [id, setId] = useState(0);
+  useEffect(() => {
+    if (!id) return;
+    const t = setTimeout(() => setId(0), 4000);
+    return () => clearTimeout(t);
+  }, [id]);
+  return { id, show: () => (playSound('click'), setId(Date.now())) };
+}
+
 /** One goodbye bubble (~5 s) when the player switches TaniBot from ON to OFF. */
 function useGoodbye(on: boolean, ready: boolean): number {
   const [bye, setBye] = useState(0);
@@ -776,13 +805,13 @@ function useGoodbye(on: boolean, ready: boolean): number {
  * silhouette, a scan line from the feet up, then the new look (the app plays
  * the fanfare and offers the "TaniBot evolved" card).
  */
-function useEvolution(tier: Tier): number {
+function useEvolution(tier: Tier, enabled = true): number {
   const [at, setAt] = useState(0);
   const prev = useRef(tier);
   useEffect(() => {
     const up = tierRank(tier) > tierRank(prev.current);
     prev.current = tier;
-    if (!up) return;
+    if (!up || !enabled) return;
     const id = Date.now();
     setAt(id);
     const t = setTimeout(() => setAt(0), 2600);

@@ -197,6 +197,7 @@ export function PhoneGarden({
   sheet,
   hint,
   visit = false,
+  visitBot = null,
 }: {
   state: GameState;
   selected: number;
@@ -208,8 +209,9 @@ export function PhoneGarden({
   onPlace?: (p: Place) => void;
   sheet: preact.ComponentChildren;
   hint: boolean;
-  /** Visiting a friend's garden (friends.tsx): no TaniBot. */
+  /** Visiting a friend's garden (friends.tsx): their TaniBot only as decoration. */
   visit?: boolean;
+  visitBot?: { on: boolean; owner: string } | null;
 }) {
   const { w, h } = useWindowSize();
   const version = bgVersion();
@@ -269,7 +271,7 @@ export function PhoneGarden({
   return (
     <div class="garden-screen phone-garden">
       <div class={`phone-scene-box${v1 ? ' v1' : ''}`} ref={sceneBox} style={room || v1 ? undefined : { visibility: 'hidden' }}>
-        <GardenScene state={state} selected={selected} onSelect={onSelect} elapsed={elapsed} fx={fx} big={big} phone={v1 ? undefined : zoom} onBot={onBot} onPlace={onPlace} visit={visit} />
+        <GardenScene state={state} selected={selected} onSelect={onSelect} elapsed={elapsed} fx={fx} big={big} phone={v1 ? undefined : zoom} onBot={onBot} onPlace={onPlace} visit={visit} visitBot={visitBot} />
       </div>
       <div class="garden-sheet" ref={sheetBox}>
         {sheet}

@@ -142,6 +142,8 @@ export interface PublicGarden {
   title: string;
   demo: boolean;
   weather: { kind: string; waterNeed: number };
+  /** The owner's TaniBot: ON / OFF only (null = none; missing on servers before 2026-11-10). */
+  tanibot?: { on: boolean } | null;
   plots: {
     plot: number;
     locked: boolean;

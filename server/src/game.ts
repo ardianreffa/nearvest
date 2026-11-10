@@ -858,7 +858,16 @@ export class Game {
       demo,
       weather: { kind: weather.kind, waterNeed: weather.waterNeed },
       plots,
+      // Their TaniBot as decoration (visits): only whether it is switched on. Never its account,
+      // budget, limit, style or log. null = no working TaniBot (the visitor sees none).
+      tanibot: this.publicBot(p.id),
     };
+  }
+
+  /** A garden's TaniBot for visitors: ON / OFF only (null when it has no ready TaniBot). */
+  private publicBot(playerId: number): { on: boolean } | null {
+    const b = this.db.prepare("SELECT enabled FROM bots WHERE player_id = ? AND status = 'ready'").get(playerId) as { enabled: number } | undefined;
+    return b ? { on: b.enabled === 1 } : null;
   }
 
   /** Friends who helped water this garden in the last 3 days (newest first; the owner's notices). */
