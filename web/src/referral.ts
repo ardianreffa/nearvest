@@ -2,6 +2,9 @@
 // is kept in localStorage for 7 days (the landing page's inline script in index.html stores the
 // same JSON), then sent with the NEW garden (POST /api/player). The server checks every rule and
 // pays after the friend's first harvest. Pure helpers here (tested in web/test/referral.test.ts).
+// The invite must survive the whole way to a new garden: the landing page carries it in its links to
+// /play (withRef), /play keeps it and takes it out of the address bar, and Google (also the iPhone
+// full-page redirect) and wallet sign-in leave localStorage alone, so the create screen still reads it.
 
 export const REF_KEY = 'nearvest.ref';
 /** An invite link is remembered this long. */
@@ -53,9 +56,37 @@ export function keepRefFromUrl(search: string, store: Store, now: number): void 
   if (ref) keepRef(store, ref, now);
 }
 
+/** The public site: invite links of production builds always point here (not a Vercel preview URL). */
+export const PUBLIC_SITE = 'https://nearvest-six.vercel.app';
+
+/** Where invite links point: the public site, or this page's origin in dev builds. */
+export function inviteOrigin(dev: boolean, origin: string): string {
+  return dev ? origin : PUBLIC_SITE;
+}
+
 /** The invite link of a garden: the landing page with ?ref=<name>. */
 export function inviteLink(origin: string, name: string): string {
   return `${origin.replace(/\/+$/, '')}/?ref=${encodeURIComponent(name)}`;
+}
+
+/** A link (`/play`, `/play?judge=1`) with the invite added, so it still works where storage is blocked. */
+export function withRef(href: string, ref: string | null): string {
+  if (!ref) return href;
+  const hashAt = href.indexOf('#');
+  const base = hashAt < 0 ? href : href.slice(0, hashAt);
+  const hash = hashAt < 0 ? '' : href.slice(hashAt);
+  const [path, query = ''] = base.split('?');
+  const q = new URLSearchParams(query);
+  q.set('ref', ref);
+  return `${path}?${q}${hash}`;
+}
+
+/** A query string without `ref` ('' when nothing is left), for cleaning the address bar. */
+export function withoutRef(search: string): string {
+  const q = new URLSearchParams(search);
+  q.delete('ref');
+  const s = q.toString();
+  return s ? `?${s}` : '';
 }
 
 /** The post text for "Share on X" (the link goes in the url field). */

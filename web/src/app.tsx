@@ -28,7 +28,7 @@ import { GoogleButton, pendingGoogleRedirect, takeGoogleRedirect } from './googl
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Coach } from './tutorial';
 import { InvitePanel, VisitorsPanel } from './invite';
-import { clearRef, freshIds, keepRefFromUrl, readRef } from './referral';
+import { clearRef, freshIds, keepRefFromUrl, readRef, withoutRef } from './referral';
 import { predict } from './optimistic';
 import { Info } from './info';
 import { ToastStrip, useToasts } from './toast';
@@ -363,6 +363,9 @@ export function App() {
   useEffect(() => {
     try {
       keepRefFromUrl(location.search, localStorage, Date.now());
+      // Kept: take it out of the address bar (a reload after the new garden must not bring it back).
+      // Storage blocked: it stays in the address bar, the only place that still has it.
+      if (new URLSearchParams(location.search).has('ref') && readRef(localStorage, Date.now())) history.replaceState(null, '', location.pathname + withoutRef(location.search) + location.hash);
     } catch {
       // Storage blocked: no invite.
     }

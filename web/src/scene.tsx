@@ -613,7 +613,7 @@ function useTurnOnNudge(askOn: boolean, state: GameState): { text: string | null
 }
 
 /** Places that TaniBot's speech bubble must never cover: place pins, Mr. Darto, the HUD, plot labels. */
-const HINT_AVOID = '.place-pin, .village-darto, .visit-sign, .hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .topbar, .badge, .coach-hud, .coach-float';
+const HINT_AVOID = '.place-pin, .village-darto, .hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .topbar, .badge, .coach-hud, .coach-float';
 
 /**
  * Keeps TaniBot's speech bubble next to its head without covering a place pin or Mr. Darto:

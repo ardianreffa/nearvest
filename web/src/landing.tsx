@@ -20,6 +20,18 @@ import { Avatar } from './art/avatars';
 import { TaniBot } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import { Pixels, Sprite, type SpriteName } from './sprites';
+import { parseRef, readRef, withRef } from './referral';
+
+/** An invite (?ref=) goes with every link to /play (index.html's script also kept it in localStorage). */
+const REF: string | null = (() => {
+  try {
+    return parseRef(location.search) ?? readRef(localStorage, Date.now());
+  } catch {
+    return parseRef(location.search);
+  }
+})();
+const PLAY = withRef('/play', REF);
+const JUDGE = withRef('/play?judge=1', REF);
 
 const EXPLORER = 'https://testnet.nearblocks.io';
 const HOUR = 11; // a sunny late morning in Tandur: the landing is always day (no clock, no weather)
@@ -63,10 +75,10 @@ function Hero() {
         <div class="lp-lead">A pixel farming game on NEAR where your tree is a living NFT and an AI farmer tends it while you sleep.</div>
       </div>
       <div class="lp-cta">
-        <a class="btn btn-mint lp-play" href="/play">
+        <a class="btn btn-mint lp-play" href={PLAY}>
           Play for free
         </a>
-        <a class="btn btn-gold lp-judge" href="/play?judge=1">
+        <a class="btn btn-gold lp-judge" href={JUDGE}>
           Try as Judge
         </a>
         <span class="lp-cta-note">Sign in with Google or a NEAR wallet. No fees, testnet.</span>
@@ -201,7 +213,7 @@ function FloatingPlay() {
     return () => io.disconnect();
   }, []);
   return (
-    <a class={`btn btn-mint lp-float${show ? ' show' : ''}`} href="/play" aria-hidden={!show} tabIndex={show ? 0 : -1}>
+    <a class={`btn btn-mint lp-float${show ? ' show' : ''}`} href={PLAY} aria-hidden={!show} tabIndex={show ? 0 : -1}>
       Play for free
     </a>
   );
@@ -335,10 +347,10 @@ function Landing() {
             <h2 class="logo lp-end-logo">NEARvest</h2>
             <div class="lp-end-line">Grow. Harvest. Own.</div>
             <div class="lp-end-buttons">
-              <a class="btn btn-mint" href="/play">
+              <a class="btn btn-mint" href={PLAY}>
                 Play for free
               </a>
-              <a class="btn btn-gold" href="/play?judge=1">
+              <a class="btn btn-gold" href={JUDGE}>
                 Try as Judge
               </a>
             </div>

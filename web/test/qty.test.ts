@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { clampQty, saleTotal, seasonPayout, stepQty } from '../src/qty.ts';
+import { clampQty, saleTotal, seasonNote, seasonPayout, stepQty } from '../src/qty.ts';
 
 describe('quantity picker', () => {
   it('stays between 1 and the amount you have', () => {
@@ -37,5 +37,14 @@ describe('quantity picker', () => {
     assert.equal(seasonPayout(25, 4), 6.25);
     assert.equal(seasonPayout(30, 1), 30);
     assert.equal(seasonPayout(10, 0), 10);
+  });
+});
+
+describe('Village Stats Season note', () => {
+  it('says "lowest level" only at 12.5%', () => {
+    assert.equal(seasonNote({ rewardDivisor: 1, nextSeasonAt: null }), 'Rewards halve as more PANEN is minted (never below 12.5%)');
+    assert.equal(seasonNote({ rewardDivisor: 1, nextSeasonAt: 2000 }), 'Rewards halve when 2,000 PANEN have been minted (never below 12.5%)');
+    assert.equal(seasonNote({ rewardDivisor: 4, nextSeasonAt: 10000 }), 'Rewards halve when 10,000 PANEN have been minted (never below 12.5%)');
+    assert.equal(seasonNote({ rewardDivisor: 8, nextSeasonAt: null }), 'Lowest reward level reached (12.5%)');
   });
 });

@@ -25,3 +25,11 @@ export function seasonPayout(total: number, divisor: number): number {
   const d = divisor >= 1 ? divisor : 1;
   return Math.floor(Math.round(total * 1_000_000) / d) / 1_000_000;
 }
+
+/** Village Stats' Season note: "lowest level" only when rewards really are at 12.5% (divisor 8). */
+export function seasonNote(p: { rewardDivisor: number; nextSeasonAt: number | null }): string {
+  const n = (v: number) => v.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  if (p.rewardDivisor >= 8) return 'Lowest reward level reached (12.5%)';
+  if (p.nextSeasonAt) return `Rewards halve when ${n(p.nextSeasonAt)} PANEN have been minted (never below 12.5%)`;
+  return 'Rewards halve as more PANEN is minted (never below 12.5%)';
+}

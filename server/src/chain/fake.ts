@@ -18,6 +18,9 @@ interface FakeTree {
   memorial: boolean;
 }
 
+/** The testnet Season thresholds set on chain (2,000 / 5,000 / 10,000 PANEN ever minted). */
+const FAKE_SEASON_THRESHOLDS = [2_000n, 5_000n, 10_000n];
+
 export class FakeChain implements Chain {
   accounts = new Set<string>();
   balances = new Map<string, bigint>();
@@ -138,7 +141,8 @@ export class FakeChain implements Chain {
       circulatingSupply: this.totalMinted - this.totalBurned,
       season: Math.log2(this.rewardDivisor) + 1,
       rewardDivisor: this.rewardDivisor,
-      nextSeasonAt: null,
+      // Like the contract: the next threshold until the lowest level (divisor 8, Season 4).
+      nextSeasonAt: this.rewardDivisor >= 8 ? null : FAKE_SEASON_THRESHOLDS[Math.log2(this.rewardDivisor)] * 10n ** 18n,
     };
   }
 

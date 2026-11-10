@@ -10726,54 +10726,6 @@ html.page-locked body {
   min-height: 40px;
 }
 
-/* Garden visits: the wooden sign "<NAME>'S GARDEN" + the owner's title, hanging in the sky just
-   below the HUD (top set by VisitSign in friends.tsx). Place pins and TaniBot's bubble avoid it. */
-.visit-sign {
-  --n: 2px;
-  position: fixed;
-  left: 50%;
-  z-index: 9;
-  translate: -50% 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  max-width: calc(100vw - 32px);
-  padding: 6px 14px 5px;
-  pointer-events: none;
-  background: color-mix(in srgb, var(--soil-500) 94%, transparent);
-  border: 2px solid var(--soil-700);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--gold-500) 55%, transparent),
-    0 3px 0 color-mix(in srgb, var(--ink) 35%, transparent);
-  clip-path: polygon(
-    0 calc(var(--n) * 2), var(--n) calc(var(--n) * 2), var(--n) var(--n), calc(var(--n) * 2) var(--n), calc(var(--n) * 2) 0,
-    calc(100% - var(--n) * 2) 0, calc(100% - var(--n) * 2) var(--n), calc(100% - var(--n)) var(--n), calc(100% - var(--n)) calc(var(--n) * 2), 100% calc(var(--n) * 2),
-    100% calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n) * 2) calc(100% - var(--n)), calc(100% - var(--n) * 2) 100%,
-    calc(var(--n) * 2) 100%, calc(var(--n) * 2) calc(100% - var(--n)), var(--n) calc(100% - var(--n)), var(--n) calc(100% - var(--n) * 2), 0 calc(100% - var(--n) * 2)
-  );
-}
-
-.visit-sign-name {
-  max-width: 100%;
-  font-family: var(--font-title);
-  font-size: var(--fs-body);
-  line-height: 1.1;
-  color: var(--gold-500);
-  text-align: center;
-  text-transform: uppercase;
-  /* Never cut a garden name: a long one goes on to a second line. */
-  overflow-wrap: anywhere;
-  text-shadow: 2px 2px 0 var(--soil-700);
-}
-
-.visit-sign-title {
-  font-family: var(--font-ui);
-  font-size: var(--fs-sm);
-  line-height: 1;
-  color: var(--paper-light);
-}
-
 /* A visited garden's TaniBot: a tap says hello (no menu); a small plain-text bubble
    (phones: at most 60% of the screen wide). */
 .bot-spot.visit-bot .bot-hint.bot-hello {
@@ -10946,7 +10898,7 @@ html.page-locked body {
   border-color: var(--mint-700);
 }
 
-/* Visiting: the Sticker button next to Back (phones: icon only, so the name keeps its room). */
+/* Visiting: the Sticker button next to Back (icon + "Sticker"; "Sent" once today's sticker is out). */
 .visit-sticker {
   flex: none;
   display: inline-flex;
@@ -10962,13 +10914,23 @@ html.page-locked body {
   background: var(--mint-300);
 }
 
+/* Sent today: greyed out, says "Sent" (one sticker per garden per village day). */
+.visit-sticker:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+
+/* Phones: the icon with a small "Sticker" / "Sent" label under it (the name keeps its room). */
 @media (max-width: 1023px) {
   .visit-sticker {
-    padding-left: 8px;
-    padding-right: 8px;
+    flex-direction: column;
+    gap: 1px;
+    padding: 3px 6px;
   }
 
   .visit-sticker-label {
-    display: none;
+    font-family: var(--font-ui);
+    font-size: var(--fs-xs);
+    line-height: 1;
   }
 }

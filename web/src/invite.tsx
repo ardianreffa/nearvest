@@ -9,7 +9,7 @@ import { useState } from 'preact/hooks';
 import { api, type GameState, type ReferralView, type StickerKind, type StickerView, type VisitResponse } from './api';
 import { playSound } from './audio';
 import { Modal } from './help';
-import { inviteLink, invitePost } from './referral';
+import { inviteLink, inviteOrigin, invitePost } from './referral';
 import { postUrl } from './share';
 import { Sprite, type SpriteName } from './sprites';
 import type { Toast } from './toast';
@@ -46,7 +46,7 @@ const startOfDay = (t: number) => {
 export function InvitePanel({ state, notify }: { state: GameState; notify: Notify }) {
   const r = state.referral as ReferralView;
   const name = state.player.name;
-  const link = inviteLink(location.origin, name);
+  const link = inviteLink(inviteOrigin(import.meta.env.DEV, location.origin), name);
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     playSound('click');

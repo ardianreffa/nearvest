@@ -46,7 +46,7 @@ const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2
  * out of their way (useHintPlacement in scene.tsx).
  */
 const OBSTACLES =
-  '.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .visit-sign, .coach-hud, .coach-float, .topbar, .toasts, .bot-spot .tanibot, .bot-status, .badge, .plot-art, .soil, .garden-sheet, .village-darto';
+  '.hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .coach-float, .topbar, .toasts, .bot-spot .tanibot, .bot-status, .badge, .plot-art, .soil, .garden-sheet, .village-darto';
 
 /** Where the first village's train runs (boxes just above the rail): pins stay clear of it. */
 const RAIL_BAND_V1: Box[] = [
@@ -166,7 +166,7 @@ function place(el: HTMLElement, host: HTMLElement, v: Village, x: number, y: num
  * What a pin may never cover: the player's trees and their labels (the only reason a pin moves),
  * Mr. Darto (weighted a lot) and the HUD panels. Other pins are added by the caller.
  */
-const PIN_OBSTACLES = '.plot-art, .badge, .village-darto, .visit-sign, .hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .coach-float, .topbar, .toasts, .garden-sheet';
+const PIN_OBSTACLES = '.plot-art, .badge, .village-darto, .hud-capsule, .hud-chips, .hud-drawer, .hud-rail, .hud-bar, .coach-hud, .coach-float, .topbar, .toasts, .garden-sheet';
 function pinObstacleRects(): Rect[] {
   return [...document.querySelectorAll(PIN_OBSTACLES)]
     .map((e) => {

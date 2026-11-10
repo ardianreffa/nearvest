@@ -66,6 +66,9 @@ describe('HTTP API', () => {
     assert.equal(stats.status, 200);
     assert.equal(stats.json.panen.totalMinted, 50);
     assert.equal(stats.json.panen.season, 1);
+    // Season 1 is not the lowest level: the fake chain names the next threshold like the contract.
+    assert.equal(stats.json.panen.rewardDivisor, 1);
+    assert.equal(stats.json.panen.nextSeasonAt, 2000);
     assert.equal(stats.json.village.players, 1);
     const darto = await call(w.app, 'GET', '/api/darto');
     assert.equal(darto.json.prices.length, 3);

@@ -18,13 +18,13 @@
 // Tutorial on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tutorial=<newDevUser> [w] [h]
 // Phone garden fit on a NEW dev garden (fake-chain server; FAKE_DB=<its sqlite> adds seeds, fruit, items): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --phonefit=<newDevUser> [w] [h]
 // Garden visit of an EXISTING dev garden (fake-chain server): opens <friend>'s garden from the farmer list, checks the
-//   "<NAME>'S GARDEN" sign (not over pins, Mr. Darto, HUD or Back button), their TaniBot (tier, ON / asleep, no menu) and its hello bubble:
+//   name in the visit panel (no sky sign any more), their TaniBot (tier, ON / asleep, no menu) and its hello bubble:
 //   UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --visit=<devUser>:<friend> [w] [h]
 // Create-garden form on a NEW dev user (fake-chain server; never submits): typing stops at 16 characters, the "n/16"
 //   counter, a pasted 20-character name is cut to 16: UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --create=<newDevUser> [w] [h]
 // Referral + stickers (fake-chain server; API_URL = that server, default http://127.0.0.1:8788; FAKE_DB=<its sqlite>
-//   also ripens the new garden's tree for a paid referral): makes <friend> (dev, with a tree) through the API, opens
-//   /play?ref=<friend>, makes the NEW garden <newUser> (tutorial on), visits <friend> (coach + Judge chip hidden, comes
+//   also ripens the new garden's tree for a paid referral): makes <friend> (dev, with a tree and TaniBot ON) through the API, opens
+//   the landing page /?ref=<friend> and clicks "Play for free", makes the NEW garden <newUser> (tutorial on), visits <friend> (coach + Judge chip hidden, comes
 //   back unchanged), leaves a sticker, then signs in as <friend>: Invite a friend + Visitors in the Village tab:
 //   UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --social=<newUser>:<friend> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
@@ -569,14 +569,24 @@ try {
         const seed = st.seeds.find((x) => x.species === 'mango') ?? st.seeds[0];
         await call('POST', '/api/plant', token, { plot: 0, seedId: seed.id });
       }
-      console.log(friend + ':', 'account', st.player.accountStatus, '| referral box from the server:', !!st.referral, '| stickers list:', Array.isArray(st.stickers));
+      // The friend's TaniBot (ON), so the visit shows it as decoration.
+      let bot = (await call('GET', '/api/tanibot', token)).bot;
+      if (!bot) bot = (await call('POST', '/api/tanibot/setup', token, {})).bot;
+      for (let i = 0; i < 40 && bot?.status !== 'ready'; i++) (await sleep(500), (bot = (await call('GET', '/api/tanibot', token)).bot));
+      console.log(friend + ':', 'account', st.player.accountStatus, '| TaniBot', bot?.status, bot?.enabled ? 'ON' : 'OFF', '| referral box from the server:', !!st.referral, '| stickers list:', Array.isArray(st.stickers));
     });
     await step(`invite link -> NEW garden ${user}`, async () => {
-      const u = new URL(UI_URL);
+      // Start on the LANDING page (/?ref=), then "Play for free" as a real invited friend would.
+      await evaluate(`localStorage.removeItem('nearvest.ref')`);
+      const u = new URL('/', UI_URL);
       u.searchParams.set('ref', friend);
       await send('Page.navigate', { url: u.toString() });
-      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
-      console.log('ref kept:', await evaluate(`localStorage.getItem('nearvest.ref')`));
+      await waitFor(`!!document.querySelector('.lp-play')`, 'landing page');
+      console.log('landing links:', await evaluate(`[...document.querySelectorAll('a[href^="/play"]')].map(a => a.getAttribute('href')).join(' ')`));
+      await evaluate(`document.querySelector('.lp-play').click()`);
+      await waitFor(bodyHas('Grow. Harvest. Own.') + ` && location.pathname === '/play'`, 'login screen');
+      await sleep(500);
+      console.log('ref kept:', await evaluate(`localStorage.getItem('nearvest.ref')`), '| address bar:', await evaluate(`location.pathname + location.search`));
       await typeInto('#dev-user', user);
       await clickText('Enter');
       await waitFor(bodyHas('Welcome to Tandur'), 'create screen');
@@ -605,6 +615,7 @@ try {
       console.log('visiting: coach shown', await evaluate(coachShown), '| Judge chip', await evaluate(judgeChip), '| data-tut', await evaluate(`document.querySelector('main.shell').getAttribute('data-tut')`));
       const btn = `(() => { const b = document.querySelector('.visit-sticker'); if (!b) return 'NO BUTTON'; const r = b.getBoundingClientRect(); return '"' + b.innerText.trim() + '" ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' | name cut: ' + (() => { const t = document.querySelector('.visit-title b'); return t.scrollWidth > t.clientWidth + 1; })() + ' | inside screen: ' + (r.left >= 0 && r.right <= innerWidth); })()`;
       console.log('sticker button:', await evaluate(btn));
+      console.log('friend TaniBot shown:', await evaluate(`!!document.querySelector('.bot-spot.visit-bot .tanibot')`), '| sky sign gone:', await evaluate(`!document.querySelector('.visit-sign')`));
       await screenshot('social-visit');
       await evaluate(`document.querySelector('.visit-sticker').click()`);
       await waitFor(`!!document.querySelector('.sticker-grid')`, 'sticker picker');
@@ -614,7 +625,7 @@ try {
       await evaluate(`[...document.querySelectorAll('.sticker-pick')][0].click()`);
       await waitFor(`!document.querySelector('.sticker-grid')`, 'picker closed');
       await sleep(600);
-      console.log('after sending:', await evaluate(btn), '| toast:', await evaluate(TOAST_CHECK));
+      console.log('after sending:', await evaluate(btn), '| disabled:', await evaluate(`document.querySelector('.visit-sticker').disabled`), '| toast:', await evaluate(TOAST_CHECK));
       await screenshot('social-sticker-sent');
       await clickText('Back to my garden');
       await sleep(1000);
@@ -663,6 +674,12 @@ try {
       await sleep(300);
       console.log('visitors:', await evaluate(`document.querySelector('.visitors-panel').innerText.replace(/\\n+/g, ' / ')`));
       await screenshot('social-village-visitors');
+      // Village Stats: the Season note says "lowest level" only at 12.5%.
+      await waitFor(`!!document.querySelector('.stats')`, 'Village Stats', 20000);
+      await evaluate(`document.querySelector('.stats').scrollIntoView({ block: 'start' })`);
+      await sleep(300);
+      console.log('season:', await evaluate(`document.querySelector('.stats').innerText.split('\\n').slice(0, 4).join(' / ')`));
+      await screenshot('social-village-stats');
     });
     throw { done: true };
   }

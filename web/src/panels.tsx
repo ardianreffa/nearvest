@@ -12,7 +12,7 @@ import { Sprite } from './sprites';
 import { TreePixels } from './art/trees';
 import { sortMemorials } from './memorials';
 import { Info, type InfoKey } from './info';
-import { clampQty, saleTotal, seasonPayout, stepQty } from './qty';
+import { clampQty, saleTotal, seasonNote, seasonPayout, stepQty } from './qty';
 import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QtyPicker, QualityTag, QUALITY_NAME, SPECIES_NAME, type SeedGroup } from './ui';
 
 const QUALITY_MULT = { common: 1, rare: 2, gold: 5 } as const;
@@ -633,11 +633,7 @@ export function Village({
               label={`Season ${stats.panen.season}`}
               info="season"
               value={`Harvest rewards: ${formatPanen(100 / stats.panen.rewardDivisor)}%`}
-              note={
-                stats.panen.nextSeasonAt
-                  ? `Rewards halve when ${formatPanen(stats.panen.nextSeasonAt)} PANEN have been minted (never below 12.5%)`
-                  : 'Lowest reward level reached (12.5%)'
-              }
+              note={seasonNote(stats.panen)}
             />
             <Stat label="PANEN ever minted" value={formatPanen(stats.panen.totalMinted)} />
             <Stat label="PANEN burned" value={formatPanen(stats.panen.totalBurned)} accent="burn" info="burned" />
@@ -738,4 +734,3 @@ function Stat({ label, value, note, accent, wide, info }: { label: string; value
     </div>
   );
 }
-

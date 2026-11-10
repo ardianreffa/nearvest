@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { clearRef, freshIds, inviteLink, keepRef, keepRefFromUrl, parseRef, readRef, REF_KEEP_MS, REF_KEY } from '../src/referral.ts';
+import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
+import { clearRef, freshIds, inviteLink, inviteOrigin, keepRef, keepRefFromUrl, parseRef, PUBLIC_SITE, readRef, REF_KEEP_MS, REF_KEY, withoutRef, withRef } from '../src/referral.ts';
 
 function memory() {
   const m = new Map<string, string>();
@@ -75,5 +77,75 @@ describe('referral link keeping', () => {
   it('fresh ids for notices', () => {
     assert.deepEqual(freshIds([5, 4, 3], 3), { fresh: [5, 4], seen: 5 });
     assert.deepEqual(freshIds([], 7), { fresh: [], seen: 7 });
+  });
+});
+
+/** Runs the landing page's inline script (web/index.html) with a fake page. */
+function runLandingScript(url: string, store: ReturnType<typeof memory>) {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const code = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).join('\n');
+  const u = new URL(url);
+  let replacedWith: string | null = null;
+  const location = { search: u.search, hash: u.hash, replace: (to: string) => void (replacedWith = to) };
+  runInNewContext(code, { location, localStorage: store, URLSearchParams, Date, JSON });
+  return replacedWith;
+}
+
+describe('the invite survives the way to a new garden', () => {
+  it('production invite links point at the public site', () => {
+    assert.equal(PUBLIC_SITE, 'https://nearvest-six.vercel.app');
+    assert.equal(inviteLink(inviteOrigin(false, 'https://nearvest-git-abc.vercel.app'), 'sari'), 'https://nearvest-six.vercel.app/?ref=sari');
+    assert.equal(inviteLink(inviteOrigin(true, 'http://localhost:5173'), 'sari'), 'http://localhost:5173/?ref=sari');
+  });
+
+  it('landing links to /play carry the invite (Play for free, floating button, Try as Judge)', () => {
+    assert.equal(withRef('/play', 'sari'), '/play?ref=sari');
+    assert.equal(withRef('/play?judge=1', 'sari'), '/play?judge=1&ref=sari');
+    assert.equal(withRef('/play#x', 'sari'), '/play?ref=sari#x');
+    assert.equal(withRef('/play', null), '/play');
+    assert.equal(withRef('/play?judge=1', null), '/play?judge=1');
+  });
+
+  it('the address bar is cleaned without losing other options', () => {
+    assert.equal(withoutRef('?ref=sari'), '');
+    assert.equal(withoutRef('?judge=1&ref=sari'), '?judge=1');
+    assert.equal(withoutRef(''), '');
+  });
+
+  it("landing script keeps ?ref= (index.html), also when it sends a signed-in player to /play", () => {
+    const s = memory();
+    assert.equal(runLandingScript('https://nearvest-six.vercel.app/?ref=Sari', s), null);
+    assert.equal(readRef(s, Date.now()), 'sari');
+    const s2 = memory();
+    s2.setItem('nearvest.token', 't');
+    assert.equal(runLandingScript('https://nearvest-six.vercel.app/?ref=budi', s2), '/play?ref=budi');
+    assert.equal(readRef(s2, Date.now()), 'budi');
+    const s3 = memory();
+    runLandingScript('https://nearvest-six.vercel.app/?ref=../evil', s3);
+    assert.equal(s3.getItem(REF_KEY), null);
+  });
+
+  it('whole journey: landing -> /play -> Google redirect or wallet -> create screen', () => {
+    const s = memory();
+    const t0 = 1_000_000;
+    // 1. Landing page with the invite link.
+    runLandingScript('https://nearvest-six.vercel.app/?ref=sari', s);
+    // 2. "Play for free" (or the floating button, or Try as Judge) opens /play with the invite.
+    const play = new URL(withRef('/play', readRef(s, t0) ?? parseRef('?ref=sari')), PUBLIC_SITE);
+    assert.equal(play.search, '?ref=sari');
+    // 3. /play boot keeps it and cleans the address bar.
+    keepRefFromUrl(play.search, s, t0);
+    assert.equal(withoutRef(play.search), '');
+    // 4. Google's iPhone redirect comes back to /play#id_token=... (no query): storage still has it.
+    keepRefFromUrl('', s, t0 + 60_000);
+    // 5. Wallet sign-in does not touch it either; the create screen reads it a few minutes later.
+    assert.equal(readRef(s, t0 + 5 * 60_000), 'sari');
+    // 6. After the garden is made it is cleared.
+    clearRef(s);
+    assert.equal(readRef(s, t0 + 6 * 60_000), null);
+  });
+
+  it('storage blocked: the invite still rides in the /play link', () => {
+    assert.equal(withRef('/play', parseRef('?ref=sari')), '/play?ref=sari');
   });
 });
