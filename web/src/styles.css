@@ -10792,3 +10792,183 @@ html.page-locked body {
     padding: 4px 8px;
   }
 }
+
+/* ---------- Invite a friend + Visitors + stickers (invite.tsx) ---------- */
+
+.invite-link {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.invite-link input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
+}
+
+.invite-copy {
+  flex: none;
+  min-width: 76px;
+}
+
+.invite-list,
+.sticker-list {
+  margin-top: 8px;
+}
+
+.invite-row,
+.sticker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.invite-name {
+  min-width: 0;
+  font-family: var(--font-ui);
+  overflow-wrap: anywhere;
+}
+
+.invite-row .tag {
+  font-family: var(--font-ui);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  border: 2px solid currentColor;
+}
+
+.tag-paid {
+  color: var(--mint-700);
+  background: var(--mint-300);
+}
+
+.tag-paid a {
+  color: inherit;
+}
+
+.tag-waiting {
+  color: var(--gold-700);
+  background: color-mix(in srgb, var(--gold-300) 60%, var(--paper-light));
+  white-space: normal;
+  text-align: center;
+}
+
+.invite-by {
+  margin: 8px 0 0;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--mint-300) 45%, var(--paper-light));
+  border-left: 4px solid var(--mint-700);
+}
+
+.sticker-badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  background: var(--gold-300);
+  border: 2px solid var(--gold-700);
+}
+
+.sticker-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sticker-text {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+}
+
+.sticker-meta {
+  font-size: var(--fs-xs);
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+/* The sticker picker (visiting): 2 columns on phones, 3 on laptops. */
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (min-width: 1024px) {
+  .sticker-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.sticker-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 84px;
+  padding: 8px 6px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  text-align: center;
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+  cursor: pointer;
+}
+
+.sticker-pick:hover:not(:disabled),
+.sticker-pick:focus-visible {
+  background: var(--gold-300);
+}
+
+.sticker-pick:active:not(:disabled) {
+  translate: 0 2px;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 35%, transparent);
+}
+
+.sticker-pick:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.sticker-pick.sent {
+  opacity: 1;
+  background: var(--mint-300);
+  border-color: var(--mint-700);
+}
+
+/* Visiting: the Sticker button next to Back (phones: icon only, so the name keeps its room). */
+.visit-sticker {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  white-space: nowrap;
+}
+
+.visit-sticker.sent {
+  background: var(--mint-300);
+}
+
+@media (max-width: 1023px) {
+  .visit-sticker {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .visit-sticker-label {
+    display: none;
+  }
+}

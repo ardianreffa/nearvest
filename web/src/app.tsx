@@ -2,7 +2,7 @@
 
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { ACTIVITY_LABELS, api, ApiError, hasToken, setToken, type Activity, type GameState, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
+import { activityLabel, api, ApiError, hasToken, setToken, type Activity, type GameState, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
 import { DartoHead } from './art/darto';
 import { LOOK_LABEL, lookOf, lookText, withWeather, type WeatherLook } from './weather';
 import { phaseOf } from './art/backdrop';
@@ -27,6 +27,8 @@ import { TaniBotWindow } from './tanibot';
 import { GoogleButton, pendingGoogleRedirect, takeGoogleRedirect } from './google';
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Coach } from './tutorial';
+import { InvitePanel, VisitorsPanel } from './invite';
+import { clearRef, freshIds, keepRefFromUrl, readRef } from './referral';
 import { predict } from './optimistic';
 import { Info } from './info';
 import { ToastStrip, useToasts } from './toast';
@@ -201,6 +203,54 @@ export function App() {
           }), 1200);
         }
       }
+      // Stickers visitors left, and referrals paid (both sides): one notice each since we last looked.
+      const seenOf = (key: string) => {
+        try {
+          return Number(localStorage.getItem(key) ?? 0);
+        } catch {
+          return Number.MAX_SAFE_INTEGER;
+        }
+      };
+      const setSeen = (key: string, v: number) => {
+        try {
+          localStorage.setItem(key, String(v));
+        } catch {
+          // Storage blocked.
+        }
+      };
+      if (s.stickers?.length) {
+        const key = `nearvest.stickersSeen.${s.player.accountId}`;
+        const { fresh, seen } = freshIds(s.stickers.map((x) => x.id), seenOf(key));
+        if (fresh.length) {
+          setSeen(key, seen);
+          const first = s.stickers.find((x) => x.id === fresh[0])!;
+          window.setTimeout(
+            () =>
+              toast({
+                kind: 'success',
+                long: true,
+                text: fresh.length === 1 ? `${first.from} left you a sticker: "${first.text}"` : `${fresh.length} new stickers from visitors. See them in the Village tab.`,
+              }),
+            1800,
+          );
+        }
+      }
+      if (s.referral) {
+        const key = `nearvest.refPaidSeen.${s.player.accountId}`;
+        const paid = s.referral.invited.filter((r) => r.status === 'paid');
+        const by = s.referral.invitedBy?.status === 'paid' ? s.referral.invitedBy : null;
+        const { fresh, seen } = freshIds([...paid.map((r) => r.id), ...(by ? [by.id] : [])], seenOf(key));
+        if (fresh.length) {
+          setSeen(key, seen);
+          const r = s.referral;
+          const friends = paid.filter((x) => fresh.includes(x.id)).map((x) => x.name);
+          const texts = [
+            friends.length ? `${friends.join(', ')} made their first harvest: +${formatPanen(r.rewards.referrerNow * friends.length)} PANEN for inviting them!` : '',
+            by && fresh.includes(by.id) ? `First harvest done: +${formatPanen(r.rewards.friend)} PANEN invite bonus (thanks to ${by.name}).` : '',
+          ].filter(Boolean);
+          window.setTimeout(() => toast({ kind: 'success', long: true, text: texts.join(' ') }), 2400);
+        }
+      }
       const done = s.activity.filter((a) => a.status === 'done');
       if (seenDone.current === null) {
         seenDone.current = new Set(done.map((a) => a.id));
@@ -213,7 +263,7 @@ export function App() {
           const latest: Activity = fresh[fresh.length - 1];
           toast({
             kind: 'chain',
-            text: `${ACTIVITY_LABELS[latest.kind] ?? latest.kind}${fresh.length > 1 ? ` (+${fresh.length - 1} more)` : ''}`,
+            text: `${activityLabel(latest)}${fresh.length > 1 ? ` (+${fresh.length - 1} more)` : ''}`,
             link: latest.explorerUrl ?? undefined,
           });
         }
@@ -298,7 +348,7 @@ export function App() {
 
   const refresh = useCallback(async () => {
     try {
-      applyState(await api<GameState>('GET', '/api/me'));
+      applyState(await api<GameState>('GET', ME_PATH()));
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         setToken(null);
@@ -309,14 +359,19 @@ export function App() {
     }
   }, [applyState]);
 
-  // Boot: server config, then the session if there is one.
+  // Boot: server config, then the session if there is one. An invite link (?ref=) is kept first.
   useEffect(() => {
+    try {
+      keepRefFromUrl(location.search, localStorage, Date.now());
+    } catch {
+      // Storage blocked: no invite.
+    }
     api<ServerConfig>('GET', '/api/config')
       .then(async (c) => {
         setConfig(c);
         if (!hasToken()) return setPhase('login');
         try {
-          applyState(await api<GameState>('GET', '/api/me'));
+          applyState(await api<GameState>('GET', ME_PATH()));
           setPhase('play');
         } catch (e) {
           if (e instanceof ApiError && e.status === 404) setPhase('create');
@@ -694,7 +749,18 @@ export function App() {
     ) : t === 'market' ? (
       <Market state={state} config={config} sell={sell} act={act} busy={busy} />
     ) : (
-      <Village state={state} config={config} onBot={openBot} onFarmers={Array.isArray(state.helps) ? () => (playSound('click'), setFarmersOpen(true)) : undefined} />
+      <Village
+        state={state}
+        config={config}
+        onBot={openBot}
+        onFarmers={Array.isArray(state.helps) ? () => (playSound('click'), setFarmersOpen(true)) : undefined}
+        social={
+          <>
+            {state.referral && <InvitePanel state={state} notify={toast} />}
+            {state.stickers && <VisitorsPanel stickers={state.stickers} />}
+          </>
+        }
+      />
     );
 
   const tabIcons: Record<Tab, ComponentChildren> = {
@@ -761,7 +827,7 @@ export function App() {
           <Info k="weather" label="the weather" text={lookText(state.weather)} />
         </span>
       )}
-      <JudgeTourChip state={state} onOpen={() => (playSound('click'), setInfo('judge'))} />
+      {!visiting && <JudgeTourChip state={state} onOpen={() => (playSound('click'), setInfo('judge'))} />}
     </div>
   );
   const notices = (
@@ -794,7 +860,8 @@ export function App() {
     api<{ state: GameState }>('POST', '/api/tutorial', { action })
       .then((r) => applyState(r.state))
       .catch((e) => toast({ kind: 'error', text: e instanceof Error ? e.message : String(e) }));
-  const coach = state.tutorial && (
+  // Visiting a friend's garden: our own tutorial coach and Judge tour chip hide (progress unchanged).
+  const coach = !visiting && state.tutorial && (
     <Coach
       tutorial={state.tutorial}
       onStart={() => (playSound('click'), void tutorialAction('start'))}
@@ -807,7 +874,7 @@ export function App() {
   return (
     <main
       class={`shell${wide ? ' wide immersive' : ''}${wide && drawerOpen ? ' drawer-open' : ''}${phoneFit ? ' phone-fit' : ''}`}
-      data-tut={state.tutorial?.step}
+      data-tut={visiting ? undefined : state.tutorial?.step}
     >
       {wide ? (
         <>
@@ -1143,6 +1210,9 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
   );
 }
 
+/** GET /api/me with this browser's random id (the server refuses self-invites with it, referral.ts). */
+const ME_PATH = () => `/api/me?device=${encodeURIComponent(judgeDeviceId())}`;
+
 /** Longest farmer name for a new garden (the server refuses longer ones: NEW_NAME_MAX). */
 const NAME_MAX = 16;
 
@@ -1165,7 +1235,10 @@ function CreateGarden({ onCreated, onLogout }: { onCreated: (s: GameState) => vo
     setBusy(true);
     setError(null);
     try {
-      onCreated(await api<GameState>('POST', '/api/player', { name: clean, demo }));
+      // An invite link opened in this browser (?ref=, kept 7 days): the server decides if it counts.
+      const ref = readRef(localStorage, Date.now());
+      onCreated(await api<GameState>('POST', '/api/player', { name: clean, demo, deviceId: judgeDeviceId(), ...(ref ? { ref } : {}) }));
+      clearRef(localStorage);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

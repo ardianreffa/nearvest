@@ -350,3 +350,65 @@ describe('help water: one tree per day', () => {
     assert.equal(again.status, 409);
   });
 });
+
+describe('stickers', () => {
+  it('a visitor leaves one of the 6 template stickers, once per garden per village day; the owner sees it', async () => {
+    const w = makeWorld();
+    const social = new Social(w.db, w.game, w.now);
+    const sari = await garden(w, 'sari');
+    const budi = await garden(w, 'budi');
+    const tono = await garden(w, 'tono');
+    const v = social.visit(budi.id, 'sari');
+    assert.equal(v.stickers.length, 6);
+    assert.equal(v.stickerToday, null);
+    const r = social.sticker(budi.id, 'sari', 'nice_garden');
+    assert.deepEqual(r, { owner: 'sari', sticker: 'nice_garden', text: 'Nice garden!' });
+    assert.equal(social.visit(budi.id, 'sari').stickerToday, 'nice_garden');
+    assert.throws(() => social.sticker(budi.id, 'sari', 'gold_vibes'), (e: any) => e.status === 409 && e.details.code === 'sticker_today');
+    // Another garden the same day is fine; so is another visitor.
+    social.sticker(budi.id, 'tono', 'keep_it_up');
+    social.sticker(tono.id, 'sari', 'gold_vibes');
+    const got = w.game.state(sari.id).stickers;
+    assert.deepEqual(got.map((s) => [s.from, s.sticker, s.text]), [['tono', 'gold_vibes', 'Gold vibes!'], ['budi', 'nice_garden', 'Nice garden!']]);
+    // The next village day: again.
+    w.advance(DAY);
+    social.sticker(budi.id, 'sari', 'see_you');
+    assert.equal(w.game.state(sari.id).stickers.length, 3);
+  });
+
+  it('only known stickers (no free text), never in your own garden, the visit view stays public', async () => {
+    const w = makeWorld();
+    const social = new Social(w.db, w.game, w.now);
+    const sari = await garden(w, 'sari');
+    const budi = await garden(w, 'budi');
+    for (const bad of ['hello there', '', null, 42, { id: 'nice_garden' }])
+      assert.throws(() => social.sticker(budi.id, 'sari', bad), (e: any) => e.status === 400 && e.details.code === 'unknown_sticker');
+    assert.throws(() => social.sticker(sari.id, 'sari', 'nice_garden'), (e: any) => e.details.code === 'own_garden');
+    assert.throws(() => social.sticker(sari.id, 'nobody', 'nice_garden'), (e: any) => e.status === 404);
+    assert.equal(social.visit(sari.id, 'sari').stickerToday, null);
+    assertPublic(social.visit(budi.id, 'sari').garden);
+  });
+
+  it('POST /api/farmers/:name/sticker returns the visit with stickerToday; the owner state lists only the last 10', async () => {
+    const w = makeWorld();
+    const tok = async (u: string) => ((await (await w.app.request('/auth/dev', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u }) })).json()) as any).token as string;
+    const post = async (t: string, path: string, body: unknown) => {
+      const res = await w.app.request(path, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify(body) });
+      return { status: res.status, json: (await res.json()) as any };
+    };
+    const owner = await tok('owner');
+    await post(owner, '/api/player', { name: 'sari' });
+    await w.worker.drain();
+    for (let i = 0; i < 12; i++) {
+      const t = await tok(`v${i}`);
+      await post(t, '/api/player', { name: `visitor${i}` });
+      const r = await post(t, '/api/farmers/sari/sticker', { sticker: 'keep_it_up' });
+      assert.equal(r.status, 200);
+      assert.equal(r.json.visit.stickerToday, 'keep_it_up');
+    }
+    const me = await w.app.request('/api/me', { headers: { Authorization: `Bearer ${owner}` } });
+    const s = (await me.json()) as any;
+    assert.equal(s.stickers.length, 10);
+    assert.equal(s.stickers[0].from, 'visitor11');
+  });
+});

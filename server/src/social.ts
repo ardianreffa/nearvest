@@ -1,6 +1,7 @@
 // Garden visits (docs/PLAN-social.md, Ardian 2026-11-09): the farmer list, visiting a garden
 // (read only) and helping water one tree per village day. No chain transaction: watering is game
-// data for every tree (the Tree NFT only changes when its stage changes, as always).
+// data for every tree (the Tree NFT only changes when its stage changes, as always). Visitors can
+// also leave one template sticker per garden per village day (no free text).
 //
 // Privacy: visitors only see a garden's name, title, avatar and trees (Game.publicGarden). Never
 // a balance, seeds, fruit, items, TaniBot budget, sign-in method, Google / wallet data or IP.
@@ -17,7 +18,9 @@ import {
   HELP_OWNER_XP_PER_DAY,
   HELP_XP_HELPER,
   HELP_XP_OWNER,
+  STICKERS,
   titleFor,
+  type StickerId,
 } from './rules.ts';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -144,7 +147,39 @@ export class Social {
       own: owner.id === viewerId,
       helpedToday: this.helpedToday(viewerId),
       help: this.helpRules(viewerId),
+      /** Template stickers a visitor can leave, and the one the viewer left here today (1 per day). */
+      stickers: STICKERS,
+      stickerToday: owner.id === viewerId ? null : this.stickerToday(viewerId, owner.id),
     };
+  }
+
+  /** The sticker the viewer left in this garden today, if any. */
+  private stickerToday(fromId: number, toId: number): StickerId | null {
+    const r = this.db.prepare('SELECT sticker FROM stickers WHERE from_id = ? AND to_id = ? AND sticker_day = ?').get(fromId, toId, this.helpDay()) as
+      | { sticker: StickerId }
+      | undefined;
+    return r?.sticker ?? null;
+  }
+
+  /**
+   * Leaves a template sticker in a friend's garden: one of the 6 fixed stickers (no free text), at
+   * most 1 per visitor per garden per village day, never in your own garden. No XP, no chain.
+   */
+  sticker(viewerId: number, name: string, sticker: unknown) {
+    return tx(this.db, () => {
+      const from = this.game.getPlayer(viewerId);
+      const owner = this.game.getPlayerByName(String(name).toLowerCase());
+      if (!owner || owner.account_status !== 'ready') throw new GameError('Garden not found', 404);
+      if (owner.id === from.id) throw new GameError('Stickers are for friends\' gardens.', 400, { code: 'own_garden' });
+      const known = STICKERS.find((s) => s.id === sticker);
+      if (!known) throw new GameError('Unknown sticker', 400, { code: 'unknown_sticker' });
+      const today = this.stickerToday(from.id, owner.id);
+      if (today) throw new GameError(`You already left a sticker for ${owner.name} today. Come back tomorrow!`, 409, { code: 'sticker_today', sticker: today });
+      this.db
+        .prepare('INSERT INTO stickers (from_id, to_id, sticker, sticker_day, created_at) VALUES (?, ?, ?, ?, ?)')
+        .run(from.id, owner.id, known.id, this.helpDay(), this.now());
+      return { owner: owner.name, sticker: known.id, text: known.text };
+    });
   }
 
   /**

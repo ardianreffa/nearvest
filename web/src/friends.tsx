@@ -3,6 +3,7 @@
 // trees, a "<NAME>'S GARDEN" sign on phones and their TaniBot as decoration: floating when ON, asleep when
 // OFF, a tap says hello) and helping water one thirsty tree per village day. The server checks
 // every rule (server/src/social.ts); visitors only get public data (TaniBot: ON / OFF only).
+// "Sticker" leaves one of 6 template stickers (invite.tsx StickerWindow, 1 per garden per day).
 
 import { useEffect, useLayoutEffect, useState } from 'preact/hooks';
 import { api, type FarmersResponse, type GameState, type HelpResult, type PublicGarden, type VisitResponse } from './api';
@@ -12,6 +13,7 @@ import { floatText } from './fx';
 import { PhoneGarden } from './garden';
 import { Modal } from './help';
 import type { Immersive } from './layout';
+import { StickerIcon, StickerWindow } from './invite';
 import { GardenScene, type SceneFx } from './scene';
 import { Sprite } from './sprites';
 import type { Toast } from './toast';
@@ -143,6 +145,7 @@ export function VisitGarden({
   const [selected, setSelected] = useState(0);
   const [busy, setBusy] = useState(false);
   const [fx, setFx] = useState<SceneFx | null>(null);
+  const [stickerOpen, setStickerOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -207,7 +210,22 @@ export function VisitGarden({
   // Their TaniBot (servers before 2026-11-10 send no `tanibot`: none is shown).
   const visitBot = g?.tanibot ? { on: g.tanibot.on, owner: g.name } : null;
   const sign = <VisitSign name={g?.name ?? name} title={g?.title ?? ''} />;
-  const panel = <VisitPanel name={name} visit={visit} error={error} selected={selected} busy={busy} onHelp={help} onBack={back} bar={!!immersive} />;
+  const panel = (
+    <VisitPanel
+      name={name}
+      visit={visit}
+      error={error}
+      selected={selected}
+      busy={busy}
+      onHelp={help}
+      onBack={back}
+      onSticker={() => (playSound('click'), setStickerOpen(true))}
+      bar={!!immersive}
+    />
+  );
+  const stickers = stickerOpen && visit && (
+    <StickerWindow name={visit.garden.name} visit={visit} onClose={() => setStickerOpen(false)} onSent={setVisit} notify={notify} />
+  );
 
   if (immersive) {
     return (
@@ -217,6 +235,7 @@ export function VisitGarden({
         <div class="hud-bar visit-bar" role="region" aria-label={`Visiting ${name}'s garden`}>
           {panel}
         </div>
+        {stickers}
       </>
     );
   }
@@ -224,6 +243,7 @@ export function VisitGarden({
     <>
       <PhoneGarden state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} sheet={panel} hint={false} visit visitBot={visitBot} />
       {sign}
+      {stickers}
     </>
   );
 }
@@ -265,6 +285,7 @@ function VisitPanel({
   busy,
   onHelp,
   onBack,
+  onSticker,
   bar,
 }: {
   name: string;
@@ -274,6 +295,7 @@ function VisitPanel({
   busy: boolean;
   onHelp: (plot: number) => void;
   onBack: () => void;
+  onSticker: () => void;
   bar: boolean;
 }) {
   const g = visit?.garden;
@@ -325,6 +347,18 @@ function VisitPanel({
           <b>{name}'s garden</b>
           {g && <span class="visit-sub">{g.title}</span>}
         </span>
+        {/* Stickers (servers without them send no `stickers`: no button). */}
+        {visit?.stickers && !visit.own && (
+          <button
+            class={`btn btn-gold visit-sticker${visit.stickerToday ? ' sent' : ''}`}
+            onClick={onSticker}
+            aria-label={visit.stickerToday ? 'Sticker sent today' : `Leave a sticker for ${name}`}
+            title={visit.stickerToday ? 'Sticker sent today' : 'Leave a sticker'}
+          >
+            <StickerIcon id={visit.stickerToday ?? 'nice_garden'} />
+            <span class="visit-sticker-label">{visit.stickerToday ? 'Sent' : 'Sticker'}</span>
+          </button>
+        )}
         <button class="btn btn-mint visit-back" onClick={onBack} aria-label="Back to my garden">
           <span class="visit-back-long">← Back to my garden</span>
           <span class="visit-back-short">← My garden</span>

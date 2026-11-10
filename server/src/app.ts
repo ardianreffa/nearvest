@@ -274,9 +274,10 @@ export function createApp(deps: AppDeps) {
   });
 
   app.post('/api/player', async (c) => {
-    const { name, demo } = await body(c);
+    const { name, demo, ref, deviceId } = await body(c);
     if (typeof name !== 'string') throw new GameError('Missing name');
-    const p = game.createPlayer(c.get('userId'), name.trim().toLowerCase(), clientIp(c), typeof demo === 'boolean' ? demo : undefined);
+    // ref: the inviter's garden from an invite link (?ref=<name>, referral.ts); deviceId: this browser.
+    const p = game.createPlayer(c.get('userId'), name.trim().toLowerCase(), clientIp(c), typeof demo === 'boolean' ? demo : undefined, { ref, deviceId });
     return c.json(game.state(p.id), 201);
   });
 
@@ -294,7 +295,8 @@ export function createApp(deps: AppDeps) {
       lastWalletSync.set(pid, now());
       await syncWallet(pid).catch((err) => console.warn('wallet balance sync failed:', err instanceof Error ? err.message : err));
     }
-    game.touch(pid);
+    // ?device=<id>: the browser's random id (refuses self-invites, referral.ts).
+    game.touch(pid, c.req.query('device'));
     return c.json(game.state(pid));
   });
 
@@ -370,6 +372,12 @@ export function createApp(deps: AppDeps) {
     const name = c.req.param('name');
     const result = social.help(pid, name, plotOf(await body(c)));
     return c.json({ result, state: game.state(pid), visit: social.visit(pid, name) });
+  });
+  app.post('/api/farmers/:name/sticker', async (c) => {
+    const pid = playerId(c);
+    const name = c.req.param('name');
+    const result = social.sticker(pid, name, (await body(c)).sticker);
+    return c.json({ result, visit: social.visit(pid, name) });
   });
   app.post('/api/harvest', async (c) => {
     const b = await body(c);

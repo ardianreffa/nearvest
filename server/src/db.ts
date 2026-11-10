@@ -216,6 +216,43 @@ CREATE TABLE IF NOT EXISTS garden_help (
   UNIQUE (helper_id, help_day)
 );
 CREATE INDEX IF NOT EXISTS garden_help_owner ON garden_help (owner_id, created_at);
+
+-- Stickers: a visitor left a template sticker in a garden (1 per visitor per garden per village day).
+CREATE TABLE IF NOT EXISTS stickers (
+  id INTEGER PRIMARY KEY,
+  from_id INTEGER NOT NULL REFERENCES players(id),
+  to_id INTEGER NOT NULL REFERENCES players(id),
+  sticker TEXT NOT NULL,           -- rules.ts STICKERS id
+  sticker_day INTEGER NOT NULL,    -- village day (normal 07:00 WIB day, also for demo gardens)
+  created_at INTEGER NOT NULL,
+  UNIQUE (from_id, to_id, sticker_day)
+);
+CREATE INDEX IF NOT EXISTS stickers_to ON stickers (to_id, id);
+
+-- Browsers (random device id in localStorage) a player has used: refuses inviting yourself.
+CREATE TABLE IF NOT EXISTS devices (
+  player_id INTEGER NOT NULL REFERENCES players(id),
+  device_id TEXT NOT NULL,
+  first_at INTEGER NOT NULL,
+  PRIMARY KEY (player_id, device_id)
+);
+CREATE INDEX IF NOT EXISTS devices_device ON devices (device_id);
+
+-- Referral: a new garden made from an invite link (?ref=<name>). Paid after the friend's first harvest.
+CREATE TABLE IF NOT EXISTS referrals (
+  id INTEGER PRIMARY KEY,
+  referrer_id INTEGER NOT NULL REFERENCES players(id),
+  friend_id INTEGER NOT NULL UNIQUE REFERENCES players(id),  -- one inviter per garden
+  device_id TEXT,
+  ip TEXT,
+  status TEXT NOT NULL,            -- 'pending' | 'paid' | 'refused'
+  reason TEXT,                     -- refused: 'self' | 'limit'
+  created_at INTEGER NOT NULL,
+  paid_at INTEGER,
+  referrer_job_id INTEGER,
+  friend_job_id INTEGER
+);
+CREATE INDEX IF NOT EXISTS referrals_referrer ON referrals (referrer_id, id);
 `;
 
 /** tutorial_step value of a finished (or skipped) tutorial. */

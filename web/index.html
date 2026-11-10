@@ -30,6 +30,9 @@
       (function () {
         try {
           var q = new URLSearchParams(location.search);
+          // Invite link (?ref=<garden>): kept 7 days for the new garden (same JSON as src/referral.ts).
+          var ref = (q.get('ref') || '').trim().toLowerCase();
+          if (/^[a-z0-9][a-z0-9_-]{0,63}$/.test(ref)) localStorage.setItem('nearvest.ref', JSON.stringify({ ref: ref, at: Date.now() }));
           var game = ['record', 'time', 'bg', 'judge'].some(function (k) { return q.has(k); });
           if (game || localStorage.getItem('nearvest.token')) location.replace('/play' + location.search + location.hash);
         } catch (e) {}

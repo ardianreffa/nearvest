@@ -1,6 +1,6 @@
 # Plan: social package (garden visits, share popup, referral)
 
-Status: PLAN (2026-11-09), decisions by Ardian the same day (below). Building starts with the share popup (web only). Covers docs/BACKLOG.md item 5 (share popup + moment
+Status: visits, share popup, stickers and referral built (2026-11-10); plan text kept below. Was: PLAN (2026-11-09), decisions by Ardian the same day (below). Building starts with the share popup (web only). Covers docs/BACKLOG.md item 5 (share popup + moment
 animations), item 6 (referral) and the Thursday "simple garden visits". Draft numbers live in
 `server/src/rules.ts` once built and are tuned in testing. Everything stays on NEAR testnet.
 
@@ -76,6 +76,14 @@ makes the tree reach its next stage, the normal `update_tree` job runs as always
 into the NFT would need a contract change, so it is left out. The README says this honestly.
 
 ### 1.4 Template stickers
+
+**Built 2026-11-10 (local commit, not released):** table `stickers`, `rules.ts STICKERS` (6 ids + text),
+`Social.sticker` + `POST /api/farmers/:name/sticker` (400 `unknown_sticker` / `own_garden`, 409
+`sticker_today`), the visit view adds `stickers` + `stickerToday`, `state.stickers` (last 10 received).
+Web: "Sticker" button next to Back in the visit panel (phones: icon only) -> picker window
+(`web/src/invite.tsx StickerWindow`, 2 columns on phones, 3 on laptops); Village tab "Visitors" box;
+a notice for new stickers (`nearvest.stickersSeen.<account>`). Same village day as help water. The
+"Hide stickers" switch is not built. Tests: `server/test/social.test.ts` (stickers).
 - 6 stickers, pixel icons + fixed text: "Nice garden!", "Great durian!", "Keep it up!", "Thanks for
   the water!", "Gold vibes!", "See you tomorrow!".
 - A visitor can leave **1 sticker per garden per day**. The owner sees the last 10 received
@@ -132,6 +140,20 @@ Web only; no server change.
 ---
 
 ## 3. Referral (BACKLOG item 6)
+
+**Built 2026-11-10 (local commit, not released; Ardian's rules):** `server/src/referral.ts` (tables
+`referrals`, `devices`), `Game.payReferral` inside `harvest` (any first fruit harvest pays, also a
+TaniBot harvest), `state.referral` (`canInvite`, `rewards`, `invited` pending / paid with tx link,
+`invitedBy`), `POST /api/player` takes `ref` + `deviceId`, `GET /api/me?device=` records the browser,
+chain log shows "Referral reward paid" / "Referral bonus minted" (`activity[].note = 'referral'`).
+Limits: 3 per real day per device and per IP (counted at creation, refused ones never shown or paid),
+the inviter is paid for at most 10 per day (more stay pending until a later harvest), self-invite =
+a browser the inviter used or the same Google / wallet identity, judge gardens never count. Web:
+`web/src/referral.ts` (keeps `?ref=` 7 days, also the landing's inline script in `index.html`),
+Village tab "Invite a friend" (link, Copy, Share on X, list), notices when a referral is paid.
+Tests: `server/test/referral.test.ts`, `web/test/referral.test.ts`; browser: `--social=` in
+`tools/ui-test.mjs`. Note: on a local test server every garden comes from 127.0.0.1, so the 4th
+referral of a day is refused there (the IP limit).
 
 Flow:
 1. Every garden has an invite link `https://nearvest-six.vercel.app/?ref=<name>` (Village tab and the

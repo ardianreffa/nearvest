@@ -86,6 +86,33 @@ export interface Activity {
   explorerUrl: string | null;
   error: string | null;
   createdAt: number;
+  /** 'referral' = a referral reward / bonus mint (missing on older servers). */
+  note?: 'referral' | null;
+}
+
+/** A sticker a visitor left in your garden (newest first). */
+export interface StickerView {
+  id: number;
+  sticker: string;
+  text: string;
+  at: number;
+  from: string;
+}
+
+/** One of the 6 template stickers (server rules.ts STICKERS). */
+export interface StickerKind {
+  id: string;
+  text: string;
+}
+
+/** Invite a friend (referral): rewards, friends invited, who invited this garden. */
+export interface ReferralView {
+  /** Judge gardens cannot invite. */
+  canInvite: boolean;
+  /** referrer = base PANEN (Season rule), referrerNow = after today's Season, friend = exact. */
+  rewards: { referrer: number; referrerNow: number; friend: number };
+  invited: { id: number; name: string; status: 'pending' | 'paid'; at: number; paidAt: number | null; txUrl: string | null }[];
+  invitedBy: { id: number; name: string; status: 'pending' | 'paid'; paidAt: number | null; txUrl: string | null } | null;
 }
 
 export interface DartoPrice {
@@ -175,6 +202,10 @@ export interface VisitResponse {
   own: boolean;
   helpedToday: { name: string; plot: number } | null;
   help: HelpRules;
+  /** Template stickers (missing on servers without stickers: no sticker button). */
+  stickers?: StickerKind[];
+  /** The sticker the viewer left here today (1 per garden per day). */
+  stickerToday?: string | null;
 }
 
 export interface HelpResult {
@@ -230,6 +261,10 @@ export interface GameState {
   memorials?: MemorialView[];
   /** Friends who helped water this garden lately (newest first). Missing on servers without garden visits. */
   helps?: HelpView[];
+  /** Stickers visitors left here, last 10 (missing on servers without stickers). */
+  stickers?: StickerView[];
+  /** Invite a friend (missing on servers without referral: no invite box). */
+  referral?: ReferralView;
   seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null; source: string }[];
   seedSlots: { used: number; max: number };
   fruits: { species: Species; quality: Quality; qty: number }[];
@@ -403,6 +438,12 @@ export const ACTIVITY_LABELS: Record<string, string> = {
   bot_withdraw: 'PANEN taken back from TaniBot',
   bot_burn: 'TaniBot bought (PANEN burned)',
 };
+
+/** The log label of a chain job (referral mints are not harvest sales). */
+export function activityLabel(a: Pick<Activity, 'kind' | 'note'>): string {
+  if (a.note === 'referral') return a.kind === 'mint_reward' ? 'Referral reward paid' : 'Referral bonus minted';
+  return ACTIVITY_LABELS[a.kind] ?? a.kind;
+}
 
 /** A Tree NFT on nearblocks (testnet). */
 export function nearblocksNft(contractId: string, tokenId: string): string {

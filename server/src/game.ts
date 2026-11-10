@@ -9,6 +9,7 @@ import { fromMicro, toMicro, tx, TUTORIAL_DONE, type DB } from './db.ts';
 import { enqueue, enqueueTreeUpdate } from './chain/worker.ts';
 import { UNITS_PER_MICRO } from './chain/types.ts';
 import { burnDelegateHash, verifySignature } from './wallet.ts';
+import { createReferral, paidToday, pendingReferralOf, recordDevice, referralRows } from './referral.ts';
 import {
   advance,
   AVATARS,
@@ -37,6 +38,11 @@ import {
   thirstOf,
   TITLES,
   titleFor,
+  REF_PAID_PER_DAY_PER_REFERRER,
+  REF_REWARD_FRIEND,
+  REF_REWARD_REFERRER,
+  STICKERS,
+  STICKERS_SHOWN,
   WATER_DAYS,
   WELCOME_PACKS_PER_IP_PER_DAY,
   WELCOME_PANEN,
@@ -322,9 +328,10 @@ export class Game {
   /**
    * Creates the garden. Google/dev players get a new NEAR account `<name>.<suffix>`
    * (key pair generated here, stored encrypted). Wallet players keep their own
-   * account; the name is only their farmer name.
+   * account; the name is only their farmer name. `opts.ref` = the inviter's garden name from an
+   * invite link (referral.ts), `opts.deviceId` = the browser's random id.
    */
-  createPlayer(userId: number, name: string, ip: string | null, demo?: boolean): PlayerRow {
+  createPlayer(userId: number, name: string, ip: string | null, demo?: boolean, opts: { ref?: unknown; deviceId?: unknown } = {}): PlayerRow {
     const err = newNameError(name);
     if (err) throw new GameError(err, 400, name.length > NEW_NAME_MAX ? { code: 'name_too_long', max: NEW_NAME_MAX } : undefined);
     if (this.getPlayerByUser(userId)) throw new GameError('You already have a garden', 409);
@@ -391,6 +398,8 @@ export class Game {
         this.addSeed(id, 'durian', 'rare', null, 'welcome');
         this.earn(id, accountId, 'welcome', WELCOME_PANEN, 'Welcome pack');
       }
+      recordDevice(this.db, id, opts.deviceId, now);
+      createReferral(this.db, { friendId: id, friendUser: user, ref: opts.ref, deviceId: opts.deviceId, ip, now });
       return id;
     });
     return this.getPlayer(playerId);
@@ -544,13 +553,67 @@ export class Game {
   // ---------- $PANEN ledger ----------
 
   /** Exact mint (welcome pack, check-in): same amount in every Season. */
-  private earn(playerId: number, accountId: string, kind: string, panen: number, note: string): void {
+  private earn(playerId: number, accountId: string, kind: string, panen: number, note: string): number {
     const now = this.d.now();
     const micro = toMicro(panen);
     const ledgerId = this.ledger(playerId, kind, micro, note);
     const jobId = enqueue(this.db, playerId, { kind: 'mint', accountId, amountMicro: micro, memo: note, ledgerId }, now);
     this.db.prepare('UPDATE ledger SET job_id = ? WHERE id = ?').run(jobId, ledgerId);
     this.db.prepare('UPDATE players SET balance_micro = balance_micro + ? WHERE id = ?').run(micro, playerId);
+    return jobId;
+  }
+
+  /** Earned reward (mint_reward): the contract divides `panen` by the Season divisor. */
+  private earnReward(p: PlayerRow, kind: string, panen: number, note: string): { jobId: number; expectedPanen: number } {
+    const baseMicro = toMicro(panen);
+    const expectedMicro = Math.floor(baseMicro / this.seasonDivisor);
+    const ledgerId = this.ledger(p.id, kind, expectedMicro, note);
+    const jobId = enqueue(this.db, p.id, { kind: 'mint_reward', accountId: p.account_id, baseMicro, memo: note, ledgerId }, this.d.now());
+    this.db.prepare('UPDATE ledger SET job_id = ? WHERE id = ?').run(jobId, ledgerId);
+    this.db.prepare('UPDATE players SET balance_micro = balance_micro + ? WHERE id = ?').run(expectedMicro, p.id);
+    return { jobId, expectedPanen: fromMicro(expectedMicro) };
+  }
+
+  /**
+   * Referral (referral.ts): after the friend's first harvest, pays the inviter (mint_reward, Season
+   * rule) and the friend (exact mint). An inviter already paid for 10 referrals today waits: the
+   * referral stays pending and is paid at a later harvest. Runs inside the harvest transaction.
+   */
+  private payReferral(friend: PlayerRow): { referrer: string; friendPanen: number; referrerPanen: number } | null {
+    const r = pendingReferralOf(this.db, friend.id);
+    if (!r) return null;
+    const now = this.d.now();
+    if (paidToday(this.db, r.referrer_id, now) >= REF_PAID_PER_DAY_PER_REFERRER) return null;
+    const referrer = this.getPlayer(r.referrer_id);
+    const paid = this.earnReward(referrer, 'referral', REF_REWARD_REFERRER, `Referral reward: ${friend.name} made their first harvest`);
+    const friendJob = this.earn(friend.id, friend.account_id, 'referral', REF_REWARD_FRIEND, `Referral bonus: invited by ${referrer.name}`);
+    this.db
+      .prepare("UPDATE referrals SET status = 'paid', paid_at = ?, referrer_job_id = ?, friend_job_id = ? WHERE id = ?")
+      .run(now, paid.jobId, friendJob, r.id);
+    return { referrer: referrer.name, friendPanen: REF_REWARD_FRIEND, referrerPanen: paid.expectedPanen };
+  }
+
+  /** The referral box: invite rewards, friends invited (pending / paid) and who invited this garden. */
+  referralView(p: PlayerRow, judge: boolean) {
+    const rows = referralRows(this.db, p.id);
+    const txUrl = (h: string | null) => (h && !h.startsWith('fake') ? this.d.explorerTxUrl + h : null);
+    return {
+      /** Judge gardens cannot invite (they are throwaway gardens). */
+      canInvite: !judge,
+      rewards: { referrer: REF_REWARD_REFERRER, referrerNow: this.afterSeason(REF_REWARD_REFERRER), friend: REF_REWARD_FRIEND },
+      invited: rows.invited.map((r) => ({ id: r.id, name: r.name, status: r.status, at: r.at, paidAt: r.paidAt, txUrl: txUrl(r.tx) })),
+      invitedBy: rows.invitedBy && { id: rows.invitedBy.id, name: rows.invitedBy.name, status: rows.invitedBy.status, paidAt: rows.invitedBy.paidAt, txUrl: txUrl(rows.invitedBy.tx) },
+    };
+  }
+
+  /** Stickers visitors left in this garden (newest first). */
+  stickersReceived(ownerId: number) {
+    const text = new Map<string, string>(STICKERS.map((s) => [s.id, s.text]));
+    return (
+      this.db
+        .prepare('SELECT s.id, s.sticker, s.created_at AS at, f.name AS "from" FROM stickers s JOIN players f ON f.id = s.from_id WHERE s.to_id = ? ORDER BY s.id DESC LIMIT ?')
+        .all(ownerId, STICKERS_SHOWN) as unknown as { id: number; sticker: string; at: number; from: string }[]
+    ).map((r) => ({ ...r, text: text.get(r.sticker) ?? r.sticker }));
   }
 
   private ledger(playerId: number, kind: string, micro: number, note: string): number {
@@ -796,8 +859,9 @@ export class Game {
   }
 
   /** Remembers when the player was last in the game (the farmer list shows active gardens); at most every 10 minutes. */
-  touch(playerId: number): void {
+  touch(playerId: number, deviceId?: unknown): void {
     const now = this.d.now();
+    recordDevice(this.db, playerId, deviceId, now);
     this.db.prepare('UPDATE players SET last_seen_at = ? WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at < ?)').run(now, playerId, now - 10 * 60_000);
   }
 
@@ -981,6 +1045,8 @@ export class Game {
       enqueueTreeUpdate(this.db, p.id, t.id, now);
       const titleBefore = titleFor(p.xp);
       const titleAfter = titleFor(p.xp + xp);
+      // A friend invited by someone: their first harvest pays the referral (both sides).
+      const referral = this.payReferral(p);
       return {
         kind: 'fruit' as const,
         species: t.species,
@@ -991,6 +1057,8 @@ export class Game {
         fertilized,
         firstHarvest: p.xp === 0,
         titleUp: titleAfter !== titleBefore ? titleAfter : null,
+        /** Paid now: this was the first harvest of an invited friend. */
+        referral,
       };
     });
   }
@@ -1467,17 +1535,23 @@ export class Game {
       judgeTour: signIn === 'judge' ? this.judgeTour(p.id) : null,
       /** Friends who helped water this garden lately (garden visits, social.ts). */
       helps: this.helpsReceived(p.id),
+      /** Stickers visitors left here (newest first, last 10). */
+      stickers: this.stickersReceived(p.id),
+      /** Invite a friend: rewards, friends invited and their status, who invited this garden. */
+      referral: this.referralView(p, signIn === 'judge'),
     };
   }
 
   /** Recent on-chain activity with explorer links (proof for judges). */
   activity(playerId: number, limit = 50) {
     const rows = this.db
-      .prepare('SELECT id, kind, status, tx_hash, error, created_at FROM chain_jobs WHERE player_id = ? ORDER BY id DESC LIMIT ?')
-      .all(playerId, limit) as { id: number; kind: string; status: string; tx_hash: string | null; error: string | null; created_at: number }[];
+      .prepare('SELECT id, kind, status, tx_hash, error, created_at, payload FROM chain_jobs WHERE player_id = ? ORDER BY id DESC LIMIT ?')
+      .all(playerId, limit) as { id: number; kind: string; status: string; tx_hash: string | null; error: string | null; created_at: number; payload: string }[];
     return rows.map((r) => ({
       id: r.id,
       kind: r.kind,
+      /** 'referral' = a referral reward or bonus (the web labels it so, not as a harvest sale). */
+      note: (r.kind === 'mint' || r.kind === 'mint_reward') && r.payload.includes('"memo":"Referral') ? ('referral' as const) : null,
       status: r.status,
       txHash: r.tx_hash,
       explorerUrl: r.tx_hash && !r.tx_hash.startsWith('fake') ? this.d.explorerTxUrl + r.tx_hash : null,

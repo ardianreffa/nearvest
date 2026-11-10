@@ -1,7 +1,8 @@
 // Storage, Shop, Market (Mr. Darto) and Village Stats screens.
 
+import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { ACTIVITY_LABELS, api, nearblocksAccount, nearblocksNft, type GameState, type MemorialView, type Quality, type ServerConfig, type Species, type VillageStats } from './api';
+import { activityLabel, api, nearblocksAccount, nearblocksNft, type GameState, type MemorialView, type Quality, type ServerConfig, type Species, type VillageStats } from './api';
 import type { Act } from './garden';
 import { DartoFace, DartoFigure, HoverCart, type DartoPose } from './art/darto';
 import { MarketBackdrop, ShopBackdrop } from './art/scenes';
@@ -570,7 +571,20 @@ function ShareToX({ accountId }: { accountId: string }) {
   );
 }
 
-export function Village({ state, config, onBot, onFarmers }: { state: GameState; config: ServerConfig; onBot: () => void; onFarmers?: () => void }) {
+export function Village({
+  state,
+  config,
+  onBot,
+  onFarmers,
+  social,
+}: {
+  state: GameState;
+  config: ServerConfig;
+  onBot: () => void;
+  onFarmers?: () => void;
+  /** Invite a friend + Visitors (invite.tsx), after the farmer list. */
+  social?: ComponentChildren;
+}) {
   const [stats, setStats] = useState<VillageStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -606,6 +620,7 @@ export function Village({ state, config, onBot, onFarmers }: { state: GameState;
           </div>
         </Panel>
       )}
+      {social}
       <MemorialList memorials={state.memorials} pohon={config.contracts.pohon} />
       <Panel title="Village Stats">
         {error && <p class="error-text">{error}</p>}
@@ -685,7 +700,7 @@ function ActivityLog({ activity }: { activity: GameState['activity'] }) {
           <li key={a.id}>
             <span class={`dot dot-${a.status}`} />
             <span class="grow">
-              {ACTIVITY_LABELS[a.kind] ?? a.kind}
+              {activityLabel(a)}
               <span class="log-meta">
                 {ago(a.createdAt)}
                 {a.txHash && !a.txHash.startsWith('fake') && <> · {a.txHash.slice(0, 6)}...{a.txHash.slice(-4)}</>}

@@ -79,6 +79,29 @@ export const FARMER_LIST_MAX = 30;
 export const FARMER_ACTIVE_DAYS = 7;
 /** Fewer real farmers than this: the newest judge gardens fill the list (never empty). */
 export const FARMER_LIST_MIN = 5;
+
+// ---------- Stickers and referral (docs/PLAN-social.md, Ardian 2026-11-10) ----------
+/** Template stickers a visitor can leave (no free text anywhere); the web draws an icon per id. */
+export const STICKERS = [
+  { id: 'nice_garden', text: 'Nice garden!' },
+  { id: 'great_durian', text: 'Great durian!' },
+  { id: 'keep_it_up', text: 'Keep it up!' },
+  { id: 'thanks_water', text: 'Thanks for the water!' },
+  { id: 'gold_vibes', text: 'Gold vibes!' },
+  { id: 'see_you', text: 'See you tomorrow!' },
+] as const;
+export type StickerId = (typeof STICKERS)[number]['id'];
+/** The owner sees this many stickers received (newest first). */
+export const STICKERS_SHOWN = 10;
+/** Referral: the inviter gets this (mint_reward, the Season rule applies) after the friend's first harvest... */
+export const REF_REWARD_REFERRER = 20;
+/** ...and the friend gets this (exact mint, like the welcome pack). */
+export const REF_REWARD_FRIEND = 5;
+/** At most this many referrals per real day from one device and from one IP (the friend's side). */
+export const REF_PER_DAY_PER_DEVICE = 3;
+export const REF_PER_DAY_PER_IP = 3;
+/** An inviter is paid for at most this many referrals per real day (more wait for the next day). */
+export const REF_PAID_PER_DAY_PER_REFERRER = 10;
 /** Fertilizer adds +50% growth speed for one game day. */
 export const FERTILIZER_DAYS = 1;
 export const FERTILIZER_BOOST = 0.5;

@@ -22,6 +22,11 @@
 //   UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --visit=<devUser>:<friend> [w] [h]
 // Create-garden form on a NEW dev user (fake-chain server; never submits): typing stops at 16 characters, the "n/16"
 //   counter, a pasted 20-character name is cut to 16: UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --create=<newDevUser> [w] [h]
+// Referral + stickers (fake-chain server; API_URL = that server, default http://127.0.0.1:8788; FAKE_DB=<its sqlite>
+//   also ripens the new garden's tree for a paid referral): makes <friend> (dev, with a tree) through the API, opens
+//   /play?ref=<friend>, makes the NEW garden <newUser> (tutorial on), visits <friend> (coach + Judge chip hidden, comes
+//   back unchanged), leaves a sticker, then signs in as <friend>: Invite a friend + Visitors in the Village tab:
+//   UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --social=<newUser>:<friend> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
@@ -540,6 +545,124 @@ try {
       await sleep(200);
       console.log('pasted 20:', await evaluate(read));
       console.log('fonts of the counter:', await evaluate(`getComputedStyle(document.querySelector('.name-count')).fontFamily + ' ' + getComputedStyle(document.querySelector('.name-count')).fontSize`));
+    });
+    throw { done: true };
+  }
+  if (name.startsWith('--social=')) {
+    const [user, friend] = name.slice('--social='.length).split(':');
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return res.json();
+    };
+    const inPage = (path, method = 'GET', body) => evaluate(`fetch(${JSON.stringify(API)} + ${JSON.stringify(path)}, { method: ${JSON.stringify(method)}, headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('nearvest.token') }${body ? `, body: ${JSON.stringify(JSON.stringify(body))}` : ''} }).then(r => r.json())`);
+    const coachShown = `!!document.querySelector('.coach')`;
+    const judgeChip = `!!document.querySelector('.chip-judge')`;
+    await step(`friend garden ${friend} through the API`, async () => {
+      const { token } = await call('POST', '/auth/dev', null, { username: friend });
+      let st = await call('GET', '/api/me', token);
+      if (st.error) st = await call('POST', '/api/player', token, { name: friend, demo: true });
+      for (let i = 0; i < 40 && st.player.accountStatus !== 'ready'; i++) (await sleep(500), (st = await call('GET', '/api/me', token)));
+      if (!st.plots[0].tree) {
+        await call('POST', '/api/checkin', token);
+        st = await call('GET', '/api/me', token);
+        const seed = st.seeds.find((x) => x.species === 'mango') ?? st.seeds[0];
+        await call('POST', '/api/plant', token, { plot: 0, seedId: seed.id });
+      }
+      console.log(friend + ':', 'account', st.player.accountStatus, '| referral box from the server:', !!st.referral, '| stickers list:', Array.isArray(st.stickers));
+    });
+    await step(`invite link -> NEW garden ${user}`, async () => {
+      const u = new URL(UI_URL);
+      u.searchParams.set('ref', friend);
+      await send('Page.navigate', { url: u.toString() });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      console.log('ref kept:', await evaluate(`localStorage.getItem('nearvest.ref')`));
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(bodyHas('Welcome to Tandur'), 'create screen');
+      await typeInto('.create input:not([type=checkbox])', user);
+      await clickText('Start farming');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await waitFor(`!document.body.innerText.includes('Creating your NEAR account')`, 'account', 60000);
+      await sleep(1500);
+      const me = await inPage('/api/me');
+      console.log('invited by:', JSON.stringify(me.referral?.invitedBy), '| ref cleared:', await evaluate(`localStorage.getItem('nearvest.ref') === null`));
+      console.log('tutorial before the visit:', JSON.stringify(me.tutorial), '| coach shown:', await evaluate(coachShown));
+      await screenshot('social-home-coach');
+    });
+    let stepBefore;
+    await step(`visit ${friend}: coach hidden, sticker`, async () => {
+      stepBefore = (await inPage('/api/me')).tutorial;
+      const opened = await evaluate(`(() => { const p = [...document.querySelectorAll('.place-pin')].find(e => /friends/i.test(e.innerText + (e.getAttribute('aria-label') || ''))); if (!p) return false; p.click(); return true; })()`);
+      if (!opened) throw new Error('no Friends pin');
+      await sleep(400);
+      await evaluate(`document.querySelector('.hotspots .btn-mint')?.click()`);
+      await waitFor(`!!document.querySelector('.farmer-row')`, 'farmer rows');
+      const ok = await evaluate(`(() => { const row = [...document.querySelectorAll('.farmer-row')].find(r => r.querySelector('.farmer-name')?.innerText.trim().toLowerCase() === ${JSON.stringify(friend.toLowerCase())}); if (!row) return false; row.querySelector('button').click(); return true; })()`);
+      if (!ok) throw new Error('friend not in the list: ' + friend);
+      await waitFor(`!!document.querySelector('.visit-panel .visit-sub')`, 'visit loaded');
+      await sleep(1500);
+      console.log('visiting: coach shown', await evaluate(coachShown), '| Judge chip', await evaluate(judgeChip), '| data-tut', await evaluate(`document.querySelector('main.shell').getAttribute('data-tut')`));
+      const btn = `(() => { const b = document.querySelector('.visit-sticker'); if (!b) return 'NO BUTTON'; const r = b.getBoundingClientRect(); return '"' + b.innerText.trim() + '" ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' | name cut: ' + (() => { const t = document.querySelector('.visit-title b'); return t.scrollWidth > t.clientWidth + 1; })() + ' | inside screen: ' + (r.left >= 0 && r.right <= innerWidth); })()`;
+      console.log('sticker button:', await evaluate(btn));
+      await screenshot('social-visit');
+      await evaluate(`document.querySelector('.visit-sticker').click()`);
+      await waitFor(`!!document.querySelector('.sticker-grid')`, 'sticker picker');
+      await sleep(400);
+      console.log('picker:', await evaluate(`[...document.querySelectorAll('.sticker-pick')].map(b => b.innerText.trim()).join(' | ')`), '| fits the screen:', await evaluate(`(() => { const d = document.querySelector('.sticker-dialog').getBoundingClientRect(); return d.left >= 0 && d.right <= innerWidth && d.top >= 0 && d.bottom <= innerHeight; })()`));
+      await screenshot('social-sticker-picker');
+      await evaluate(`[...document.querySelectorAll('.sticker-pick')][0].click()`);
+      await waitFor(`!document.querySelector('.sticker-grid')`, 'picker closed');
+      await sleep(600);
+      console.log('after sending:', await evaluate(btn), '| toast:', await evaluate(TOAST_CHECK));
+      await screenshot('social-sticker-sent');
+      await clickText('Back to my garden');
+      await sleep(1000);
+      const after = (await inPage('/api/me')).tutorial;
+      console.log('back home: coach shown', await evaluate(coachShown), '| tutorial unchanged:', JSON.stringify(after) === JSON.stringify(stepBefore), JSON.stringify(after));
+      await screenshot('social-back-home');
+    });
+    if (process.env.FAKE_DB) {
+      await step(`${user}'s first harvest pays the referral (FAKE_DB ripens the tree)`, async () => {
+        const st = await inPage('/api/me');
+        if (!st.plots[0].tree) {
+          await inPage('/api/checkin', 'POST', {});
+          const s2 = await inPage('/api/me');
+          await inPage('/api/plant', 'POST', { plot: 0, seedId: (s2.seeds.find((x) => x.species === 'mango') ?? s2.seeds[0]).id });
+        }
+        const { DatabaseSync } = await import('node:sqlite');
+        const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
+        db.prepare("UPDATE trees SET growth = target WHERE status = 'alive' AND player_id = (SELECT id FROM players WHERE name = ?)").run(user);
+        db.close();
+        const h = await inPage('/api/harvest', 'POST', { plot: 0 });
+        console.log('harvest:', h.result?.kind, '| referral:', JSON.stringify(h.result?.referral), h.error ?? '');
+      });
+    }
+    await step(`sign in as ${friend}: Village tab`, async () => {
+      await evaluate(`localStorage.removeItem('nearvest.token')`);
+      await send('Page.navigate', { url: UI_URL });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      await typeInto('#dev-user', friend);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await sleep(3000);
+      console.log('notice:', await evaluate(TOAST_CHECK));
+      await screenshot('social-friend-notice');
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-village').click()`);
+      else await evaluate(`(document.querySelector('.rail-village') ?? document.querySelector('.side-tabs .tab-village'))?.click()`);
+      await waitFor(`!!document.querySelector('.invite-panel')`, 'invite panel');
+      await sleep(600);
+      await evaluate(`document.querySelector('.invite-panel').scrollIntoView({ block: 'start' })`);
+      await sleep(300);
+      console.log('invite:', await evaluate(`document.querySelector('.invite-panel').innerText.replace(/\\n+/g, ' / ')`));
+      console.log('invite link field:', await evaluate(`document.querySelector('.invite-link input').value`), '| X link:', await evaluate(`document.querySelector('.invite-x').href.slice(0, 60)`));
+      console.log('panel inside screen width:', await evaluate(`(() => { const r = document.querySelector('.invite-panel').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; })()`), '| page scrolls sideways:', await evaluate(`document.documentElement.scrollWidth > innerWidth`));
+      await screenshot('social-village-invite');
+      await evaluate(`document.querySelector('.visitors-panel').scrollIntoView({ block: 'start' })`);
+      await sleep(300);
+      console.log('visitors:', await evaluate(`document.querySelector('.visitors-panel').innerText.replace(/\\n+/g, ' / ')`));
+      await screenshot('social-village-visitors');
     });
     throw { done: true };
   }
