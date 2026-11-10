@@ -1,18 +1,18 @@
 // Referral + stickers on the web (docs/PLAN-social.md sections 1.4 and 3):
 // - Village tab "Invite a friend": the invite link (Copy, Share on X), the rewards, the friends
 //   invited (paid / waiting for their first harvest) and who invited you.
-// - Village tab "Visitors": one row per visitor per day (stickers + watering on that row, Wave back)
-//   and the waves back you got; Visit buttons for invited friends and the farmer who invited you.
+// - Village tab "Visitors": one row per visitor per day (stickers + watering on that row, Wave back,
+//   Visit) and the waves back you got (Visit); Visit buttons for invited friends and the farmer who invited you.
 // - Visiting a garden: "Sticker" opens the 6 template stickers (3 per garden per day, 5 s apart).
 // Shown only when the server sends `referral` / `stickers` (older servers: nothing new appears).
 
 import { createPortal } from 'preact/compat';
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { api, type GameState, type ReferralView, type Species, type StickerKind, type StickerView, type VisitorView, type VisitResponse, type WaveView } from './api';
 import { Avatar } from './art/avatars';
 import { playSound } from './audio';
 import { Modal } from './help';
-import { inviteLink, inviteOrigin, invitePost } from './referral';
+import { inviteLink, inviteOrigin, invitePost, stickerWaitS } from './referral';
 import { postUrl } from './share';
 import { Sprite, type SpriteName } from './sprites';
 import type { Toast } from './toast';
@@ -218,19 +218,26 @@ export function VisitorsPanel({
                     </span>
                   )}
                 </span>
-                {r.v.wave ? (
-                  <button class="btn btn-small visitor-wave waved" disabled aria-label={`You waved back to ${r.v.from}: ${r.v.wave.text}`}>
-                    <StickerIcon id={r.v.wave.id} scale={1} /> Waved
-                  </button>
-                ) : r.v.canWave ? (
-                  <button class="btn btn-small btn-gold visitor-wave" onClick={() => (playSound('click'), setWaving(r.v))}>
-                    Wave back
-                  </button>
-                ) : (
-                  <button class="btn btn-small visitor-wave waved" disabled title={`You waved back to ${r.v.from} today`}>
-                    Waved
-                  </button>
-                )}
+                <span class="visitor-actions">
+                  {r.v.wave ? (
+                    <button class="btn btn-small visitor-wave waved" disabled aria-label={`You waved back to ${r.v.from}: ${r.v.wave.text}`}>
+                      <StickerIcon id={r.v.wave.id} scale={1} /> Waved
+                    </button>
+                  ) : r.v.canWave ? (
+                    <button class="btn btn-small btn-gold visitor-wave" onClick={() => (playSound('click'), setWaving(r.v))}>
+                      Wave back
+                    </button>
+                  ) : (
+                    <button class="btn btn-small visitor-wave waved" disabled title={`You waved back to ${r.v.from} today`}>
+                      Waved
+                    </button>
+                  )}
+                  {onVisit && (
+                    <button class="btn btn-small btn-mint visitor-visit" onClick={() => (playSound('click'), onVisit(r.v.from))} aria-label={`Visit ${r.v.from}'s garden`}>
+                      Visit
+                    </button>
+                  )}
+                </span>
               </li>
             ) : (
               <li key={`w${r.w.id}`} class="visitor-row wave-row">
@@ -246,9 +253,11 @@ export function VisitorsPanel({
                   </span>
                 </span>
                 {onVisit && (
-                  <button class="btn btn-small btn-mint visitor-wave" onClick={() => (playSound('click'), onVisit(r.w.from))} aria-label={`Visit ${r.w.from}'s garden`}>
-                    Visit
-                  </button>
+                  <span class="visitor-actions">
+                    <button class="btn btn-small btn-mint visitor-visit" onClick={() => (playSound('click'), onVisit(r.w.from))} aria-label={`Visit ${r.w.from}'s garden`}>
+                      Visit
+                    </button>
+                  </span>
                 )}
               </li>
             ),
@@ -288,15 +297,22 @@ function StickerList({ stickers }: { stickers: StickerView[] }) {
   );
 }
 
+export type StickerStatus = ReturnType<typeof useStickerStatus>;
+
 /**
  * What the viewer may still do in a visited garden today: stickers sent / allowed (3; servers
- * before 2026-11-10: 1) and the seconds to wait before the next one (5 s apart, counted down here;
- * the server refuses faster ones too).
+ * before 2026-11-10: 1) and the seconds to wait before the next one (5 s apart).
+ *
+ * ONE countdown per visit (Ardian's phone test, 2026-11-10): `readyAt` is fixed once, when the
+ * server's answer arrives (`stickerReadyAt`; the server counts from the last sticker it stored), and
+ * the visit owns it. Before, every window computed "now + wait" again when it opened, so the
+ * window and the button showed two countdowns and reopening the window restarted the wait. After a
+ * refresh or a tab switch the visit is opened again and the server sends the time still left.
+ * `readyAt` comes from `stickerReadyAt` (referral.ts).
  */
-export function useStickerStatus(visit: VisitResponse | null) {
+export function useStickerStatus(visit: VisitResponse | null, readyAt: number) {
   const sent = visit ? (visit.stickersToday ?? (visit.stickerToday ? [visit.stickerToday] : [])) : [];
   const max = visit?.stickerMax ?? 1;
-  const readyAt = useMemo(() => Date.now() + (visit?.stickerWaitMs ?? 0), [visit]);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (readyAt <= Date.now()) return setNow(Date.now());
@@ -307,7 +323,7 @@ export function useStickerStatus(visit: VisitResponse | null) {
     return () => window.clearInterval(t);
   }, [readyAt]);
   const full = sent.length >= max;
-  return { sent, max, full, waitS: full ? 0 : Math.max(0, Math.ceil((readyAt - now) / 1000)) };
+  return { sent, max, full, waitS: full ? 0 : stickerWaitS(readyAt, now) };
 }
 
 /** The pick-a-sticker window (6 template stickers): visiting (leave one) and Visitors (wave back). */
@@ -359,18 +375,21 @@ function StickerPicker({
 export function StickerWindow({
   name,
   visit,
+  status,
   onClose,
   onSent,
   notify,
 }: {
   name: string;
   visit: VisitResponse;
+  /** The visit's sticker status (the only countdown: it shows on the Sticker button). */
+  status: StickerStatus;
   onClose: () => void;
   onSent: (v: VisitResponse) => void;
   notify: Notify;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
-  const { sent, max, full, waitS } = useStickerStatus(visit);
+  const { sent, max, full, waitS } = status;
   const kinds: StickerKind[] = visit.stickers ?? [];
   const send = async (id: string) => {
     if (busy || full || waitS > 0) return;
@@ -399,7 +418,8 @@ export function StickerWindow({
   const intro = full
     ? `You left ${max} sticker${max === 1 ? '' : 's'} for ${name} today. Come back tomorrow!`
     : waitS > 0
-      ? `Next sticker in ${waitS} s (${sent.length}/${max} today).`
+      ? // No second countdown here: the Sticker button counts down.
+        `Your next sticker is ready in a moment (${sent.length}/${max} today).`
       : `Pick one for ${name}. Up to ${max} sticker${max === 1 ? '' : 's'} per garden a day${sent.length ? ` (${sent.length}/${max} sent)` : ''}.`;
   return (
     <StickerPicker

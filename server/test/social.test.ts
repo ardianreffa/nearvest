@@ -514,6 +514,70 @@ describe('visits, visitors list and wave back', () => {
   });
 });
 
+describe('red dot: Village news seen on every device', () => {
+  it('a visit, sticker, help and wave back are news until the owner marks them seen (server-side, up to the time shown)', async () => {
+    const w = makeWorld();
+    const social = new Social(w.db, w.game, w.now);
+    const sari = await garden(w, 'sari');
+    const budi = await garden(w, 'budi');
+    const news = (id: number) => w.game.state(id).news;
+    assert.deepEqual(news(sari.id), { latestAt: 0, waveAt: 0, seenAt: 0 }, 'nothing yet: no dot');
+    w.advance(1000);
+    social.visit(budi.id, 'sari');
+    const n1 = news(sari.id);
+    assert.ok(n1.latestAt > n1.seenAt, 'a new visitor: dot');
+    w.game.villageSeen(sari.id, n1.latestAt);
+    assert.equal(news(sari.id).seenAt, n1.latestAt, 'seen: no dot');
+    // Visiting again the same day is not news (same visitor row); a sticker is.
+    w.advance(1000);
+    social.visit(budi.id, 'sari');
+    assert.equal(news(sari.id).latestAt, n1.latestAt);
+    social.sticker(budi.id, 'sari', 'nice_garden');
+    assert.ok(news(sari.id).latestAt > news(sari.id).seenAt, 'a sticker: dot');
+    w.game.villageSeen(sari.id, news(sari.id).latestAt);
+    // A friend's watering, then a wave back for the visitor (news for budi, also the Friends pin).
+    w.advance(1000);
+    social.help(budi.id, 'sari', 0);
+    assert.ok(news(sari.id).latestAt > news(sari.id).seenAt, 'a watering: dot');
+    const row = w.game.state(sari.id).visitors[0];
+    assert.equal(news(budi.id).waveAt, 0);
+    social.waveBack(sari.id, row.id, 'see_you');
+    const nb = news(budi.id);
+    assert.ok(nb.waveAt > nb.seenAt && nb.latestAt === nb.waveAt, 'a wave back: dot for the visitor');
+    // Seen never goes back, never past now, and ignores junk.
+    w.game.villageSeen(budi.id, nb.waveAt);
+    w.game.villageSeen(budi.id, 5);
+    w.game.villageSeen(budi.id, 'x');
+    assert.equal(news(budi.id).seenAt, nb.waveAt);
+    w.game.villageSeen(budi.id, w.now() + DAY);
+    assert.equal(news(budi.id).seenAt, w.now());
+  });
+
+  it('POST /api/village/seen stores it on the server (a second device sees no dot)', async () => {
+    const w = makeWorld();
+    const tok = async (u: string) => ((await (await w.app.request('/auth/dev', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u }) })).json()) as any).token as string;
+    const call = async (t: string, method: string, path: string, body?: unknown) => {
+      const res = await w.app.request(path, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return { status: res.status, json: (await res.json()) as any };
+    };
+    const a = await tok('owner');
+    const b = await tok('guest');
+    await call(a, 'POST', '/api/player', { name: 'sari' });
+    await call(b, 'POST', '/api/player', { name: 'budi' });
+    await w.worker.drain();
+    await call(b, 'GET', '/api/farmers/sari');
+    const before = (await call(a, 'GET', '/api/me')).json.news;
+    assert.ok(before.latestAt > before.seenAt);
+    await call(b, 'POST', '/api/village/seen', { upTo: before.latestAt });
+    assert.equal((await call(a, 'GET', '/api/me')).json.news.seenAt, 0, "another garden's seen does not touch yours");
+    const r = await call(a, 'POST', '/api/village/seen', { upTo: before.latestAt });
+    assert.equal(r.status, 200);
+    assert.equal(r.json.state.news.seenAt, before.latestAt);
+    const a2 = (await call(a, 'GET', '/api/me')).json.news;
+    assert.equal(a2.seenAt, a2.latestAt);
+  });
+});
+
 describe('farmer search', () => {
   it('finds ready gardens by name prefix (any case), also inactive or treeless ones; never judge gardens or yourself', async () => {
     const w = makeWorld();

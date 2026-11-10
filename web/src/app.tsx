@@ -28,6 +28,7 @@ import { TaniBotWindow } from './tanibot';
 import { GoogleButton, pendingGoogleRedirect, takeGoogleRedirect } from './google';
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Coach } from './tutorial';
+import { dotsFor, markSeen, useSeenWhenVisible, villageNews } from './dots';
 import { InvitePanel, VisitorsPanel } from './invite';
 import { clearRef, freshIds, keepRefFromUrl, readRef, withoutRef } from './referral';
 import { predict } from './optimistic';
@@ -644,6 +645,20 @@ export function App() {
     </div>
   );
 
+  // Red dot on the Village tab: once the Visitors / Invite boxes are on screen, the news is seen
+  // (stored on the server, so every device agrees). Not while visiting a friend's garden.
+  const villageOnScreen = !!state && !visiting && villageNews(state) && (wide ? drawerOpen && sideTab === 'village' : tab === 'village');
+  const seeVillage = useCallback(() => {
+    const s = stateRef.current;
+    if (!s?.news) return;
+    const upTo = s.news.latestAt;
+    setState((cur) => (cur ? markSeen(cur) : cur));
+    api<{ state: GameState }>('POST', '/api/village/seen', { upTo })
+      .then((r) => applyState(r.state))
+      .catch(() => undefined);
+  }, [applyState]);
+  useSeenWhenVisible('.visitors-panel, .invite-panel', villageOnScreen, seeVillage);
+
   if (fatal) {
     return (
       <main class="shell center">
@@ -735,6 +750,8 @@ export function App() {
   const goShop = () => (wide ? openSide('shop') : setTab('shop'));
   const goSell = () => (wide ? openSide('market') : setTab('market'));
   const immersive = wide ? laptopLayout(win.width, win.height, drawerOpen ? DRAWER_W : RAIL_W, BAR_H, bgVersion()) : undefined;
+  // Red dots (dots.ts): laptops have no Garden tab (the garden is always on screen).
+  const dots = dotsFor(state, wide ? (drawerOpen ? sideTab : null) : tab, !!visiting).tabs;
   const garden = (
     <Garden
       state={state}
@@ -938,7 +955,7 @@ export function App() {
             <div class="drawer-scroll">
               <nav class="side-tabs" aria-label="Panels">
                 {(['storage', 'shop', 'market', 'village'] as SideTab[]).map((t) => (
-                  <TabButton key={t} tab={t} current={sideTab} set={(x) => (playSound('click'), setSideTab(x as SideTab))} icon={tabIcons[t]} label={tabLabels[t]} />
+                  <TabButton key={t} tab={t} current={sideTab} set={(x) => (playSound('click'), setSideTab(x as SideTab))} icon={tabIcons[t]} label={tabLabels[t]} dot={dots[t]} />
                 ))}
               </nav>
               <div class="content">{panelFor(sideTab)}</div>
@@ -950,6 +967,7 @@ export function App() {
                 <button key={t} class={`rail-btn rail-${t}`} onClick={() => (playSound('click'), openSide(t))} title={tabLabels[t]}>
                   {tabIcons[t]}
                   <span>{tabLabels[t]}</span>
+                  {dots[t] && <i class="rail-dot" aria-label={DOT_LABEL[t]} />}
                 </button>
               ))}
               <button class="rail-btn rail-bot" onClick={openBot} title={botDotTitle}>
@@ -977,7 +995,7 @@ export function App() {
           </div>
           <nav class="tabs">
             {(['garden', 'storage', 'shop', 'market', 'village'] as Tab[]).map((t) => (
-              <TabButton key={t} tab={t} current={tab} set={(x) => (playSound('click'), setVisiting(null), setTab(x))} icon={tabIcons[t]} label={tabLabels[t]} />
+              <TabButton key={t} tab={t} current={tab} set={(x) => (playSound('click'), setVisiting(null), setTab(x))} icon={tabIcons[t]} label={tabLabels[t]} dot={dots[t]} />
             ))}
             <button class="tab tab-bot" onClick={openBot} aria-label={botDotTitle}>
               <span class="tab-icon">{botIcon}</span>
@@ -1057,10 +1075,22 @@ function xpFloor(xp: number): number {
   return floor;
 }
 
-function TabButton({ tab, current, set, icon, label }: { tab: Tab; current: Tab; set: (t: Tab) => void; icon: ComponentChildren; label: string }) {
+/** What a red dot on a tab means (screen readers; dots.ts). */
+const DOT_LABEL: Record<Tab, string> = {
+  garden: 'A tree is ripe or thirsty',
+  storage: '',
+  shop: 'No seeds left and a plot is empty',
+  market: 'Fruit to sell',
+  village: 'New visitors or news',
+};
+
+function TabButton({ tab, current, set, icon, label, dot = false }: { tab: Tab; current: Tab; set: (t: Tab) => void; icon: ComponentChildren; label: string; dot?: boolean }) {
   return (
     <button class={`tab tab-${tab}${tab === current ? ' active' : ''}`} onClick={() => set(tab)} aria-current={tab === current ? 'page' : undefined}>
-      <span class="tab-icon">{icon}</span>
+      <span class="tab-icon">
+        {icon}
+        {dot && <i class="tab-dot" aria-label={DOT_LABEL[tab]} />}
+      </span>
       <span>{label}</span>
     </button>
   );

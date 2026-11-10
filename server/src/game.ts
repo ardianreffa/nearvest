@@ -661,6 +661,29 @@ export class Game {
     }));
   }
 
+  /**
+   * Red dot on the Village tab: the time of the newest social event for this garden (a new visitor
+   * row, a sticker, a friend's watering, a wave back, a paid referral) and the newest one the owner
+   * has seen (`village_seen_at`, stored on the server so every device agrees). `waveAt` = the newest
+   * wave back (also a dot on the Friends pin).
+   */
+  villageNews(playerId: number) {
+    const at = (sql: string, ...args: number[]) => (this.db.prepare(sql).get(...args) as { at: number | null }).at ?? 0;
+    const visitAt = at('SELECT max(created_at) AS at FROM visits WHERE owner_id = ?', playerId);
+    const stickerAt = at('SELECT max(created_at) AS at FROM stickers WHERE to_id = ?', playerId);
+    const helpAt = at('SELECT max(created_at) AS at FROM garden_help WHERE owner_id = ?', playerId);
+    const waveAt = at('SELECT max(wave_at) AS at FROM visits WHERE visitor_id = ? AND wave_sticker IS NOT NULL', playerId);
+    const paidAt = at("SELECT max(paid_at) AS at FROM referrals WHERE (referrer_id = ? OR friend_id = ?) AND status = 'paid'", playerId, playerId);
+    const seen = this.db.prepare('SELECT village_seen_at AS at FROM players WHERE id = ?').get(playerId) as { at: number };
+    return { latestAt: Math.max(visitAt, stickerAt, helpAt, waveAt, paidAt), waveAt, seenAt: seen.at };
+  }
+
+  /** The owner saw the Visitors / Invite boxes up to `upTo` (the newest event their screen showed). */
+  villageSeen(playerId: number, upTo: unknown): void {
+    const t = Math.min(Number(upTo) || 0, this.d.now());
+    if (t > 0) this.db.prepare('UPDATE players SET village_seen_at = ? WHERE id = ? AND village_seen_at < ?').run(t, playerId, t);
+  }
+
   /** Waves back the visitor got from gardens they visited (newest first, last 10). */
   wavesReceived(visitorId: number) {
     const text = new Map<string, string>(STICKERS.map((s) => [s.id, s.text]));
@@ -1602,6 +1625,8 @@ export class Game {
       waves: this.wavesReceived(p.id),
       /** Invite a friend: rewards, friends invited and their status, who invited this garden. */
       referral: this.referralView(p, signIn === 'judge'),
+      /** Red dots: the newest Village events and what the owner has seen (all devices). */
+      news: this.villageNews(p.id),
     };
   }
 

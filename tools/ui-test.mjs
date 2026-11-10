@@ -33,6 +33,13 @@
 //   Visitors (1 row with 3 stickers + watering), Wave back; then <owner>w as a wallet garden (FAKE_DB sets custody):
 //   Shop -> "Set up Shop" window, Not now (nothing bought), Continue (the wallet list opens):
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --visits2=<owner>:<prefix> [w] [h]
+// Red dots + Visitors Visit buttons + sticker countdown (fake-chain server; API_URL = that server, default
+//   http://127.0.0.1:8788; FAKE_DB=<its sqlite>): makes <owner> and <visitor> through the API (both visit each other,
+//   <visitor> leaves a sticker, <owner> waves back); FAKE_DB gives <visitor> fruit and empties its seeds. Signs in as
+//   <visitor>: dots on the tabs / rail / Friends pin, Village tab clears its dot (server-side seen), Visit buttons on the
+//   Visitors rows, a visit (no dots), a sticker: ONE countdown, the window closed + opened again and the page refreshed
+//   keep counting from the server's time:
+//   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --dots=<owner>:<visitor> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
@@ -551,6 +558,153 @@ try {
       await sleep(200);
       console.log('pasted 20:', await evaluate(read));
       console.log('fonts of the counter:', await evaluate(`getComputedStyle(document.querySelector('.name-count')).fontFamily + ' ' + getComputedStyle(document.querySelector('.name-count')).fontSize`));
+    });
+    throw { done: true };
+  }
+  if (name.startsWith('--dots=')) {
+    const [owner, visitor] = name.slice('--dots='.length).split(':');
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return res.json();
+    };
+    const make = async (user) => {
+      const { token } = await call('POST', '/auth/dev', null, { username: user });
+      let st = await call('GET', '/api/me', token);
+      if (st.error) st = await call('POST', '/api/player', token, { name: user, demo: true });
+      for (let i = 0; i < 40 && st.player.accountStatus !== 'ready'; i++) (await sleep(300), (st = await call('GET', '/api/me', token)));
+      if (!st.plots[0].tree) {
+        await call('POST', '/api/checkin', token);
+        st = await call('GET', '/api/me', token);
+        await call('POST', '/api/plant', token, { plot: 0, seedId: (st.seeds.find((x) => x.species === 'mango') ?? st.seeds[0]).id });
+      }
+      return token;
+    };
+    const dotsNow = `(() => { const on = (sel) => [...document.querySelectorAll(sel)].map(e => e.closest('.tab, .rail-btn')?.className.match(/(?:tab|rail)-(garden|storage|shop|market|village)/)?.[1]).filter(Boolean).join(',') || 'none';
+      return 'bottom tabs: ' + on('.tabs .tab-dot') + ' | drawer tabs: ' + on('.side-tabs .tab-dot') + ' | rail: ' + on('.hud-rail .rail-dot') + ' | Friends pin: ' + !!document.querySelector('.pin-friends .pin-dot'); })()`;
+    const stickerBtn = `(() => { const b = document.querySelector('.visit-sticker'); if (!b) return 'no button'; return b.innerText.trim() + (b.disabled ? ' (disabled)' : ''); })()`;
+    // Every countdown on screen ("... 4 s" anywhere in the visit panel or a dialog).
+    const countdowns = `[...document.querySelectorAll('.visit-panel, .sticker-dialog')].map(e => (e.innerText.match(/\\b\\d+ s\\b/g) || []).length).reduce((a, b) => a + b, 0)`;
+    const openVillage = async () => {
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-village').click()`);
+      else await evaluate(`(document.querySelector('.rail-village') ?? document.querySelector('.side-tabs .tab-village'))?.click()`);
+      await waitFor(`!!document.querySelector('.visitors-panel')`, 'Visitors panel');
+      await sleep(400);
+    };
+    const signIn = async (user) => {
+      await evaluate(`localStorage.removeItem('nearvest.token')`);
+      await send('Page.navigate', { url: UI_URL });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await sleep(2000);
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+    };
+    let vTok;
+    await step(`${owner} and ${visitor}: visits, a sticker, a wave back`, async () => {
+      const oTok = await make(owner);
+      vTok = await make(visitor);
+      await call('GET', `/api/farmers/${visitor}`, oTok);
+      await call('GET', `/api/farmers/${owner}`, vTok);
+      console.log('sticker:', (await call('POST', `/api/farmers/${owner}/sticker`, vTok, { sticker: 'nice_garden' })).result?.sent);
+      const row = (await call('GET', '/api/me', oTok)).visitors.find((r) => r.from === visitor);
+      console.log('wave back:', (await call('POST', `/api/visitors/${row.id}/wave`, oTok, { sticker: 'see_you' })).result?.text);
+      if (process.env.FAKE_DB) {
+        const { DatabaseSync } = await import('node:sqlite');
+        const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
+        const id = db.prepare('SELECT id FROM players WHERE name = ?').get(visitor).id;
+        db.prepare('DELETE FROM seeds WHERE player_id = ?').run(id);
+        db.prepare("INSERT INTO fruits (player_id, species, quality, qty) VALUES (?, 'mango', 'common', 3) ON CONFLICT DO UPDATE SET qty = 3").run(id);
+        db.close();
+      }
+      console.log(visitor + ' news:', JSON.stringify((await call('GET', '/api/me', vTok)).news));
+    });
+    await step(`${visitor}: red dots`, async () => {
+      await signIn(visitor);
+      console.log('dots (garden open):', await evaluate(dotsNow));
+      await screenshot('dots-garden');
+      if (MOBILE) {
+        await evaluate(`document.querySelector('.tabs .tab-storage').click()`);
+        await sleep(500);
+        console.log('dots (Storage open):', await evaluate(dotsNow));
+        await screenshot('dots-storage-tab');
+      } else {
+        // Menu closed: the icon rail.
+        await evaluate(`document.querySelector('.drawer-close')?.click()`);
+        await sleep(600);
+        console.log('dots (menu closed, icon rail):', await evaluate(dotsNow));
+        await screenshot('dots-rail');
+        await evaluate(`document.querySelector('.rail-storage')?.click()`);
+        await sleep(600);
+        console.log('dots (drawer open on Storage):', await evaluate(dotsNow));
+        await screenshot('dots-drawer');
+      }
+    });
+    await step(`${visitor}: Village tab clears the Village dot (on the server too); Visit buttons`, async () => {
+      await openVillage();
+      await evaluate(`document.querySelector('.visitors-panel').scrollIntoView({ block: 'start' })`);
+      await sleep(1500);
+      console.log('dots (Village open):', await evaluate(dotsNow), '| server news:', JSON.stringify((await call('GET', '/api/me', vTok)).news));
+      console.log('Visitors rows:', await evaluate(`[...document.querySelectorAll('.visitor-row')].map(r => r.innerText.replace(/\\n+/g, ' / ') + ' [Visit button: ' + !!r.querySelector('.visitor-visit') + ']').join(' || ')`));
+      console.log('buttons inside the screen:', await evaluate(`[...document.querySelectorAll('.visitor-row button')].every(b => { const r = b.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; })`));
+      await screenshot('visitors-visit-buttons');
+      // Leave the Village tab: no Village dot (seen), the others stay.
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-storage').click()`);
+      else await evaluate(`document.querySelector('.side-tabs .tab-storage')?.click()`);
+      await sleep(500);
+      console.log('dots after seeing Village:', await evaluate(dotsNow));
+    });
+    const visitFromVillage = async () => {
+      await openVillage();
+      await evaluate(`[...document.querySelectorAll('.visitor-row')].find(r => r.innerText.includes(${JSON.stringify(owner)}) && r.querySelector('.visitor-visit')).querySelector('.visitor-visit').click()`);
+      await waitFor(`!!document.querySelector('.visit-sticker')`, 'visit with Sticker button', 15000);
+    };
+    await step(`${visitor} visits ${owner} from a Visitors row: no dots; sticker countdown`, async () => {
+      await visitFromVillage();
+      console.log('dots while visiting:', await evaluate(dotsNow));
+      // The API sticker was sent a while ago: ready now.
+      await waitFor(`!document.querySelector('.visit-sticker').disabled`, 'sticker ready', 10000);
+      console.log('button:', await evaluate(stickerBtn));
+      await evaluate(`document.querySelector('.visit-sticker').click()`);
+      await waitFor(`!!document.querySelector('.sticker-grid')`, 'sticker window');
+      await evaluate(`[...document.querySelectorAll('.sticker-pick')][2].click()`);
+      const t0 = Date.now();
+      await waitFor(`!document.querySelector('.sticker-grid')`, 'window closed after sending');
+      await sleep(300);
+      console.log('after send:', await evaluate(stickerBtn), '| countdowns on screen:', await evaluate(countdowns));
+      await screenshot('sticker-wait');
+      await sleep(1700);
+      console.log(`${((Date.now() - t0) / 1000).toFixed(1)} s after send:`, await evaluate(stickerBtn), '| countdowns on screen:', await evaluate(countdowns));
+      // Refresh the page (back to my garden), visit again: the server sends the time still left.
+      await send('Page.reload', {});
+      await waitFor(`!!document.querySelector('.plots')`, 'garden after refresh');
+      await visitFromVillage();
+      const el = (Date.now() - t0) / 1000;
+      console.log(`after refresh, ${el.toFixed(1)} s after send:`, await evaluate(stickerBtn), `(expected about Wait ${Math.max(0, Math.ceil(5 - el))} s, never 5 again)`);
+      await screenshot('sticker-after-refresh');
+      await waitFor(`!document.querySelector('.visit-sticker').disabled`, 'sticker ready again', 10000);
+      console.log(`ready at ${((Date.now() - t0) / 1000).toFixed(1)} s:`, await evaluate(stickerBtn));
+      // Open, close and open the window again: no countdown inside, stickers usable, button unchanged.
+      for (const round of [1, 2]) {
+        await evaluate(`document.querySelector('.visit-sticker').click()`);
+        await waitFor(`!!document.querySelector('.sticker-grid')`, 'sticker window');
+        await sleep(300);
+        console.log(`window open #${round}:`, await evaluate(`document.querySelector('.sticker-dialog p').innerText`), '| stickers enabled:', await evaluate(`[...document.querySelectorAll('.sticker-pick')].filter(b => !b.disabled).length`), '| countdowns:', await evaluate(countdowns));
+        if (round === 1) await screenshot('sticker-window');
+        await clickText('Close');
+        await sleep(400);
+        console.log(`window closed #${round}:`, await evaluate(stickerBtn));
+      }
+      // A second sticker now, then close-open during the wait is impossible (button disabled): check it stays ONE countdown.
+      await evaluate(`document.querySelector('.visit-sticker').click()`);
+      await waitFor(`!!document.querySelector('.sticker-grid')`, 'sticker window');
+      await evaluate(`[...document.querySelectorAll('.sticker-pick')][4].click()`);
+      await waitFor(`!document.querySelector('.sticker-grid')`, 'closed');
+      await sleep(1200);
+      console.log('3rd sticker wait:', await evaluate(stickerBtn), '| countdowns:', await evaluate(countdowns));
+      await waitFor(`!document.querySelector('.visit-sticker .visit-sticker-label').innerText.startsWith('Wait')`, 'wait over', 10000);
+      console.log('end:', await evaluate(stickerBtn));
     });
     throw { done: true };
   }

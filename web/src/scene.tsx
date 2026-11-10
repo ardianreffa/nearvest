@@ -11,6 +11,7 @@ import { leafBurst } from './fx';
 import { Pixels, Sprite } from './sprites';
 import { formatDuration } from './ui';
 import { lookOf } from './weather';
+import { dotsFor } from './dots';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 export type ActionKind = 'plant' | 'water' | 'harvest' | 'fertilize' | 'chop';
@@ -191,6 +192,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         groundWide={!!immersive && !phone}
         // Garden visits are live on servers that send `helps` (older servers: the Friends pin stays "Soon").
         friends={Array.isArray(state.helps)}
+        friendsDot={!visit && dotsFor(state, null, false).friends}
         weather={lookOf(state.weather)}
         phone={!!phone}
       />

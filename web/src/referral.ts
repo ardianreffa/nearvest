@@ -114,3 +114,18 @@ export function stickerButtonLabel(sent: number, max: number, waitS: number): st
   if (waitS > 0) return `Wait ${waitS} s`;
   return sent ? `Sticker ${sent}/${max}` : 'Sticker';
 }
+
+/**
+ * When the next sticker is allowed, on this device's clock: the wait the server sent (counted from
+ * the last sticker it stored), fixed once when its answer arrived. The visit keeps this one time,
+ * so the countdown never restarts when the sticker window is closed and opened again; after a
+ * refresh or a tab switch the visit is loaded again and the server sends the time still left.
+ */
+export function stickerReadyAt(waitMs: number | undefined, receivedAt: number): number {
+  return receivedAt + Math.max(0, waitMs ?? 0);
+}
+
+/** Whole seconds left before the next sticker (0 = now). */
+export function stickerWaitS(readyAt: number, now: number): number {
+  return Math.max(0, Math.ceil((readyAt - now) / 1000));
+}

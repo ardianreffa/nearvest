@@ -302,6 +302,12 @@ export interface GameState {
   /** Visitors (1 row per visitor per day) and waves back (missing on older servers: the sticker list instead). */
   visitors?: VisitorView[];
   waves?: WaveView[];
+  /**
+   * Red dots (servers from 2026-11-10 on; missing = no Village / Friends dot): the newest Village
+   * event (visitor, sticker, watering, wave back, paid referral), the newest wave back and the
+   * newest one the owner has seen (stored on the server, the same on every device).
+   */
+  news?: { latestAt: number; waveAt: number; seenAt: number };
   /** Invite a friend (missing on servers without referral: no invite box). */
   referral?: ReferralView;
   seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null; source: string }[];

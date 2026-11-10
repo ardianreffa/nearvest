@@ -209,7 +209,20 @@ function placePin(el: HTMLElement, host: HTMLElement, v: Village, x: number, y: 
   el.style.top = `${best!.t - hr.top}px`;
 }
 
-export function Hotspots({ onPlace, account, village = V1, friends = false }: { onPlace: (p: Place) => void; account?: string; village?: Village; friends?: boolean }) {
+export function Hotspots({
+  onPlace,
+  account,
+  village = V1,
+  friends = false,
+  friendsDot = false,
+}: {
+  onPlace: (p: Place) => void;
+  account?: string;
+  village?: Village;
+  friends?: boolean;
+  /** A red dot on the Friends pin (a new wave back, dots.ts). */
+  friendsDot?: boolean;
+}) {
   const v = village;
   const spot = (id: Spot): SpotInfo => (id === 'friends' && friends ? FRIENDS_LIVE : SPOTS[id]);
   const [bubble, setBubble] = useState<Spot | null>(null);
@@ -324,6 +337,8 @@ export function Hotspots({ onPlace, account, village = V1, friends = false }: { 
               <span class="pin-short">{s.short}</span>
               {!s.open && !lit && <span class="pin-soon">Soon</span>}
             </span>
+            {/* Outside the frame: its stepped-corner clip would cut the dot. */}
+            {id === 'friends' && friends && friendsDot && <i class="pin-dot" />}
           </button>
         );
       })}

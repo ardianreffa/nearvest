@@ -126,6 +126,36 @@ a notice for new stickers (`nearvest.stickersSeen.<account>`). Same village day 
   `UI_URL=http://localhost:5174 FAKE_DB=<fake sqlite> node tools/ui-test.mjs <outDir> --visits2=<owner>:<prefix> 390 844`
   (and `1280 800`).
 
+### 1.7 Sticker wait fix, Visit on every Visitors row, red dots (Ardian's phone test after `nearvest-08d00e3`, built 2026-11-10, local commit, not released)
+
+- **Sticker wait bug:** after one sticker there were two countdowns (button + sticker window) and
+  closing and opening the window started the wait from 5 s again. Cause: every place that showed
+  the wait (the button and each newly opened window) computed "now + `stickerWaitMs`" itself, at the
+  moment it appeared, from the visit data that was fetched earlier. Fix (web only): the visit keeps
+  ONE time `readyAt`, fixed when the server's answer arrives (`stickerReadyAt` in
+  `web/src/referral.ts`; the server counts the wait from the last sticker it stored); the button is
+  the only countdown ("Wait n s", disabled), the window shows no number ("Your next sticker is ready
+  in a moment"). A refresh or tab switch ends the visit; opening it again gets the time still left
+  from the server (`stickerWaitMs`, unchanged API).
+- **Visit buttons in Visitors:** every row (a visitor's row: Wave back + Visit stacked; a "X waved
+  back" row: Visit).
+- **Red dots** (`web/src/dots.ts`, same look as the check-in dot): phone bottom tabs, laptop drawer
+  tabs and icon rail, and the Friends pin.
+  - Village: unseen news = a new visitor row, sticker, friend's watering, wave back or paid
+    referral. Server: `state.news = { latestAt, waveAt, seenAt }` (`Game.villageNews`) and
+    `POST /api/village/seen {upTo}` (stores `players.village_seen_at`, never backwards, never past
+    now; the same on every device). The web marks it seen once the Visitors / Invite box is on
+    screen (IntersectionObserver). Servers without `news` (the live `nearvest-08d00e3`): no Village
+    or Friends dot.
+  - Market: fruit in Storage. Shop: no seeds AND an empty open plot. Garden (phones only, laptops
+    always show the garden): a ripe or thirsty tree while another tab is open.
+  - Friends pin: a new wave back (`waveAt > seenAt`).
+  - Never for fertilizer, never while visiting, never on the tab that is open.
+- **Checks:** `server/test/social.test.ts` ("red dot: Village news ..."), `web/test/dots.test.ts`,
+  browser `UI_URL=http://localhost:5174 FAKE_DB=<fake sqlite> node tools/ui-test.mjs <outDir> --dots=<owner>:<visitor> 390 844`
+  (and `1280 800`): dots, Village seen on the server, Visit buttons, a visit without dots, a sticker
+  with one countdown, refresh mid-wait (continues at about 2 s, not 5), window opened and closed twice.
+
 ### 1.5 Friends pin
 `art/hotspots.tsx`: `friends.open` points to the farmer list; the "Soon" tag goes; label "Visit
 farmers". The Arena pin stays "Soon".

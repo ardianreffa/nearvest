@@ -385,6 +385,12 @@ export function createApp(deps: AppDeps) {
     const result = social.waveBack(pid, Number(c.req.param('id')), (await body(c)).sticker);
     return c.json({ result, state: game.state(pid) });
   });
+  // Red dot: the owner saw the Village tab's Visitors / Invite boxes (up to the newest event shown).
+  app.post('/api/village/seen', async (c) => {
+    const pid = playerId(c);
+    game.villageSeen(pid, (await body(c)).upTo);
+    return c.json({ state: game.state(pid) });
+  });
   app.post('/api/harvest', async (c) => {
     const b = await body(c);
     const then = b.then === 'plant' || b.then === 'sell' ? b.then : undefined;

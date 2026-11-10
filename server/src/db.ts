@@ -283,6 +283,8 @@ function migrate(db: DB): void {
   if (!has('players', 'avatar')) db.exec("ALTER TABLE players ADD COLUMN avatar TEXT NOT NULL DEFAULT 'farmer_hat'");
   // Tutorial step (game.ts TUTORIAL_STEPS); gardens made before the tutorial existed count as done.
   if (!has('players', 'last_seen_at')) db.exec('ALTER TABLE players ADD COLUMN last_seen_at INTEGER');
+  // Red dot on the Village tab (2026-11-10): the newest social event the owner has seen (0 = none).
+  if (!has('players', 'village_seen_at')) db.exec('ALTER TABLE players ADD COLUMN village_seen_at INTEGER NOT NULL DEFAULT 0');
   if (!has('players', 'tutorial_step')) db.exec(`ALTER TABLE players ADD COLUMN tutorial_step INTEGER NOT NULL DEFAULT ${TUTORIAL_DONE}`);
   // Judge gardens: TaniBot waits for the judge's first harvest (at most until this time).
   // TaniBot auto-plant: 'off' | 'common' (only Common or unknown seeds, never Rare or Gold).

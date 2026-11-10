@@ -116,6 +116,7 @@ export function Backdrop({
   weather = 'clear',
   phone = false,
   friends = false,
+  friendsDot = false,
 }: {
   fraction: number;
   blurFill?: boolean;
@@ -123,6 +124,8 @@ export function Backdrop({
   onPlace?: (p: Place) => void;
   /** The Friends pin opens the farmer list (garden visits are live on this server). */
   friends?: boolean;
+  /** A red dot on the Friends pin: a new wave back (dots.ts). */
+  friendsDot?: boolean;
   account?: string;
   village?: Village;
   skyTop?: number;
@@ -250,7 +253,7 @@ export function Backdrop({
         <div class="bg-night-shade" />
         {/* The weather: over the village, under the place pins (and the plots, TaniBot and HUD). */}
         <WeatherFx look={weather} v={v} phone={phone} />
-        {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} friends={friends} />}
+        {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} friends={friends} friendsDot={friendsDot} />}
       </div>
       {/* The plain ground colour below the art: only where there is no lawn (laptops have one). */}
       {blurFill && !groundWide && <div class="bg-soil-ext" style={{ background: v.groundExt }} />}

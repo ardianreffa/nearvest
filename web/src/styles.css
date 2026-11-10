@@ -1420,6 +1420,7 @@ button {
 }
 
 .tab-icon {
+  position: relative;
   height: 26px;
   display: flex;
   align-items: center;
@@ -2985,6 +2986,7 @@ input:focus-visible {
 }
 
 .rail-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -10990,7 +10992,20 @@ html.page-locked body {
   background: var(--purple-300);
 }
 
-.visitor-wave {
+.visitor-actions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.visitor-actions .btn {
+  justify-content: center;
+}
+
+.visitor-wave,
+.visitor-visit {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -11098,4 +11113,32 @@ html.page-locked body {
     padding-right: 8px;
     font-size: var(--fs-sm);
   }
+}
+
+/* Red dots (dots.ts, Ardian 2026-11-10): the check-in dot's look on the tabs (phone bottom tabs and
+   laptop drawer tabs: on the icon's top right corner), the icon rail (.rail-dot above) and the
+   Friends pin. */
+.tab-dot,
+.pin-dot {
+  position: absolute;
+  top: -4px;
+  right: -7px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--red-500);
+  border: 2px solid var(--ink);
+  box-shadow: 0 0 6px var(--red-500);
+  pointer-events: none;
+}
+
+.pin-dot {
+  top: -5px;
+  right: -5px;
+  z-index: 1;
+}
+
+.rail-btn .rail-dot {
+  top: 2px;
+  right: 6px;
 }

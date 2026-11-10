@@ -4,7 +4,7 @@
 // OFF, a tap says hello) and helping water one thirsty tree per village day. The server checks
 // every rule (server/src/social.ts); visitors only get public data (TaniBot: ON / OFF only).
 // "Sticker" leaves one of 6 template stickers (invite.tsx StickerWindow, 3 per garden per day, 5 s
-// apart: the button counts down). Search finds any ready garden by the start of its name.
+// apart: only the button counts down, from the server's time). Search finds any ready garden by the start of its name.
 
 import { useEffect, useState } from 'preact/hooks';
 import { api, type FarmersResponse, type GameState, type HelpResult, type PublicGarden, type VisitResponse } from './api';
@@ -14,8 +14,8 @@ import { floatText } from './fx';
 import { PhoneGarden } from './garden';
 import { Modal } from './help';
 import type { Immersive } from './layout';
-import { StickerWindow, useStickerStatus } from './invite';
-import { matchesPrefix, stickerButtonLabel } from './referral';
+import { StickerWindow, useStickerStatus, type StickerStatus } from './invite';
+import { matchesPrefix, stickerButtonLabel, stickerReadyAt } from './referral';
 import { GardenScene, type SceneFx } from './scene';
 import { Sprite, UiIcon } from './sprites';
 import type { Toast } from './toast';
@@ -189,6 +189,13 @@ export function VisitGarden({
   const [busy, setBusy] = useState(false);
   const [fx, setFx] = useState<SceneFx | null>(null);
   const [stickerOpen, setStickerOpen] = useState(false);
+  // The next sticker's time, fixed when the server's answer arrives (one countdown per visit).
+  const [readyAt, setReadyAt] = useState(0);
+  const takeVisit = (v: VisitResponse) => {
+    setVisit(v);
+    setReadyAt(stickerReadyAt(v.stickerWaitMs, Date.now()));
+  };
+  const stickerStatus = useStickerStatus(visit, readyAt);
 
   useEffect(() => {
     let alive = true;
@@ -197,7 +204,7 @@ export function VisitGarden({
     api<VisitResponse>('GET', `/api/farmers/${encodeURIComponent(name)}`)
       .then((v) => {
         if (!alive) return;
-        setVisit(v);
+        takeVisit(v);
         // Start on the first thirsty tree (or the first tree).
         const first = v.garden.plots.findIndex((p) => p.tree?.needsWater);
         setSelected(first >= 0 ? first : Math.max(0, v.garden.plots.findIndex((p) => p.tree)));
@@ -217,7 +224,7 @@ export function VisitGarden({
     window.setTimeout(() => setFx(null), 1700);
     try {
       const r = await api<{ result: HelpResult; state: GameState; visit: VisitResponse }>('POST', `/api/farmers/${encodeURIComponent(name)}/water`, { plot });
-      setVisit(r.visit);
+      takeVisit(r.visit);
       onState(r.state);
       if (r.result.helperXp) floatText(`+${r.result.helperXp} XP`, 'xp');
       notify({
@@ -229,7 +236,7 @@ export function VisitGarden({
       playSound('error');
       notify({ kind: 'error', text: errorText(e) });
       // The tree may have been watered meanwhile: show the garden as it is now.
-      void api<VisitResponse>('GET', `/api/farmers/${encodeURIComponent(name)}`).then(setVisit).catch(() => undefined);
+      void api<VisitResponse>('GET', `/api/farmers/${encodeURIComponent(name)}`).then(takeVisit).catch(() => undefined);
     } finally {
       setBusy(false);
     }
@@ -262,11 +269,12 @@ export function VisitGarden({
       onHelp={help}
       onBack={back}
       onSticker={() => (playSound('click'), setStickerOpen(true))}
+      sticker={stickerStatus}
       bar={!!immersive}
     />
   );
   const stickers = stickerOpen && visit && (
-    <StickerWindow name={visit.garden.name} visit={visit} onClose={() => setStickerOpen(false)} onSent={setVisit} notify={notify} />
+    <StickerWindow name={visit.garden.name} visit={visit} status={stickerStatus} onClose={() => setStickerOpen(false)} onSent={takeVisit} notify={notify} />
   );
 
   if (immersive) {
@@ -299,6 +307,7 @@ function VisitPanel({
   onHelp,
   onBack,
   onSticker,
+  sticker: st,
   bar,
 }: {
   name: string;
@@ -309,12 +318,12 @@ function VisitPanel({
   onHelp: (plot: number) => void;
   onBack: () => void;
   onSticker: () => void;
+  sticker: StickerStatus;
   bar: boolean;
 }) {
   const g = visit?.garden;
   const p = g?.plots[selected];
   const t = p?.tree;
-  const st = useStickerStatus(visit);
   // "Sticker" / "Sticker 1/3" / "Wait 4 s" / "Sent 3/3 today" (older servers: 1 a day, "Sent").
   const stickerLabel = stickerButtonLabel(st.sent.length, st.max, st.waitS);
   let body;
