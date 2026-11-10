@@ -13,6 +13,8 @@ import { TreePixels } from './art/trees';
 import { sortMemorials } from './memorials';
 import { Info, type InfoKey } from './info';
 import { clampQty, saleTotal, seasonNote, seasonPayout, stepQty } from './qty';
+import { jumpTo, revealIfHidden, useAttention } from './attention';
+import { shopNeed } from './dots';
 import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QtyPicker, QualityTag, QUALITY_NAME, SPECIES_NAME, type SeedGroup } from './ui';
 
 const QUALITY_MULT = { common: 1, rare: 2, gold: 5 } as const;
@@ -171,7 +173,11 @@ export function Storage({ state, config, act, busy, goSell }: { state: GameState
   );
 }
 
-export function Shop({ state, config, act, busy }: { state: GameState; config: ServerConfig; act: Act; busy: boolean }) {
+export function Shop({ state, config, act, busy, focus = 0 }: { state: GameState; config: ServerConfig; act: Act; busy: boolean; focus?: number }) {
+  const listRef = useRef<HTMLUListElement>(null);
+  // Opened by the red dot (out of seeds, an empty plot): point at the Mango seed.
+  const glow = useAttention('shop', focus, () => revealIfHidden(listRef.current?.querySelector('.shop-seed_mango')));
+  const need = shopNeed(state);
   return (
     <Panel title="Village Shop" right={<span class="balance-chip"><Coin /> {formatPanen(state.player.balance)}</span>}>
       <div class="shop-scene">
@@ -181,12 +187,17 @@ export function Shop({ state, config, act, busy }: { state: GameState; config: S
       <p class="burn-note">
         <Sprite name="fire" scale={2} /> Every PANEN you spend here is burned forever. <Info k="burned" label="burned PANEN" />
       </p>
-      <ul class="list shop">
+      {need && (
+        <p class="attention-hint" role="status">
+          Out of seeds. Buy a seed to plant your empty plot.
+        </p>
+      )}
+      <ul class="list shop" ref={listRef}>
         {Object.entries(config.shop).map(([id, item]) => {
           const species = id.startsWith('seed_') ? (id.slice(5) as 'mango' | 'rambutan' | 'durian') : null;
           const canAfford = state.player.balance >= item.price;
           return (
-            <li key={id} class={`shop-${id}`}>
+            <li key={id} class={`shop-${id}${glow && need && id === 'seed_mango' ? ' attention' : ''}`}>
               {species ? <FruitIcon species={species} /> : <Sprite name="fertilizer" scale={3} />}
               <span class="grow">
                 {item.name}
@@ -221,7 +232,9 @@ function useDartoPose(): [DartoPose, Species, (pose: DartoPose, fruit?: Species)
   return [pose, fruit, show];
 }
 
-export function Market({ state, config, sell, act, busy }: { state: GameState; config: ServerConfig; sell: Sell; act: Act; busy: boolean }) {
+const MARKET_SEEDS_OPEN_KEY = 'nearvest.marketSeedsOpen';
+
+export function Market({ state, config, sell, act, busy, focus = 0 }: { state: GameState; config: ServerConfig; sell: Sell; act: Act; busy: boolean; focus?: number }) {
   const d = state.darto;
   const [pose, heldFruit, showPose] = useDartoPose();
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -240,9 +253,40 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
   const seedGroups = groupSeeds(state.seeds);
   const owned = (species: Species) => state.fruits.filter((f) => f.species === species && f.qty > 0);
   const seedCount = seedGroups.reduce((n, g) => n + g.ids.length, 0);
+  const fruitCount = state.fruits.reduce((n, f) => n + Math.max(0, f.qty), 0);
+  const rowsRef = useRef<HTMLUListElement>(null);
+  const seedsRef = useRef<HTMLElement>(null);
+  // Opened by the red dot (new fruit): the rows that can sell glow and the first one comes into view.
+  const glow = useAttention('market', focus, () => revealIfHidden(rowsRef.current?.querySelector('.market-row:not(.empty)')));
+  const [seedsOpen, setSeedsOpen] = useState(() => {
+    try {
+      return localStorage.getItem(MARKET_SEEDS_OPEN_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleSeeds = (to = !seedsOpen) => {
+    setSeedsOpen(to);
+    try {
+      localStorage.setItem(MARKET_SEEDS_OPEN_KEY, to ? '1' : '0');
+    } catch {
+      // Storage blocked: remembered for this visit only.
+    }
+  };
+  const shownSeeds = seedsOpen ? seedGroups : seedGroups.slice(0, STORAGE_PEEK);
   return (
     <>
-      <Panel title="Today's Prices" class="market-panel">
+      <Panel
+        title="Today's Prices"
+        class="market-panel"
+        right={
+          seedCount > 0 && (
+            <button class="link-btn seeds-jump" onClick={() => jumpTo(seedsRef.current)}>
+              Seeds ({seedCount}) ↓
+            </button>
+          )
+        }
+      >
         <div class="market-scene" ref={sceneRef}>
           <MarketBackdrop />
           <DartoFigure pose={pose} fruit={heldFruit} scale={2} />
@@ -255,10 +299,16 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
             <span class="speech">Thanks!</span>
           </div>
         )}
-        <ul class="market-rows">
+        {fruitCount > 0 && (
+          <p class="attention-hint" role="status">
+            You have {fruitCount} {fruitCount === 1 ? 'fruit' : 'fruits'} to sell. Pick an amount and tap Sell.
+          </p>
+        )}
+        <ul class="market-rows" ref={rowsRef}>
           {d.prices.map((p) => (
             <FruitRow
               key={p.species}
+              glow={glow}
               price={p}
               owned={owned(p.species)}
               season={state.season}
@@ -279,16 +329,19 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
         </p>
       </Panel>
       {seedGroups.length > 0 && (
-        <details class="panel sell-seeds">
-          <summary class="panel-head">
-            <h2>Sell seeds</h2>
-            <span class="muted small">
-              {seedCount} in storage · {state.seedSlots.used}/{state.seedSlots.max} slots
+        // Like a Storage section: "+ SEEDS (17)" shows the first 2 kinds and "... 3 more", "− SEEDS (17)" all of them.
+        <section class="panel sell-seeds inv-section" ref={seedsRef}>
+          <header class="panel-head">
+            <h2>
+              <SectionToggle name="Seeds" count={seedCount} open={seedsOpen} toggle={() => toggleSeeds()} />
+            </h2>
+            <span class={`small sell-seeds-slots ${state.seedSlots.used >= state.seedSlots.max ? 'slots-full' : 'muted'}`}>
+              {state.seedSlots.used}/{state.seedSlots.max} slots
             </span>
-          </summary>
+          </header>
           <p class="muted small">Mr. Darto also buys seeds, cheaply. Handy when your storage is full.</p>
           <ul class="market-rows">
-            {seedGroups.map((g) => (
+            {shownSeeds.map((g) => (
               <SeedSellRow
                 key={g.key}
                 group={g}
@@ -301,8 +354,9 @@ export function Market({ state, config, sell, act, busy }: { state: GameState; c
                 }}
               />
             ))}
+            <MoreRow hidden={seedGroups.length - shownSeeds.length} onOpen={() => toggleSeeds(true)} />
           </ul>
-        </details>
+        </section>
       )}
     </>
   );
@@ -357,8 +411,10 @@ function FruitRow({
   owned,
   season,
   busy,
+  glow = false,
   onSell,
 }: {
+  glow?: boolean;
   price: { species: Species; price: number; base: number; min: number; max: number };
   owned: { quality: Quality; qty: number }[];
   season: Season;
@@ -369,7 +425,7 @@ function FruitRow({
   const chosen = owned.find((o) => o.quality === quality) ?? owned[0] ?? null;
   const pos = ((price.price - price.min) / Math.max(1, price.max - price.min)) * 100;
   return (
-    <li class={`market-row${chosen ? '' : ' empty'}`}>
+    <li class={`market-row${chosen ? (glow ? ' attention' : '') : ' empty'}`}>
       <div class="market-row-head">
         <FruitIcon species={price.species} scale={3} />
         <span class="market-name">{SPECIES_NAME[price.species]}</span>

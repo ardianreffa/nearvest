@@ -285,6 +285,13 @@ function migrate(db: DB): void {
   if (!has('players', 'last_seen_at')) db.exec('ALTER TABLE players ADD COLUMN last_seen_at INTEGER');
   // Red dot on the Village tab (2026-11-10): the newest social event the owner has seen (0 = none).
   if (!has('players', 'village_seen_at')) db.exec('ALTER TABLE players ADD COLUMN village_seen_at INTEGER NOT NULL DEFAULT 0');
+  // Red dot on the Market tab (2026-11-10): when fruit was last added (a harvest) and when the owner
+  // last opened the Market. Gardens that already hold fruit get fruit_at = 1, so their dot shows once.
+  if (!has('players', 'fruit_at')) {
+    db.exec('ALTER TABLE players ADD COLUMN fruit_at INTEGER NOT NULL DEFAULT 0');
+    db.exec('UPDATE players SET fruit_at = 1 WHERE id IN (SELECT player_id FROM fruits WHERE qty > 0)');
+  }
+  if (!has('players', 'market_seen_at')) db.exec('ALTER TABLE players ADD COLUMN market_seen_at INTEGER NOT NULL DEFAULT 0');
   if (!has('players', 'tutorial_step')) db.exec(`ALTER TABLE players ADD COLUMN tutorial_step INTEGER NOT NULL DEFAULT ${TUTORIAL_DONE}`);
   // Judge gardens: TaniBot waits for the judge's first harvest (at most until this time).
   // TaniBot auto-plant: 'off' | 'common' (only Common or unknown seeds, never Rare or Gold).

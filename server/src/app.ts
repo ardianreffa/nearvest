@@ -391,6 +391,12 @@ export function createApp(deps: AppDeps) {
     game.villageSeen(pid, (await body(c)).upTo);
     return c.json({ state: game.state(pid) });
   });
+  // Red dot: the owner opened the Market (saw the fruit added up to `upTo`).
+  app.post('/api/market/seen', async (c) => {
+    const pid = playerId(c);
+    game.marketSeen(pid, (await body(c)).upTo);
+    return c.json({ state: game.state(pid) });
+  });
   app.post('/api/harvest', async (c) => {
     const b = await body(c);
     const then = b.then === 'plant' || b.then === 'sell' ? b.then : undefined;

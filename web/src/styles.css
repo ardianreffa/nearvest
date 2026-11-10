@@ -5093,30 +5093,71 @@ button.balance:focus-visible {
   min-width: 84px;
 }
 
-/* Seeds: a folding section with the same rows. */
-details.sell-seeds {
+/* Seeds: a section like Storage ("+ SEEDS (17)" = first 2 kinds + "... 3 more", "− SEEDS (17)" = all),
+   title on one line, slots on the right. The "Seeds (17) ↓" link at the top of the Market jumps here. */
+.sell-seeds {
   margin-top: 12px;
+  scroll-margin-top: 72px;
 }
 
-details.sell-seeds > summary {
-  cursor: pointer;
-  list-style: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+.sell-seeds .panel-head h2 {
+  white-space: nowrap;
+  min-width: 0;
 }
 
-details.sell-seeds > summary::-webkit-details-marker {
-  display: none;
+.sell-seeds-slots {
+  white-space: nowrap;
+  flex: none;
 }
 
-details.sell-seeds > summary h2::before {
-  content: '+ ';
+.seeds-jump {
+  white-space: nowrap;
+  flex: none;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
 }
 
-details.sell-seeds[open] > summary h2::before {
-  content: '- ';
+.market-panel .panel-head h2 {
+  min-width: 0;
+}
+
+@media (max-width: 1023px) {
+  .sell-seeds-slots {
+    font-size: var(--fs-xs);
+  }
+}
+
+/* A tab opened by its red dot (attention.ts): a short hint above the list, and the rows to act on
+   glow for about 2 s (inner glow: the stepped corners clip anything outside the box). */
+.attention-hint {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--mint-300) 70%, var(--paper-light));
+  border: 2px solid var(--mint-700);
+}
+
+.market-row.attention,
+.list li.attention {
+  border-color: var(--gold-500) !important;
+  background: color-mix(in srgb, var(--gold-300) 45%, var(--paper-light)) !important;
+  box-shadow: inset 0 0 0 3px var(--gold-500), inset 0 0 12px color-mix(in srgb, var(--gold-500) 70%, transparent) !important;
+  animation: attention-glow 0.5s steps(2) 4;
+}
+
+@keyframes attention-glow {
+  50% {
+    box-shadow: inset 0 0 0 3px var(--mint-500), inset 0 0 16px color-mix(in srgb, var(--mint-500) 60%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-row.attention,
+  .list li.attention {
+    animation: none;
+  }
 }
 
 /* Laptop drawer: a shorter market picture so prices and selling fit without scrolling. */
@@ -9556,8 +9597,7 @@ html.page-locked body {
   }
 }
 
-/* Storage sections (panels.tsx Storage): "+ SEEDS (6)" opens one, "− SEEDS (6)" closes it, like
-   "+ SELL SEEDS" in the Market. Closed: the first 2 rows and "... 4 more". */
+/* Storage sections (panels.tsx Storage, also the Market's Seeds): "+ SEEDS (6)" opens one, "− SEEDS (6)" closes it. Closed: the first 2 rows and "... 4 more". */
 .inv-toggle {
   display: inline-flex;
   align-items: baseline;

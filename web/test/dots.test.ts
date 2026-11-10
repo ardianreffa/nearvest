@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { GameState } from '../src/api.ts';
-import { dotsFor, markSeen, villageNews } from '../src/dots.ts';
+import { dotsFor, fruitSnap, markMarketSeen, markSeen, marketNew, settleLocal, villageNews } from '../src/dots.ts';
 import { stickerButtonLabel, stickerReadyAt, stickerWaitS } from '../src/referral.ts';
 
 type Tree = NonNullable<GameState['plots'][number]['tree']>;
@@ -32,6 +32,41 @@ describe('red dots', () => {
   it('Market: fruit to sell; gone when the fruit is gone', () => {
     assert.equal(dotsFor(state({ fruits: [{ species: 'mango', quality: 'common', qty: 2 }] }), 'garden', false).tabs.market, true);
     assert.equal(dotsFor(state({ fruits: [{ species: 'mango', quality: 'common', qty: 0 }] }), 'garden', false).tabs.market, false);
+  });
+
+  it('Market (server with `market`): only NEW fruit; gone once the Market was opened', () => {
+    const mango = [{ species: 'mango' as const, quality: 'common' as const, qty: 15 }];
+    const s = state({ fruits: mango, market: { fruitAt: 200, seenAt: 100 } });
+    assert.equal(dotsFor(s, 'garden', false).tabs.market, true, 'harvested after the last Market visit');
+    const seen = markMarketSeen(s);
+    assert.deepEqual(seen.market, { fruitAt: 200, seenAt: 200 });
+    assert.equal(dotsFor(seen, 'garden', false).tabs.market, false, 'opened: no dot, although 15 fruits are left');
+    assert.equal(markMarketSeen(seen), seen, 'nothing new: same state');
+    assert.equal(marketNew(state({ fruits: [], market: { fruitAt: 200, seenAt: 100 } })), false, 'all sold: no dot');
+  });
+
+  it('Market (older server): this browser remembers the fruit it saw; sold fruit lowers the record', () => {
+    const f = (qty: number, quality: 'common' | 'rare' = 'common') => ({ species: 'mango' as const, quality, qty });
+    const s15 = state({ fruits: [f(15)] });
+    const local = { fruits: fruitSnap(s15), shop: false };
+    assert.equal(dotsFor(s15, 'garden', false, local).tabs.market, false, 'nothing new since the Market was open');
+    assert.equal(dotsFor(state({ fruits: [f(16)] }), 'garden', false, local).tabs.market, true, 'one more mango');
+    assert.equal(dotsFor(state({ fruits: [f(15), f(1, 'rare')] }), 'garden', false, local).tabs.market, true, 'a new kind');
+    // Sold 10 (also by TaniBot): the record goes down, so the next harvest is new again.
+    const s5 = state({ fruits: [f(5)] });
+    const lowered = settleLocal(s5, local);
+    assert.deepEqual(lowered.fruits, { 'mango-common': 5 });
+    assert.equal(settleLocal(s5, lowered), lowered, 'nothing changed: same object');
+    assert.equal(dotsFor(state({ fruits: [f(6)] }), 'garden', false, lowered).tabs.market, true);
+  });
+
+  it('Shop: gone once the Shop was opened, back after seeds came and ran out again', () => {
+    const empty = state({ seeds: [], plots: [{ plot: 0, locked: false, tree: null }] } as Partial<GameState>);
+    const opened = { fruits: null, shop: true };
+    assert.equal(dotsFor(empty, 'garden', false, opened).tabs.shop, false);
+    const withSeed = settleLocal(state({ plots: empty.plots } as Partial<GameState>), opened);
+    assert.equal(withSeed.shop, false, 'a seed again: the flag clears');
+    assert.equal(dotsFor(empty, 'garden', false, withSeed).tabs.shop, true, 'out of seeds again: dot');
   });
 
   it('Shop: no seeds AND an empty plot (a locked plot does not count)', () => {

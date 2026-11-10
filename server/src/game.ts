@@ -684,6 +684,25 @@ export class Game {
     if (t > 0) this.db.prepare('UPDATE players SET village_seen_at = ? WHERE id = ? AND village_seen_at < ?').run(t, playerId, t);
   }
 
+  /**
+   * Red dot on the Market tab: when fruit was last added (`fruitAt`, a harvest by the player or
+   * TaniBot) and the newest one the owner has seen by opening the Market (`seenAt`; on the server,
+   * so every device agrees).
+   */
+  marketNews(playerId: number) {
+    const r = this.db.prepare('SELECT fruit_at AS fruitAt, market_seen_at AS seenAt FROM players WHERE id = ?').get(playerId) as {
+      fruitAt: number;
+      seenAt: number;
+    };
+    return { fruitAt: r.fruitAt, seenAt: r.seenAt };
+  }
+
+  /** The owner opened the Market and saw the fruit added up to `upTo`. */
+  marketSeen(playerId: number, upTo: unknown): void {
+    const t = Math.min(Number(upTo) || 0, this.d.now());
+    if (t > 0) this.db.prepare('UPDATE players SET market_seen_at = ? WHERE id = ? AND market_seen_at < ?').run(t, playerId, t);
+  }
+
   /** Waves back the visitor got from gardens they visited (newest first, last 10). */
   wavesReceived(visitorId: number) {
     const text = new Map<string, string>(STICKERS.map((s) => [s.id, s.text]));
@@ -731,6 +750,8 @@ export class Game {
          ON CONFLICT (player_id, species, quality) DO UPDATE SET qty = qty + excluded.qty`,
       )
       .run(playerId, species, quality, qty);
+    // New fruit (not a sale): red dot on the Market tab until the owner opens it.
+    if (qty > 0) this.db.prepare('UPDATE players SET fruit_at = ? WHERE id = ?').run(this.d.now(), playerId);
   }
 
   private itemQty(playerId: number, item: string): number {
@@ -1627,6 +1648,8 @@ export class Game {
       referral: this.referralView(p, signIn === 'judge'),
       /** Red dots: the newest Village events and what the owner has seen (all devices). */
       news: this.villageNews(p.id),
+      /** Red dot on the Market tab: fruit added since the owner last opened the Market. */
+      market: this.marketNews(p.id),
     };
   }
 

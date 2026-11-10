@@ -308,6 +308,11 @@ export interface GameState {
    * newest one the owner has seen (stored on the server, the same on every device).
    */
   news?: { latestAt: number; waveAt: number; seenAt: number };
+  /**
+   * Red dot on the Market tab (servers from 2026-11-10 on; missing = this browser remembers what it
+   * saw, dots.ts): when fruit was last added and the newest one the owner saw by opening the Market.
+   */
+  market?: { fruitAt: number; seenAt: number };
   /** Invite a friend (missing on servers without referral: no invite box). */
   referral?: ReferralView;
   seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null; source: string }[];

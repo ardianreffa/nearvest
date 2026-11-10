@@ -40,6 +40,11 @@
 //   Visitors rows, a visit (no dots), a sticker: ONE countdown, the window closed + opened again and the page refreshed
 //   keep counting from the server's time:
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --dots=<owner>:<visitor> [w] [h]
+// Market + Shop red dots (fake-chain server; API_URL = that server, default http://127.0.0.1:8788; FAKE_DB=<its sqlite>):
+//   makes <user> through the API; FAKE_DB gives 15 fruits (new: fruit_at = now) and 17 seeds. Market dot, open the
+//   Market: hint + glow, dot gone (server market.seenAt); Seeds section closed / open and the "Seeds (17) ↓" jump; a new
+//   harvest (fruit_at) brings the dot back; then no seeds + an empty plot: Shop dot, hint + Mango glow, dot gone:
+//   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --marketdot=<user> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
@@ -275,13 +280,11 @@ try {
       await sleep(600);
       console.log('sold', row, 'with', label, '| balance', balBefore, '->', await evaluate(`document.querySelector('.chip-panen b').innerText`));
       await screenshot('market-sold');
-      const hasSeeds = await evaluate(`!!document.querySelector('details.sell-seeds')`);
+      const hasSeeds = await evaluate(`!!document.querySelector('.sell-seeds')`);
       if (hasSeeds) {
-        await evaluate(`document.querySelector('details.sell-seeds > summary').click()`);
-        await sleep(400);
-        await evaluate(`document.querySelector('details.sell-seeds').scrollIntoView()`);
+        await evaluate(`document.querySelector('.sell-seeds').scrollIntoView()`);
         await sleep(300); await screenshot('market-seeds');
-        console.log('seed rows:', await evaluate(`[...document.querySelectorAll('details.sell-seeds .market-row')].map(r => r.innerText.replace(/\\s+/g, ' ')).join(' || ')`));
+        console.log('seed rows:', await evaluate(`[...document.querySelectorAll('.sell-seeds .market-row')].map(r => r.innerText.replace(/\\s+/g, ' ')).join(' || ')`));
       }
     });
     throw Object.assign(new Error('market done'), { done: true });
@@ -560,6 +563,132 @@ try {
       console.log('fonts of the counter:', await evaluate(`getComputedStyle(document.querySelector('.name-count')).fontFamily + ' ' + getComputedStyle(document.querySelector('.name-count')).fontSize`));
     });
     throw { done: true };
+  }
+  if (name.startsWith('--marketdot=')) {
+    const user = name.slice('--marketdot='.length);
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return res.json();
+    };
+    const fakeDb = async (fn) => {
+      if (!process.env.FAKE_DB) throw new Error('FAKE_DB is needed');
+      const { DatabaseSync } = await import('node:sqlite');
+      const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
+      const id = db.prepare('SELECT id FROM players WHERE name = ?').get(user).id;
+      fn(db, id);
+      db.close();
+    };
+    const dotsNow = `(() => { const on = (sel) => [...document.querySelectorAll(sel)].map(e => e.closest('.tab, .rail-btn')?.className.match(/(?:tab|rail)-(garden|storage|shop|market|village)/)?.[1]).filter(Boolean).join(',') || 'none';
+      return 'bottom tabs: ' + on('.tabs .tab-dot') + ' | drawer tabs: ' + on('.side-tabs .tab-dot') + ' | rail: ' + on('.hud-rail .rail-dot'); })()`;
+    const openTab = async (t) => {
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-${t}').click()`);
+      else await evaluate(`(document.querySelector('.side-tabs .tab-${t}') ?? document.querySelector('.rail-${t}'))?.click()`);
+      await sleep(250);
+    };
+    const inView = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return 'missing'; const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight ? 'on screen' : 'off screen (top ' + Math.round(r.top) + ')'; })()`;
+    let tok;
+    await step(`${user}: 15 fruits (new) and 17 seeds`, async () => {
+      tok = (await call('POST', '/auth/dev', null, { username: user })).token;
+      let st = await call('GET', '/api/me', tok);
+      if (st.error) st = await call('POST', '/api/player', tok, { name: user, demo: true });
+      for (let i = 0; i < 40 && st.player.accountStatus !== 'ready'; i++) (await sleep(300), (st = await call('GET', '/api/me', tok)));
+      if (!st.plots[0].tree) {
+        await call('POST', '/api/checkin', tok);
+        st = await call('GET', '/api/me', tok);
+        await call('POST', '/api/plant', tok, { plot: 0, seedId: (st.seeds.find((x) => x.species === 'mango') ?? st.seeds[0]).id });
+      }
+      await fakeDb((db, id) => {
+        db.prepare('DELETE FROM seeds WHERE player_id = ?').run(id);
+        const add = db.prepare("INSERT INTO seeds (player_id, species, quality, parent_tree_id, source, created_at) VALUES (?, ?, ?, NULL, 'shop', ?)");
+        for (const [sp, q, n] of [['mango', null, 8], ['rambutan', null, 4], ['durian', 'rare', 1], ['durian', null, 2], ['mango', 'gold', 1], ['rambutan', 'rare', 1]]) for (let i = 0; i < n; i++) add.run(id, sp, q, Date.now());
+        db.prepare('DELETE FROM fruits WHERE player_id = ?').run(id);
+        const f = db.prepare('INSERT INTO fruits (player_id, species, quality, qty) VALUES (?, ?, ?, ?)');
+        f.run(id, 'mango', 'common', 10); f.run(id, 'mango', 'rare', 2); f.run(id, 'rambutan', 'common', 3);
+        try { db.prepare('UPDATE players SET fruit_at = ?, market_seen_at = 0 WHERE id = ?').run(Date.now(), id); } catch { console.log('(server without fruit_at: older server)'); }
+      });
+      console.log('server market:', JSON.stringify((await call('GET', '/api/me', tok)).market));
+    });
+    await step(`${user}: Market dot, then the Market opens`, async () => {
+      await evaluate(`localStorage.removeItem('nearvest.token'); localStorage.removeItem('nearvest.marketSeedsOpen')`);
+      await send('Page.navigate', { url: UI_URL });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await sleep(2000);
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      if (MOBILE) await openTab('storage');
+      console.log('dots before:', await evaluate(dotsNow));
+      await screenshot('dot-before-market');
+      await openTab('market');
+      await sleep(150);
+      console.log('hint:', await evaluate(`document.querySelector('.market-panel .attention-hint')?.innerText ?? 'none'`));
+      console.log('glowing rows:', await evaluate(`[...document.querySelectorAll('.market-row.attention .market-name')].map(e => e.innerText).join(', ') || 'none'`));
+      await sleep(700);
+      console.log('first sellable row:', await evaluate(inView('.market-panel .market-row:not(.empty)')));
+      await screenshot('market-open-glow');
+      console.log('dots with the Market open:', await evaluate(dotsNow));
+      await sleep(2000);
+      console.log('glow after 3 s:', await evaluate(`document.querySelectorAll('.market-row.attention').length`), 'rows');
+      console.log('server market after opening:', JSON.stringify((await call('GET', '/api/me', tok)).market));
+      await evaluate(`(document.scrollingElement.scrollTop = 0, document.querySelector('.hud-drawer-body, .drawer-body')?.scrollTo?.(0, 0))`);
+      await sleep(300);
+      await screenshot('market-top');
+      console.log('jump link:', await evaluate(`document.querySelector('.seeds-jump')?.innerText ?? 'none'`), '| title line:', await evaluate(`(() => { const h = document.querySelector('.market-panel .panel-head'); return h ? Math.round(h.getBoundingClientRect().height) + 'px high' : 'none'; })()`));
+    });
+    await step(`${user}: Seeds section (closed, open) and the jump link`, async () => {
+      // Older web (no jump link): scroll to the section by hand, for a before/after picture.
+      await evaluate(`document.querySelector('.seeds-jump') ? document.querySelector('.seeds-jump').click() : document.querySelector('.sell-seeds')?.scrollIntoView({ block: 'start' })`);
+      await sleep(900);
+      console.log('Seeds section after the jump:', await evaluate(inView('.sell-seeds .panel-head')));
+      const head = `(() => { const h = document.querySelector('.sell-seeds .panel-head'); if (!h) return 'none'; const t = h.querySelector('h2'); const lh = parseFloat(getComputedStyle(t).lineHeight) || 20; return '"' + h.innerText.replace(/\\n/g, ' | ') + '" title lines: ' + Math.round(t.getBoundingClientRect().height / lh) + ' | rows: ' + document.querySelectorAll('.sell-seeds .market-row').length + ' | more: ' + (document.querySelector('.sell-seeds .inv-more')?.innerText ?? 'none'); })()`;
+      console.log('closed:', await evaluate(head));
+      await screenshot('seeds-closed');
+      await evaluate(`document.querySelector('.sell-seeds .inv-toggle').click()`);
+      await sleep(300);
+      await evaluate(`document.querySelector('.sell-seeds').scrollIntoView({ block: 'start' })`);
+      await sleep(300);
+      console.log('open:', await evaluate(head), '| remembered:', await evaluate(`localStorage.getItem('nearvest.marketSeedsOpen')`));
+      await screenshot('seeds-open');
+      await evaluate(`document.querySelector('.sell-seeds .inv-toggle').click()`);
+      await sleep(200);
+    });
+    await step(`${user}: a new harvest brings the Market dot back`, async () => {
+      await openTab('storage');
+      console.log('dots on Storage (Market seen):', await evaluate(dotsNow));
+      await fakeDb((db, id) => {
+        db.prepare("UPDATE fruits SET qty = qty + 1 WHERE player_id = ? AND species = 'mango' AND quality = 'common'").run(id);
+        try { db.prepare('UPDATE players SET fruit_at = ? WHERE id = ?').run(Date.now(), id); } catch {}
+      });
+      await send('Page.reload', {});
+      await waitFor(`!!document.querySelector('.plots')`, 'garden after reload');
+      await sleep(1500);
+      if (MOBILE) await openTab('storage');
+      console.log('dots after a new harvest:', await evaluate(dotsNow));
+    });
+    await step(`${user}: no seeds + an empty plot: Shop dot, hint, Mango glow`, async () => {
+      await fakeDb((db, id) => db.prepare('DELETE FROM seeds WHERE player_id = ?').run(id));
+      await send('Page.reload', {});
+      await waitFor(`!!document.querySelector('.plots')`, 'garden after reload');
+      await sleep(1500);
+      if (MOBILE) await openTab('storage');
+      console.log('dots:', await evaluate(dotsNow));
+      await openTab('shop');
+      await sleep(150);
+      console.log('hint:', await evaluate(`document.querySelector('.attention-hint')?.innerText ?? 'none'`), '| glow:', await evaluate(`[...document.querySelectorAll('.list.shop li.attention')].map(e => e.className).join(', ') || 'none'`));
+      await sleep(600);
+      console.log('Mango seed row:', await evaluate(inView('.shop-seed_mango')));
+      await screenshot('shop-open-glow');
+      await openTab('storage');
+      console.log('dots after the Shop was opened:', await evaluate(dotsNow));
+      await send('Page.reload', {});
+      await waitFor(`!!document.querySelector('.plots')`, 'garden after reload');
+      await sleep(1500);
+      if (MOBILE) await openTab('storage');
+      console.log('dots after a refresh:', await evaluate(dotsNow));
+    });
+    throw Object.assign(new Error('marketdot done'), { done: true });
   }
   if (name.startsWith('--dots=')) {
     const [owner, visitor] = name.slice('--dots='.length).split(':');

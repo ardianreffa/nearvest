@@ -28,7 +28,7 @@ import { TaniBotWindow } from './tanibot';
 import { GoogleButton, pendingGoogleRedirect, takeGoogleRedirect } from './google';
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Coach } from './tutorial';
-import { dotsFor, markSeen, useSeenWhenVisible, villageNews } from './dots';
+import { dotsFor, fruitSnap, LOCAL_NONE, markMarketSeen, markSeen, marketNew, readLocalSeen, saveLocalSeen, settleLocal, shopNeed, useSeenWhenVisible, villageNews, type LocalSeen } from './dots';
 import { InvitePanel, VisitorsPanel } from './invite';
 import { clearRef, freshIds, keepRefFromUrl, readRef, withoutRef } from './referral';
 import { predict } from './optimistic';
@@ -659,6 +659,43 @@ export function App() {
   }, [applyState]);
   useSeenWhenVisible('.visitors-panel, .invite-panel', villageOnScreen, seeVillage);
 
+  // Red dots on the Market and the Shop (dots.ts): gone as soon as the tab opens, and the tab then
+  // points at what to do (a short hint and a glow on the rows, `marketFocus` / `shopFocus`).
+  // What this browser saw is kept per garden (localStorage); the Market's "seen" is also on the
+  // server when it has `state.market`, so every device agrees.
+  const account = state?.player.accountId ?? '';
+  const [seen, setSeen] = useState<{ account: string; v: LocalSeen }>({ account: '', v: LOCAL_NONE });
+  const localSeen = seen.account === account ? seen.v : account ? readLocalSeen(account) : LOCAL_NONE;
+  const [marketFocus, setMarketFocus] = useState(0);
+  const [shopFocus, setShopFocus] = useState(0);
+  const openTab: Tab | null = !state || phase !== 'play' || visiting ? null : wide ? (drawerOpen ? sideTab : null) : tab;
+  useEffect(() => {
+    if (!state || !account) return;
+    let next = settleLocal(state, localSeen);
+    if (openTab === 'market') {
+      if (marketNew(state, next)) {
+        setMarketFocus((n) => n + 1);
+        if (state.market) {
+          const upTo = state.market.fruitAt;
+          setState((cur) => (cur ? markMarketSeen(cur) : cur));
+          api<{ state: GameState }>('POST', '/api/market/seen', { upTo })
+            .then((r) => applyState(r.state))
+            .catch(() => undefined);
+        }
+      }
+      const snap = fruitSnap(state);
+      if (JSON.stringify(snap) !== JSON.stringify(next.fruits)) next = { ...next, fruits: snap };
+    }
+    if (openTab === 'shop' && shopNeed(state) && !next.shop) {
+      setShopFocus((n) => n + 1);
+      next = { ...next, shop: true };
+    }
+    if (next !== localSeen || seen.account !== account) {
+      setSeen({ account, v: next });
+      if (next !== localSeen) saveLocalSeen(account, next);
+    }
+  }, [state, openTab, account, localSeen, seen.account, applyState]);
+
   if (fatal) {
     return (
       <main class="shell center">
@@ -751,7 +788,7 @@ export function App() {
   const goSell = () => (wide ? openSide('market') : setTab('market'));
   const immersive = wide ? laptopLayout(win.width, win.height, drawerOpen ? DRAWER_W : RAIL_W, BAR_H, bgVersion()) : undefined;
   // Red dots (dots.ts): laptops have no Garden tab (the garden is always on screen).
-  const dots = dotsFor(state, wide ? (drawerOpen ? sideTab : null) : tab, !!visiting).tabs;
+  const dots = dotsFor(state, wide ? (drawerOpen ? sideTab : null) : tab, !!visiting, localSeen).tabs;
   const garden = (
     <Garden
       state={state}
@@ -792,9 +829,9 @@ export function App() {
     t === 'storage' ? (
       <Storage state={state} config={config} act={act} busy={busy} goSell={goSell} />
     ) : t === 'shop' ? (
-      <Shop state={state} config={config} act={act} busy={busy} />
+      <Shop state={state} config={config} act={act} busy={busy} focus={shopFocus} />
     ) : t === 'market' ? (
-      <Market state={state} config={config} sell={sell} act={act} busy={busy} />
+      <Market state={state} config={config} sell={sell} act={act} busy={busy} focus={marketFocus} />
     ) : (
       <Village
         state={state}
