@@ -47,7 +47,7 @@ export function revealIfHidden(el: Element | null | undefined, margin = 64): voi
   el.scrollIntoView({ block: 'center', behavior: reducedMotion() ? 'auto' : 'smooth' });
 }
 
-/** Scrolls a section's top into view (the Market's "Seeds (17) ↓" link). */
+/** Scrolls a section's top into view (the Market's "Seeds (6) ↓" link). */
 export function jumpTo(el: Element | null | undefined): void {
   if (el instanceof HTMLElement) el.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' });
 }

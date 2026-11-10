@@ -252,7 +252,8 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
   };
   const seedGroups = groupSeeds(state.seeds);
   const owned = (species: Species) => state.fruits.filter((f) => f.species === species && f.qty > 0);
-  const seedCount = seedGroups.reduce((n, g) => n + g.ids.length, 0);
+  // Kinds of seed, like the Storage title ("SEEDS (6)"); the slots on the right count every seed.
+  const seedKinds = seedGroups.length;
   const fruitCount = state.fruits.reduce((n, f) => n + Math.max(0, f.qty), 0);
   const rowsRef = useRef<HTMLUListElement>(null);
   const seedsRef = useRef<HTMLElement>(null);
@@ -280,9 +281,9 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
         title="Today's Prices"
         class="market-panel"
         right={
-          seedCount > 0 && (
+          seedKinds > 0 && (
             <button class="link-btn seeds-jump" onClick={() => jumpTo(seedsRef.current)}>
-              Seeds ({seedCount}) ↓
+              Seeds ({seedKinds}) ↓
             </button>
           )
         }
@@ -329,11 +330,11 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
         </p>
       </Panel>
       {seedGroups.length > 0 && (
-        // Like a Storage section: "+ SEEDS (17)" shows the first 2 kinds and "... 3 more", "− SEEDS (17)" all of them.
+        // Like a Storage section: "+ SEEDS (6)" (kinds) shows the first 2 kinds and "... 4 more", "− SEEDS (6)" all of them.
         <section class="panel sell-seeds inv-section" ref={seedsRef}>
           <header class="panel-head">
             <h2>
-              <SectionToggle name="Seeds" count={seedCount} open={seedsOpen} toggle={() => toggleSeeds()} />
+              <SectionToggle name="Seeds" count={seedKinds} open={seedsOpen} toggle={() => toggleSeeds()} />
             </h2>
             <span class={`small sell-seeds-slots ${state.seedSlots.used >= state.seedSlots.max ? 'slots-full' : 'muted'}`}>
               {state.seedSlots.used}/{state.seedSlots.max} slots

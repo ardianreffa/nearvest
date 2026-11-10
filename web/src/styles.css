@@ -5093,8 +5093,8 @@ button.balance:focus-visible {
   min-width: 84px;
 }
 
-/* Seeds: a section like Storage ("+ SEEDS (17)" = first 2 kinds + "... 3 more", "− SEEDS (17)" = all),
-   title on one line, slots on the right. The "Seeds (17) ↓" link at the top of the Market jumps here. */
+/* Seeds: a section like Storage ("+ SEEDS (6)" = 6 kinds; first 2 kinds + "... 4 more", "− SEEDS (6)" = all),
+   title on one line, slots on the right. The "Seeds (6) ↓" link at the top of the Market jumps here. */
 .sell-seeds {
   margin-top: 12px;
   scroll-margin-top: 72px;

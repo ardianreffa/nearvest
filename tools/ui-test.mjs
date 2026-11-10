@@ -42,7 +42,7 @@
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --dots=<owner>:<visitor> [w] [h]
 // Market + Shop red dots (fake-chain server; API_URL = that server, default http://127.0.0.1:8788; FAKE_DB=<its sqlite>):
 //   makes <user> through the API; FAKE_DB gives 15 fruits (new: fruit_at = now) and 17 seeds. Market dot, open the
-//   Market: hint + glow, dot gone (server market.seenAt); Seeds section closed / open and the "Seeds (17) ↓" jump; a new
+//   Market: hint + glow, dot gone (server market.seenAt); Seeds section closed / open and the "Seeds (6) ↓" jump (6 kinds of the 17 seeds); a new
 //   harvest (fruit_at) brings the dot back; then no seeds + an empty plot: Shop dot, hint + Mango glow, dot gone:
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --marketdot=<user> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
