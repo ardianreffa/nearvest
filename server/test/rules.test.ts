@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { dayIndex, msUntilNextDay } from '../src/clock.ts';
 import { decryptSecret, encryptSecret } from '../src/crypto.ts';
 import { dailyPrice, priceBounds } from '../src/darto.ts';
-import { nameError } from '../src/game.ts';
+import { NEW_NAME_MAX, nameError, newNameError } from '../src/game.ts';
 import { advance, isReady, rollQuality, stageOf, SPECIES_LIST, type TreeGrowth } from '../src/rules.ts';
 
 describe('village clock', () => {
@@ -103,6 +103,12 @@ describe('player names', () => {
     assert.ok(nameError('ar.dian'));
     assert.ok(nameError('ar--dian'));
     assert.ok(nameError('game'));
+  });
+  it(`new gardens: at most ${NEW_NAME_MAX} characters (the contract itself allows 32)`, () => {
+    assert.equal(newNameError('a'.repeat(16)), null);
+    assert.match(newNameError('a'.repeat(17)) ?? '', /2-16 characters/);
+    assert.equal(nameError('a'.repeat(17)), null);
+    assert.ok(newNameError('game'));
   });
 });
 

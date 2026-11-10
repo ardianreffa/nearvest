@@ -79,6 +79,42 @@ describe('HTTP API', () => {
   });
 });
 
+describe('garden names (new gardens: at most 16 characters)', () => {
+  it('refuses a 17-character name with a clear message and accepts 16', async () => {
+    const { app } = makeWorld();
+    const { json } = await call(app, 'POST', '/auth/dev', undefined, { username: 'longname' });
+    const tooLong = await call(app, 'POST', '/api/player', json.token, { name: 'abcdefghijklmnopq' });
+    assert.equal(tooLong.status, 400);
+    assert.equal(tooLong.json.code, 'name_too_long');
+    assert.equal(tooLong.json.max, 16);
+    assert.equal(tooLong.json.error, 'Name must be 2-16 characters (yours has 17)');
+    const ok = await call(app, 'POST', '/api/player', json.token, { name: 'abcdefghijklmnop' });
+    assert.equal(ok.status, 201);
+    assert.equal(ok.json.player.name, 'abcdefghijklmnop');
+  });
+
+  it('an older garden with a longer name keeps working and is shown in full', async () => {
+    const w = makeWorld();
+    const old = w.newPlayer('oldie');
+    const longName = 'a-very-long-farmer-name-24';
+    // Gardens made before the limit (the contract allows up to 32 characters).
+    w.db.prepare('UPDATE players SET name = ? WHERE id = ?').run(longName, old.id);
+    const state = w.game.state(old.id);
+    assert.equal(state.player.name, longName);
+    const seed = state.seeds[0];
+    w.game.plant(old.id, 0, seed.id);
+    assert.ok(w.game.state(old.id).plots[0].tree);
+  });
+
+  it('judge gardens keep their judge-xxxx names', async () => {
+    const w = makeWorld();
+    const r = await w.app.request('/auth/judge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: 'device-000000000001' }) });
+    const json = (await r.json()) as any;
+    assert.equal(r.status, 200);
+    assert.match(json.player.player.name, /^judge-[a-z0-9]{4}$/);
+  });
+});
+
 describe('HTTP API price lock', () => {
   it('returns 409 with the new price when it changed', async () => {
     const w = makeWorld({ demo: true });

@@ -1575,6 +1575,24 @@ input:focus-visible {
   outline: 3px solid var(--cyan-500);
 }
 
+.name-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.name-count {
+  flex: none;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--paper-light);
+}
+
+.name-count.full {
+  color: var(--gold-500);
+}
+
 .account-preview {
   margin: 0;
   color: var(--mint-500);

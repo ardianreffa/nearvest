@@ -1143,6 +1143,9 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
   );
 }
 
+/** Longest farmer name for a new garden (the server refuses longer ones: NEW_NAME_MAX). */
+const NAME_MAX = 16;
+
 function CreateGarden({ onCreated, onLogout }: { onCreated: (s: GameState) => void; onLogout: () => void }) {
   const [name, setName] = useState('');
   const [demo, setDemo] = useState(true);
@@ -1180,8 +1183,21 @@ function CreateGarden({ onCreated, onLogout }: { onCreated: (s: GameState) => vo
           : 'Choose your farmer name. It becomes your NEAR account and how friends find you.'}
       </p>
       <form class="create" onSubmit={submit}>
-        <input value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} placeholder="your-name" maxLength={32} autocomplete="off" />
-        <p class="account-preview">{walletAccount ?? `${clean || 'your-name'}.nearvest.testnet`}</p>
+        <input
+          value={name}
+          onInput={(e) => setName((e.target as HTMLInputElement).value.slice(0, NAME_MAX))}
+          placeholder="your-name"
+          maxLength={NAME_MAX}
+          autocomplete="off"
+          aria-label="Farmer name"
+          aria-describedby="name-count"
+        />
+        <div class="name-meta">
+          <p class="account-preview">{walletAccount ?? `${clean || 'your-name'}.nearvest.testnet`}</p>
+          <span id="name-count" class={`name-count${name.length >= NAME_MAX ? ' full' : ''}`} aria-label={`${name.length} of ${NAME_MAX} characters`}>
+            {name.length}/{NAME_MAX}
+          </span>
+        </div>
         <label class="check">
           <input type="checkbox" checked={demo} onChange={(e) => setDemo((e.target as HTMLInputElement).checked)} />
           Demo mode: 1 game day = 1 minute

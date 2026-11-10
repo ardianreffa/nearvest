@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { ART_H, ART_W, immersiveLayout, PHONE_FRONT_ROWS, PHONE_SHEET_MAX, PHONE_SHOWN_FROM, phoneFill, phoneLayout, phoneSceneRoom } from '../src/layout.ts';
+import { ART_H, ART_W, immersiveLayout, laptopLayout, PHONE_FRONT_ROWS, PHONE_SHEET_MAX, PHONE_SHOWN_FROM, phoneFill, phoneLayout, phoneSceneRoom } from '../src/layout.ts';
 import { V2_PHONE, V2_WEB, V3_PHONE, V3_WEB } from '../src/art/village.ts';
 
 /** True when the sharp garden art covers the whole window (no blurred bars). */
@@ -162,4 +162,25 @@ describe('v3 phone garden fills the whole screen (no page scroll)', () => {
       assert.equal(z.stageBottom, z.artBottom + (v.h - v.bedRow) * z.k);
     });
   }
+});
+
+describe('TaniBot size on laptops does not depend on the side menu (own garden = visited garden)', () => {
+  for (const [w, h] of [
+    [1280, 800],
+    [1280, 720],
+    [1440, 900],
+    [1512, 982],
+    [1920, 1080],
+  ] as const) {
+    it(`${w}x${h}: same TaniBot scale with the drawer open (400) and closed (64)`, () => {
+      const open = laptopLayout(w, h, 400, 200, 'v3');
+      const closed = laptopLayout(w, h, 64, 200, 'v3');
+      assert.equal(open.botScale, closed.botScale);
+    });
+  }
+  it('1280x800: the open drawer shrinks the trees (k 5 -> 4) but TaniBot keeps the hd size 2 (116x128 px)', () => {
+    assert.equal(laptopLayout(1280, 800, 400, 200, 'v3').k, 4);
+    assert.equal(laptopLayout(1280, 800, 64, 200, 'v3').k, 5);
+    assert.equal(laptopLayout(1280, 800, 400, 200, 'v3').botScale, 2);
+  });
 });

@@ -19,6 +19,12 @@ export interface Immersive {
   stageBottom: number;
   /** The village art drawn (grid size and positions of everything in it). */
   village: Village;
+  /**
+   * Laptops: TaniBot's scale (CSS px per pixel of its 58x64 grid). It depends on the window
+   * only, never on the side menu, so TaniBot keeps one size whether the drawer is open or
+   * closed, in your own garden and in a visited one.
+   */
+  botScale?: number;
 }
 
 /** Room the side menu leaves on the right: its width plus its margin and a small gap. */
@@ -93,7 +99,22 @@ export function immersiveLayout(width: number, height: number, drawerWidth: numb
 
 /** The laptop layout of the village version in use. */
 export function laptopLayout(width: number, height: number, drawerWidth: number, barHeight: number, version: BgVersion): Immersive {
-  return immersiveLayout(width, height, drawerWidth, barHeight, version === 'v1' ? V1 : version === 'v2' ? V2_WEB : V3_WEB);
+  const v = version === 'v1' ? V1 : version === 'v2' ? V2_WEB : V3_WEB;
+  const layout = immersiveLayout(width, height, drawerWidth, barHeight, v);
+  return { ...layout, botScale: laptopBotScale(width, height, barHeight, v) };
+}
+
+/** Width of the closed side menu (icon rail) that TaniBot's size is measured with. */
+export const BOT_RAIL_W = 64;
+
+/**
+ * TaniBot's scale on laptops: half the tree pixel on v1, a third on v2 / v3 (so it never covers
+ * the next plot), taken from the garden with the side menu closed. The open drawer can shrink
+ * the trees one step (1280x800: k 5 -> 4), but TaniBot stays the same size.
+ */
+export function laptopBotScale(width: number, height: number, barHeight: number, village: Village): number {
+  const k = immersiveLayout(width, height, BOT_RAIL_W, barHeight, village).k;
+  return Math.max(1, Math.round(k / (village.key !== 'v1' ? 3 : 2)));
 }
 
 /** Phone garden: the scene box (as wide as the screen) and the upright art inside it. */

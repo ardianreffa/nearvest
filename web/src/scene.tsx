@@ -115,8 +115,14 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   // layouts (laptop and v2 phones).
   const px = phone ? phone.spritePx : immersive ? immersive.k : big ? 3 : 2;
   // TaniBot: half the tree pixel on v1 laptops; smaller on v2 so it never covers the next
-  // plot; its 58 px size on phones (it stands on the grass in front of the selected plot).
-  const botScale = phone ? (village?.moundArt ? 1.25 : 1) : immersive ? Math.max(1, Math.round(immersive.k / (v2 ? 3 : 2))) : big ? 2 : 1;
+  // plot; laptops take it from the window only (`botScale`: the same with the drawer open or
+  // closed, at home and on a visit); its 58 px size on phones (on the grass in front of the
+  // selected plot).
+  const botScale = phone
+    ? village?.moundArt ? 1.25 : 1
+    : immersive
+      ? immersive.botScale ?? Math.max(1, Math.round(immersive.k / (v2 ? 3 : 2)))
+      : big ? 2 : 1;
   const lane = phone && village?.moundArt ? LANE_PHONE3 : phone && v2 ? LANE_PHONE : v2 ? LANE_V2 : immersive ? LANE_STAGE : LANE_NORMAL;
   const moundArt = !!village?.moundArt;
   const mound = moundArt ? MOUND_ART : village?.key === 'v2-phone' ? MOUND.phone : village?.mounds ? MOUND.web : null;

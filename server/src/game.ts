@@ -172,6 +172,18 @@ const RESERVED_NAMES = new Set([
   'tanibot', 'lumbung', 'judge', 'system',
 ]);
 
+/**
+ * Longest name for a NEW garden (2026-11-10). Older gardens with longer names (up to the
+ * contract's 32) keep working; judge gardens (`judge-xxxx`) are always shorter.
+ */
+export const NEW_NAME_MAX = 16;
+
+/** Extra rule for new gardens on top of `nameError`. Returns an error message or null. */
+export function newNameError(name: string): string | null {
+  if (name.length > NEW_NAME_MAX) return `Name must be 2-${NEW_NAME_MAX} characters (yours has ${name.length})`;
+  return nameError(name);
+}
+
 /** Same rules as the factory contract. Returns an error message or null. */
 export function nameError(name: string): string | null {
   if (name.length < 2 || name.length > 32) return 'Name must be 2-32 characters';
@@ -313,8 +325,8 @@ export class Game {
    * account; the name is only their farmer name.
    */
   createPlayer(userId: number, name: string, ip: string | null, demo?: boolean): PlayerRow {
-    const err = nameError(name);
-    if (err) throw new GameError(err);
+    const err = newNameError(name);
+    if (err) throw new GameError(err, 400, name.length > NEW_NAME_MAX ? { code: 'name_too_long', max: NEW_NAME_MAX } : undefined);
     if (this.getPlayerByUser(userId)) throw new GameError('You already have a garden', 409);
     if (this.db.prepare('SELECT 1 FROM players WHERE name = ?').get(name)) {
       throw new GameError('This name is taken', 409);

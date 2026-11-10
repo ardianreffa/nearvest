@@ -20,6 +20,8 @@
 // Garden visit of an EXISTING dev garden (fake-chain server): opens <friend>'s garden from the farmer list, checks the
 //   "<NAME>'S GARDEN" sign (not over pins, Mr. Darto, HUD or Back button), their TaniBot (tier, ON / asleep, no menu) and its hello bubble:
 //   UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --visit=<devUser>:<friend> [w] [h]
+// Create-garden form on a NEW dev user (fake-chain server; never submits): typing stops at 16 characters, the "n/16"
+//   counter, a pasted 20-character name is cut to 16: UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --create=<newDevUser> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
@@ -516,6 +518,31 @@ try {
     });
     throw Object.assign(new Error('info done'), { done: true });
   }
+  if (name.startsWith('--create=')) {
+    await step('create-garden form: name limit 16 (NEW dev user; does not create the garden)', async () => {
+      await typeInto('#dev-user', name.slice('--create='.length));
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('form.create input:not([type])')`, 'create form');
+      const field = `document.querySelector('form.create input:not([type])')`;
+      const read = `(() => { const i = ${field}; return 'value "' + i.value + '" (' + i.value.length + ') | counter "' + document.querySelector('.name-count').innerText + '" | preview "' + document.querySelector('.account-preview').innerText + '"'; })()`;
+      // Real key presses: 8 letters, then 12 more (the field stops at 16).
+      await evaluate(`${field}.focus()`);
+      await send('Input.insertText', { text: 'tanifarm' });
+      await sleep(200);
+      console.log('typed 8:', await evaluate(read));
+      await screenshot('create-8');
+      for (const ch of 'abcdefghijkl') await send('Input.insertText', { text: ch });
+      await sleep(200);
+      console.log('typed 20:', await evaluate(read));
+      await screenshot('create-16');
+      // A pasted / scripted 20-character value is cut to 16 as well.
+      await typeInto('form.create input:not([type])', 'abcdefghijklmnopqrst');
+      await sleep(200);
+      console.log('pasted 20:', await evaluate(read));
+      console.log('fonts of the counter:', await evaluate(`getComputedStyle(document.querySelector('.name-count')).fontFamily + ' ' + getComputedStyle(document.querySelector('.name-count')).fontSize`));
+    });
+    throw { done: true };
+  }
   if (name.startsWith('--visit=')) {
     await step('visit a friend garden (EXISTING dev garden; fake-chain server)', async () => {
       const [user, friend] = name.slice('--visit='.length).split(':');
@@ -525,7 +552,25 @@ try {
       await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
       await sleep(1500);
       const botSize = `(() => { const b = document.querySelector('.bot-spot .tanibot'); if (!b) return 'none'; const r = b.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height); })()`;
+      // The drawn sprite (body layer) in CSS px, with the side menu open and closed (laptops).
+      const botBody = `(() => { const b = document.querySelector('.bot-spot .tanibot .bot-body'); if (!b) return 'none'; const r = b.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height); })()`;
+      const drawerSizes = async (label) => {
+        if (!(await evaluate(`innerWidth >= 1024`))) return console.log(label + ' TaniBot drawn:', await evaluate(botBody));
+        const out = [];
+        for (const want of ['open', 'closed']) {
+          const isOpen = await evaluate(`document.querySelector('.hud-drawer')?.getAttribute('aria-hidden') !== 'true'`);
+          if (want === 'open' && !isOpen) await evaluate(`document.querySelector('.hud-rail button')?.click()`);
+          if (want === 'closed' && isOpen) await evaluate(`document.querySelector('.drawer-close').click()`);
+          await sleep(700);
+          out.push('menu ' + want + ' ' + (await evaluate(botBody)));
+          await screenshot(label.replace(/\W+/g, '-') + '-menu-' + want);
+        }
+        await evaluate(`document.querySelector('.hud-rail button')?.click()`);
+        await sleep(500);
+        console.log(label + ' TaniBot drawn:', out.join(' | '));
+      };
       console.log('my TaniBot size:', await evaluate(botSize));
+      await drawerSizes('own');
       // Open the farmer list from the Friends pin, then Visit <friend>.
       await waitFor(`!!document.querySelector('.place-pin[aria-label*="Friends" i], .place-pin')`, 'pins');
       const opened = await evaluate(`(() => { const p = [...document.querySelectorAll('.place-pin')].find(e => /friends/i.test(e.innerText + (e.getAttribute('aria-label') || ''))); if (!p) return false; p.click(); return true; })()`);
@@ -557,6 +602,7 @@ try {
           + ' | pins visible: ' + [...document.querySelectorAll('.place-pin')].filter(p => getComputedStyle(p).visibility !== 'hidden').length;
       })()`);
       console.log('visit:', report, '| their TaniBot size:', await evaluate(botSize));
+      await drawerSizes('visit');
       if (await evaluate(`!!document.querySelector('.bot-spot .bot-click')`)) {
         await evaluate(`document.querySelector('.bot-spot .bot-click').click()`);
         await sleep(600);
