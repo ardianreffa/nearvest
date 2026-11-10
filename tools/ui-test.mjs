@@ -42,7 +42,7 @@
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --dots=<owner>:<visitor> [w] [h]
 // Market + Shop red dots (fake-chain server; API_URL = that server, default http://127.0.0.1:8788; FAKE_DB=<its sqlite>):
 //   makes <user> through the API; FAKE_DB gives 15 fruits (new: fruit_at = now) and 17 seeds. Market dot, open the
-//   Market: hint + glow, dot gone (server market.seenAt); Seeds section closed / open and the "Seeds (6) ↓" jump (6 kinds of the 17 seeds); a new
+//   Market: Mr. Darto says "Fresh fruit! ..." (bubble on screen, nothing scrolls), rows glow, "Sell now ↓" when the row is off screen, dot gone (server market.seenAt); opened again without the dot = normal greeting; Seeds section closed / open and the "Seeds (6) ↓" jump (6 kinds of the 17 seeds); a new
 //   harvest (fruit_at) brings the dot back; then no seeds + an empty plot: Shop dot, hint + Mango glow, dot gone:
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --marketdot=<user> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
@@ -624,10 +624,17 @@ try {
       await openTab('market');
       await sleep(150);
       console.log('hint:', await evaluate(`document.querySelector('.market-panel .attention-hint')?.innerText ?? 'none'`));
+      console.log('Darto says:', await evaluate(`document.querySelector('.market-scene .speech')?.innerText ?? 'none'`), '| bubble:', await evaluate(inView('.market-scene .speech')));
       console.log('glowing rows:', await evaluate(`[...document.querySelectorAll('.market-row.attention .market-name')].map(e => e.innerText).join(', ') || 'none'`));
       await sleep(700);
-      console.log('first sellable row:', await evaluate(inView('.market-panel .market-row:not(.empty)')));
+      console.log('first sellable row:', await evaluate(inView('.market-panel .market-row:not(.empty)')), '| bubble still:', await evaluate(inView('.market-scene .speech')), '| Sell now button:', await evaluate(`document.querySelector('.sell-now')?.innerText ?? 'none'`));
       await screenshot('market-open-glow');
+      if (await evaluate(`!!document.querySelector('.sell-now')`)) {
+        await evaluate(`document.querySelector('.sell-now').click()`);
+        await sleep(900);
+        console.log('after Sell now: first sellable row', await evaluate(inView('.market-panel .market-row:not(.empty)')), '| glowing rows:', await evaluate(`document.querySelectorAll('.market-row.attention').length`), '| button:', await evaluate(`document.querySelector('.sell-now') ? 'still there' : 'gone'`));
+        await screenshot('market-after-sell-now');
+      }
       console.log('dots with the Market open:', await evaluate(dotsNow));
       await sleep(2000);
       console.log('glow after 3 s:', await evaluate(`document.querySelectorAll('.market-row.attention').length`), 'rows');
@@ -657,6 +664,11 @@ try {
     await step(`${user}: a new harvest brings the Market dot back`, async () => {
       await openTab('storage');
       console.log('dots on Storage (Market seen):', await evaluate(dotsNow));
+      await openTab('market');
+      await sleep(400);
+      console.log('Market opened WITHOUT the dot, Darto says:', await evaluate(`document.querySelector('.market-scene .speech')?.innerText ?? 'none'`), '| glow:', await evaluate(`document.querySelectorAll('.market-row.attention').length`), '| Sell now:', await evaluate(`document.querySelector('.sell-now') ? 'shown' : 'none'`));
+      await screenshot('market-no-dot');
+      await openTab('storage');
       await fakeDb((db, id) => {
         db.prepare("UPDATE fruits SET qty = qty + 1 WHERE player_id = ? AND species = 'mango' AND quality = 'common'").run(id);
         try { db.prepare('UPDATE players SET fruit_at = ? WHERE id = ?').run(Date.now(), id); } catch {}
@@ -666,6 +678,12 @@ try {
       await sleep(1500);
       if (MOBILE) await openTab('storage');
       console.log('dots after a new harvest:', await evaluate(dotsNow));
+      await screenshot('dot-again-before-market');
+      await openTab('market');
+      await sleep(400);
+      console.log('Market opened by the dot again, Darto says:', await evaluate(`document.querySelector('.market-scene .speech')?.innerText ?? 'none'`), '| bubble:', await evaluate(inView('.market-scene .speech')));
+      await screenshot('market-dot-again');
+      await openTab('storage');
     });
     await step(`${user}: no seeds + an empty plot: Shop dot, hint, Mango glow`, async () => {
       await fakeDb((db, id) => db.prepare('DELETE FROM seeds WHERE player_id = ?').run(id));

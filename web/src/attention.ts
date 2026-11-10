@@ -9,6 +9,11 @@ export const ATTENTION_MS = 2000;
 /** The last `focus` value handled per screen (kept across remounts, so reopening a tab does not glow again). */
 const handled: Record<string, number> = {};
 
+/** True when `focus` is newer than the last one handled: the tab is being opened by its red dot right now. */
+export function attentionPending(name: string, focus: number): boolean {
+  return focus > (handled[name] ?? 0);
+}
+
 /** True for ATTENTION_MS after `focus` grows (once per value); `onStart` runs right after the glow renders. */
 export function useAttention(name: string, focus: number, onStart?: () => void): boolean {
   const [on, setOn] = useState(false);

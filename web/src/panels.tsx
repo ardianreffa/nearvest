@@ -13,7 +13,8 @@ import { TreePixels } from './art/trees';
 import { sortMemorials } from './memorials';
 import { Info, type InfoKey } from './info';
 import { clampQty, saleTotal, seasonNote, seasonPayout, stepQty } from './qty';
-import { jumpTo, revealIfHidden, useAttention } from './attention';
+import { ATTENTION_MS, attentionPending, jumpTo, revealIfHidden, useAttention } from './attention';
+import { dartoFreshLine } from './text';
 import { shopNeed } from './dots';
 import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QtyPicker, QualityTag, QUALITY_NAME, SPECIES_NAME, type SeedGroup } from './ui';
 
@@ -214,6 +215,28 @@ export function Shop({ state, config, act, busy, focus = 0 }: { state: GameState
   );
 }
 
+/** Phone tab bar (and a little air): a row behind it does not count as on screen. */
+const BOTTOM_COVER_PX = 72;
+
+/** True while the element from `get` is not (almost) fully on screen; watched only while `active`. */
+function useOffScreen(get: () => Element | null, active: boolean, key: unknown): boolean {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    const el = active ? get() : null;
+    if (!el || typeof IntersectionObserver !== 'function') {
+      setHidden(false);
+      return;
+    }
+    const io = new IntersectionObserver((entries) => setHidden(entries[entries.length - 1].intersectionRatio < 0.95), {
+      rootMargin: `0px 0px -${BOTTOM_COVER_PX}px 0px`,
+      threshold: [0, 0.5, 0.95, 1],
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [active, key]);
+  return hidden;
+}
+
 /** Shows a Darto pose for a moment, then goes back to idle. */
 function useDartoPose(): [DartoPose, Species, (pose: DartoPose, fruit?: Species) => void] {
   const [pose, setPose] = useState<DartoPose>('idle');
@@ -257,8 +280,23 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
   const fruitCount = state.fruits.reduce((n, f) => n + Math.max(0, f.qty), 0);
   const rowsRef = useRef<HTMLUListElement>(null);
   const seedsRef = useRef<HTMLElement>(null);
-  // Opened by the red dot (new fruit): the rows that can sell glow and the first one comes into view.
-  const glow = useAttention('market', focus, () => revealIfHidden(rowsRef.current?.querySelector('.market-row:not(.empty)')));
+  // Opened by the red dot (new fruit): Mr. Darto says so in his bubble (kept while the Market stays
+  // open), the rows that can sell glow ~2 s, and nothing scrolls (his bubble stays in view); when the
+  // first sellable row is off screen, a small "Sell now ↓" in the scene jumps there.
+  // Opened without the dot: his normal greeting.
+  const [byDot, setByDot] = useState(() => attentionPending('market', focus));
+  const glow = useAttention('market', focus, () => setByDot(true));
+  const [pulse, setPulse] = useState(false);
+  const pulseTimer = useRef<number>();
+  useEffect(() => () => clearTimeout(pulseTimer.current), []);
+  const firstSellable = () => rowsRef.current?.querySelector('.market-row:not(.empty)') ?? null;
+  const sellRowHidden = useOffScreen(firstSellable, byDot && fruitCount > 0, fruitCount);
+  const sellNow = () => {
+    revealIfHidden(firstSellable());
+    setPulse(true);
+    clearTimeout(pulseTimer.current);
+    pulseTimer.current = window.setTimeout(() => setPulse(false), ATTENTION_MS);
+  };
   const [seedsOpen, setSeedsOpen] = useState(() => {
     try {
       return localStorage.getItem(MARKET_SEEDS_OPEN_KEY) === '1';
@@ -292,7 +330,20 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
           <MarketBackdrop />
           <DartoFigure pose={pose} fruit={heldFruit} scale={2} />
           <HoverCart scale={2} />
-          <p class="speech">"Welcome, farmer! I'm Mr. Darto. Show me what you've got! {d.greeting}"</p>
+          <div class="darto-say">
+            {byDot && fruitCount > 0 ? (
+              <p class="speech speech-fresh" role="status">
+                "{dartoFreshLine(fruitCount)}"
+              </p>
+            ) : (
+              <p class="speech">"Welcome, farmer! I'm Mr. Darto. Show me what you've got! {d.greeting}"</p>
+            )}
+            {byDot && fruitCount > 0 && sellRowHidden && (
+              <button class="btn btn-small btn-gold sell-now" onClick={sellNow}>
+                Sell now ↓
+              </button>
+            )}
+          </div>
         </div>
         {thanks > 0 && (
           <div class="darto-thanks" key={thanks} role="status">
@@ -300,16 +351,11 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
             <span class="speech">Thanks!</span>
           </div>
         )}
-        {fruitCount > 0 && (
-          <p class="attention-hint" role="status">
-            You have {fruitCount} {fruitCount === 1 ? 'fruit' : 'fruits'} to sell. Pick an amount and tap Sell.
-          </p>
-        )}
         <ul class="market-rows" ref={rowsRef}>
           {d.prices.map((p) => (
             <FruitRow
               key={p.species}
-              glow={glow}
+              glow={glow || pulse}
               price={p}
               owned={owned(p.species)}
               season={state.season}

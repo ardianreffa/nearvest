@@ -2045,14 +2045,39 @@ input:focus-visible {
   animation: led 1.6s steps(2) infinite;
 }
 
-.market-scene .speech {
+.market-scene .darto-say {
   position: absolute;
   left: 104px;
   right: 12px;
   top: 8px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.market-scene .speech {
+  align-self: stretch;
   font-size: var(--fs-sm);
   box-shadow: 3px 3px 0 var(--ink);
-  z-index: 1;
+}
+
+/* Opened by the red dot: Mr. Darto points at the sale (gold edge like the Sell buttons). */
+.market-scene .speech-fresh {
+  border-color: var(--gold-700);
+  box-shadow: 3px 3px 0 var(--ink), inset 0 0 0 2px var(--gold-500);
+  animation: pop-in 0.25s steps(3);
+}
+
+.market-scene .sell-now {
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-scene .speech-fresh {
+    animation: none;
+  }
 }
 
 .market-scene .speech::after {
