@@ -1,6 +1,6 @@
 // Garden visits (docs/PLAN-social.md): the farmer list ("Farmers of Tandur", from the Friends pin
 // or the Village tab), visiting a friend's garden (read only, the same village scene with their
-// trees, a "<NAME>'S GARDEN" sign and their TaniBot as decoration: floating when ON, asleep when
+// trees, a "<NAME>'S GARDEN" sign on phones and their TaniBot as decoration: floating when ON, asleep when
 // OFF, a tap says hello) and helping water one thirsty tree per village day. The server checks
 // every rule (server/src/social.ts); visitors only get public data (TaniBot: ON / OFF only).
 
@@ -212,8 +212,8 @@ export function VisitGarden({
   if (immersive) {
     return (
       <>
+        {/* Laptops: no sign in the sky; the bottom bar names the garden and its title in full. */}
         <GardenScene state={state} selected={selected} onSelect={setSelected} elapsed={elapsed} fx={fx} big={big} immersive={immersive} visit visitBot={visitBot} />
-        {sign}
         <div class="hud-bar visit-bar" role="region" aria-label={`Visiting ${name}'s garden`}>
           {panel}
         </div>
@@ -232,8 +232,8 @@ export function VisitGarden({
 const HUD_TOP = '.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys, .phone-hud > *';
 
 /**
- * The wooden sign over a visited garden: "<NAME>'S GARDEN" and the owner's title. It hangs in the
- * sky just below the HUD, centred over the garden; place pins treat it as an obstacle (hotspots.tsx), so they
+ * Phones: the wooden sign over a visited garden: "<NAME>'S GARDEN" and the owner's title. It hangs
+ * in the sky just below the HUD, centred (laptops show the name in the bottom bar only); place pins treat it as an obstacle (hotspots.tsx), so they
  * never sit under it.
  */
 function VisitSign({ name, title }: { name: string; title: string }) {
@@ -241,9 +241,7 @@ function VisitSign({ name, title }: { name: string; title: string }) {
   useLayoutEffect(() => {
     const place = () => {
       const bottoms = [...document.querySelectorAll(HUD_TOP)].map((e) => e.getBoundingClientRect()).filter((r) => r.width && r.top < innerHeight / 3);
-      // Laptops: centred over the garden (the visit bar), not over the menu drawer.
-      const bar = document.querySelector('.visit-bar')?.getBoundingClientRect();
-      setAt({ top: Math.round(Math.max(8, ...bottoms.map((r) => r.bottom)) + 8), left: Math.round(bar?.width ? bar.left + bar.width / 2 : innerWidth / 2) });
+      setAt({ top: Math.round(Math.max(8, ...bottoms.map((r) => r.bottom)) + 8), left: Math.round(innerWidth / 2) });
     };
     place();
     const t = window.setTimeout(place, 400);
@@ -327,8 +325,9 @@ function VisitPanel({
           <b>{name}'s garden</b>
           {g && <span class="visit-sub">{g.title}</span>}
         </span>
-        <button class="btn btn-mint visit-back" onClick={onBack}>
-          ← Back to my garden
+        <button class="btn btn-mint visit-back" onClick={onBack} aria-label="Back to my garden">
+          <span class="visit-back-long">← Back to my garden</span>
+          <span class="visit-back-short">← My garden</span>
         </button>
       </header>
       {body}

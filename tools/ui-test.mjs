@@ -524,6 +524,8 @@ try {
       await waitFor(`!!document.querySelector('.plots')`, 'garden');
       await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
       await sleep(1500);
+      const botSize = `(() => { const b = document.querySelector('.bot-spot .tanibot'); if (!b) return 'none'; const r = b.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height); })()`;
+      console.log('my TaniBot size:', await evaluate(botSize));
       // Open the farmer list from the Friends pin, then Visit <friend>.
       await waitFor(`!!document.querySelector('.place-pin[aria-label*="Friends" i], .place-pin')`, 'pins');
       const opened = await evaluate(`(() => { const p = [...document.querySelectorAll('.place-pin')].find(e => /friends/i.test(e.innerText + (e.getAttribute('aria-label') || ''))); if (!p) return false; p.click(); return true; })()`);
@@ -546,17 +548,19 @@ try {
         const covers = [['pin', '.place-pin'], ['Darto', '.village-darto'], ['Back button', '.visit-back'], ['HUD', '.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys, .phone-hud > *'], ['TaniBot', '.bot-spot .tanibot'], ['tree label', '.badge'], ['toast', '.toasts > .toast']]
           .filter(([, q]) => [...document.querySelectorAll(q)].some(e => hit(sr, r(e)))).map(([n]) => n);
         const bot = document.querySelector('.bot-spot');
-        return 'sign "' + (sign ? sign.innerText.replace(/\\n/g, ' / ') : 'MISSING') + '" ' + (sr ? Math.round(sr.left) + ',' + Math.round(sr.top) + ' ' + Math.round(sr.width) + 'x' + Math.round(sr.height) : '')
+        return 'sign "' + (sign ? sign.innerText.replace(/\\n/g, ' / ') : (innerWidth >= 1024 ? 'none (laptop: bottom bar only)' : 'MISSING')) + '" ' + (sr ? Math.round(sr.left) + ',' + Math.round(sr.top) + ' ' + Math.round(sr.width) + 'x' + Math.round(sr.height) : '')
           + ' | covers: ' + (covers.join(', ') || 'nothing')
           + ' | inside screen: ' + (sr ? sr.left >= 0 && sr.right <= innerWidth : '-')
           + ' | TaniBot: ' + (bot ? bot.className.match(/tier-\\S+/)[0] + (bot.querySelector('.bot-click.asleep') ? ' asleep' : ' awake') + ' | ON/OFF chip: ' + !!bot.querySelector('.bot-status') + ' | other bubbles: ' + !!bot.querySelector('.bot-nudge, .bot-bye') : 'none')
+          + ' | panel name "' + document.querySelector('.visit-title b').innerText.replace(/\\n/g, ' ') + '" cut: ' + (() => { const b = document.querySelector('.visit-title b'); return b.scrollWidth > b.clientWidth + 1 || /…|_$/.test(b.innerText); })()
+          + ' | back button "' + [...document.querySelectorAll('.visit-back')].map(b => b.innerText.trim()).join('') + '" ' + Math.round(document.querySelector('.visit-back').getBoundingClientRect().width) + 'px'
           + ' | pins visible: ' + [...document.querySelectorAll('.place-pin')].filter(p => getComputedStyle(p).visibility !== 'hidden').length;
       })()`);
-      console.log('visit:', report);
+      console.log('visit:', report, '| their TaniBot size:', await evaluate(botSize));
       if (await evaluate(`!!document.querySelector('.bot-spot .bot-click')`)) {
         await evaluate(`document.querySelector('.bot-spot .bot-click').click()`);
         await sleep(600);
-        console.log('hello:', await evaluate(`(() => { const b = document.querySelector('.bot-hello'); if (!b) return 'NO BUBBLE'; const br = b.getBoundingClientRect(); const hit = (q) => [...document.querySelectorAll(q)].some(e => { const o = e.getBoundingClientRect(); return o.width && br.left < o.right && o.left < br.right && br.top < o.bottom && o.top < br.bottom; }); return '"' + b.innerText + '" | inside screen: ' + (br.left >= 0 && br.right <= innerWidth && br.top >= 0) + ' | covers pin: ' + hit('.place-pin') + ' | covers sign: ' + hit('.visit-sign') + ' | covers Darto: ' + hit('.village-darto') + ' | a window opened: ' + !!document.querySelector('.dialog-backdrop'); })()`));
+        console.log('hello:', await evaluate(`(() => { const b = document.querySelector('.bot-hello'); if (!b) return 'NO BUBBLE'; const br = b.getBoundingClientRect(); const hit = (q) => [...document.querySelectorAll(q)].some(e => { const o = e.getBoundingClientRect(); return o.width && br.left < o.right && o.left < br.right && br.top < o.bottom && o.top < br.bottom; }); return '"' + b.innerText + '" ' + Math.round(br.width) + 'x' + Math.round(br.height) + ' (' + Math.round(100 * br.width / innerWidth) + '% of the width, font ' + getComputedStyle(b).fontSize + ') | inside screen: ' + (br.left >= 0 && br.right <= innerWidth && br.top >= 0) + ' | covers pin: ' + hit('.place-pin') + ' | covers sign: ' + hit('.visit-sign') + ' | covers Darto: ' + hit('.village-darto') + ' | a window opened: ' + !!document.querySelector('.dialog-backdrop'); })()`));
         await screenshot('visit-' + friend + '-hello');
         await sleep(4200);
         console.log('hello gone after ~4 s:', await evaluate(`!document.querySelector('.bot-hello')`));

@@ -10604,9 +10604,8 @@ html.page-locked body {
   font-family: var(--font-title);
   font-size: var(--fs-body);
   text-transform: uppercase;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Never cut a garden name: a long one goes on to a second line. */
+  overflow-wrap: anywhere;
 }
 
 .visit-kicker,
@@ -10661,12 +10660,24 @@ html.page-locked body {
   min-width: 260px;
 }
 
-/* Phones: the title on one line with Back; the button fits a 390 px screen. */
+/* Phones: a short "← My garden" button, so the garden's name has room next to it. */
+.visit-back-short {
+  display: none;
+}
+
 @media (max-width: 1023px) {
   .visit-back {
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 8px;
+    padding-right: 8px;
     font-size: var(--fs-sm);
+  }
+
+  .visit-back-long {
+    display: none;
+  }
+
+  .visit-back-short {
+    display: inline;
   }
 }
 
@@ -10726,15 +10737,15 @@ html.page-locked body {
 }
 
 .visit-sign-name {
-  overflow: hidden;
   max-width: 100%;
   font-family: var(--font-title);
   font-size: var(--fs-body);
   line-height: 1.1;
   color: var(--gold-500);
+  text-align: center;
   text-transform: uppercase;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Never cut a garden name: a long one goes on to a second line. */
+  overflow-wrap: anywhere;
   text-shadow: 2px 2px 0 var(--soil-700);
 }
 
@@ -10745,17 +10756,21 @@ html.page-locked body {
   color: var(--paper-light);
 }
 
-@media (min-width: 1024px) {
-  .visit-sign {
-    padding: 8px 20px 6px;
-  }
-
-  .visit-sign-name {
-    font-size: var(--fs-h3);
-  }
+/* A visited garden's TaniBot: a tap says hello (no menu); a small plain-text bubble
+   (phones: at most 60% of the screen wide). */
+.bot-spot.visit-bot .bot-hint.bot-hello {
+  pointer-events: none;
+  width: max-content;
+  max-width: min(60vw, 200px);
+  padding: 3px 7px;
+  font-family: var(--font-body);
+  font-size: calc(var(--fs-sm) * var(--text-k));
+  line-height: 1.25;
 }
 
-/* A visited garden's TaniBot: a tap says hello (no menu); its bubble is plain text. */
-.visit-bot .bot-hello {
-  pointer-events: none;
+@media (min-width: 1024px) {
+  .bot-spot.visit-bot .bot-hint.bot-hello {
+    max-width: 210px;
+    padding: 4px 8px;
+  }
 }

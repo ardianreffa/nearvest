@@ -292,9 +292,9 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         )}
         {visit ? (
           hello.id > 0 && (
-            <p class="bot-hint bot-hint-flash bot-hello" role="status" key={hello.id}>
+            <span class="bot-hint bot-hint-flash bot-hello" role="status" key={hello.id}>
               Hi! I'm {visitBot!.owner}'s TaniBot. Thanks for visiting!
-            </p>
+            </span>
           )
         ) : bye ? (
           <button class="bot-hint bot-bye" onClick={onBot} key={bye}>
