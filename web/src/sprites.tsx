@@ -264,7 +264,10 @@ export function Pixels({ rows, palette, scale = 3, class: className, title, styl
       }
       let end = x + 1;
       while (end < row.length && row[end] === ch) end++;
-      rects.push(<rect key={`${x}-${y}`} x={x} y={y} width={end - x} height={1} fill={colors[ch]} />);
+      // Design-system colours (`var(--token)`) only work as CSS, not as the fill attribute.
+      const c = colors[ch];
+      const paint = c.startsWith('var(') ? { style: `fill:${c}` } : { fill: c };
+      rects.push(<rect key={`${x}-${y}`} x={x} y={y} width={end - x} height={1} {...paint} />);
       x = end;
     }
   }
@@ -284,6 +287,60 @@ export function Pixels({ rows, palette, scale = 3, class: className, title, styl
       {rects}
     </svg>
   );
+}
+
+/** UI icons (16x16, one CSS px per pixel) coloured with design-system tokens only. */
+const UI_ICON_PALETTE: Record<string, string> = {
+  K: 'var(--ink)',
+  P: 'var(--paper-light)',
+  F: 'var(--paper)',
+  H: 'var(--red-500)',
+  M: 'var(--mint-700)',
+};
+
+export const UI_ICONS = {
+  // A square sticker with a small heart; its bottom-right corner is peeled back.
+  sticker: [
+    '................',
+    '.KKKKKKKKKKKKKK.',
+    '.KPPPPPPPPPPPPK.',
+    '.KPPPPPPPPPPPPK.',
+    '.KPPPHHPPHHPPPK.',
+    '.KPPHHHHHHHHPPK.',
+    '.KPPHHHHHHHHPPK.',
+    '.KPPPHHHHHHPPPK.',
+    '.KPPPPHHHHPPPPK.',
+    '.KPPPPPHHPPPPPK.',
+    '.KPPPPPPPPKKKKK.',
+    '.KPPPPPPPPKFFK..',
+    '.KPPPPPPPPKFK...',
+    '.KPPPPPPPPKK....',
+    '.KKKKKKKKKK.....',
+    '................',
+  ],
+  // A check mark ("Sent").
+  check: [
+    '................',
+    '................',
+    '................',
+    '.............MM.',
+    '............MMM.',
+    '...........MMM..',
+    '..........MMM...',
+    '.MM......MMM....',
+    '.MMM....MMM.....',
+    '..MMM..MMM......',
+    '...MMMMMM.......',
+    '....MMMM........',
+    '.....MM.........',
+    '................',
+    '................',
+    '................',
+  ],
+} satisfies Record<string, string[]>;
+
+export function UiIcon({ name, scale = 1, class: className }: { name: keyof typeof UI_ICONS; scale?: number; class?: string }) {
+  return <Pixels rows={UI_ICONS[name]} palette={UI_ICON_PALETTE} scale={scale} class={className} />;
 }
 
 /** Keeps only the given characters of a grid (for animated overlay layers). */

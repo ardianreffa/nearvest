@@ -10684,6 +10684,22 @@ html.page-locked body {
 }
 
 @media (max-width: 1023px) {
+  /* Phones: the garden's name gets the whole first row (read in full, never split mid-word);
+     Sticker and "← My garden" sit side by side under it, equally wide and equally high. */
+  .visit-panel:not(.bar) .visit-head {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+
+  .visit-panel:not(.bar) .visit-title {
+    flex: 1 1 calc(100% - 40px);
+  }
+
+  .visit-panel:not(.bar) .visit-sticker,
+  .visit-panel:not(.bar) .visit-back {
+    flex: 1 1 0;
+  }
+
   .visit-back {
     padding-left: 8px;
     padding-right: 8px;
@@ -10898,16 +10914,21 @@ html.page-locked body {
   border-color: var(--mint-700);
 }
 
-/* Visiting: the Sticker button next to Back (icon + "Sticker"; "Sent" once today's sticker is out). */
+/* Visiting: the Sticker button next to Back, in one row with it and the same height
+   (small sticker icon left, "Sticker" right; a check mark and "Sent" once today's sticker is out). */
 .visit-sticker {
   flex: none;
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 6px;
   min-height: 44px;
-  min-width: 44px;
   white-space: nowrap;
+}
+
+.visit-sticker svg {
+  flex: none;
 }
 
 .visit-sticker.sent {
@@ -10920,17 +10941,12 @@ html.page-locked body {
   opacity: 0.75;
 }
 
-/* Phones: the icon with a small "Sticker" / "Sent" label under it (the name keeps its room). */
+/* Phones: the same padding and text size as "← My garden" next to it. */
 @media (max-width: 1023px) {
   .visit-sticker {
-    flex-direction: column;
-    gap: 1px;
-    padding: 3px 6px;
-  }
-
-  .visit-sticker-label {
-    font-family: var(--font-ui);
-    font-size: var(--fs-xs);
-    line-height: 1;
+    gap: 4px;
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: var(--fs-sm);
   }
 }

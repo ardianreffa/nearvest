@@ -13,9 +13,9 @@ import { floatText } from './fx';
 import { PhoneGarden } from './garden';
 import { Modal } from './help';
 import type { Immersive } from './layout';
-import { StickerIcon, StickerWindow } from './invite';
+import { StickerWindow } from './invite';
 import { GardenScene, type SceneFx } from './scene';
-import { Sprite } from './sprites';
+import { Sprite, UiIcon } from './sprites';
 import type { Toast } from './toast';
 import { QUALITY_NAME, SPECIES_NAME } from './ui';
 
@@ -326,7 +326,7 @@ function VisitPanel({
             aria-label={visit.stickerToday ? 'Sticker sent today' : `Leave a sticker for ${name}`}
             title={visit.stickerToday ? 'Sticker sent today' : 'Leave a sticker'}
           >
-            <StickerIcon id={visit.stickerToday ?? 'nice_garden'} />
+            <UiIcon name={visit.stickerToday ? 'check' : 'sticker'} />
             <span class="visit-sticker-label">{visit.stickerToday ? 'Sent' : 'Sticker'}</span>
           </button>
         )}
