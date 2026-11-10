@@ -62,7 +62,7 @@ Steps 2-9 done on 2026-11-08 (each with Ardian's OK; Entropy stayed PID 1904180 
 
 **Entropy reference PID (for the read-only check in rule 6): 4077255** since 2026-11-10 11:49 WIB (Ardian restarted Entropy himself to fix the bot, not because of NEARvest); before that 3665978 (2026-11-09) and 1904180.
 
-Latest release: `nearvest-69becf1` (2026-11-10); rollback: `nearvest-ef45ed3`.
+Latest release: `nearvest-08d00e3` (2026-11-10); rollback: `nearvest-69becf1` (works on the upgraded database, no restore needed; backup before the release: `nearvest-2026-11-10T15-51-02.sqlite`).
 
 ## Step 2: read-only check right before deploying (no change)
 
