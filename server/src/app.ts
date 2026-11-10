@@ -365,7 +365,7 @@ export function createApp(deps: AppDeps) {
   app.post('/api/clean', async (c) => respond(c, game.cleanAsh(playerId(c), plotOf(await body(c)))));
 
   // Garden visits (social.ts): the farmer list, a garden (read only), help water one tree per day.
-  app.get('/api/farmers', (c) => c.json(social.farmers(playerId(c))));
+  app.get('/api/farmers', (c) => c.json(social.farmers(playerId(c), c.req.query('q'))));
   app.get('/api/farmers/:name', (c) => c.json(social.visit(playerId(c), c.req.param('name'))));
   app.post('/api/farmers/:name/water', async (c) => {
     const pid = playerId(c);
@@ -378,6 +378,12 @@ export function createApp(deps: AppDeps) {
     const name = c.req.param('name');
     const result = social.sticker(pid, name, (await body(c)).sticker);
     return c.json({ result, visit: social.visit(pid, name) });
+  });
+  // Wave back to a visitor (a row of the Village tab "Visitors" list).
+  app.post('/api/visitors/:id/wave', async (c) => {
+    const pid = playerId(c);
+    const result = social.waveBack(pid, Number(c.req.param('id')), (await body(c)).sticker);
+    return c.json({ result, state: game.state(pid) });
   });
   app.post('/api/harvest', async (c) => {
     const b = await body(c);

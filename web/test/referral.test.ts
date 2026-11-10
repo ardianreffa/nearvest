@@ -149,3 +149,33 @@ describe('the invite survives the way to a new garden', () => {
     assert.equal(withRef('/play', parseRef('?ref=sari')), '/play?ref=sari');
   });
 });
+
+describe('farmer search and sticker button', async () => {
+  const { matchesPrefix, stickerButtonLabel } = await import('../src/referral.ts');
+  it('matches the start of a name, any case', () => {
+    assert.equal(matchesPrefix('sariwangi', ' SAR '), true);
+    assert.equal(matchesPrefix('budi', 'udi'), false);
+    assert.equal(matchesPrefix('budi', ''), true);
+  });
+  it('shows the count, the countdown and the daily limit', () => {
+    assert.equal(stickerButtonLabel(0, 3, 0), 'Sticker');
+    assert.equal(stickerButtonLabel(1, 3, 4), 'Wait 4 s');
+    assert.equal(stickerButtonLabel(2, 3, 0), 'Sticker 2/3');
+    assert.equal(stickerButtonLabel(3, 3, 0), 'Sent 3/3 today');
+    assert.equal(stickerButtonLabel(1, 1, 0), 'Sent');
+  });
+});
+
+describe('Set up Shop window', async () => {
+  const { nearFromYocto, shopSetupText } = await import('../src/shop-setup.ts');
+  it('shows the allowance from the server in NEAR and Ardian\'s wording', () => {
+    assert.equal(nearFromYocto('10000000000000000000000'), '0.01');
+    assert.equal(nearFromYocto('1000000000000000000000000'), '1');
+    assert.equal(nearFromYocto('not a number'), '0.01');
+    const t = shopSetupText('10000000000000000000000').join(' ');
+    assert.equal(
+      t,
+      'Your wallet will ask to add a limited game key. It can only spend PANEN in the Shop (burn) and uses at most 0.01 testnet NEAR for gas. Your NEAR and NFTs stay safe. Your wallet may show a red warning; this is expected.',
+    );
+  });
+});

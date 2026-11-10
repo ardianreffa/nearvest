@@ -152,17 +152,14 @@ export async function signShopBurn(
   config: ServerConfig,
   accountId: string,
   purchase: { item: string; qty: number },
-  ask: (message: string, confirmLabel: string) => Promise<boolean>,
+  /** Shows the "Set up Shop" window (shop-setup.ts) before the wallet opens; true = Continue. */
+  confirmSetup: () => Promise<boolean>,
 ): Promise<{ publicKey: string; nonce: string; maxBlockHeight: string; signature: string } | null> {
   const nearApi = await import('near-api-js');
   let secret = loadGameKey(accountId);
   let justAdded = false;
   if (!secret) {
-    const ok = await ask(
-      'To use the Shop, your wallet adds a small game key once. It can only burn PANEN for Shop purchases. ' +
-        'Your wallet pays this one setup step (a tiny testnet fee); after that the game pays every Shop purchase.',
-      'Set up Shop',
-    );
+    const ok = await confirmSetup();
     if (!ok) return null;
     secret = await addGameKey(config, accountId);
     justAdded = true;
@@ -183,7 +180,7 @@ export async function signShopBurn(
       if (missing && !justAdded) {
         // The key was removed in the wallet (or this is another browser): set it up again.
         saveGameKey(accountId, null);
-        return signShopBurn(config, accountId, purchase, ask);
+        return signShopBurn(config, accountId, purchase, confirmSetup);
       }
       throw e;
     }

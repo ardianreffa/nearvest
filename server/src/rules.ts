@@ -93,6 +93,14 @@ export const STICKERS = [
 export type StickerId = (typeof STICKERS)[number]['id'];
 /** The owner sees this many stickers received (newest first). */
 export const STICKERS_SHOWN = 10;
+/** A visitor can leave at most this many stickers per garden per village day (Ardian 2026-11-10)... */
+export const STICKERS_PER_DAY = 3;
+/** ...at least this long apart (the web counts down, the server refuses faster ones). */
+export const STICKER_COOLDOWN_MS = 5000;
+/** Village tab "Visitors": this many rows (1 row per visitor per garden per day) and waves back. */
+export const VISITORS_SHOWN = 10;
+/** Farmer search: names starting with this many characters at most (longer queries are cut). */
+export const FARMER_SEARCH_MAX = 32;
 /** Referral: the inviter gets this (mint_reward, the Season rule applies) after the friend's first harvest... */
 export const REF_REWARD_REFERRER = 20;
 /** ...and the friend gets this (exact mint, like the welcome pack). */

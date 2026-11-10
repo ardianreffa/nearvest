@@ -352,7 +352,7 @@ describe('help water: one tree per day', () => {
 });
 
 describe('stickers', () => {
-  it('a visitor leaves one of the 6 template stickers, once per garden per village day; the owner sees it', async () => {
+  it('a visitor leaves up to 3 stickers per garden per village day, 5 s apart; the owner sees them', async () => {
     const w = makeWorld();
     const social = new Social(w.db, w.game, w.now);
     const sari = await garden(w, 'sari');
@@ -361,19 +361,32 @@ describe('stickers', () => {
     const v = social.visit(budi.id, 'sari');
     assert.equal(v.stickers.length, 6);
     assert.equal(v.stickerToday, null);
+    assert.deepEqual([v.stickersToday, v.stickerMax, v.stickerWaitMs], [[], 3, 0]);
     const r = social.sticker(budi.id, 'sari', 'nice_garden');
-    assert.deepEqual(r, { owner: 'sari', sticker: 'nice_garden', text: 'Nice garden!' });
-    assert.equal(social.visit(budi.id, 'sari').stickerToday, 'nice_garden');
-    assert.throws(() => social.sticker(budi.id, 'sari', 'gold_vibes'), (e: any) => e.status === 409 && e.details.code === 'sticker_today');
+    assert.deepEqual(r, { owner: 'sari', sticker: 'nice_garden', text: 'Nice garden!', sent: 1, max: 3 });
+    const v1 = social.visit(budi.id, 'sari');
+    assert.equal(v1.stickerToday, 'nice_garden');
+    assert.equal(v1.stickerWaitMs, 5000);
+    // Too fast: refused with the time left (the web counts down).
+    w.advance(2000);
+    assert.throws(() => social.sticker(budi.id, 'sari', 'gold_vibes'), (e: any) => e.status === 429 && e.details.code === 'sticker_wait' && e.details.waitMs === 3000);
+    assert.equal(social.visit(budi.id, 'sari').stickerWaitMs, 3000);
+    w.advance(3000);
+    social.sticker(budi.id, 'sari', 'gold_vibes');
+    w.advance(5000);
+    assert.equal(social.sticker(budi.id, 'sari', 'see_you').sent, 3);
+    assert.deepEqual(social.visit(budi.id, 'sari').stickersToday, ['nice_garden', 'gold_vibes', 'see_you']);
+    w.advance(5000);
+    assert.throws(() => social.sticker(budi.id, 'sari', 'keep_it_up'), (e: any) => e.status === 409 && e.details.code === 'sticker_today');
     // Another garden the same day is fine; so is another visitor.
     social.sticker(budi.id, 'tono', 'keep_it_up');
     social.sticker(tono.id, 'sari', 'gold_vibes');
     const got = w.game.state(sari.id).stickers;
-    assert.deepEqual(got.map((s) => [s.from, s.sticker, s.text]), [['tono', 'gold_vibes', 'Gold vibes!'], ['budi', 'nice_garden', 'Nice garden!']]);
+    assert.deepEqual(got.map((s) => [s.from, s.sticker]), [['tono', 'gold_vibes'], ['budi', 'see_you'], ['budi', 'gold_vibes'], ['budi', 'nice_garden']]);
     // The next village day: again.
     w.advance(DAY);
     social.sticker(budi.id, 'sari', 'see_you');
-    assert.equal(w.game.state(sari.id).stickers.length, 3);
+    assert.equal(w.game.state(sari.id).stickers.length, 5);
   });
 
   it('only known stickers (no free text), never in your own garden, the visit view stays public', async () => {
@@ -405,10 +418,167 @@ describe('stickers', () => {
       const r = await post(t, '/api/farmers/sari/sticker', { sticker: 'keep_it_up' });
       assert.equal(r.status, 200);
       assert.equal(r.json.visit.stickerToday, 'keep_it_up');
+      // Straight away a second one: 429 with the wait.
+      const fast = await post(t, '/api/farmers/sari/sticker', { sticker: 'see_you' });
+      assert.equal(fast.status, 429);
+      assert.equal(fast.json.code, 'sticker_wait');
     }
     const me = await w.app.request('/api/me', { headers: { Authorization: `Bearer ${owner}` } });
     const s = (await me.json()) as any;
     assert.equal(s.stickers.length, 10);
     assert.equal(s.stickers[0].from, 'visitor11');
+  });
+});
+
+describe('visits, visitors list and wave back', () => {
+  it('every visit is recorded once per visitor per garden per day, without XP; stickers and watering join that row', async () => {
+    const w = makeWorld();
+    const social = new Social(w.db, w.game, w.now);
+    const sari = await garden(w, 'sari');
+    const budi = await garden(w, 'budi');
+    const tono = await garden(w, 'tono');
+    const xp = xpOf(w, budi.id);
+    social.visit(budi.id, 'sari');
+    social.visit(budi.id, 'sari');
+    social.visit(sari.id, 'sari'); // your own garden: no row
+    assert.equal(xpOf(w, budi.id), xp, 'visiting alone gives no XP');
+    let rows = w.game.state(sari.id).visitors;
+    assert.equal(rows.length, 1);
+    assert.deepEqual([rows[0].from, rows[0].today, rows[0].stickers, rows[0].watered, rows[0].wave, rows[0].canWave], ['budi', true, [], null, null, true]);
+    w.advance(10_000);
+    social.sticker(budi.id, 'sari', 'nice_garden');
+    w.advance(6000);
+    social.sticker(budi.id, 'sari', 'keep_it_up');
+    social.help(budi.id, 'sari', 0);
+    w.advance(1000);
+    social.visit(tono.id, 'sari');
+    rows = w.game.state(sari.id).visitors;
+    assert.deepEqual(rows.map((r) => r.from), ['tono', 'budi'], 'newest activity first, one row per visitor');
+    assert.deepEqual(rows[1].stickers.map((s) => s.text), ['Nice garden!', 'Keep it up!']);
+    assert.equal(rows[1].watered, 'mango');
+    // The next day: a new row for the same visitor; never more than one per day.
+    w.advance(DAY);
+    social.visit(budi.id, 'sari');
+    social.visit(budi.id, 'sari');
+    rows = w.game.state(sari.id).visitors;
+    assert.deepEqual(rows.map((r) => [r.from, r.today]), [['budi', true], ['tono', false], ['budi', false]]);
+    assertPublic(social.visit(budi.id, 'sari').garden);
+  });
+
+  it('the owner waves back once per visitor per day; the visitor gets it without visiting', async () => {
+    const w = makeWorld();
+    const social = new Social(w.db, w.game, w.now);
+    const sari = await garden(w, 'sari');
+    const budi = await garden(w, 'budi');
+    const tono = await garden(w, 'tono');
+    social.visit(budi.id, 'sari');
+    social.visit(tono.id, 'sari');
+    const row = w.game.state(sari.id).visitors.find((r) => r.from === 'budi')!;
+    assert.throws(() => social.waveBack(sari.id, row.id, 'free text'), (e: any) => e.details.code === 'unknown_sticker');
+    assert.throws(() => social.waveBack(tono.id, row.id, 'see_you'), (e: any) => e.status === 404, 'only the owner of the row');
+    assert.deepEqual(social.waveBack(sari.id, row.id, 'see_you'), { visitor: 'budi', sticker: 'see_you', text: 'See you tomorrow!' });
+    assert.throws(() => social.waveBack(sari.id, row.id, 'nice_garden'), (e: any) => e.status === 409 && e.details.code === 'waved_today');
+    const after = w.game.state(sari.id).visitors.find((r) => r.from === 'budi')!;
+    assert.deepEqual([after.wave?.text, after.canWave], ['See you tomorrow!', false]);
+    const waves = w.game.state(budi.id).waves;
+    assert.deepEqual(waves.map((x) => [x.from, x.text]), [['sari', 'See you tomorrow!']]);
+    assert.equal(w.game.state(tono.id).waves.length, 0);
+    // Next day: yesterday's row stays "Waved"; a new visit can be waved again (once).
+    w.advance(DAY);
+    social.visit(budi.id, 'sari');
+    const [today, old] = w.game.state(sari.id).visitors.filter((r) => r.from === 'budi');
+    assert.deepEqual([today.canWave, old.canWave], [true, false]);
+    social.waveBack(sari.id, today.id, 'gold_vibes');
+    assert.equal(w.game.state(budi.id).waves.length, 2);
+  });
+
+  it('POST /api/visitors/:id/wave returns the owner state', async () => {
+    const w = makeWorld();
+    const tok = async (u: string) => ((await (await w.app.request('/auth/dev', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: u }) })).json()) as any).token as string;
+    const call = async (t: string, method: string, path: string, body?: unknown) => {
+      const res = await w.app.request(path, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return { status: res.status, json: (await res.json()) as any };
+    };
+    const a = await tok('owner');
+    const b = await tok('guest');
+    await call(a, 'POST', '/api/player', { name: 'sari' });
+    await call(b, 'POST', '/api/player', { name: 'budi' });
+    await w.worker.drain();
+    assert.equal((await call(b, 'GET', '/api/farmers/sari')).status, 200);
+    const me = (await call(a, 'GET', '/api/me')).json;
+    const r = await call(a, 'POST', `/api/visitors/${me.visitors[0].id}/wave`, { sticker: 'thanks_water' });
+    assert.equal(r.status, 200);
+    assert.equal(r.json.state.visitors[0].wave.id, 'thanks_water');
+    assert.equal((await call(a, 'POST', `/api/visitors/${me.visitors[0].id}/wave`, { sticker: 'thanks_water' })).status, 409);
+    assert.equal((await call(b, 'GET', '/api/me')).json.waves[0].from, 'sari');
+  });
+});
+
+describe('farmer search', () => {
+  it('finds ready gardens by name prefix (any case), also inactive or treeless ones; never judge gardens or yourself', async () => {
+    const w = makeWorld();
+    const social = new Social(w.db, w.game, w.now);
+    const me = await garden(w, 'sariwangi');
+    await garden(w, 'sari');
+    await garden(w, 'sarah', { plant: false });
+    await garden(w, 'budi');
+    await garden(w, 'sarijudge', { judge: true });
+    w.advance(30 * DAY); // nobody active lately: the normal list would be empty
+    const r = social.farmers(me.id, '  SAR ');
+    assert.equal(r.query, 'sar');
+    assert.deepEqual(r.farmers.map((f) => f.name).sort(), ['sarah', 'sari']);
+    assert.equal(social.farmers(me.id, 'sari').farmers[0].name, 'sari', 'exact name first');
+    assert.deepEqual(social.farmers(me.id, '%').farmers, [], 'no wildcards');
+    assert.deepEqual(social.farmers(me.id, 'zzz').farmers, []);
+    assertPublic(r.farmers);
+    assert.ok(Array.isArray(social.farmers(me.id, '').farmers), 'empty query = the normal list');
+  });
+});
+
+describe('database upgrade', () => {
+  it('an old stickers table (one a day, UNIQUE) is rebuilt and old stickers / helps become visit rows', async () => {
+    const { mkdtempSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { openDb } = await import('../src/db.ts');
+    const path = join(mkdtempSync(join(tmpdir(), 'nv-')), 'old.sqlite');
+    const first = openDb(path);
+    first.exec('DROP TABLE visits; DROP TABLE stickers');
+    first.exec(`CREATE TABLE stickers (id INTEGER PRIMARY KEY, from_id INTEGER NOT NULL REFERENCES players(id), to_id INTEGER NOT NULL REFERENCES players(id),
+      sticker TEXT NOT NULL, sticker_day INTEGER NOT NULL, created_at INTEGER NOT NULL, UNIQUE (from_id, to_id, sticker_day))`);
+    first.exec("INSERT INTO users (id, provider, subject, created_at) VALUES (1, 'dev', 'a', 0), (2, 'dev', 'b', 0)");
+    first.exec("INSERT INTO players (id, user_id, name, account_id, public_key, secret_key_enc, account_status, created_at) VALUES (1, 1, 'sari', 'sari.t', '', '', 'ready', 0), (2, 2, 'budi', 'budi.t', '', '', 'ready', 0)");
+    first.exec("INSERT INTO stickers (from_id, to_id, sticker, sticker_day, created_at) VALUES (2, 1, 'nice_garden', 7, 1000)");
+    first.close();
+    const db = openDb(path);
+    assert.equal((db.prepare('PRAGMA index_list(stickers)').all() as { origin: string }[]).filter((i) => i.origin === 'u').length, 0);
+    db.exec("INSERT INTO stickers (from_id, to_id, sticker, sticker_day, created_at) VALUES (2, 1, 'see_you', 7, 7000)");
+    assert.deepEqual(db.prepare('SELECT visitor_id, owner_id, visit_day FROM visits').all().map((r) => ({ ...r })), [{ visitor_id: 2, owner_id: 1, visit_day: 7 }]);
+    db.close();
+  });
+});
+
+describe('privacy of search, Visitors and wave back', () => {
+  it('search rows, Visitors rows, waves and the wave result hold only public data (no email, wallet, budget, key)', async () => {
+    const w = makeWorld();
+    const social = new Social(w.db, w.game, w.now);
+    const sari = await garden(w, 'sari');
+    const budi = await garden(w, 'budi');
+    // Private data that must never show up: a linked wallet, a Google email, a TaniBot budget.
+    w.db.prepare("UPDATE players SET wallet_account_id = 'budiwallet.testnet', google_sub = 'g-123' WHERE id = ?").run(budi.id);
+    w.db.prepare("UPDATE users SET subject = 'budi@example.com' WHERE id = ?").run(budi.user_id);
+    social.visit(budi.id, 'sari');
+    social.sticker(budi.id, 'sari', 'nice_garden');
+    const rows = w.game.state(sari.id).visitors;
+    const wave = social.waveBack(sari.id, rows[0].id, 'see_you');
+    const waves = w.game.state(budi.id).waves;
+    const search = social.farmers(sari.id, 'bu');
+    for (const v of [rows, waves, wave, search.farmers]) {
+      assertPublic(v);
+      assert.doesNotMatch(JSON.stringify(v), /budiwallet|g-123|example\.com|nearvest\.testnet/, 'no wallet, Google id, email or account id');
+    }
+    assert.deepEqual(Object.keys(rows[0]).sort(), ['at', 'avatar', 'canWave', 'from', 'id', 'stickers', 'today', 'watered', 'wave']);
+    assert.deepEqual(Object.keys(waves[0]).sort(), ['at', 'avatar', 'from', 'id', 'sticker', 'text']);
+    assert.deepEqual(Object.keys(search.farmers[0]).sort(), ['avatar', 'helpedYou', 'judge', 'name', 'thirsty', 'title', 'trees']);
   });
 });

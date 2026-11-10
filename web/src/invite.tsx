@@ -1,12 +1,15 @@
 // Referral + stickers on the web (docs/PLAN-social.md sections 1.4 and 3):
 // - Village tab "Invite a friend": the invite link (Copy, Share on X), the rewards, the friends
 //   invited (paid / waiting for their first harvest) and who invited you.
-// - Village tab "Visitors": the last stickers visitors left in your garden.
-// - Visiting a garden: "Sticker" opens the 6 template stickers (1 per garden per day, no free text).
+// - Village tab "Visitors": one row per visitor per day (stickers + watering on that row, Wave back)
+//   and the waves back you got; Visit buttons for invited friends and the farmer who invited you.
+// - Visiting a garden: "Sticker" opens the 6 template stickers (3 per garden per day, 5 s apart).
 // Shown only when the server sends `referral` / `stickers` (older servers: nothing new appears).
 
-import { useState } from 'preact/hooks';
-import { api, type GameState, type ReferralView, type StickerKind, type StickerView, type VisitResponse } from './api';
+import { createPortal } from 'preact/compat';
+import { useEffect, useMemo, useState } from 'preact/hooks';
+import { api, type GameState, type ReferralView, type Species, type StickerKind, type StickerView, type VisitorView, type VisitResponse, type WaveView } from './api';
+import { Avatar } from './art/avatars';
 import { playSound } from './audio';
 import { Modal } from './help';
 import { inviteLink, inviteOrigin, invitePost } from './referral';
@@ -27,6 +30,18 @@ const STICKER_ICON: Record<string, SpriteName> = {
   see_you: 'seedPacket',
 };
 
+/** The 6 template stickers (same ids and text as the server's rules.ts STICKERS; wave back uses them). */
+export const STICKER_KINDS: StickerKind[] = [
+  { id: 'nice_garden', text: 'Nice garden!' },
+  { id: 'great_durian', text: 'Great durian!' },
+  { id: 'keep_it_up', text: 'Keep it up!' },
+  { id: 'thanks_water', text: 'Thanks for the water!' },
+  { id: 'gold_vibes', text: 'Gold vibes!' },
+  { id: 'see_you', text: 'See you tomorrow!' },
+];
+
+const SPECIES_WORD: Record<Species, string> = { mango: 'mango', rambutan: 'rambutan', durian: 'durian' };
+
 export function StickerIcon({ id, scale = 2 }: { id: string; scale?: number }) {
   return <Sprite name={STICKER_ICON[id] ?? 'sparkle'} scale={scale} />;
 }
@@ -43,7 +58,7 @@ const startOfDay = (t: number) => {
 };
 
 /** Village tab: invite link + Share on X, rewards, friends invited and their status. */
-export function InvitePanel({ state, notify }: { state: GameState; notify: Notify }) {
+export function InvitePanel({ state, notify, onVisit }: { state: GameState; notify: Notify; onVisit?: (name: string) => void }) {
   const r = state.referral as ReferralView;
   const name = state.player.name;
   const link = inviteLink(inviteOrigin(import.meta.env.DEV, location.origin), name);
@@ -105,6 +120,11 @@ export function InvitePanel({ state, notify }: { state: GameState; notify: Notif
                   ) : (
                     <span class="tag tag-waiting">Waiting for first harvest</span>
                   )}
+                  {onVisit && (
+                    <button class="btn btn-small btn-mint invite-visit" onClick={() => (playSound('click'), onVisit(f.name))} aria-label={`Visit ${f.name}'s garden`}>
+                      Visit
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -134,14 +154,115 @@ export function InvitePanel({ state, notify }: { state: GameState; notify: Notif
           ) : (
             `Your first harvest gives you both PANEN (you: ${formatPanen(r.rewards.friend)}).`
           )}
+          {onVisit && (
+            <button class="btn btn-small btn-mint invite-by-visit" onClick={() => (playSound('click'), onVisit(r.invitedBy!.name))}>
+              Visit {r.invitedBy.name}
+            </button>
+          )}
         </p>
       )}
     </Panel>
   );
 }
 
-/** Village tab: stickers visitors left in your garden (last 10). */
-export function VisitorsPanel({ stickers }: { stickers: StickerView[] }) {
+/**
+ * Village tab "Visitors". Servers from 2026-11-10 on: one row per visitor per village day ("budi
+ * visited · today", the stickers they left that day and the tree they watered on the same row, and
+ * Wave back), mixed with the waves back you got from gardens you visited. Older servers: the last
+ * stickers, one row each.
+ */
+export function VisitorsPanel({
+  state,
+  onState,
+  notify,
+  onVisit,
+}: {
+  state: GameState;
+  onState: (s: GameState) => void;
+  notify: Notify;
+  onVisit?: (name: string) => void;
+}) {
+  const [waving, setWaving] = useState<VisitorView | null>(null);
+  if (!state.visitors) return <StickerList stickers={state.stickers ?? []} />;
+  type Row = { kind: 'visit'; at: number; v: VisitorView } | { kind: 'wave'; at: number; w: WaveView };
+  const rows: Row[] = [
+    ...state.visitors.map((v): Row => ({ kind: 'visit', at: v.at, v })),
+    ...(state.waves ?? []).map((w): Row => ({ kind: 'wave', at: w.at, w })),
+  ].sort((a, b) => b.at - a.at);
+  return (
+    <Panel title="Visitors" class="visitors-panel">
+      {rows.length === 0 ? (
+        <p class="muted small">No visitors yet. Farmers who visit your garden show up here, with the stickers they leave.</p>
+      ) : (
+        <ul class="list visitor-list" aria-label="Visitors and waves back">
+          {rows.map((r) =>
+            r.kind === 'visit' ? (
+              <li key={`v${r.v.id}`} class="visitor-row">
+                <Avatar id={r.v.avatar} size={32} />
+                <span class="grow visitor-main">
+                  <span class="visitor-line">
+                    <b>{r.v.from}</b> visited · {whenText(r.v.at)}
+                  </span>
+                  {(r.v.stickers.length > 0 || r.v.watered) && (
+                    <span class="visitor-did">
+                      {r.v.stickers.map((k, i) => (
+                        <span key={i} class="visitor-sticker">
+                          <StickerIcon id={k.id} scale={1} /> {k.text}
+                        </span>
+                      ))}
+                      {r.v.watered && (
+                        <span class="visitor-sticker visitor-watered">
+                          <Sprite name="droplet" scale={1} /> watered your {SPECIES_WORD[r.v.watered]}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </span>
+                {r.v.wave ? (
+                  <button class="btn btn-small visitor-wave waved" disabled aria-label={`You waved back to ${r.v.from}: ${r.v.wave.text}`}>
+                    <StickerIcon id={r.v.wave.id} scale={1} /> Waved
+                  </button>
+                ) : r.v.canWave ? (
+                  <button class="btn btn-small btn-gold visitor-wave" onClick={() => (playSound('click'), setWaving(r.v))}>
+                    Wave back
+                  </button>
+                ) : (
+                  <button class="btn btn-small visitor-wave waved" disabled title={`You waved back to ${r.v.from} today`}>
+                    Waved
+                  </button>
+                )}
+              </li>
+            ) : (
+              <li key={`w${r.w.id}`} class="visitor-row wave-row">
+                <Avatar id={r.w.avatar} size={32} />
+                <span class="grow visitor-main">
+                  <span class="visitor-line">
+                    <b>{r.w.from}</b> waved back · {whenText(r.w.at)}
+                  </span>
+                  <span class="visitor-did">
+                    <span class="visitor-sticker">
+                      <StickerIcon id={r.w.sticker} scale={1} /> {r.w.text}
+                    </span>
+                  </span>
+                </span>
+                {onVisit && (
+                  <button class="btn btn-small btn-mint visitor-wave" onClick={() => (playSound('click'), onVisit(r.w.from))} aria-label={`Visit ${r.w.from}'s garden`}>
+                    Visit
+                  </button>
+                )}
+              </li>
+            ),
+          )}
+        </ul>
+      )}
+      {/* On the page itself: inside the panel other panels (and the laptop drawer) would cover it. */}
+      {waving && createPortal(<WaveWindow visitor={waving} kinds={STICKER_KINDS} onClose={() => setWaving(null)} onState={onState} notify={notify} />, document.body)}
+    </Panel>
+  );
+}
+
+/** Older servers: the last stickers visitors left (one row each). */
+function StickerList({ stickers }: { stickers: StickerView[] }) {
   return (
     <Panel title="Visitors" class="visitors-panel">
       {stickers.length === 0 ? (
@@ -167,7 +288,74 @@ export function VisitorsPanel({ stickers }: { stickers: StickerView[] }) {
   );
 }
 
-/** Visiting: the 6 template stickers; one per garden per day. */
+/**
+ * What the viewer may still do in a visited garden today: stickers sent / allowed (3; servers
+ * before 2026-11-10: 1) and the seconds to wait before the next one (5 s apart, counted down here;
+ * the server refuses faster ones too).
+ */
+export function useStickerStatus(visit: VisitResponse | null) {
+  const sent = visit ? (visit.stickersToday ?? (visit.stickerToday ? [visit.stickerToday] : [])) : [];
+  const max = visit?.stickerMax ?? 1;
+  const readyAt = useMemo(() => Date.now() + (visit?.stickerWaitMs ?? 0), [visit]);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (readyAt <= Date.now()) return setNow(Date.now());
+    const t = window.setInterval(() => {
+      setNow(Date.now());
+      if (Date.now() >= readyAt) window.clearInterval(t);
+    }, 250);
+    return () => window.clearInterval(t);
+  }, [readyAt]);
+  const full = sent.length >= max;
+  return { sent, max, full, waitS: full ? 0 : Math.max(0, Math.ceil((readyAt - now) / 1000)) };
+}
+
+/** The pick-a-sticker window (6 template stickers): visiting (leave one) and Visitors (wave back). */
+function StickerPicker({
+  title,
+  intro,
+  kinds,
+  marked,
+  disabled,
+  busy,
+  label,
+  onPick,
+  onClose,
+}: {
+  title: string;
+  intro: string;
+  kinds: StickerKind[];
+  /** Stickers already sent (marked with the mint "sent" look). */
+  marked: string[];
+  disabled: boolean;
+  busy: string | null;
+  label: (k: StickerKind) => string;
+  onPick: (id: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Modal title={title} onClose={onClose} closeLabel="Close" class="sticker-dialog">
+      <p class="small">{intro}</p>
+      <div class="sticker-grid" role="list">
+        {kinds.map((k) => (
+          <button
+            key={k.id}
+            role="listitem"
+            class={`sticker-pick${marked.includes(k.id) ? ' sent' : ''}`}
+            disabled={disabled || !!busy}
+            onClick={() => onPick(k.id)}
+            aria-label={label(k)}
+          >
+            <StickerIcon id={k.id} scale={3} />
+            <span>{busy === k.id ? 'Sending...' : k.text}</span>
+          </button>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+/** Visiting: the 6 template stickers; up to 3 per garden a day, 5 s apart. */
 export function StickerWindow({
   name,
   visit,
@@ -182,17 +370,76 @@ export function StickerWindow({
   notify: Notify;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
-  const sent = visit.stickerToday ?? null;
+  const { sent, max, full, waitS } = useStickerStatus(visit);
   const kinds: StickerKind[] = visit.stickers ?? [];
   const send = async (id: string) => {
-    if (busy || sent) return;
+    if (busy || full || waitS > 0) return;
     setBusy(id);
     playSound('click');
     try {
-      const r = await api<{ result: { text: string; owner: string }; visit: VisitResponse }>('POST', `/api/farmers/${encodeURIComponent(name)}/sticker`, { sticker: id });
+      const r = await api<{ result: { text: string; owner: string; sent?: number; max?: number }; visit: VisitResponse }>(
+        'POST',
+        `/api/farmers/${encodeURIComponent(name)}/sticker`,
+        { sticker: id },
+      );
       onSent(r.visit);
       playSound('plant');
-      notify({ kind: 'success', text: `You left "${r.result.text}" for ${r.result.owner}.` });
+      const left = r.result.max && r.result.sent ? r.result.max - r.result.sent : 0;
+      notify({ kind: 'success', text: `You left "${r.result.text}" for ${r.result.owner}.${left > 0 ? ` ${left} more today.` : ''}` });
+      onClose();
+    } catch (e) {
+      playSound('error');
+      notify({ kind: 'error', text: e instanceof Error ? e.message : String(e) });
+      // The wait or the count may have changed: show the visit as the server has it.
+      void api<VisitResponse>('GET', `/api/farmers/${encodeURIComponent(name)}`).then(onSent).catch(() => undefined);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const intro = full
+    ? `You left ${max} sticker${max === 1 ? '' : 's'} for ${name} today. Come back tomorrow!`
+    : waitS > 0
+      ? `Next sticker in ${waitS} s (${sent.length}/${max} today).`
+      : `Pick one for ${name}. Up to ${max} sticker${max === 1 ? '' : 's'} per garden a day${sent.length ? ` (${sent.length}/${max} sent)` : ''}.`;
+  return (
+    <StickerPicker
+      title="Leave a sticker"
+      intro={intro}
+      kinds={kinds}
+      marked={sent}
+      disabled={full || waitS > 0}
+      busy={busy}
+      label={(k) => (sent.includes(k.id) ? `${k.text} (sent today)` : `Leave "${k.text}"`)}
+      onPick={(id) => void send(id)}
+      onClose={onClose}
+    />
+  );
+}
+
+/** Wave back: the owner sends one template sticker to a visitor (1 per visitor per day). */
+export function WaveWindow({
+  visitor,
+  kinds,
+  onClose,
+  onState,
+  notify,
+}: {
+  visitor: VisitorView;
+  kinds: StickerKind[];
+  onClose: () => void;
+  onState: (s: GameState) => void;
+  notify: Notify;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const send = async (id: string) => {
+    if (busy) return;
+    setBusy(id);
+    playSound('click');
+    try {
+      const r = await api<{ result: { text: string; visitor: string }; state: GameState }>('POST', `/api/visitors/${visitor.id}/wave`, { sticker: id });
+      onState(r.state);
+      playSound('plant');
+      notify({ kind: 'success', text: `You waved back to ${r.result.visitor}: "${r.result.text}"` });
       onClose();
     } catch (e) {
       playSound('error');
@@ -202,25 +449,16 @@ export function StickerWindow({
     }
   };
   return (
-    <Modal title="Leave a sticker" onClose={onClose} closeLabel="Close" class="sticker-dialog">
-      <p class="small">
-        {sent ? `You left a sticker for ${name} today. Come back tomorrow!` : `Pick one for ${name}. One sticker per garden a day.`}
-      </p>
-      <div class="sticker-grid" role="list">
-        {kinds.map((k) => (
-          <button
-            key={k.id}
-            role="listitem"
-            class={`sticker-pick${sent === k.id ? ' sent' : ''}`}
-            disabled={!!sent || !!busy}
-            onClick={() => void send(k.id)}
-            aria-label={sent === k.id ? `${k.text} (sent today)` : `Leave "${k.text}"`}
-          >
-            <StickerIcon id={k.id} scale={3} />
-            <span>{busy === k.id ? 'Sending...' : k.text}</span>
-          </button>
-        ))}
-      </div>
-    </Modal>
+    <StickerPicker
+      title="Wave back"
+      intro={`Send ${visitor.from} a sticker. They see it without visiting you. One wave back per visitor a day.`}
+      kinds={kinds}
+      marked={[]}
+      disabled={false}
+      busy={busy}
+      label={(k) => `Wave back to ${visitor.from} with "${k.text}"`}
+      onPick={(id) => void send(id)}
+      onClose={onClose}
+    />
   );
 }

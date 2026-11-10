@@ -27,6 +27,12 @@
 //   the landing page /?ref=<friend> and clicks "Play for free", makes the NEW garden <newUser> (tutorial on), visits <friend> (coach + Judge chip hidden, comes
 //   back unchanged), leaves a sticker, then signs in as <friend>: Invite a friend + Visitors in the Village tab:
 //   UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --social=<newUser>:<friend> [w] [h]
+// Visits package 2 (fake-chain server; API_URL = that server, default http://127.0.0.1:8788; FAKE_DB=<its sqlite> for Set up Shop):
+//   makes <owner> and 14 farmers <prefix>01..14 through the API; <prefix>01 visits <owner>, leaves 3 stickers (5 s apart) and waters.
+//   Signs in as <owner>: long Farmers list (one scroll area, every visible name readable at its centre after scrolling), search,
+//   Visitors (1 row with 3 stickers + watering), Wave back; then <owner>w as a wallet garden (FAKE_DB sets custody):
+//   Shop -> "Set up Shop" window, Not now (nothing bought), Continue (the wallet list opens):
+//   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --visits2=<owner>:<prefix> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
@@ -546,6 +552,152 @@ try {
       console.log('pasted 20:', await evaluate(read));
       console.log('fonts of the counter:', await evaluate(`getComputedStyle(document.querySelector('.name-count')).fontFamily + ' ' + getComputedStyle(document.querySelector('.name-count')).fontSize`));
     });
+    throw { done: true };
+  }
+  if (name.startsWith('--visits2=')) {
+    const [owner, prefix] = name.slice('--visits2='.length).split(':');
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return res.json();
+    };
+    const make = async (user, plant = true) => {
+      const { token } = await call('POST', '/auth/dev', null, { username: user });
+      let st = await call('GET', '/api/me', token);
+      if (st.error) st = await call('POST', '/api/player', token, { name: user, demo: true });
+      for (let i = 0; i < 40 && st.player.accountStatus !== 'ready'; i++) (await sleep(300), (st = await call('GET', '/api/me', token)));
+      if (plant && !st.plots[0].tree) {
+        await call('POST', '/api/checkin', token);
+        st = await call('GET', '/api/me', token);
+        await call('POST', '/api/plant', token, { plot: 0, seedId: (st.seeds.find((x) => x.species === 'mango') ?? st.seeds[0]).id });
+      }
+      return token;
+    };
+    const signIn = async (user) => {
+      await evaluate(`localStorage.removeItem('nearvest.token')`);
+      await send('Page.navigate', { url: UI_URL });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await sleep(2500);
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+    };
+    const openVillage = async () => {
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-village').click()`);
+      else await evaluate(`(document.querySelector('.rail-village') ?? document.querySelector('.side-tabs .tab-village'))?.click()`);
+      await waitFor(`!!document.querySelector('.visitors-panel')`, 'Visitors panel');
+      await sleep(500);
+    };
+    await step(`${owner} + 14 farmers; ${prefix}01 visits with 3 stickers and water`, async () => {
+      await make(owner);
+      let first;
+      for (let i = 1; i <= 14; i++) {
+        const t = await make(prefix + String(i).padStart(2, '0'));
+        if (i === 1) first = t;
+      }
+      await call('GET', `/api/farmers/${owner}`, first);
+      for (const [i, id] of ['nice_garden', 'great_durian', 'thanks_water'].entries()) {
+        if (i) await sleep(5100);
+        const r = await call('POST', `/api/farmers/${owner}/sticker`, first, { sticker: id });
+        console.log('sticker', i + 1, r.result ? `${r.result.sent}/${r.result.max}` : r.error);
+      }
+      console.log('4th sticker:', (await call('POST', `/api/farmers/${owner}/sticker`, first, { sticker: 'see_you' })).code);
+      console.log('water:', (await call('POST', `/api/farmers/${owner}/water`, first, { plot: 0 })).result?.watered ?? 'no (not thirsty)');
+    });
+    await step(`${owner}: Farmers of Tandur (long list, scroll, search)`, async () => {
+      await signIn(owner);
+      const opened = await evaluate(`(() => { const p = [...document.querySelectorAll('.place-pin')].find(e => /friends/i.test(e.innerText + (e.getAttribute('aria-label') || ''))); if (!p) return false; p.click(); return true; })()`);
+      if (!opened) throw new Error('no Friends pin');
+      await sleep(400);
+      await evaluate(`document.querySelector('.hotspots .btn-mint')?.click()`);
+      await waitFor(`document.querySelectorAll('.farmer-row').length > 5`, 'farmer rows');
+      await sleep(500);
+      // Readable whole: at the centre of each visible farmer name, the name itself is on top.
+      const check = `(() => { const l = document.querySelector('.farmer-list'), b = document.querySelector('.farmers-dialog .info-body'); const L = l.getBoundingClientRect();
+        const names = [...l.querySelectorAll('.farmer-name')].filter(n => { const r = n.getBoundingClientRect(); return r.top >= L.top && r.bottom <= L.bottom; });
+        const covered = names.filter(n => { const r = n.getBoundingClientRect(); const e = document.elementFromPoint(r.left + Math.min(r.width / 2, 12), r.top + r.height / 2); return !(e === n || n.contains(e)); }).map(n => n.innerText);
+        return 'rows ' + l.querySelectorAll('.farmer-row').length + ' | scroll areas: list ' + (l.scrollHeight > l.clientHeight) + ', window body ' + (b.scrollHeight > b.clientHeight + 1) + ' | list top ' + l.scrollTop + ' | names fully visible ' + names.length + ' | covered: ' + (covered.join(',') || 'none') + ' | bullet: ' + getComputedStyle(l.querySelector('li'), '::before').content + ' | clip: ' + getComputedStyle(l.querySelector('li')).clipPath; })()`;
+      console.log('list:', await evaluate(check));
+      await screenshot('farmers-list');
+      for (const y of [200, 600, 100000]) {
+        await evaluate(`document.querySelector('.farmer-list').scrollTop = ${y}`);
+        await sleep(300);
+        console.log('scrolled:', await evaluate(check));
+      }
+      await screenshot('farmers-scrolled');
+      await typeInto('.farmer-search input', prefix.toUpperCase() + '1');
+      await sleep(900);
+      console.log('search', JSON.stringify(prefix.toUpperCase() + '1') + ':', await evaluate(`[...document.querySelectorAll('.farmer-name')].map(e => e.innerText).join(',')`));
+      await screenshot('farmers-search');
+      await typeInto('.farmer-search input', 'zzzz');
+      await sleep(900);
+      console.log('search "zzzz":', await evaluate(`document.querySelector('.farmers-empty')?.innerText`));
+      await clickText('Close');
+    });
+    await step(`${owner}: Visitors + Wave back`, async () => {
+      await openVillage();
+      await evaluate(`document.querySelector('.visitors-panel').scrollIntoView({ block: 'start' })`);
+      await sleep(300);
+      console.log('visitors:', await evaluate(`[...document.querySelectorAll('.visitor-row')].map(r => r.innerText.replace(/\\n+/g, ' / ')).join(' || ')`));
+      console.log('rows for ' + prefix + '01:', await evaluate(`[...document.querySelectorAll('.visitor-row')].filter(r => r.innerText.includes(${JSON.stringify(prefix + '01')})).length`));
+      await screenshot('visitors');
+      await evaluate(`[...document.querySelectorAll('.visitor-row')].find(r => r.innerText.includes(${JSON.stringify(prefix + '01')})).querySelector('.visitor-wave').click()`);
+      await waitFor(`!!document.querySelector('.sticker-grid')`, 'wave picker');
+      await sleep(400);
+      console.log('picker on top:', await evaluate(`(() => { const p = document.querySelector('.sticker-pick').getBoundingClientRect(); const e = document.elementFromPoint(p.left + p.width / 2, p.top + p.height / 2); return !!e?.closest('.sticker-pick'); })()`));
+      await screenshot('wave-picker');
+      await evaluate(`[...document.querySelectorAll('.sticker-pick')][5].click()`);
+      await waitFor(`!document.querySelector('.sticker-grid')`, 'picker closed');
+      await sleep(800);
+      console.log('after wave:', await evaluate(`[...document.querySelectorAll('.visitor-row')].find(r => r.innerText.includes(${JSON.stringify(prefix + '01')})).innerText.replace(/\\n+/g, ' / ')`), '| toast:', await evaluate(TOAST_CHECK));
+      await evaluate(`document.querySelector('.visitors-panel').scrollIntoView({ block: 'start' })`);
+      await sleep(300);
+      await screenshot('wave-done');
+    });
+    await step(`${prefix}01 sees the wave back`, async () => {
+      await signIn(prefix + '01');
+      console.log('notice:', await evaluate(`[...document.querySelectorAll('.toast')].map(t => t.innerText.replace(/\\n+/g, ' ')).join(' || ')`));
+      await openVillage();
+      await evaluate(`document.querySelector('.visitors-panel').scrollIntoView({ block: 'start' })`);
+      await sleep(300);
+      console.log('their Visitors:', await evaluate(`document.querySelector('.visitors-panel').innerText.replace(/\\n+/g, ' / ')`));
+      await screenshot('wave-received');
+    });
+    if (process.env.FAKE_DB) {
+      await step(`${owner}w (wallet garden): Set up Shop window`, async () => {
+        const wallet = owner + 'w';
+        await make(wallet, false);
+        const { DatabaseSync } = await import('node:sqlite');
+        const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
+        db.prepare("UPDATE players SET custody = 'wallet' WHERE name = ?").run(wallet);
+        db.close();
+        await signIn(wallet);
+        await evaluate(`Object.keys(localStorage).filter(k => k.startsWith('nearvest.gamekey.')).forEach(k => localStorage.removeItem(k))`);
+        if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-shop').click()`);
+        else await evaluate(`(document.querySelector('.rail-shop') ?? document.querySelector('.side-tabs .tab-shop'))?.click()`);
+        await sleep(800);
+        const balance = async () => (await call('GET', '/api/me', (await call('POST', '/auth/dev', null, { username: wallet })).token)).player.balance;
+        const before = await balance();
+        const buy = `(() => { const b = [...document.querySelectorAll('.shop-buy')].find(x => !x.disabled); if (!b) return false; b.scrollIntoView({ block: 'center' }); b.click(); return b.closest('li, .shop-row, .shop-item')?.innerText.split('\\n')[0] ?? b.innerText.trim(); })()`;
+        console.log('buy button:', await evaluate(buy));
+        await waitFor(`!!document.querySelector('.shop-setup-dialog')`, 'Set up Shop window', 10000);
+        await sleep(400);
+        console.log('window:', await evaluate(`document.querySelector('.shop-setup-dialog').innerText.replace(/\\n+/g, ' / ')`), '| wallet list open:', await evaluate(`!!document.querySelector('.hot-connector-popup')`));
+        console.log('fits the screen:', await evaluate(`(() => { const d = document.querySelector('.shop-setup-dialog').getBoundingClientRect(); return d.left >= 0 && d.right <= innerWidth && d.top >= 0 && d.bottom <= innerHeight; })()`));
+        await screenshot('setup-shop');
+        await clickText('Not now');
+        await sleep(1500);
+        console.log('Not now: window closed', await evaluate(`!document.querySelector('.shop-setup-dialog')`), '| wallet list open:', await evaluate(`!!document.querySelector('.hot-connector-popup')`), '| balance unchanged:', (await balance()) === before);
+        await evaluate(buy);
+        await waitFor(`!!document.querySelector('.shop-setup-dialog')`, 'Set up Shop window again', 10000);
+        await clickText('Continue');
+        await waitFor(`!!document.querySelector('.hot-connector-popup')`, 'wallet list', 20000).catch(() => {});
+        console.log('Continue: window closed', await evaluate(`!document.querySelector('.shop-setup-dialog')`), '| wallet list open:', await evaluate(`!!document.querySelector('.hot-connector-popup')`));
+        await sleep(800);
+        await screenshot('setup-shop-continue');
+      });
+    }
     throw { done: true };
   }
   if (name.startsWith('--social=')) {

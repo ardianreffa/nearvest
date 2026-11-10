@@ -43,6 +43,7 @@ import {
   REF_REWARD_REFERRER,
   STICKERS,
   STICKERS_SHOWN,
+  VISITORS_SHOWN,
   WATER_DAYS,
   WELCOME_PACKS_PER_IP_PER_DAY,
   WELCOME_PANEN,
@@ -613,6 +614,64 @@ export class Game {
       this.db
         .prepare('SELECT s.id, s.sticker, s.created_at AS at, f.name AS "from" FROM stickers s JOIN players f ON f.id = s.from_id WHERE s.to_id = ? ORDER BY s.id DESC LIMIT ?')
         .all(ownerId, STICKERS_SHOWN) as unknown as { id: number; sticker: string; at: number; from: string }[]
+    ).map((r) => ({ ...r, text: text.get(r.sticker) ?? r.sticker }));
+  }
+
+  /**
+   * Village tab "Visitors": one row per visitor per village day (newest activity first, last 10):
+   * who visited, the stickers they left that day (up to 3, on the same row), the tree they watered
+   * and the owner's wave back. `canWave`: the owner has not waved back to this visitor today.
+   */
+  visitorsReceived(ownerId: number) {
+    const day = dayIndex(this.d.now(), false);
+    const text = new Map<string, string>(STICKERS.map((s) => [s.id, s.text]));
+    const rows = this.db
+      .prepare(
+        `SELECT v.id, v.visit_day AS day, v.created_at AS firstAt, v.last_at AS at, v.wave_sticker AS wave, v.visitor_id AS visitorId,
+           f.name AS "from", f.avatar,
+           (SELECT group_concat(s.sticker, ',') FROM (SELECT sticker FROM stickers s WHERE s.from_id = v.visitor_id AND s.to_id = v.owner_id AND s.sticker_day = v.visit_day ORDER BY s.id) s) AS stickers,
+           (SELECT t.species FROM garden_help h JOIN trees t ON t.id = h.tree_id WHERE h.helper_id = v.visitor_id AND h.owner_id = v.owner_id AND h.help_day = v.visit_day) AS watered,
+           EXISTS (SELECT 1 FROM visits w WHERE w.owner_id = v.owner_id AND w.visitor_id = v.visitor_id AND w.wave_day = ?) AS wavedToday
+         FROM visits v JOIN players f ON f.id = v.visitor_id
+         WHERE v.owner_id = ? ORDER BY v.last_at DESC, v.id DESC LIMIT ?`,
+      )
+      .all(day, ownerId, VISITORS_SHOWN) as unknown as {
+      id: number;
+      day: number;
+      firstAt: number;
+      at: number;
+      wave: string | null;
+      visitorId: number;
+      from: string;
+      avatar: string;
+      stickers: string | null;
+      watered: Species | null;
+      wavedToday: number;
+    }[];
+    return rows.map((r) => ({
+      id: r.id,
+      from: r.from,
+      avatar: r.avatar,
+      at: r.at,
+      today: r.day === day,
+      stickers: (r.stickers ? r.stickers.split(',') : []).map((id) => ({ id, text: text.get(id) ?? id })),
+      watered: r.watered,
+      wave: r.wave ? { id: r.wave, text: text.get(r.wave) ?? r.wave } : null,
+      canWave: !r.wave && !r.wavedToday,
+    }));
+  }
+
+  /** Waves back the visitor got from gardens they visited (newest first, last 10). */
+  wavesReceived(visitorId: number) {
+    const text = new Map<string, string>(STICKERS.map((s) => [s.id, s.text]));
+    return (
+      this.db
+        .prepare(
+          `SELECT v.id, v.wave_sticker AS sticker, v.wave_at AS at, o.name AS "from", o.avatar
+           FROM visits v JOIN players o ON o.id = v.owner_id
+           WHERE v.visitor_id = ? AND v.wave_sticker IS NOT NULL ORDER BY v.wave_at DESC, v.id DESC LIMIT ?`,
+        )
+        .all(visitorId, VISITORS_SHOWN) as unknown as { id: number; sticker: string; at: number; from: string; avatar: string }[]
     ).map((r) => ({ ...r, text: text.get(r.sticker) ?? r.sticker }));
   }
 
@@ -1537,6 +1596,10 @@ export class Game {
       helps: this.helpsReceived(p.id),
       /** Stickers visitors left here (newest first, last 10). */
       stickers: this.stickersReceived(p.id),
+      /** Visitors: 1 row per visitor per day (stickers, watering, wave back), last 10. */
+      visitors: this.visitorsReceived(p.id),
+      /** Waves back from gardens this player visited (newest first, last 10). */
+      waves: this.wavesReceived(p.id),
       /** Invite a friend: rewards, friends invited and their status, who invited this garden. */
       referral: this.referralView(p, signIn === 'judge'),
     };

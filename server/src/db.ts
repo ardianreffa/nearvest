@@ -217,17 +217,19 @@ CREATE TABLE IF NOT EXISTS garden_help (
 );
 CREATE INDEX IF NOT EXISTS garden_help_owner ON garden_help (owner_id, created_at);
 
--- Stickers: a visitor left a template sticker in a garden (1 per visitor per garden per village day).
+-- Stickers: a visitor left a template sticker in a garden (at most 3 per visitor per garden per
+-- village day, 5 s apart: social.ts). Until 2026-11-10 the table had UNIQUE (from_id, to_id,
+-- sticker_day); migrate() rebuilds old tables without it.
 CREATE TABLE IF NOT EXISTS stickers (
   id INTEGER PRIMARY KEY,
   from_id INTEGER NOT NULL REFERENCES players(id),
   to_id INTEGER NOT NULL REFERENCES players(id),
   sticker TEXT NOT NULL,           -- rules.ts STICKERS id
   sticker_day INTEGER NOT NULL,    -- village day (normal 07:00 WIB day, also for demo gardens)
-  created_at INTEGER NOT NULL,
-  UNIQUE (from_id, to_id, sticker_day)
+  created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS stickers_to ON stickers (to_id, id);
+CREATE INDEX IF NOT EXISTS stickers_pair ON stickers (from_id, to_id, sticker_day);
 
 -- Browsers (random device id in localStorage) a player has used: refuses inviting yourself.
 CREATE TABLE IF NOT EXISTS devices (
@@ -295,6 +297,52 @@ function migrate(db: DB): void {
   if (!has('trees', 'ash_clean_at')) db.exec('ALTER TABLE trees ADD COLUMN ash_clean_at INTEGER NOT NULL DEFAULT 0');
   if (!has('trees', 'wilt_at')) db.exec('ALTER TABLE trees ADD COLUMN wilt_at INTEGER NOT NULL DEFAULT 0');
   if (!has('trees', 'water_count')) db.exec('ALTER TABLE trees ADD COLUMN water_count INTEGER NOT NULL DEFAULT 0');
+  // Stickers: up to 3 per visitor per garden per day (2026-11-10): drop the old one-a-day UNIQUE.
+  const stickerUnique = (db.prepare('PRAGMA index_list(stickers)').all() as { origin: string }[]).some((i) => i.origin === 'u');
+  if (stickerUnique) {
+    tx(db, () => {
+      db.exec(`CREATE TABLE stickers_new (
+        id INTEGER PRIMARY KEY,
+        from_id INTEGER NOT NULL REFERENCES players(id),
+        to_id INTEGER NOT NULL REFERENCES players(id),
+        sticker TEXT NOT NULL,
+        sticker_day INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      )`);
+      db.exec('INSERT INTO stickers_new (id, from_id, to_id, sticker, sticker_day, created_at) SELECT id, from_id, to_id, sticker, sticker_day, created_at FROM stickers');
+      db.exec('DROP TABLE stickers');
+      db.exec('ALTER TABLE stickers_new RENAME TO stickers');
+      db.exec('CREATE INDEX IF NOT EXISTS stickers_to ON stickers (to_id, id)');
+      db.exec('CREATE INDEX IF NOT EXISTS stickers_pair ON stickers (from_id, to_id, sticker_day)');
+    });
+  }
+  // Garden visits, recorded on every visit (2026-11-10): one row per visitor per garden per village
+  // day, also without a sticker. The owner can wave back once per visitor per day (a template
+  // sticker sent to the visitor). New table: filled once from the stickers and helps before it.
+  const hasVisits = !!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'visits'").get();
+  if (!hasVisits) {
+    tx(db, () => {
+      db.exec(`CREATE TABLE visits (
+        id INTEGER PRIMARY KEY,
+        visitor_id INTEGER NOT NULL REFERENCES players(id),
+        owner_id INTEGER NOT NULL REFERENCES players(id),
+        visit_day INTEGER NOT NULL,      -- village day (normal 07:00 WIB day, also for demo gardens)
+        created_at INTEGER NOT NULL,     -- first visit that day
+        last_at INTEGER NOT NULL,        -- last visit / sticker / help that day (list order)
+        wave_sticker TEXT,               -- the owner waved back with this sticker (rules.ts STICKERS id)
+        wave_day INTEGER,                -- village day of the wave back (1 per visitor per day)
+        wave_at INTEGER,
+        UNIQUE (visitor_id, owner_id, visit_day)
+      )`);
+      db.exec('CREATE INDEX visits_owner ON visits (owner_id, last_at)');
+      db.exec('CREATE INDEX visits_visitor_wave ON visits (visitor_id, wave_at)');
+      db.exec(`INSERT OR IGNORE INTO visits (visitor_id, owner_id, visit_day, created_at, last_at)
+        SELECT visitor_id, owner_id, day, min(at), max(at) FROM (
+          SELECT from_id AS visitor_id, to_id AS owner_id, sticker_day AS day, created_at AS at FROM stickers
+          UNION ALL SELECT helper_id, owner_id, help_day, created_at FROM garden_help
+        ) GROUP BY visitor_id, owner_id, day`);
+    });
+  }
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS players_google_sub ON players (google_sub)');
   // One wallet = one garden.
   db.exec('CREATE UNIQUE INDEX IF NOT EXISTS players_wallet_account ON players (wallet_account_id)');

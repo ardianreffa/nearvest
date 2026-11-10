@@ -1,7 +1,9 @@
 // Garden visits (docs/PLAN-social.md, Ardian 2026-11-09): the farmer list, visiting a garden
 // (read only) and helping water one tree per village day. No chain transaction: watering is game
 // data for every tree (the Tree NFT only changes when its stage changes, as always). Visitors can
-// also leave one template sticker per garden per village day (no free text).
+// also leave up to 3 template stickers per garden per village day, 5 s apart (no free text). Every
+// visit is recorded (1 row per visitor per garden per day, no XP); the owner can wave back with a
+// template sticker once per visitor per day.
 //
 // Privacy: visitors only see a garden's name, title, avatar and trees (Game.publicGarden). Never
 // a balance, seeds, fruit, items, TaniBot budget, sign-in method, Google / wallet data or IP.
@@ -14,11 +16,14 @@ import {
   FARMER_ACTIVE_DAYS,
   FARMER_LIST_MAX,
   FARMER_LIST_MIN,
+  FARMER_SEARCH_MAX,
   HELP_MIN_GARDEN_AGE_MS,
   HELP_OWNER_XP_PER_DAY,
   HELP_XP_HELPER,
   HELP_XP_OWNER,
+  STICKER_COOLDOWN_MS,
   STICKERS,
+  STICKERS_PER_DAY,
   titleFor,
   type StickerId,
 } from './rules.ts';
@@ -82,7 +87,9 @@ export class Social {
    * never empty. Order: helped you, real farmers before judge gardens, a thirsty tree, the most
    * recently active.
    */
-  farmers(viewerId: number) {
+  farmers(viewerId: number, query?: unknown) {
+    const q = typeof query === 'string' ? query.trim().toLowerCase().slice(0, FARMER_SEARCH_MAX) : '';
+    if (q) return { ...this.search(viewerId, q), helpedToday: this.helpedToday(viewerId), help: this.helpRules(viewerId) };
     const now = this.now();
     const rows = (judge: boolean, limit: number, activeSince: number | null) =>
       (
@@ -125,7 +132,52 @@ export class Social {
           judge: c.judge,
         }),
       );
-    return { farmers, helpedToday: this.helpedToday(viewerId), help: this.helpRules(viewerId) };
+    return { farmers, query: null as string | null, helpedToday: this.helpedToday(viewerId), help: this.helpRules(viewerId) };
+  }
+
+  /**
+   * Farmer search: every ready garden whose name starts with `q` (names are lower case; also
+   * gardens without trees or not active lately), never judge gardens, never the viewer. Exact
+   * name first, then the most recently active. Public data only (the same rows as the list).
+   */
+  private search(viewerId: number, q: string): { farmers: FarmerRow[]; query: string | null } {
+    const rows = this.db
+      .prepare(
+        `SELECT p.*, COALESCE(p.last_seen_at, p.created_at) AS seen,
+           (SELECT count(*) FROM trees t WHERE t.player_id = p.id AND t.status = 'alive' AND t.plot IS NOT NULL) AS tree_count
+         FROM players p JOIN users u ON u.id = p.user_id
+         WHERE p.id != ? AND p.account_status = 'ready' AND u.provider != 'judge' AND substr(p.name, 1, ?) = ?
+         ORDER BY p.name = ? DESC, seen DESC LIMIT ?`,
+      )
+      .all(viewerId, q.length, q, q, FARMER_LIST_MAX) as unknown as (PlayerRow & { seen: number; tree_count: number })[];
+    const helped = new Set(
+      (this.db.prepare('SELECT DISTINCT helper_id FROM garden_help WHERE owner_id = ? AND created_at > ?').all(viewerId, this.now() - HELPED_YOU_MS) as { helper_id: number }[]).map(
+        (h) => h.helper_id,
+      ),
+    );
+    return {
+      query: q,
+      farmers: rows.map((r) => ({
+        name: r.name,
+        avatar: r.avatar,
+        title: titleFor(r.xp),
+        trees: r.tree_count,
+        thirsty: this.game.thirstyTrees(r),
+        helpedYou: helped.has(r.id),
+        judge: false,
+      })),
+    };
+  }
+
+  /** Records a visit: 1 row per visitor per garden per village day (later visits update its time). No XP. */
+  private recordVisit(visitorId: number, ownerId: number): void {
+    const now = this.now();
+    this.db
+      .prepare(
+        `INSERT INTO visits (visitor_id, owner_id, visit_day, created_at, last_at) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (visitor_id, owner_id, visit_day) DO UPDATE SET last_at = excluded.last_at`,
+      )
+      .run(visitorId, ownerId, this.helpDay(), now, now);
   }
 
   /** The help rules for the viewer (shown in the list / visit). */
@@ -142,28 +194,36 @@ export class Social {
   visit(viewerId: number, name: string) {
     const owner = this.game.getPlayerByName(String(name).toLowerCase());
     if (!owner || owner.account_status !== 'ready') throw new GameError('Garden not found', 404);
+    const own = owner.id === viewerId;
+    if (!own) this.recordVisit(viewerId, owner.id);
+    const today = own ? [] : this.stickersToday(viewerId, owner.id);
     return {
       garden: this.game.publicGarden(owner),
-      own: owner.id === viewerId,
+      own,
       helpedToday: this.helpedToday(viewerId),
       help: this.helpRules(viewerId),
-      /** Template stickers a visitor can leave, and the one the viewer left here today (1 per day). */
+      /** Template stickers a visitor can leave. */
       stickers: STICKERS,
-      stickerToday: owner.id === viewerId ? null : this.stickerToday(viewerId, owner.id),
+      /** The last sticker the viewer left here today (older webs: one a day). */
+      stickerToday: today.length ? today[today.length - 1].sticker : null,
+      /** Every sticker the viewer left here today (oldest first), the daily limit and the wait. */
+      stickersToday: today.map((t) => t.sticker),
+      stickerMax: STICKERS_PER_DAY,
+      stickerWaitMs: today.length ? Math.max(0, today[today.length - 1].at + STICKER_COOLDOWN_MS - this.now()) : 0,
     };
   }
 
-  /** The sticker the viewer left in this garden today, if any. */
-  private stickerToday(fromId: number, toId: number): StickerId | null {
-    const r = this.db.prepare('SELECT sticker FROM stickers WHERE from_id = ? AND to_id = ? AND sticker_day = ?').get(fromId, toId, this.helpDay()) as
-      | { sticker: StickerId }
-      | undefined;
-    return r?.sticker ?? null;
+  /** The stickers the viewer left in this garden today (oldest first). */
+  private stickersToday(fromId: number, toId: number): { sticker: StickerId; at: number }[] {
+    return this.db
+      .prepare('SELECT sticker, created_at AS at FROM stickers WHERE from_id = ? AND to_id = ? AND sticker_day = ? ORDER BY id')
+      .all(fromId, toId, this.helpDay()) as unknown as { sticker: StickerId; at: number }[];
   }
 
   /**
    * Leaves a template sticker in a friend's garden: one of the 6 fixed stickers (no free text), at
-   * most 1 per visitor per garden per village day, never in your own garden. No XP, no chain.
+   * most 3 per visitor per garden per village day and 5 s apart, never in your own garden. No XP,
+   * no chain. It belongs to that day's visit row.
    */
   sticker(viewerId: number, name: string, sticker: unknown) {
     return tx(this.db, () => {
@@ -173,12 +233,38 @@ export class Social {
       if (owner.id === from.id) throw new GameError('Stickers are for friends\' gardens.', 400, { code: 'own_garden' });
       const known = STICKERS.find((s) => s.id === sticker);
       if (!known) throw new GameError('Unknown sticker', 400, { code: 'unknown_sticker' });
-      const today = this.stickerToday(from.id, owner.id);
-      if (today) throw new GameError(`You already left a sticker for ${owner.name} today. Come back tomorrow!`, 409, { code: 'sticker_today', sticker: today });
+      const today = this.stickersToday(from.id, owner.id);
+      if (today.length >= STICKERS_PER_DAY)
+        throw new GameError(`You left ${STICKERS_PER_DAY} stickers for ${owner.name} today. Come back tomorrow!`, 409, { code: 'sticker_today', sticker: today[today.length - 1].sticker });
+      const last = this.db.prepare('SELECT max(created_at) AS at FROM stickers WHERE from_id = ? AND to_id = ?').get(from.id, owner.id) as { at: number | null };
+      const waitMs = last.at === null ? 0 : last.at + STICKER_COOLDOWN_MS - this.now();
+      if (waitMs > 0) throw new GameError(`Wait ${Math.ceil(waitMs / 1000)} s before the next sticker.`, 429, { code: 'sticker_wait', waitMs });
       this.db
         .prepare('INSERT INTO stickers (from_id, to_id, sticker, sticker_day, created_at) VALUES (?, ?, ?, ?, ?)')
         .run(from.id, owner.id, known.id, this.helpDay(), this.now());
-      return { owner: owner.name, sticker: known.id, text: known.text };
+      this.recordVisit(from.id, owner.id);
+      return { owner: owner.name, sticker: known.id, text: known.text, sent: today.length + 1, max: STICKERS_PER_DAY };
+    });
+  }
+
+  /**
+   * Wave back: the owner answers a row of their Visitors list with one of the 6 template stickers,
+   * sent to that visitor (who does not need to visit back). At most once per visitor per village
+   * day. No XP, no chain.
+   */
+  waveBack(ownerId: number, visitId: number, sticker: unknown) {
+    return tx(this.db, () => {
+      const v = this.db.prepare('SELECT v.*, p.name AS visitor FROM visits v JOIN players p ON p.id = v.visitor_id WHERE v.id = ?').get(visitId) as
+        | { id: number; owner_id: number; visitor_id: number; wave_sticker: string | null; visitor: string }
+        | undefined;
+      if (!v || v.owner_id !== ownerId) throw new GameError('Visit not found', 404);
+      const known = STICKERS.find((s) => s.id === sticker);
+      if (!known) throw new GameError('Unknown sticker', 400, { code: 'unknown_sticker' });
+      const day = this.helpDay();
+      const waved = this.db.prepare('SELECT 1 FROM visits WHERE owner_id = ? AND visitor_id = ? AND wave_day = ?').get(ownerId, v.visitor_id, day);
+      if (v.wave_sticker || waved) throw new GameError(`You already waved back to ${v.visitor} today.`, 409, { code: 'waved_today' });
+      this.db.prepare('UPDATE visits SET wave_sticker = ?, wave_day = ?, wave_at = ? WHERE id = ?').run(known.id, day, this.now(), v.id);
+      return { visitor: v.visitor, sticker: known.id, text: known.text };
     });
   }
 

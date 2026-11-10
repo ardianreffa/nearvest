@@ -10529,15 +10529,76 @@ html.page-locked body {
   border-left: 4px solid var(--cyan-700);
 }
 
-.farmer-list {
-  max-height: min(52vh, 420px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding-right: 4px;
+/* iPhone Safari (Ardian 2026-11-10): rows were drawn over the farmer names while the list
+   scrolled. Causes: two scroll areas inside each other (the window body and the list) and rows
+   cut with clip-path (stepped corners), which iOS WebKit paints outside a scrolling box. Now only
+   the list scrolls (the intro and the search stay put), the rows are plain boxes and the list
+   gets its own layer, so every row is clipped by the list and read whole. */
+.farmers-dialog {
+  height: min(calc(100dvh - 32px), 640px);
 }
 
-.farmer-list > li {
+.farmers-dialog .info-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.farmers-top {
+  flex: none;
+}
+
+.farmer-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  font-family: var(--font-ui);
+  /* 16 px: iPhone Safari zooms into smaller inputs. */
+  font-size: var(--fs-body);
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  appearance: none;
+}
+
+.farmer-search input:focus-visible {
+  outline: 2px solid var(--mint-700);
+  outline-offset: 1px;
+}
+
+.farmers-empty {
+  flex: none;
+}
+
+.farmer-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
+  /* Its own layer: iOS clips every row to the list while it scrolls. */
+  transform: translateZ(0);
+  isolation: isolate;
+}
+
+.farmer-list.loading {
+  opacity: 0.6;
+}
+
+.info-body ul.farmer-list > li {
   flex-shrink: 0;
+  padding-left: 8px;
+  clip-path: none;
+}
+
+/* No list bullet on a farmer row (the avatar is the marker). */
+.info-body ul.farmer-list > li::before {
+  content: none;
 }
 
 .farmer-row {
@@ -10859,6 +10920,94 @@ html.page-locked body {
   font-size: var(--fs-xs);
   color: var(--ink-soft);
   overflow-wrap: anywhere;
+}
+
+/* Invited friends and the farmer who invited you: Visit buttons. */
+.invite-visit {
+  flex: none;
+}
+
+.invite-by-visit {
+  display: flex;
+  margin-top: 6px;
+}
+
+/* Visitors: one row per visitor per day; their stickers and watering sit on the same row. */
+.visitor-list {
+  margin-top: 8px;
+}
+
+.visitor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.visitor-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.visitor-line {
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.visitor-line b {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  font-weight: 400;
+}
+
+.visitor-did {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.visitor-sticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  color: var(--gold-700);
+  background: color-mix(in srgb, var(--gold-300) 60%, var(--paper-light));
+  border: 2px solid currentColor;
+}
+
+.visitor-watered {
+  color: var(--cyan-700);
+  background: var(--cyan-300);
+}
+
+.wave-row .visitor-sticker {
+  color: var(--purple-700);
+  background: var(--purple-300);
+}
+
+.visitor-wave {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.visitor-wave.waved:disabled {
+  cursor: default;
+  color: var(--mint-700);
+  background: var(--mint-300);
+  opacity: 1;
+}
+
+/* Waiting 5 s for the next sticker: the countdown keeps the button's width steady. */
+.visit-sticker.waiting .visit-sticker-label {
+  font-variant-numeric: tabular-nums;
 }
 
 /* The sticker picker (visiting): 2 columns on phones, 3 on laptops. */

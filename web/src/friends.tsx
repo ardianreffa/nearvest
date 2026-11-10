@@ -3,7 +3,8 @@
 // trees; the visit panel names the garden; their TaniBot as decoration: floating when ON, asleep when
 // OFF, a tap says hello) and helping water one thirsty tree per village day. The server checks
 // every rule (server/src/social.ts); visitors only get public data (TaniBot: ON / OFF only).
-// "Sticker" leaves one of 6 template stickers (invite.tsx StickerWindow, 1 per garden per day).
+// "Sticker" leaves one of 6 template stickers (invite.tsx StickerWindow, 3 per garden per day, 5 s
+// apart: the button counts down). Search finds any ready garden by the start of its name.
 
 import { useEffect, useState } from 'preact/hooks';
 import { api, type FarmersResponse, type GameState, type HelpResult, type PublicGarden, type VisitResponse } from './api';
@@ -13,7 +14,8 @@ import { floatText } from './fx';
 import { PhoneGarden } from './garden';
 import { Modal } from './help';
 import type { Immersive } from './layout';
-import { StickerWindow } from './invite';
+import { StickerWindow, useStickerStatus } from './invite';
+import { matchesPrefix, stickerButtonLabel } from './referral';
 import { GardenScene, type SceneFx } from './scene';
 import { Sprite, UiIcon } from './sprites';
 import type { Toast } from './toast';
@@ -23,43 +25,84 @@ type Notify = (t: Omit<Toast, 'id'>) => void;
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** "Farmers of Tandur": who to visit (helped you / thirsty first), one Visit button per farmer. */
+/**
+ * "Farmers of Tandur": who to visit (helped you / thirsty first), one Visit button per farmer, and
+ * a search by name (any ready garden whose name starts with it, judge gardens never). Only the
+ * list scrolls (one scroll area: iPhone Safari drew rows over each other with two).
+ */
 export function FarmersWindow({ onClose, onVisit }: { onClose: () => void; onVisit: (name: string) => void }) {
   const [data, setData] = useState<FarmersResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const q = query.trim().toLowerCase();
   useEffect(() => {
     let alive = true;
-    api<FarmersResponse>('GET', '/api/farmers')
-      .then((d) => alive && setData(d))
-      .catch((e) => alive && setError(errorText(e)));
+    setSearching(true);
+    // Typing: ask the server a moment after the last key (the first load at once).
+    const t = window.setTimeout(
+      () =>
+        api<FarmersResponse>('GET', q ? `/api/farmers?q=${encodeURIComponent(q)}` : '/api/farmers')
+          .then((d) => {
+            if (!alive) return;
+            // Servers without search ignore ?q= and send the normal list: filter it here.
+            setData(q && d.query === undefined ? { ...d, farmers: d.farmers.filter((f) => matchesPrefix(f.name, q)) } : d);
+            setError(null);
+          })
+          .catch((e) => alive && setError(errorText(e)))
+          .finally(() => alive && setSearching(false)),
+      data ? 250 : 0,
+    );
     return () => {
       alive = false;
+      window.clearTimeout(t);
     };
-  }, []);
+  }, [q]);
 
+  const farmers = data?.farmers ?? [];
   return (
     <Modal title="Farmers of Tandur" onClose={onClose} closeLabel="Close" class="farmers-dialog">
-      <p class="farmers-intro">
-        Visit a farmer's garden and water one thirsty tree a day:{' '}
-        {data?.help.youngGarden ? (
-          <span>your garden is new, so helping gives no XP until tomorrow.</span>
-        ) : (
-          <span>
-            you get <b>+{data?.help.helperXp ?? 5} XP</b>, they get <b>+3 XP</b>.
-          </span>
-        )}
-      </p>
-      {data?.helpedToday && (
-        <p class="farmers-done">
-          <Sprite name="droplet" scale={2} /> You helped {data.helpedToday.name} today. Come back tomorrow to help again (you can still visit).
+      <div class="farmers-top">
+        <p class="farmers-intro">
+          Visit a farmer's garden and water one thirsty tree a day:{' '}
+          {data?.help.youngGarden ? (
+            <span>your garden is new, so helping gives no XP until tomorrow.</span>
+          ) : (
+            <span>
+              you get <b>+{data?.help.helperXp ?? 5} XP</b>, they get <b>+3 XP</b>.
+            </span>
+          )}
         </p>
-      )}
+        {data?.helpedToday && (
+          <p class="farmers-done">
+            <Sprite name="droplet" scale={2} /> You helped {data.helpedToday.name} today. Come back tomorrow to help again (you can still visit).
+          </p>
+        )}
+        <div class="farmer-search">
+          <input
+            aria-label="Find a farmer by name"
+            type="search"
+            value={query}
+            placeholder="Find a farmer by name"
+            maxLength={32}
+            autoComplete="off"
+            autoCapitalize="none"
+            spellcheck={false}
+            enterKeyHint="search"
+            onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+          />
+        </div>
+      </div>
       {error && <p class="error-text">Could not load the farmers: {error}</p>}
       {!data && !error && <p class="muted">Looking for farmers...</p>}
-      {data && data.farmers.length === 0 && <p class="muted">No other farmers yet. Share your profile card to invite a friend!</p>}
-      {data && data.farmers.length > 0 && (
-        <ul class="list farmer-list">
-          {data.farmers.map((f) => (
+      {data && farmers.length === 0 && !searching && (
+        <p class="muted farmers-empty">
+          {q ? `No garden name starts with "${q}".` : 'No other farmers yet. Share your profile card to invite a friend!'}
+        </p>
+      )}
+      {farmers.length > 0 && (
+        <ul class={`list farmer-list${searching ? ' loading' : ''}`} aria-label={q ? `Farmers whose name starts with ${q}` : 'Farmers to visit'}>
+          {farmers.map((f) => (
             <li key={f.name} class="farmer-row">
               <Avatar id={f.avatar} size={32} />
               <span class="grow farmer-main">
@@ -271,6 +314,9 @@ function VisitPanel({
   const g = visit?.garden;
   const p = g?.plots[selected];
   const t = p?.tree;
+  const st = useStickerStatus(visit);
+  // "Sticker" / "Sticker 1/3" / "Wait 4 s" / "Sent 3/3 today" (older servers: 1 a day, "Sent").
+  const stickerLabel = stickerButtonLabel(st.sent.length, st.max, st.waitS);
   let body;
   if (error) body = <p class="error-text">Could not open {name}'s garden: {error}</p>;
   else if (!g || !p) body = <p class="muted">Walking over to {name}'s garden...</p>;
@@ -320,14 +366,14 @@ function VisitPanel({
         {/* Stickers (servers without them send no `stickers`: no button). */}
         {visit?.stickers && !visit.own && (
           <button
-            class={`btn btn-gold visit-sticker${visit.stickerToday ? ' sent' : ''}`}
+            class={`btn btn-gold visit-sticker${st.full ? ' sent' : ''}${st.waitS > 0 ? ' waiting' : ''}`}
             onClick={onSticker}
-            disabled={!!visit.stickerToday}
-            aria-label={visit.stickerToday ? 'Sticker sent today' : `Leave a sticker for ${name}`}
-            title={visit.stickerToday ? 'Sticker sent today' : 'Leave a sticker'}
+            disabled={st.full || st.waitS > 0}
+            aria-label={st.full ? `${stickerLabel}: come back tomorrow` : st.waitS > 0 ? `Next sticker in ${st.waitS} seconds` : `Leave a sticker for ${name}`}
+            title={st.full ? 'Come back tomorrow' : 'Leave a sticker'}
           >
-            <UiIcon name={visit.stickerToday ? 'check' : 'sticker'} />
-            <span class="visit-sticker-label">{visit.stickerToday ? 'Sent' : 'Sticker'}</span>
+            <UiIcon name={st.full ? 'check' : 'sticker'} />
+            <span class="visit-sticker-label">{stickerLabel}</span>
           </button>
         )}
         <button class="btn btn-mint visit-back" onClick={onBack} aria-label="Back to my garden">

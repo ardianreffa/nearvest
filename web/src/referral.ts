@@ -99,3 +99,18 @@ export function freshIds(ids: number[], seen: number): { fresh: number[]; seen: 
   const fresh = ids.filter((id) => id > seen);
   return { fresh, seen: Math.max(seen, ...ids) };
 }
+
+/** Farmer search: the name starts with the query (any case, spaces around ignored), like the server. */
+export function matchesPrefix(name: string, q: string): boolean {
+  return name.toLowerCase().startsWith(q.trim().toLowerCase());
+}
+
+/**
+ * The visit panel's sticker button: "Sticker", "Sticker 1/3", "Wait 4 s" (5 s between stickers),
+ * "Sent 3/3 today" (older servers allow 1 a day: "Sent").
+ */
+export function stickerButtonLabel(sent: number, max: number, waitS: number): string {
+  if (sent >= max) return max > 1 ? `Sent ${max}/${max} today` : 'Sent';
+  if (waitS > 0) return `Wait ${waitS} s`;
+  return sent ? `Sticker ${sent}/${max}` : 'Sticker';
+}

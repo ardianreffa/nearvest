@@ -99,6 +99,36 @@ export interface StickerView {
   from: string;
 }
 
+/** Village tab "Visitors": one row per visitor per village day (servers from 2026-11-10 on). */
+export interface VisitorView {
+  /** The visit row (wave back: POST /api/visitors/:id/wave). */
+  id: number;
+  from: string;
+  avatar: string;
+  /** Last visit / sticker / help that day. */
+  at: number;
+  /** The row is from today's village day. */
+  today: boolean;
+  /** Stickers this visitor left that day (up to 3, oldest first). */
+  stickers: StickerKind[];
+  /** The tree they watered that day, if any. */
+  watered: Species | null;
+  /** The owner's wave back on this row. */
+  wave: StickerKind | null;
+  /** The owner has not waved back to this visitor today. */
+  canWave: boolean;
+}
+
+/** A wave back the player got from a garden they visited. */
+export interface WaveView {
+  id: number;
+  from: string;
+  avatar: string;
+  sticker: string;
+  text: string;
+  at: number;
+}
+
 /** One of the 6 template stickers (server rules.ts STICKERS). */
 export interface StickerKind {
   id: string;
@@ -159,6 +189,8 @@ export interface FarmersResponse {
   /** The friend's garden the viewer helped today (one per day), if any. */
   helpedToday: { name: string; plot: number } | null;
   help: HelpRules;
+  /** The search the list answers (null / missing = the normal list). */
+  query?: string | null;
 }
 
 /** A friend's garden as visitors see it (read only). */
@@ -204,8 +236,12 @@ export interface VisitResponse {
   help: HelpRules;
   /** Template stickers (missing on servers without stickers: no sticker button). */
   stickers?: StickerKind[];
-  /** The sticker the viewer left here today (1 per garden per day). */
+  /** The last sticker the viewer left here today. */
   stickerToday?: string | null;
+  /** Servers from 2026-11-10 on: every sticker left here today, the daily limit (3) and the wait left (ms). */
+  stickersToday?: string[];
+  stickerMax?: number;
+  stickerWaitMs?: number;
 }
 
 export interface HelpResult {
@@ -263,6 +299,9 @@ export interface GameState {
   helps?: HelpView[];
   /** Stickers visitors left here, last 10 (missing on servers without stickers). */
   stickers?: StickerView[];
+  /** Visitors (1 row per visitor per day) and waves back (missing on older servers: the sticker list instead). */
+  visitors?: VisitorView[];
+  waves?: WaveView[];
   /** Invite a friend (missing on servers without referral: no invite box). */
   referral?: ReferralView;
   seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null; source: string }[];

@@ -10,6 +10,7 @@ import { TaniBot, TaniBotHead, tierOf, tierRank } from './art/tanibot';
 import { getAudioPrefs, initAudio, onAudioPrefsChange, playRumble, playSound, setAmbient, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
 import { HowToPlay, Modal, PanenInfo } from './help';
+import { shopSetupText } from './shop-setup';
 import { RECORD_MODE } from './record';
 import { holdShareCards, ShareHost, shareMomentOnce } from './share';
 import { MomentFxLayer } from './moment-fx';
@@ -167,6 +168,14 @@ export function App() {
     async (message: string, confirmLabel: string) => (await choose(message, [{ value: 'ok', label: confirmLabel, class: 'btn-gold' }])) === 'ok',
     [choose],
   );
+  // Wallet gardens: the "Set up Shop" window before the wallet adds the limited game key.
+  const [shopSetup, setShopSetup] = useState<((ok: boolean) => void) | null>(null);
+  const confirmShopSetup = useCallback(() => new Promise<boolean>((resolve) => setShopSetup(() => resolve)), []);
+  const closeShopSetup = (ok: boolean) => {
+    playSound('click');
+    shopSetup?.(ok);
+    setShopSetup(null);
+  };
 
   /** Applies new state: chain flash for landed jobs, level-up fanfare for a new title. */
   const applyState = useCallback(
@@ -232,6 +241,24 @@ export function App() {
                 text: fresh.length === 1 ? `${first.from} left you a sticker: "${first.text}"` : `${fresh.length} new stickers from visitors. See them in the Village tab.`,
               }),
             1800,
+          );
+        }
+      }
+      // Waves back from gardens we visited (one notice since we last looked).
+      if (s.waves?.length) {
+        const key = `nearvest.wavesSeen.${s.player.accountId}`;
+        const { fresh, seen } = freshIds(s.waves.map((x) => x.id), seenOf(key));
+        if (fresh.length) {
+          setSeen(key, seen);
+          const first = s.waves.find((x) => x.id === fresh[0])!;
+          window.setTimeout(
+            () =>
+              toast({
+                kind: 'success',
+                long: true,
+                text: fresh.length === 1 ? `${first.from} waved back: "${first.text}"` : `${fresh.length} farmers waved back. See them in the Village tab.`,
+              }),
+            2100,
           );
         }
       }
@@ -409,7 +436,7 @@ export function App() {
         const me = stateRef.current?.player;
         if (path === '/api/shop/buy' && me?.custody === 'wallet' && config) {
           // Wallet gardens: the browser signs the burn with the game key; the game relays it and pays gas.
-          const signedBurn = await signShopBurn(config, me.accountId, { item: String(payload.item), qty: Number(payload.qty ?? 1) }, ask);
+          const signedBurn = await signShopBurn(config, me.accountId, { item: String(payload.item), qty: Number(payload.qty ?? 1) }, confirmShopSetup);
           if (!signedBurn) return null;
           payload = { ...payload, signedBurn };
         }
@@ -441,7 +468,7 @@ export function App() {
         setBusy(false);
       }
     },
-    [applyState, toast, ask, config, refresh],
+    [applyState, toast, ask, confirmShopSetup, config, refresh],
   );
 
   /** Sells at the price shown; if Mr. Darto's price changed meanwhile, asks before selling at the new one. */
@@ -759,8 +786,10 @@ export function App() {
         onFarmers={Array.isArray(state.helps) ? () => (playSound('click'), setFarmersOpen(true)) : undefined}
         social={
           <>
-            {state.referral && <InvitePanel state={state} notify={toast} />}
-            {state.stickers && <VisitorsPanel stickers={state.stickers} />}
+            {state.referral && <InvitePanel state={state} notify={toast} onVisit={Array.isArray(state.helps) ? startVisit : undefined} />}
+            {(state.visitors || state.stickers) && (
+              <VisitorsPanel state={state} onState={applyState} notify={toast} onVisit={Array.isArray(state.helps) ? startVisit : undefined} />
+            )}
           </>
         }
       />
@@ -963,6 +992,27 @@ export function App() {
       {dialogView}
       {infoView}
       {farmersOpen && <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} />}
+      {shopSetup && config && (
+        <Modal
+          title="Set up Shop"
+          onClose={() => closeShopSetup(false)}
+          class="shop-setup-dialog"
+          actions={
+            <>
+              <button class="btn" onClick={() => closeShopSetup(false)}>
+                Not now
+              </button>
+              <button class="btn btn-gold" onClick={() => closeShopSetup(true)}>
+                Continue
+              </button>
+            </>
+          }
+        >
+          {shopSetupText(config.wallet.gameKey.allowance).map((t) => (
+            <p key={t}>{t}</p>
+          ))}
+        </Modal>
+      )}
       {info === 'checkin' && (
         <Modal title="Daily check-in" onClose={() => setInfo(null)} closeLabel="Close" class="checkin-dialog">
           <CheckinBanner state={state} act={act} ask={ask} busy={busy} elapsed={elapsed} />

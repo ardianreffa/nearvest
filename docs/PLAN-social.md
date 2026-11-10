@@ -86,9 +86,45 @@ a notice for new stickers (`nearvest.stickersSeen.<account>`). Same village day 
 "Hide stickers" switch is not built. Tests: `server/test/social.test.ts` (stickers).
 - 6 stickers, pixel icons + fixed text: "Nice garden!", "Great durian!", "Keep it up!", "Thanks for
   the water!", "Gold vibes!", "See you tomorrow!".
-- A visitor can leave **1 sticker per garden per day**. The owner sees the last 10 received
+- A visitor can leave **1 sticker per garden per day** (raised to 3, 5 s apart, on 2026-11-10: see 1.6). The owner sees the last 10 received
   (name + sticker + "today / yesterday") in a small "Visitors" box (garden notice + Village tab).
 - No free text, so no moderation is needed. Optional "Hide stickers" switch in the Profile.
+
+### 1.6 Visits package 2 (Ardian's iPhone feedback after `nearvest-69becf1`, built 2026-11-10, local commit, not released)
+
+- **Farmers list scroll bug (iPhone Safari):** names were covered while the list scrolled. Causes:
+  two scroll areas inside each other (window body + list) and rows cut with `clip-path` (stepped
+  corners), which iOS WebKit paints outside a scrolling box; plus a stray list bullet on every row.
+  Fix: only the list scrolls (intro + search stay put), plain rows, the list on its own layer.
+- **Search:** `GET /api/farmers?q=<text>`: names starting with the text (any case, max 32
+  characters, no wildcards), every ready garden (also inactive or treeless), never judge gardens or
+  yourself, max 30, same public row as the list. Old servers ignore `q`: the web filters the list.
+- **Visit buttons:** each invited friend in "Invite a friend", and "Visit X" in "X invited you".
+- **Visits recorded:** table `visits`, 1 row per visitor per garden per village day (a visit, a
+  sticker or a help that day updates its time); no XP for visiting. Filled once from the older
+  stickers and helps when the table is made.
+- **Stickers:** up to **3 per garden per day, 5 s apart** (`STICKERS_PER_DAY`,
+  `STICKER_COOLDOWN_MS`; 409 `sticker_today`, 429 `sticker_wait` + `waitMs`). The old UNIQUE (one a
+  day) on `stickers` is dropped by `migrate()`. The visit view adds `stickersToday`, `stickerMax`,
+  `stickerWaitMs`; the button says "Sticker" / "Wait 5 s" (counting down) / "Sticker 1/3" /
+  "Sent 3/3 today".
+- **Visitors (Village tab):** `state.visitors`: one row per visitor per day, "budi visited · today",
+  that day's stickers and "watered your mango" on the same row, and **Wave back**.
+- **Wave back:** `POST /api/visitors/:id/wave {sticker}` (owner of the row only; one of the 6
+  stickers; 1 per visitor per village day, 409 `waved_today`), the button turns into "Waved". The
+  visitor gets the notice "<owner> waved back: "<sticker>"" and a row "<owner> waved back · today"
+  with Visit (`state.waves`).
+- **Compatibility:** `state.stickers` and `stickerToday` stay for the live web; the new web without
+  `visitors` shows the old sticker list and allows 1 sticker a day.
+- **Privacy:** search rows, Visitors rows, waves and the wave result hold only name, avatar, title,
+  tree counts, stickers and times (test "privacy of search, Visitors and wave back").
+- **Set up Shop window (wallet gardens):** before the wallet opens to add the game key: "Your wallet
+  will ask to add a limited game key. It can only spend PANEN in the Shop (burn) and uses at most
+  0.01 testnet NEAR for gas. Your NEAR and NFTs stay safe. Your wallet may show a red warning; this
+  is expected." with "Not now" / "Continue" (`web/src/shop-setup.ts`, amount from the server config).
+- **Checks:** `server/test/social.test.ts`, `web/test/referral.test.ts`, browser
+  `UI_URL=http://localhost:5174 FAKE_DB=<fake sqlite> node tools/ui-test.mjs <outDir> --visits2=<owner>:<prefix> 390 844`
+  (and `1280 800`).
 
 ### 1.5 Friends pin
 `art/hotspots.tsx`: `friends.open` points to the farmer list; the "Soon" tag goes; label "Visit
