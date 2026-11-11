@@ -11207,3 +11207,427 @@ html.page-locked body {
   top: 2px;
   right: 6px;
 }
+
+/* ---------- Arena 1 VS 1 (arena.tsx, docs/PLAN-arena.md, 2026-11-11) ----------
+   The Arena window reuses the Farmers of Tandur window (only the inner area scrolls, plain rows
+   for iOS). The duel screen is a dark HUD panel: your TaniBot left, theirs right (mirrored),
+   the rounds in the middle (phones: under the two bots), then the result. Tokens only. */
+.arena-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.arena-chip {
+  padding: 2px 8px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--paper-light);
+  background: var(--hud);
+  border: 2px solid var(--ink);
+}
+
+.arena-chip.gold {
+  color: var(--ink);
+  background: var(--gold-500);
+}
+
+.arena-blocked {
+  margin: 0 0 8px;
+}
+
+.arena-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
+  transform: translateZ(0);
+  isolation: isolate;
+}
+
+/* Inside the Arena's one scroll area the lists do not scroll on their own. */
+.arena-scroll .farmer-list {
+  flex: none;
+  overflow: visible;
+  transform: none;
+  padding-right: 0;
+}
+
+.arena-h3 {
+  margin: 14px 0 6px;
+  font-family: var(--font-title);
+  font-size: var(--fs-body);
+  text-transform: uppercase;
+  color: var(--leaf-700);
+}
+
+.arena-row-line {
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.arena-row.won .arena-row-line {
+  color: var(--mint-700);
+}
+
+.arena-row-actions {
+  flex: none;
+  display: flex;
+  gap: 4px;
+}
+
+.arena-panel .arena-recent-list {
+  margin: 0;
+}
+
+.info-body ul.arena-recent-list > li::before,
+.arena-panel ul.arena-recent-list > li::before {
+  content: none;
+}
+
+.arena-panel ul.arena-recent-list > li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 8px;
+}
+
+/* The visit panel's Duel button: next to Sticker, the same height. */
+.visit-duel {
+  flex: none;
+  min-height: 44px;
+  white-space: nowrap;
+  background: var(--purple-300);
+}
+
+@media (max-width: 1023px) {
+  .visit-panel:not(.bar) .visit-duel {
+    flex: 1 1 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: var(--fs-sm);
+  }
+}
+
+.duel-backdrop {
+  z-index: 40;
+  padding: 8px;
+}
+
+.duel.panel {
+  width: 100%;
+  max-width: 420px;
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--paper-light);
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--mint-500) 14%, transparent), transparent 60%),
+    linear-gradient(var(--hud), color-mix(in srgb, var(--hud) 80%, var(--ink)));
+}
+
+.duel.panel.wide {
+  max-width: 960px;
+  padding: 0 20px 20px;
+}
+
+.duel-head h2 {
+  font-family: var(--font-title);
+  text-transform: uppercase;
+}
+
+.duel-stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    'me them'
+    'mid mid';
+  gap: 8px;
+  align-items: end;
+}
+
+.duel.wide .duel-stage {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'me mid them';
+  align-items: center;
+  gap: 16px;
+}
+
+.duel-bot {
+  grid-area: me;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.duel-bot.right {
+  grid-area: them;
+}
+
+.duel-mid {
+  grid-area: mid;
+  min-width: 0;
+}
+
+.duel-bot-art {
+  padding: 4px 8px;
+  transition: filter 300ms, opacity 300ms;
+}
+
+/* Theirs faces yours. */
+.duel-bot.right .duel-bot-art {
+  transform: scaleX(-1);
+}
+
+.duel-bot.lead .duel-bot-art {
+  filter: drop-shadow(0 0 8px var(--mint-500));
+}
+
+.duel-bot.down .duel-bot-art {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.duel-bot figcaption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.duel-bot figcaption b {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  color: var(--paper-light);
+  overflow-wrap: anywhere;
+}
+
+.duel-bot figcaption span {
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  color: var(--cyan-300);
+}
+
+.duel-score {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 8px;
+  font-family: var(--font-title);
+  font-size: var(--fs-h2);
+  line-height: 1;
+  color: var(--paper-light);
+}
+
+.duel.wide .duel-score {
+  font-size: var(--fs-h1);
+}
+
+.duel-score .ahead {
+  color: var(--mint-500);
+}
+
+.duel-vs {
+  font-size: var(--fs-h3);
+  color: var(--gold-500);
+}
+
+.duel-rounds {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.duel-round {
+  padding: 6px 8px;
+  border: 2px solid var(--soil-700);
+  background: color-mix(in srgb, var(--paper-light) 8%, transparent);
+  animation: duel-in 300ms ease-out;
+}
+
+.duel-round.hidden {
+  opacity: 0.5;
+  animation: none;
+}
+
+.duel-round.won {
+  border-color: var(--mint-500);
+}
+
+.duel-round.lost {
+  border-color: var(--red-500);
+}
+
+.duel-round-name {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  text-transform: uppercase;
+  color: var(--gold-300);
+}
+
+.duel-round-hint,
+.duel-tie {
+  display: block;
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  color: var(--cyan-300);
+}
+
+.duel-round-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.duel-side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.duel-side.right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.duel-what {
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--paper);
+}
+
+.duel-sum {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  color: var(--paper-light);
+  white-space: nowrap;
+}
+
+.duel-side.win .duel-sum b {
+  color: var(--mint-500);
+}
+
+.die {
+  display: inline-block;
+  min-width: 1.5em;
+  font-style: normal;
+  text-align: center;
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
+}
+
+.duel-result {
+  text-align: center;
+}
+
+.duel-headline {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: var(--fs-h2);
+  color: var(--gold-500);
+}
+
+.duel.wide .duel-headline {
+  font-size: var(--fs-h1);
+}
+
+.duel-result.lose .duel-headline {
+  color: var(--red-500);
+}
+
+.duel-reward {
+  margin: 4px 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--paper-light);
+}
+
+.duel-tx {
+  margin: 0 0 8px;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+}
+
+.duel-tx a {
+  color: var(--mint-500);
+}
+
+.duel .duel-tx.muted,
+.duel .duel-wait {
+  color: var(--paper);
+}
+
+.duel-wait {
+  margin: 0;
+  min-height: 44px;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+}
+
+.duel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.duel-actions .btn {
+  min-width: 140px;
+  text-decoration: none;
+}
+
+@keyframes duel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .duel-round {
+    animation: none;
+  }
+  .duel-bot-art {
+    transition: none;
+  }
+}
+
+/* Duel text over the generic panel / paragraph type rules: titles in Silkscreen, numbers in Tiny5,
+   every total readable on the dark panel (the round's winner in mint). */
+.duel.panel .duel-score,
+.duel.panel .duel-headline {
+  font-family: var(--font-title);
+  text-transform: uppercase;
+}
+
+.duel.panel .duel-sum,
+.duel.panel .duel-sum b,
+.duel.panel .die {
+  font-family: var(--font-ui);
+}
+
+.duel.panel .duel-sum b {
+  color: var(--paper-light);
+}
+
+.duel.panel .duel-side.win .duel-sum b {
+  color: var(--mint-500);
+}

@@ -117,6 +117,7 @@ export function Backdrop({
   phone = false,
   friends = false,
   friendsDot = false,
+  arena = false,
 }: {
   fraction: number;
   blurFill?: boolean;
@@ -126,6 +127,8 @@ export function Backdrop({
   friends?: boolean;
   /** A red dot on the Friends pin: a new wave back (dots.ts). */
   friendsDot?: boolean;
+  /** The Arena is live (state.arena): its pin opens the Arena instead of "Soon". */
+  arena?: boolean;
   account?: string;
   village?: Village;
   skyTop?: number;
@@ -253,7 +256,7 @@ export function Backdrop({
         <div class="bg-night-shade" />
         {/* The weather: over the village, under the place pins (and the plots, TaniBot and HUD). */}
         <WeatherFx look={weather} v={v} phone={phone} />
-        {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} friends={friends} friendsDot={friendsDot} />}
+        {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} friends={friends} friendsDot={friendsDot} arena={arena} />}
       </div>
       {/* The plain ground colour below the art: only where there is no lawn (laptops have one). */}
       {blurFill && !groundWide && <div class="bg-soil-ext" style={{ background: v.groundExt }} />}

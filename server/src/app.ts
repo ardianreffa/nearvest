@@ -10,6 +10,7 @@ import type { Config } from './config.ts';
 import type { DB } from './db.ts';
 import { Game, GameError, type JudgeStep, type SignedBurn } from './game.ts';
 import type { JudgeService } from './judge.ts';
+import { Arena } from './arena.ts';
 import { Social } from './social.ts';
 import {
   BURN_GAS,
@@ -45,6 +46,7 @@ const WALLET_SYNC_MS = 30_000;
 export function createApp(deps: AppDeps) {
   const { db, game, chain, config, now, tanibot, judge } = deps;
   const social = new Social(db, game, now);
+  const arena = new Arena(db, game, now, { explorerTxUrl: config.explorerTxUrl });
   const app = new Hono<Env>();
 
   // maxAge: browsers remember the CORS preflight (Chrome up to 2 h), so each game action is one
@@ -384,6 +386,20 @@ export function createApp(deps: AppDeps) {
     const pid = playerId(c);
     const result = social.waveBack(pid, Number(c.req.param('id')), (await body(c)).sticker);
     return c.json({ result, state: game.state(pid) });
+  });
+  // Arena 1 VS 1 (arena.ts, docs/PLAN-arena.md): the Arena window (opponents = Farmers of Tandur
+  // rows with a tree; `q` searches like the farmer list), whether a garden can be challenged
+  // (visit panel), and a duel (decided and stored on the server; the web sends only the name).
+  app.get('/api/arena', (c) => {
+    const pid = playerId(c);
+    return c.json(arena.view(pid, social.farmers(pid, c.req.query('q')).farmers));
+  });
+  app.get('/api/arena/can/:name', (c) => c.json(arena.canChallenge(playerId(c), c.req.param('name'))));
+  app.post('/api/arena/duel', async (c) => {
+    const pid = playerId(c);
+    const b = await body(c);
+    const result = arena.duel(pid, b.opponent, clientIp(c), b.deviceId);
+    return c.json({ ...result, arena: arena.view(pid, social.farmers(pid).farmers), state: game.state(pid) });
   });
   // Red dot: the owner saw the Village tab's Visitors / Invite boxes (up to the newest event shown).
   app.post('/api/village/seen', async (c) => {

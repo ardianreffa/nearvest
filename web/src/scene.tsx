@@ -193,6 +193,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         // Garden visits are live on servers that send `helps` (older servers: the Friends pin stays "Soon").
         friends={Array.isArray(state.helps)}
         friendsDot={!visit && dotsFor(state, null, false).friends}
+        arena={!!state.arena}
         weather={lookOf(state.weather)}
         phone={!!phone}
       />

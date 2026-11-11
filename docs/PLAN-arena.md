@@ -1,6 +1,16 @@
 # Plan: Arena 1 VS 1 (simple, not real-time)
 
-Status: PLAN (2026-11-11), waiting for Ardian's OK. No code yet.
+Status: **Arena v1 BUILT 2026-11-11 (local commit, not released; VPS untouched).** Server `server/src/arena.ts`
+(table `arena_duels`, `GET /api/arena`, `GET /api/arena/can/:name`, `POST /api/arena/duel`, `state.arena`, Village news,
+log note 'arena'), tests `server/test/arena.test.ts` (13); web `web/src/arena.tsx` + `arena-play.ts` (Arena window from
+the pin, duel screen, Village "Arena" box, Duel button in the visit panel, notice for received duels), tests
+`web/test/arena.test.ts`; browser `--arena=<me>:<foe>` in `tools/ui-test.mjs` at 390x844 and 1280x800. Not in v1:
+search in the Arena list, Rematch in the Village box, rolling dice / laser / moment popup (Thursday).
+Was: **Arena v1 approved by Ardian 2026-11-11 ("OK v1") with 3 changes**: paid wins per IP
+per day 10 (not 3; per device and per garden stay 3), the duel screen keeps TaniBot's living idle
+animation (hover, blink, per-title effects; it will be in the demo video), and the odds for a new
+player are written below (section 1.1) and checked by a server test. Rolling dice, laser and the
+automatic share popup stay for Thursday.
 Schedule: Arena is built **today, Wed 11 Nov**; Thu 12 Nov = buffer + feature freeze (this replaces
 the "Fri 13 Nov morning" Arena line in CLAUDE.md / docs/BACKLOG.md). If it slips, the pin stays "Soon".
 
@@ -54,6 +64,27 @@ No trees:
 - One side with fewer trees is fine: only its best tree counts in rounds 1 and 3; Care uses the
   trees it has.
 
+### 1.1 Rough odds for a new player (Ardian 2026-11-11)
+
+Exact odds of the rule above (2 dice per round, ties rolled again; the challenged garden wins a
+round only after 5 ties in a row, which almost never happens). "Veteran" = a Gold tree, every
+tree cared for, a ripe tree: scores 3 / 3 / 3.
+
+| New player (Seedling, Common tree) | Scores | Wins the duel vs the veteran |
+|---|---|---|
+| Watered Mango with fruit (1 day of play, 1 minute in demo) | 1 / 3 / 3 | **about 34%** (1 in 3) |
+| Welcome pack Rare Durian, watered, ripe | 2 / 3 / 3 | about 41% |
+| Watered Mango still growing ("tree" stage) | 1 / 3 / 2 | about 26% |
+| Watered Mango just planted (seed / sprout) | 1 / 3 / 1 | about 19% |
+| Thirsty seed nobody looks after | 1 / 0 / 1 | about 6% |
+| Two equal gardens | 3 / 3 / 3 each | 50% |
+
+So a new player who simply waters a Mango until it fruits wins about **1 duel in 3** against the
+strongest garden, and the round they can lose (Fruit quality) still gives them about 19%
+(Common vs Gold). Care and Ripeness reward playing, not spending. Server test: "a new player has a
+real chance" in `server/test/arena.test.ts` (exact odds 30-40% for 1 / 3 / 3 vs 3 / 3 / 3, plus a
+seeded run of 20,000 duels through the real duel code).
+
 ## 2. Numbers (draft, in `server/src/rules.ts`)
 
 | Rule | Value | Reason |
@@ -61,7 +92,7 @@ No trees:
 | Challenges per garden per day | **3** (`ARENA_DUELS_PER_DAY`) | "a few"; enough for a judge to try twice |
 | Day | the normal 07:00 WIB village day, also for demo gardens (like help water) | a 1-minute demo day cannot farm |
 | Prize for a challenger's win | **8 PANEN base, `mint_reward`** (`ARENA_PRIZE`) | Season 3 now (/4) = **2 PANEN**, Season 4 = 1; smaller than one Common Mango sale (10 base) |
-| Paid wins per day | max **3** per garden (follows from 3 challenges) and max **3 per IP** per day (`ARENA_PAID_PER_IP_PER_DAY`) | stops many gardens on one network farming |
+| Paid wins per day | max **3** per garden (follows from 3 challenges), max **3 per device** (`ARENA_PAID_PER_DEVICE_PER_DAY`) and max **10 per IP** (`ARENA_PAID_PER_IP_PER_DAY`) per day | 10 per IP because many Indonesian mobile players share one IP (carrier NAT), and friends on one WiFi or judges in one office should all be able to win; the device limit stops one browser farming with many gardens |
 | Defender | never gets PANEN; wins give **+3 XP**, max 3 per day | being challenged cannot be farmed for tokens |
 | Challenger XP | win +5 XP, loss +1 XP (demo x5 as usual) | small, the prize is the reward |
 | Same opponent | **1 challenge from A to B per day**; B may still challenge A once that day ("Rematch") | no farming one weak garden; a rematch is fun |
@@ -75,14 +106,14 @@ Worst case per day: 3 x 8 base = 24 base = 6 PANEN in Season 3 per garden.
 - **Your second garden** (same browser or same Google / wallet identity; reuse `devices` +
   `sameIdentity` from `referral.ts`): the duel still plays but is a **"Practice duel"**: no PANEN,
   no XP, still counts toward the 3 per day. Shown as "Practice: no prize (same device)".
-- **IP / device:** max 3 paid wins per IP per day and per device per day (counted from the stored
-  duels); more wins are practice duels. Never blocks playing or logging in.
+- **IP / device:** max 10 paid wins per IP per day and max 3 per device per day (counted from the
+  stored duels); more wins are practice duels. Never blocks playing or logging in.
 - **No trees:** see section 1.
 - **The web sends only the opponent's name** (+ device id). Scores, dice, winner and prize are all
   decided and stored on the server.
 - **Judge gardens:** can challenge (prize paid, so the judge sees a real `mint_reward` tx) and can be
   challenged; they are limited anyway (3 per IP / 50 per day). Practice rule still applies.
-- **Note for local tests:** every garden comes from 127.0.0.1, so the 4th paid win of a day on a
+- **Note for local tests:** every garden comes from 127.0.0.1, so the 11th paid win of a day on a
   test server is a practice duel (IP limit).
 
 ## 4. Screens (tokens only: `--font-title/body/ui`, `--fs-*`, the 24 colours)
@@ -135,7 +166,7 @@ xp_d INTEGER, ip TEXT, device_id TEXT, created_at INTEGER)` + indexes on `(chall
 duel_day)` and `(defender_id, created_at)`.
 
 **Server:**
-- `rules.ts`: ARENA_DUELS_PER_DAY 3, ARENA_PRIZE 8, ARENA_PAID_PER_IP_PER_DAY 3, ARENA_XP_WIN 5,
+- `rules.ts`: ARENA_DUELS_PER_DAY 3, ARENA_PRIZE 8, ARENA_PAID_PER_IP_PER_DAY 10, ARENA_PAID_PER_DEVICE_PER_DAY 3, ARENA_XP_WIN 5,
   ARENA_XP_LOSS 1, ARENA_XP_DEFEND 3, ARENA_DEFEND_XP_PER_DAY 3, plus the pure score functions
   `arenaScores(trees, now, sky)` and `playRound(a, b, rng)` (testable without a database).
 - New `server/src/arena.ts` (`Arena` class like `Social`): `view(viewer)`, `duel(viewer, name, ip,
@@ -162,7 +193,7 @@ duel_day)` and `(defender_id, created_at)`.
 **Server** (`server/test/arena.test.ts`, fake chain): score functions (quality / care / ripeness,
 memorials ignored, old tree = 2); fixed rng -> known winner, tie re-roll; 3 per day then 429;
 same pair once a day, rematch allowed once; own garden 400; no trees 409 (both sides); same device
-/ same identity -> practice, no mint job; 4th paid win from one IP -> practice; prize = `mint_reward`
+/ same identity -> practice, no mint job; 4th paid win from one device and 11th from one IP -> practice; prize = `mint_reward`
 job with 8 base and the Season divisor; defender XP cap; judge garden can duel and gets a prize;
 the duel answer holds no private data (no balance, seeds, fruit, email, wallet, IP); the defender's
 `news.latestAt` moves; the duel survives a re-request (no re-roll).
@@ -191,7 +222,9 @@ iPhone Safari's visible area). Old-server check: pin says "Soon".
 **Recommended smaller version for today (about 6 h): "Arena v1"**
 - Keep: all server rules (3 rounds, dice, limits, anti-cheat, prize, defender notice + Village dot)
   and their tests; Arena window with opponent list + Recent duels; Duel button in the visit panel.
-- Simpler duel screen: the two TaniBots (existing sprites, still) facing each other, the 3 round
+- Simpler duel screen: the two TaniBots facing each other with their **living idle animation**
+  (hover, blinking eyes, LEDs, per-title effects: the same `TaniBot` component as the garden; not a
+  frozen picture, Ardian 2026-11-11), the 3 round
   cards appear one by one (1.2 s each, CSS only: banner, score pips, dice numbers, winner glow),
   then the result. Skip button.
 - Share: a Share button on the result that reuses the existing card layout with the "2 - 1" text

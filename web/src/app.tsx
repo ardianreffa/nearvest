@@ -2,7 +2,7 @@
 
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { activityLabel, api, ApiError, hasToken, setToken, type Activity, type GameState, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
+import { activityLabel, api, ApiError, hasToken, setToken, type Activity, type DuelView, type GameState, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
 import { DartoHead } from './art/darto';
 import { LOOK_LABEL, lookOf, lookText, withWeather, type WeatherLook } from './weather';
 import { phaseOf } from './art/backdrop';
@@ -14,6 +14,8 @@ import { shopSetupText } from './shop-setup';
 import { RECORD_MODE } from './record';
 import { holdShareCards, ShareHost, shareMomentOnce } from './share';
 import { MomentFxLayer } from './moment-fx';
+import { ArenaPanel, ArenaWindow, DuelScreen } from './arena';
+import { receivedNotice } from './arena-play';
 import { FarmersWindow, VisitGarden } from './friends';
 import { SPECIES_NAME as SPECIES_LABEL } from './ui';
 import { burnAt, coinsToBalance, floatText, FxLayer } from './fx';
@@ -136,6 +138,10 @@ export function App() {
   /** Garden visits (friends.tsx): the farmer list window, and the friend's garden being visited. */
   const [farmersOpen, setFarmersOpen] = useState(false);
   const [visiting, setVisiting] = useState<string | null>(null);
+  /** Arena 1 VS 1 (arena.tsx): the Arena window, the duel on screen, the garden being challenged. */
+  const [arenaOpen, setArenaOpen] = useState(false);
+  const [duel, setDuel] = useState<DuelView | null>(null);
+  const [duelBusy, setDuelBusy] = useState<string | null>(null);
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
@@ -261,6 +267,16 @@ export function App() {
               }),
             2100,
           );
+        }
+      }
+      // Arena: duels this garden was challenged in (one notice since we last looked).
+      if (s.arena?.received.length) {
+        const key = `nearvest.arenaSeen.${s.player.accountId}`;
+        const { fresh, seen } = freshIds(s.arena.received.map((x) => x.id), seenOf(key));
+        if (fresh.length) {
+          setSeen(key, seen);
+          const text = receivedNotice(s.arena.received.filter((x) => fresh.includes(x.id)));
+          if (text) window.setTimeout(() => toast({ kind: 'success', long: true, text }), 2700);
         }
       }
       if (s.referral) {
@@ -657,7 +673,7 @@ export function App() {
       .then((r) => applyState(r.state))
       .catch(() => undefined);
   }, [applyState]);
-  useSeenWhenVisible('.visitors-panel, .invite-panel', villageOnScreen, seeVillage);
+  useSeenWhenVisible('.visitors-panel, .invite-panel, .arena-panel', villageOnScreen, seeVillage);
 
   // Red dots on the Market and the Shop (dots.ts): gone as soon as the tab opens, and the tab then
   // points at what to do (a short hint and a glow on the rows, `marketFocus` / `shopFocus`).
@@ -802,9 +818,25 @@ export function App() {
       big={wide}
       immersive={immersive}
       onBot={openBot}
-      onPlace={(p) => (playSound('click'), p === 'friends' ? setFarmersOpen(true) : wide ? openSide(p) : setTab(p))}
+      onPlace={(p) => (playSound('click'), p === 'friends' ? setFarmersOpen(true) : p === 'arena' ? setArenaOpen(true) : wide ? openSide(p) : setTab(p))}
     />
   );
+  /** Challenges a garden: the server decides the duel at once; the duel screen plays it back. */
+  const startDuel = async (name: string) => {
+    if (duelBusy) return;
+    playSound('click');
+    setDuelBusy(name);
+    try {
+      const r = await api<{ duel: DuelView; state: GameState }>('POST', '/api/arena/duel', { opponent: name, deviceId: judgeDeviceId() });
+      applyState(r.state);
+      setDuel(r.duel);
+    } catch (e) {
+      playSound('error');
+      toast({ kind: 'error', text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setDuelBusy(null);
+    }
+  };
   const startVisit = (name: string) => {
     setFarmersOpen(false);
     setVisiting(name);
@@ -821,6 +853,8 @@ export function App() {
       onBack={() => setVisiting(null)}
       onState={applyState}
       notify={toast}
+      onDuel={state.arena ? startDuel : undefined}
+      duelBusy={!!duelBusy}
     />
   ) : (
     garden
@@ -841,6 +875,7 @@ export function App() {
         social={
           <>
             {state.referral && <InvitePanel state={state} notify={toast} onVisit={Array.isArray(state.helps) ? startVisit : undefined} />}
+            {state.arena && <ArenaPanel state={state} onOpen={() => setArenaOpen(true)} onReplay={setDuel} />}
             {(state.visitors || state.stickers) && (
               <VisitorsPanel state={state} onState={applyState} notify={toast} onVisit={Array.isArray(state.helps) ? startVisit : undefined} />
             )}
@@ -1047,6 +1082,8 @@ export function App() {
       {dialogView}
       {infoView}
       {farmersOpen && <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} />}
+      {arenaOpen && state.arena && <ArenaWindow state={state} busy={duelBusy} onClose={() => setArenaOpen(false)} onDuel={startDuel} onReplay={setDuel} />}
+      {duel && <DuelScreen key={duel.id} duel={duel} wide={wide} activity={state.activity} onClose={() => setDuel(null)} />}
       {shopSetup && config && (
         <Modal
           title="Set up Shop"

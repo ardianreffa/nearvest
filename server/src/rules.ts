@@ -110,6 +110,25 @@ export const REF_PER_DAY_PER_DEVICE = 3;
 export const REF_PER_DAY_PER_IP = 3;
 /** An inviter is paid for at most this many referrals per real day (more wait for the next day). */
 export const REF_PAID_PER_DAY_PER_REFERRER = 10;
+
+// ---------- Arena 1 VS 1 (arena.ts; docs/PLAN-arena.md, Ardian 2026-11-11) ----------
+/** Challenges a garden may start per village day (normal 07:00 WIB day, also for demo gardens). */
+export const ARENA_DUELS_PER_DAY = 3;
+/** A challenger's win pays this from the game (mint_reward: the Season rule applies). */
+export const ARENA_PRIZE = 8;
+/** Paid wins per real village day from one browser and from one IP; more wins are practice duels. */
+export const ARENA_PAID_PER_DEVICE_PER_DAY = 3;
+/** 10, not 3: many Indonesian mobile players share one IP, also friends on one WiFi (Ardian 2026-11-11). */
+export const ARENA_PAID_PER_IP_PER_DAY = 10;
+/** XP (the demo multiplier applies): challenger win / loss, defender win (at most 3 times a day). */
+export const ARENA_XP_WIN = 5;
+export const ARENA_XP_LOSS = 1;
+export const ARENA_XP_DEFEND = 3;
+export const ARENA_DEFEND_XP_PER_DAY = 3;
+/** A tied round is rolled again at most this many times; then the challenged garden wins it. */
+export const ARENA_TIE_REROLLS = 5;
+/** Recent duels shown in the Arena window and the Village tab. */
+export const ARENA_RECENT = 10;
 /** Fertilizer adds +50% growth speed for one game day. */
 export const FERTILIZER_DAYS = 1;
 export const FERTILIZER_BOOST = 0.5;

@@ -255,6 +255,27 @@ CREATE TABLE IF NOT EXISTS referrals (
   friend_job_id INTEGER
 );
 CREATE INDEX IF NOT EXISTS referrals_referrer ON referrals (referrer_id, id);
+
+-- Arena 1 VS 1 (arena.ts, docs/PLAN-arena.md, 2026-11-11): one row per duel, decided and stored
+-- by the server (scores and dice in data). New table only: older releases ignore it.
+CREATE TABLE IF NOT EXISTS arena_duels (
+  id INTEGER PRIMARY KEY,
+  challenger_id INTEGER NOT NULL REFERENCES players(id),
+  defender_id INTEGER NOT NULL REFERENCES players(id),
+  duel_day INTEGER NOT NULL,       -- village day (normal 07:00 WIB day, also for demo gardens)
+  winner TEXT NOT NULL,            -- 'challenger' | 'defender'
+  practice TEXT,                   -- NULL = real duel; 'self' (same browser / identity) | 'limit'
+  prize_micro INTEGER NOT NULL DEFAULT 0,
+  job_id INTEGER,                  -- the prize's mint_reward chain job
+  xp_c INTEGER NOT NULL DEFAULT 0,
+  xp_d INTEGER NOT NULL DEFAULT 0,
+  data TEXT NOT NULL,              -- JSON: both sides (name, avatar, title, scores, trees) + rounds
+  ip TEXT,
+  device_id TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS arena_challenger ON arena_duels (challenger_id, duel_day);
+CREATE INDEX IF NOT EXISTS arena_defender ON arena_duels (defender_id, created_at);
 `;
 
 /** tutorial_step value of a finished (or skipped) tutorial. */

@@ -3,7 +3,7 @@
 // know which buildings can be opened.
 // Laptop (a mouse): hovering a place or its pin lights the building's outline, enlarges the
 // pin and shows the full label; a click opens it. Phone (touch): the first tap shows a bubble
-// with an "Open" button. Places that are not built yet (garden visits, the Arena) say "Soon".
+// with an "Open" button. Places a server does not have yet (garden visits, the Arena) say "Soon".
 // Pins and bubbles slide inside the visible part of the scene and away from the HUD, the
 // side menu, TaniBot, bubbles, tree timers and plots. The hotspots sit under the plots and
 // TaniBot, so they never take a click meant for the garden.
@@ -13,7 +13,7 @@ import { Sprite, type SpriteName } from '../sprites';
 import { DartoHead } from './darto';
 import { boxIn, V1, type Box, type Spot, type Village } from './village';
 
-export type Place = 'shop' | 'market' | 'village' | 'friends';
+export type Place = 'shop' | 'market' | 'village' | 'friends' | 'arena';
 
 interface SpotInfo {
   /** Pin name (laptop) and its short form (phones). */
@@ -37,6 +37,8 @@ const SPOTS: Record<Spot, SpotInfo> = {
 const IDS = Object.keys(SPOTS) as Spot[];
 /** The Friends pin once garden visits are live (the server sends `helps`). */
 const FRIENDS_LIVE: SpotInfo = { name: 'Friends', short: 'Friends', label: 'Visit farmers and help water a tree', icon: 'sprout', open: 'friends' };
+/** The Arena pin once the server has the Arena (`state.arena`; docs/PLAN-arena.md). */
+const ARENA_LIVE: SpotInfo = { name: 'Arena', short: 'Arena', label: 'Arena: 1 VS 1 duels, the winner gets PANEN', icon: 'sparkle', open: 'arena' };
 /** Whole-number scales so every pin icon fits its 16 px box and stays sharp (Mr. Darto: his small head, 15 x 14). */
 const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2, sparkle: 2, sprout: 1 };
 
@@ -215,16 +217,19 @@ export function Hotspots({
   village = V1,
   friends = false,
   friendsDot = false,
+  arena = false,
 }: {
   onPlace: (p: Place) => void;
   account?: string;
   village?: Village;
   friends?: boolean;
+  /** The Arena is live on this server (else its pin says "Soon"). */
+  arena?: boolean;
   /** A red dot on the Friends pin (a new wave back, dots.ts). */
   friendsDot?: boolean;
 }) {
   const v = village;
-  const spot = (id: Spot): SpotInfo => (id === 'friends' && friends ? FRIENDS_LIVE : SPOTS[id]);
+  const spot = (id: Spot): SpotInfo => (id === 'friends' && friends ? FRIENDS_LIVE : id === 'arena' && arena ? ARENA_LIVE : SPOTS[id]);
   const [bubble, setBubble] = useState<Spot | null>(null);
   const [hover, setHover] = useState<Spot | null>(null);
   const [hint, setHint] = useState(false);

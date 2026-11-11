@@ -9,8 +9,10 @@ import { fromMicro, toMicro, tx, TUTORIAL_DONE, type DB } from './db.ts';
 import { enqueue, enqueueTreeUpdate } from './chain/worker.ts';
 import { UNITS_PER_MICRO } from './chain/types.ts';
 import { burnDelegateHash, verifySignature } from './wallet.ts';
+import { arenaNewsAt, arenaState } from './arena.ts';
 import { createReferral, paidToday, pendingReferralOf, recordDevice, referralRows } from './referral.ts';
 import {
+  ARENA_PRIZE,
   advance,
   AVATARS,
   AVATAR_TITLE,
@@ -565,7 +567,7 @@ export class Game {
   }
 
   /** Earned reward (mint_reward): the contract divides `panen` by the Season divisor. */
-  private earnReward(p: PlayerRow, kind: string, panen: number, note: string): { jobId: number; expectedPanen: number } {
+  earnReward(p: PlayerRow, kind: string, panen: number, note: string): { jobId: number; expectedPanen: number } {
     const baseMicro = toMicro(panen);
     const expectedMicro = Math.floor(baseMicro / this.seasonDivisor);
     const ledgerId = this.ledger(p.id, kind, expectedMicro, note);
@@ -675,7 +677,8 @@ export class Game {
     const waveAt = at('SELECT max(wave_at) AS at FROM visits WHERE visitor_id = ? AND wave_sticker IS NOT NULL', playerId);
     const paidAt = at("SELECT max(paid_at) AS at FROM referrals WHERE (referrer_id = ? OR friend_id = ?) AND status = 'paid'", playerId, playerId);
     const seen = this.db.prepare('SELECT village_seen_at AS at FROM players WHERE id = ?').get(playerId) as { at: number };
-    return { latestAt: Math.max(visitAt, stickerAt, helpAt, waveAt, paidAt), waveAt, seenAt: seen.at };
+    const duelAt = arenaNewsAt(this.db, playerId);
+    return { latestAt: Math.max(visitAt, stickerAt, helpAt, waveAt, paidAt, duelAt), waveAt, seenAt: seen.at };
   }
 
   /** The owner saw the Visitors / Invite boxes up to `upTo` (the newest event their screen showed). */
@@ -1650,6 +1653,8 @@ export class Game {
       news: this.villageNews(p.id),
       /** Red dot on the Market tab: fruit added since the owner last opened the Market. */
       market: this.marketNews(p.id),
+      /** Arena 1 VS 1 (arena.ts): duels left today, the prize now, duels this garden received. */
+      arena: arenaState(this.db, p.id, now, this.afterSeason(ARENA_PRIZE), this.d.explorerTxUrl),
     };
   }
 
@@ -1662,7 +1667,12 @@ export class Game {
       id: r.id,
       kind: r.kind,
       /** 'referral' = a referral reward or bonus (the web labels it so, not as a harvest sale). */
-      note: (r.kind === 'mint' || r.kind === 'mint_reward') && r.payload.includes('"memo":"Referral') ? ('referral' as const) : null,
+      note:
+        (r.kind === 'mint' || r.kind === 'mint_reward') && r.payload.includes('"memo":"Referral')
+          ? ('referral' as const)
+          : r.kind === 'mint_reward' && r.payload.includes('"memo":"Arena prize')
+            ? ('arena' as const)
+            : null,
       status: r.status,
       txHash: r.tx_hash,
       explorerUrl: r.tx_hash && !r.tx_hash.startsWith('fake') ? this.d.explorerTxUrl + r.tx_hash : null,

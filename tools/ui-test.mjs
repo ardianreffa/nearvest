@@ -40,6 +40,10 @@
 //   Visitors rows, a visit (no dots), a sticker: ONE countdown, the window closed + opened again and the page refreshed
 //   keep counting from the server's time:
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --dots=<owner>:<visitor> [w] [h]
+// Arena 1 VS 1 (fake-chain server; API_URL = that server, default http://127.0.0.1:8788; FAKE_DB=<its sqlite> makes <foe>
+//   strong): makes <me>, <foe> and <me>x through the API, <foe> challenges <me>; the Arena pin, window, a duel, Skip,
+//   the Village Arena box and the visit Duel button:
+//   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --arena=<me>:<foe> [w] [h]
 // Market + Shop red dots (fake-chain server; API_URL = that server, default http://127.0.0.1:8788; FAKE_DB=<its sqlite>):
 //   makes <user> through the API; FAKE_DB gives 15 fruits (new: fruit_at = now) and 17 seeds. Market dot, open the
 //   Market: Mr. Darto says "Fresh fruit! ..." (bubble on screen, nothing scrolls), rows glow, "Sell now ↓" when the row is off screen, dot gone (server market.seenAt); opened again without the dot = normal greeting; Seeds section closed / open and the "Seeds (6) ↓" jump (6 kinds of the 17 seeds); a new
@@ -563,6 +567,154 @@ try {
       console.log('fonts of the counter:', await evaluate(`getComputedStyle(document.querySelector('.name-count')).fontFamily + ' ' + getComputedStyle(document.querySelector('.name-count')).fontSize`));
     });
     throw { done: true };
+  }
+  if (name.startsWith('--arena=')) {
+    // Arena 1 VS 1 (docs/PLAN-arena.md): <me> (a watered Common Mango) and <foe> (FAKE_DB: a Gold Durian
+    // that is ripe) through the API; <foe> challenges <me> first (notice + Village dot), plus a third
+    // garden <me>x for the Skip check. Then in the browser: the Arena pin (no "Soon"), the Arena window,
+    // a duel (rounds one by one, living TaniBots), the result, the Village "Arena" box and the visit
+    // panel's Duel button.
+    const [me, foe] = name.slice('--arena='.length).split(':');
+    const third = `${me}x`;
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return res.json();
+    };
+    const make = async (user) => {
+      const { token } = await call('POST', '/auth/dev', null, { username: user });
+      let st = await call('GET', '/api/me', token);
+      if (st.error) st = await call('POST', '/api/player', token, { name: user, demo: true });
+      for (let i = 0; i < 40 && st.player.accountStatus !== 'ready'; i++) (await sleep(300), (st = await call('GET', '/api/me', token)));
+      if (!st.plots[0].tree) {
+        await call('POST', '/api/checkin', token);
+        st = await call('GET', '/api/me', token);
+        await call('POST', '/api/plant', token, { plot: 0, seedId: (st.seeds.find((x) => x.species === 'mango') ?? st.seeds[0]).id });
+      }
+      await call('POST', '/api/water', token, { plot: 0 });
+      return token;
+    };
+    const inside = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return 'missing'; const r = e.getBoundingClientRect(); return (r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1 ? 'inside the screen' : 'OUTSIDE ' + JSON.stringify([Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)])) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); })()`;
+    const duelInfo = `(() => { const d = document.querySelector('.duel'); if (!d) return 'no duel'; const bots = [...d.querySelectorAll('.duel-bot .tanibot')];
+      return JSON.stringify({ score: d.querySelector('.duel-score')?.innerText.replace(/\\n/g, ' '), rounds: [...d.querySelectorAll('.duel-round')].map(r => r.classList.contains('hidden') ? 'hidden' : r.classList.contains('won') ? 'won' : 'lost'),
+        bots: bots.map(b => b.className + ' ' + Math.round(b.getBoundingClientRect().width) + 'px, running animations: ' + b.getAnimations({ subtree: true }).filter(a => a.playState === 'running').length),
+        result: d.querySelector('.duel-headline')?.innerText ?? null, reward: d.querySelector('.duel-reward')?.innerText ?? null, tx: d.querySelector('.duel-tx')?.innerText ?? null,
+        scrolls: d.scrollHeight > d.clientHeight + 1, pageScrollsSideways: document.documentElement.scrollWidth > innerWidth }); })()`;
+    let tokMe, tokFoe;
+    await step(`make ${me}, ${foe} (strong) and ${third}; ${foe} challenges ${me}`, async () => {
+      tokMe = await make(me);
+      tokFoe = await make(foe);
+      await make(third);
+      if (process.env.FAKE_DB) {
+        const { DatabaseSync } = await import('node:sqlite');
+        const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
+        const id = db.prepare('SELECT id FROM players WHERE name = ?').get(foe).id;
+        db.prepare("UPDATE trees SET quality = 'gold', species = 'durian', growth = target WHERE player_id = ? AND status = 'alive'").run(id);
+        db.prepare('UPDATE players SET xp = 1600 WHERE id = ?').run(id);
+        // STRONG_ME=1: <me> gets a ripe Rare Durian too (a likely win against <me>x, to see the prize line and the log).
+        if (process.env.STRONG_ME) {
+          const mine = db.prepare('SELECT id FROM players WHERE name = ?').get(me).id;
+          db.prepare("UPDATE trees SET quality = 'rare', species = 'durian', growth = target WHERE player_id = ? AND status = 'alive'").run(mine);
+        }
+        db.close();
+      }
+      const r = await call('POST', '/api/arena/duel', tokFoe, { opponent: me });
+      console.log(`${foe} vs ${me}:`, r.error ?? `${r.duel.winner} wins ${r.duel.score.challenger}-${r.duel.score.defender}, prize ${r.duel.prize}`);
+      const st = await call('GET', '/api/me', tokMe);
+      console.log(`${me}: arena`, JSON.stringify({ left: st.arena.left, prizeNow: st.arena.prizeNow, received: st.arena.received.length }), '| news', JSON.stringify(st.news));
+    });
+    await step(`${me}: the garden, the notice, the Arena pin`, async () => {
+      await evaluate(`localStorage.removeItem('nearvest.token')`);
+      await send('Page.navigate', { url: UI_URL });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      await typeInto('#dev-user', me);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await sleep(3200);
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      console.log('notice:', await evaluate(`[...document.querySelectorAll('.toast')].map(t => t.innerText.replace(/\\n/g, ' ')).join(' || ') || 'none'`));
+      console.log('Arena pin:', await evaluate(`(() => { const p = document.querySelector('.pin-arena'); return p ? p.innerText.replace(/\\n/g, ' ') + ' | soon: ' + p.classList.contains('soon') : 'missing'; })()`));
+      console.log('Village dot:', await evaluate(`!!document.querySelector('.tab-village .tab-dot, .rail-village .rail-dot, .side-tabs .tab-village .tab-dot')`));
+      await screenshot('arena-garden');
+    });
+    await step(`${me}: open the Arena from its pin`, async () => {
+      await evaluate(`document.querySelector('.pin-arena').click()`);
+      await sleep(300);
+      if (await evaluate(`!!document.querySelector('.hs-bubble')`)) {
+        console.log('pin bubble:', await evaluate(`document.querySelector('.hs-bubble').innerText.replace(/\\n/g, ' ')`));
+        await screenshot('arena-pin-bubble');
+        await clickText('Open', '.hs-bubble button');
+      }
+      await waitFor(`!!document.querySelector('.arena-dialog .arena-duel-btn')`, 'Arena window');
+      await sleep(400);
+      console.log('Arena window:', await evaluate(`document.querySelector('.arena-top').innerText.replace(/\\n/g, ' ')`));
+      console.log('opponents:', await evaluate(`[...document.querySelectorAll('.arena-list .farmer-row')].map(r => r.innerText.replace(/\\n/g, ' ')).join(' || ')`));
+      console.log('recent:', await evaluate(`[...document.querySelectorAll('.arena-recent-list .arena-row')].map(r => r.innerText.replace(/\\n/g, ' ')).join(' || ') || 'none'`));
+      console.log('window:', await evaluate(inside('.arena-dialog')));
+      await screenshot('arena-window');
+    });
+    await step(`${me} challenges ${foe}: rounds one by one`, async () => {
+      await evaluate(`[...document.querySelectorAll('.arena-list .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(foe)}).querySelector('.arena-duel-btn').click()`);
+      await waitFor(`!!document.querySelector('.duel')`, 'duel screen', 15000);
+      await sleep(300);
+      console.log('t=0.3 s:', await evaluate(duelInfo));
+      await screenshot('duel-start');
+      await sleep(1500);
+      console.log('t=1.8 s:', await evaluate(duelInfo));
+      await screenshot('duel-round1');
+      await sleep(2900);
+      console.log('t=4.7 s:', await evaluate(duelInfo));
+      await screenshot('duel-rounds');
+      await waitFor(`!!document.querySelector('.duel-headline')`, 'result', 8000);
+      await sleep(1500);
+      console.log('result:', await evaluate(duelInfo));
+      console.log('duel panel:', await evaluate(inside('.duel')), '| buttons:', await evaluate(inside('.duel-actions')));
+      console.log('fonts: score', await evaluate(`getComputedStyle(document.querySelector('.duel-score')).fontFamily`), '| reward', await evaluate(`getComputedStyle(document.querySelector('.duel-reward')).fontFamily`));
+      await screenshot('duel-result');
+      await clickText('Back', '.duel-actions button');
+      await sleep(400);
+    });
+    await step(`${me}: Skip on a duel with ${third}`, async () => {
+      await evaluate(`[...document.querySelectorAll('.arena-list .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(third)})?.querySelector('.arena-duel-btn').click()`);
+      await waitFor(`!!document.querySelector('.duel')`, 'duel screen', 15000);
+      await sleep(200);
+      await clickText('Skip', '.duel button');
+      await sleep(200);
+      console.log('after Skip:', await evaluate(duelInfo));
+      await screenshot('duel-skip');
+      await clickText('Back', '.duel-actions button');
+      await sleep(600);
+      console.log('Arena window after 2 duels:', await evaluate(`document.querySelector('.arena-chips')?.innerText.replace(/\\n/g, ' ')`), '| recent:', await evaluate(`[...document.querySelectorAll('.arena-recent-list .arena-row')].map(r => r.innerText.replace(/\\n/g, ' ')).join(' || ')`));
+      await screenshot('arena-window-after');
+      await evaluate(`document.querySelector('.arena-dialog .info-close').click()`);
+      await sleep(300);
+    });
+    await step(`${me}: Village tab Arena box (the dot goes)`, async () => {
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-village').click()`);
+      else await evaluate(`(document.querySelector('.side-tabs .tab-village') ?? document.querySelector('.rail-village'))?.click()`);
+      await sleep(500);
+      await evaluate(`document.querySelector('.arena-panel')?.scrollIntoView({ block: 'center' })`);
+      await sleep(1500);
+      console.log('Arena box:', await evaluate(`document.querySelector('.arena-panel')?.innerText.replace(/\\n/g, ' ') ?? 'missing'`));
+      console.log('Village log:', await evaluate(`[...document.querySelectorAll('li')].map(l => l.innerText.replace(/\\n/g, ' ')).filter(t => /Arena prize/.test(t)).join(' || ') || 'no Arena line'`));
+      console.log('news after seeing it:', JSON.stringify((await call('GET', '/api/me', tokMe)).news));
+      await screenshot('village-arena');
+    });
+    await step(`${me}: visit ${foe}: Duel button (already dueled today)`, async () => {
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-garden').click()`);
+      await sleep(300);
+      await evaluate(`document.querySelector('.pin-friends').click()`);
+      await sleep(300);
+      if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
+      await evaluate(`[...document.querySelectorAll('.farmers-dialog .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(foe)})?.querySelector('button').click()`);
+      await waitFor(`!!document.querySelector('.visit-duel')`, 'visit Duel button', 15000);
+      await sleep(1200);
+      const btns = await evaluate(`[...document.querySelectorAll('.visit-head .btn')].map(b => { const r = b.getBoundingClientRect(); return b.innerText.replace(/\\n/g, ' ') + ' ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' @' + Math.round(r.top) + (b.disabled ? ' (off: ' + b.title + ')' : ''); }).join(' | ')`);
+      console.log('visit buttons:', btns);
+      await screenshot('visit-duel');
+    });
+    throw Object.assign(new Error('arena done'), { done: true });
   }
   if (name.startsWith('--marketdot=')) {
     const user = name.slice('--marketdot='.length);

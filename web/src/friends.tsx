@@ -7,7 +7,8 @@
 // apart: only the button counts down, from the server's time). Search finds any ready garden by the start of its name.
 
 import { useEffect, useState } from 'preact/hooks';
-import { api, type FarmersResponse, type GameState, type HelpResult, type PublicGarden, type VisitResponse } from './api';
+import { duelButton } from './arena-play';
+import { api, type ArenaCan, type FarmersResponse, type GameState, type HelpResult, type PublicGarden, type VisitResponse } from './api';
 import { Avatar } from './art/avatars';
 import { playSound } from './audio';
 import { floatText } from './fx';
@@ -173,6 +174,8 @@ export function VisitGarden({
   onBack,
   onState,
   notify,
+  onDuel,
+  duelBusy = false,
 }: {
   name: string;
   mine: GameState;
@@ -182,6 +185,9 @@ export function VisitGarden({
   onBack: () => void;
   onState: (s: GameState) => void;
   notify: Notify;
+  /** Arena (servers with `state.arena`): challenge this garden. */
+  onDuel?: (name: string) => void;
+  duelBusy?: boolean;
 }) {
   const [visit, setVisit] = useState<VisitResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -214,6 +220,20 @@ export function VisitGarden({
       alive = false;
     };
   }, [name]);
+
+  // Arena: can this garden be challenged today? (asked again after each duel: `left` changes)
+  const arenaLeft = mine.arena?.left;
+  const [can, setCan] = useState<ArenaCan | null>(null);
+  useEffect(() => {
+    if (!onDuel || arenaLeft === undefined) return;
+    let alive = true;
+    api<ArenaCan>('GET', `/api/arena/can/${encodeURIComponent(name)}`)
+      .then((c) => alive && setCan(c))
+      .catch(() => alive && setCan(null));
+    return () => {
+      alive = false;
+    };
+  }, [name, arenaLeft]);
 
   const help = async (plot: number) => {
     if (busy || !visit) return;
@@ -271,6 +291,7 @@ export function VisitGarden({
       onSticker={() => (playSound('click'), setStickerOpen(true))}
       sticker={stickerStatus}
       bar={!!immersive}
+      duel={onDuel && arenaLeft !== undefined && !visit?.own ? { ...duelButton(can), busy: duelBusy, onClick: () => onDuel(name) } : null}
     />
   );
   const stickers = stickerOpen && visit && (
@@ -309,6 +330,7 @@ function VisitPanel({
   onSticker,
   sticker: st,
   bar,
+  duel,
 }: {
   name: string;
   visit: VisitResponse | null;
@@ -320,6 +342,8 @@ function VisitPanel({
   onSticker: () => void;
   sticker: StickerStatus;
   bar: boolean;
+  /** Arena: the Duel button (null = no Arena on this server, or your own garden). */
+  duel: { label: string; enabled: boolean; title: string; busy: boolean; onClick: () => void } | null;
 }) {
   const g = visit?.garden;
   const p = g?.plots[selected];
@@ -383,6 +407,11 @@ function VisitPanel({
           >
             <UiIcon name={st.full ? 'check' : 'sticker'} />
             <span class="visit-sticker-label">{stickerLabel}</span>
+          </button>
+        )}
+        {duel && (
+          <button class="btn visit-duel" onClick={duel.onClick} disabled={!duel.enabled || duel.busy} title={duel.title} aria-label={duel.enabled ? `Challenge ${name} in the Arena` : duel.title}>
+            {duel.busy ? 'Dueling...' : duel.label}
           </button>
         )}
         <button class="btn btn-mint visit-back" onClick={onBack} aria-label="Back to my garden">

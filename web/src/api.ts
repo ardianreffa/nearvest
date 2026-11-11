@@ -86,8 +86,8 @@ export interface Activity {
   explorerUrl: string | null;
   error: string | null;
   createdAt: number;
-  /** 'referral' = a referral reward / bonus mint (missing on older servers). */
-  note?: 'referral' | null;
+  /** 'referral' = a referral reward / bonus mint; 'arena' = an Arena prize (missing on older servers). */
+  note?: 'referral' | 'arena' | null;
 }
 
 /** A sticker a visitor left in your garden (newest first). */
@@ -315,6 +315,8 @@ export interface GameState {
   market?: { fruitAt: number; seenAt: number };
   /** Invite a friend (missing on servers without referral: no invite box). */
   referral?: ReferralView;
+  /** Arena 1 VS 1 (missing on servers without the Arena: the Arena pin says "Soon"). */
+  arena?: ArenaState;
   seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null; source: string }[];
   seedSlots: { used: number; max: number };
   fruits: { species: Species; quality: Quality; qty: number }[];
@@ -491,6 +493,7 @@ export const ACTIVITY_LABELS: Record<string, string> = {
 
 /** The log label of a chain job (referral mints are not harvest sales). */
 export function activityLabel(a: Pick<Activity, 'kind' | 'note'>): string {
+  if (a.note === 'arena') return 'Arena prize minted';
   if (a.note === 'referral') return a.kind === 'mint_reward' ? 'Referral reward paid' : 'Referral bonus minted';
   return ACTIVITY_LABELS[a.kind] ?? a.kind;
 }
@@ -502,4 +505,80 @@ export function nearblocksNft(contractId: string, tokenId: string): string {
 
 export function nearblocksAccount(accountId: string): string {
   return `https://testnet.nearblocks.io/address/${accountId}`;
+}
+
+// ---------- Arena 1 VS 1 (server/src/arena.ts, docs/PLAN-arena.md) ----------
+
+export type ArenaRound = 'quality' | 'care' | 'ripeness';
+export type ArenaScores = Record<ArenaRound, number>;
+
+/** One side of a duel (public data only). */
+export interface DuelSide {
+  name: string;
+  avatar: string;
+  title: string;
+  scores: ArenaScores;
+  best: { species: Species; quality: Quality } | null;
+  ripest: { species: Species; quality: Quality; stage: Stage } | null;
+  trees: number;
+}
+
+export interface DuelRound {
+  round: ArenaRound;
+  c: { score: number; dice: number[] };
+  d: { score: number; dice: number[] };
+  winner: 'challenger' | 'defender';
+}
+
+export interface DuelView {
+  id: number;
+  at: number;
+  you: 'challenger' | 'defender';
+  challenger: DuelSide;
+  defender: DuelSide;
+  rounds: DuelRound[];
+  winner: 'challenger' | 'defender';
+  score: { challenger: number; defender: number };
+  /** null = a real duel; 'self' = one person's gardens; 'limit' = the day's paid wins are used up. */
+  practice: 'self' | 'limit' | null;
+  /** PANEN the challenger received (after the Season rule). */
+  prize: number;
+  prizeStatus: 'pending' | 'done' | 'failed' | null;
+  txUrl: string | null;
+  gainedXp: number;
+}
+
+export interface ArenaState {
+  left: number;
+  max: number;
+  prize: number;
+  prizeNow: number;
+  /** Duels this garden was challenged in (newest first, last 10). */
+  received: DuelView[];
+}
+
+export interface ArenaOpponent {
+  name: string;
+  avatar: string;
+  title: string;
+  trees: number;
+  judge: boolean;
+  dueledToday: boolean;
+}
+
+export interface ArenaView {
+  left: number;
+  max: number;
+  prize: number;
+  prizeNow: number;
+  blocked: 'no_tree' | 'limit' | null;
+  you: DuelSide;
+  opponents: ArenaOpponent[];
+  recent: DuelView[];
+}
+
+export interface ArenaCan {
+  ok: boolean;
+  reason: 'own_garden' | 'no_tree' | 'no_tree_them' | 'limit' | 'pair_today' | null;
+  left: number;
 }
