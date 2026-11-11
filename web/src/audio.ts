@@ -256,6 +256,77 @@ export function playPixelSparkle(notes: { at: number; freq: number; dur: number;
   }
 }
 
+/**
+ * Fishing sounds (fishing.tsx), made right here with Web Audio: no sound file, nothing copied
+ * (docs/ASSETS.md). cast = the line's whistle, plop = the float landing, bite = two quick splashes,
+ * reel = the reel's clicks, catch / junk / legend = a short tune for the result. Follows the Sound
+ * switch and plays only after the first tap, like every effect.
+ */
+export function playFishing(kind: 'cast' | 'plop' | 'bite' | 'reel' | 'catch' | 'junk' | 'legend'): void {
+  if (!prefs.sfx || !ctx || !sfxGain) return;
+  if (ctx.state === 'suspended') void ctx.resume();
+  const c = ctx;
+  const out = sfxGain;
+  const t = c.currentTime + 0.01;
+  const tone = (type: OscillatorType, f0: number, f1: number, at: number, dur: number, vol: number) => {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t + at);
+    o.frequency.exponentialRampToValueAtTime(f1, t + at + dur);
+    g.gain.setValueAtTime(0.0001, t + at);
+    g.gain.exponentialRampToValueAtTime(vol, t + at + Math.min(0.02, dur / 4));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
+    o.connect(g).connect(out);
+    o.start(t + at);
+    o.stop(t + at + dur + 0.03);
+  };
+  const splash = (at: number, dur: number, vol: number, f0: number, f1: number) => {
+    const len = Math.floor(c.sampleRate * dur);
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const f = c.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 1.2;
+    f.frequency.setValueAtTime(f0, t + at);
+    f.frequency.exponentialRampToValueAtTime(f1, t + at + dur);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t + at);
+    g.gain.exponentialRampToValueAtTime(vol, t + at + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
+    src.connect(f).connect(g).connect(out);
+    src.start(t + at);
+    src.stop(t + at + dur + 0.03);
+  };
+  if (kind === 'cast') {
+    splash(0, 0.35, 0.12, 2400, 700);
+    tone('sine', 1400, 500, 0, 0.3, 0.04);
+  } else if (kind === 'plop') {
+    tone('sine', 520, 140, 0, 0.12, 0.35);
+    splash(0.02, 0.18, 0.1, 1200, 400);
+  } else if (kind === 'bite') {
+    splash(0, 0.12, 0.25, 1600, 500);
+    splash(0.16, 0.14, 0.3, 1400, 400);
+    tone('square', 880, 880, 0.02, 0.06, 0.08);
+    tone('square', 1175, 1175, 0.1, 0.08, 0.08);
+  } else if (kind === 'reel') {
+    for (let i = 0; i < 8; i++) tone('square', 1800, 1700, i * 0.05, 0.02, 0.06);
+    splash(0.3, 0.25, 0.18, 1800, 500);
+  } else if (kind === 'catch') {
+    [523, 659, 784].forEach((f, i) => tone('square', f, f, i * 0.09, 0.12, 0.12));
+    tone('triangle', 1046, 1046, 0.27, 0.25, 0.1);
+  } else if (kind === 'junk') {
+    tone('square', 392, 370, 0, 0.12, 0.1);
+    tone('square', 330, 262, 0.13, 0.25, 0.1);
+  } else {
+    [523, 659, 784, 1046, 1318, 1568].forEach((f, i) => tone('square', f, f, i * 0.08, 0.14, 0.12));
+    tone('triangle', 2093, 2637, 0.5, 0.6, 0.08);
+  }
+}
+
 export function getAudioPrefs(): AudioPrefs {
   return prefs;
 }

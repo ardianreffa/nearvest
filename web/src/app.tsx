@@ -22,6 +22,8 @@ import { receivedNotice } from './arena-play';
 import { matchNotice } from './arena-turn';
 import { MatchScreen } from './arena-match';
 import { InvitePopup } from './arena-invite';
+import { FishingWindow } from './fishing';
+import { autoCatchToShow, autoNotice } from './fishing-logic';
 import { overlayKey } from './overlay-key';
 import { FarmersWindow, friendCall, VisitGarden } from './friends';
 import { friendAddNotice } from './friends-logic';
@@ -328,6 +330,15 @@ export function App() {
               }),
             2200,
           );
+        }
+      }
+      // Fishing: a line the server pulled in by itself (the window was closed): one notice.
+      {
+        const key = `nearvest.fishSeen.${s.player.accountId}`;
+        const c = autoCatchToShow(s.fishing, seenOf(key), Date.now());
+        if (c) {
+          setSeen(key, c.id);
+          window.setTimeout(() => toast({ kind: 'success', long: true, text: autoNotice(c) }), 1500);
         }
       }
       // Arena v2: matches against our TaniBot (one notice since we last looked).
@@ -1383,7 +1394,11 @@ export function App() {
           ))}
         </Modal>
       )}
-      {fishingOpen && (
+      {fishingOpen && state.fishing && !visiting && (
+        <FishingWindow state={state} onState={applyState} notify={toast} onClose={() => setFishingOpen(false)} />
+      )}
+      {/* Servers without fishing (or FISHING=off): the small "coming soon" window, as before. */}
+      {fishingOpen && !state.fishing && (
         <Modal title="Fishing" onClose={() => setFishingOpen(false)} closeLabel="Close" class="fishing-dialog">
           <p>Fishing pond coming soon! Catch fish with TaniBot after the hackathon.</p>
         </Modal>

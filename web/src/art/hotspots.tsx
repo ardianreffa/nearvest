@@ -42,6 +42,8 @@ const SPOTS: Record<Spot, SpotInfo> = {
 const IDS = Object.keys(SPOTS) as Spot[];
 /** The Fishing pin (village.ts `fishing`): a tap opens the "Fishing pond coming soon!" window. */
 const FISHING: SpotInfo = { name: 'Fishing', short: 'Fishing', label: 'Fishing pond: coming soon', icon: 'fish', open: 'fishing', soon: true };
+/** The Fishing pin once the server has fishing (`state.fishing`, FISHING=on; docs/PLAN-fishing.md). */
+const FISHING_LIVE: SpotInfo = { name: 'Fishing', short: 'Fishing', label: 'Fishing pond: 3 casts a day', icon: 'fish', open: 'fishing' };
 /** The Friends pin once garden visits are live (the server sends `helps`). */
 const FRIENDS_LIVE: SpotInfo = { name: 'Friends', short: 'Friends', label: 'Visit farmers and help water a tree', icon: 'sprout', open: 'friends' };
 /** The Arena pin once the server has the Arena (`state.arena`; docs/PLAN-arena.md). */
@@ -225,6 +227,7 @@ export function Hotspots({
   friends = false,
   friendsDot = false,
   arena = false,
+  fishing = false,
 }: {
   onPlace: (p: Place) => void;
   account?: string;
@@ -232,12 +235,14 @@ export function Hotspots({
   friends?: boolean;
   /** The Arena is live on this server (else its pin says "Soon"). */
   arena?: boolean;
+  /** Fishing is live on this server (else its pin says "Soon" and opens the coming-soon window). */
+  fishing?: boolean;
   /** A red dot on the Friends pin (a new wave back, dots.ts). */
   friendsDot?: boolean;
 }) {
   const v = village;
   const ids: PinId[] = v.fishing ? [...IDS, 'fishing'] : IDS;
-  const spot = (id: PinId): SpotInfo => (id === 'fishing' ? FISHING : id === 'friends' && friends ? FRIENDS_LIVE : id === 'arena' && arena ? ARENA_LIVE : SPOTS[id]);
+  const spot = (id: PinId): SpotInfo => (id === 'fishing' ? (fishing ? FISHING_LIVE : FISHING) : id === 'friends' && friends ? FRIENDS_LIVE : id === 'arena' && arena ? ARENA_LIVE : SPOTS[id]);
   const where = (id: PinId) => (id === 'fishing' ? v.fishing!.spot : v.spots[id]);
   const [bubble, setBubble] = useState<PinId | null>(null);
   const [hover, setHover] = useState<PinId | null>(null);
@@ -300,8 +305,8 @@ export function Hotspots({
 
   const tap = (id: PinId) => {
     const s = spot(id);
-    // Fishing opens its small window right away, also on phones (nothing to choose first).
-    if (s.open && (canHover() || s.soon)) {
+    // Fishing opens its window right away, also on phones (live or "Soon": nothing to choose first).
+    if (s.open && (canHover() || s.soon || id === 'fishing')) {
       setBubble(null);
       onPlace(s.open);
     } else setBubble(bubble === id ? null : id);

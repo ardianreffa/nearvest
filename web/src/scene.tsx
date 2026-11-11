@@ -200,6 +200,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
         friends={Array.isArray(state.helps)}
         friendsDot={!visit && dotsFor(state, null, false).friends}
         arena={!!state.arena}
+        // Fishing is live when the server sends `fishing` (FISHING=on); else the pin says "Soon".
+        fishing={!!state.fishing}
         weather={lookOf(state.weather)}
         phone={!!phone}
       />

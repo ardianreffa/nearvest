@@ -14149,3 +14149,380 @@ html.duel-open .duel-bg .backdrop * {
   font-size: var(--fs-sm);
   color: var(--cyan-300);
 }
+
+/* ---------- Fishing window (fishing.tsx, docs/PLAN-fishing.md) ---------- */
+
+.fishing-live {
+  max-width: 520px;
+}
+
+.fishing-live .info-body {
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Nothing in the window shrinks: a long catch card scrolls inside the window instead. */
+.fishing-live .info-body > * {
+  flex: none;
+}
+
+/* The pond scene: the whole picture always shows (16:9), never cut or shifted sideways. */
+.pond {
+  position: relative;
+  flex: none;
+  width: 100%;
+  aspect-ratio: 160 / 90;
+  overflow: hidden;
+  border: var(--px) solid var(--soil-700);
+  background: var(--cyan-700);
+}
+
+.pond-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pond-bot {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.pond-bot .tanibot {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  transform: translateX(-50%) scale(0.8);
+  transform-origin: 50% 100%;
+}
+
+.pond-ripples {
+  animation: pond-drift 3.2s steps(4) infinite alternate;
+}
+
+.pond-holo {
+  animation: pond-holo 2.4s steps(2) infinite;
+}
+
+.pond-float {
+  transition: transform 0.35s ease-in;
+}
+
+.pond-wait .pond-float {
+  animation: pond-bob 1.4s steps(2) infinite;
+}
+
+.pond-bite .pond-float {
+  animation: pond-dip 0.32s steps(2) infinite;
+}
+
+.pond-reeling .pond-float {
+  transform: translate(-30px, -30px);
+}
+
+.pond-rings .ring {
+  opacity: 0;
+}
+
+.pond-wait .ring-a {
+  animation: pond-ring 2.8s steps(3) infinite;
+}
+
+.pond-bite .ring {
+  animation: pond-ring 0.6s steps(3) infinite;
+}
+
+.pond-bite .ring-b {
+  animation-delay: 0.3s;
+}
+
+.pond-bang {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  font-family: var(--font-title);
+  font-size: var(--fs-h2);
+  line-height: 1;
+  color: var(--gold-500);
+  text-shadow:
+    2px 0 0 var(--ink),
+    -2px 0 0 var(--ink),
+    0 2px 0 var(--ink),
+    0 -2px 0 var(--ink);
+  animation: pond-bang 0.5s steps(2) infinite alternate;
+}
+
+.pond-catch {
+  position: absolute;
+  display: block;
+  line-height: 0;
+  transform: translate(-50%, -160%);
+  filter: drop-shadow(0 2px 0 color-mix(in srgb, var(--ink) 60%, transparent));
+  animation: pond-jump 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.pond-catch.released {
+  animation: pond-jump 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both, pond-release 0.6s 1.4s ease-in forwards;
+}
+
+@keyframes pond-drift {
+  to {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes pond-holo {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes pond-bob {
+  50% {
+    transform: translateY(1px);
+  }
+}
+
+@keyframes pond-dip {
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+@keyframes pond-ring {
+  0% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pond-bang {
+  to {
+    transform: translate(-50%, -115%);
+  }
+}
+
+@keyframes pond-jump {
+  0% {
+    transform: translate(-50%, -20%) scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: translate(-50%, -200%) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -160%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pond-release {
+  to {
+    transform: translate(-50%, 0) scale(0.6);
+    opacity: 0;
+  }
+}
+
+.fish-status {
+  min-height: 2.6em;
+  margin: 0 !important;
+  font-family: var(--font-body);
+  font-size: var(--fs-body) !important;
+  text-align: center;
+  color: var(--ink);
+}
+
+.fish-result {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  background: var(--paper-light);
+  border: var(--px) solid var(--gold-300);
+  min-width: 0;
+}
+
+.fish-result.kind-junk {
+  border-color: var(--soil-300);
+}
+
+.fish-result.legend {
+  border-color: var(--gold-500);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--gold-500) 70%, transparent);
+}
+
+.fish-result-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  background: var(--paper);
+  border: 2px solid var(--soil-300);
+}
+
+.fish-result-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fish-result-text h3 {
+  margin: 0 0 4px !important;
+  font-family: var(--font-title);
+  font-size: var(--fs-body) !important;
+  text-transform: uppercase;
+  color: var(--leaf-700);
+}
+
+.fish-result.legend h3 {
+  color: var(--gold-700);
+}
+
+.fish-line {
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.fish-season {
+  color: var(--ink-soft);
+}
+
+.fish-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.chip-reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  border: 2px solid var(--ink);
+}
+
+.chip-reward.reward-panen {
+  background: var(--gold-300);
+}
+
+.chip-reward.reward-xp {
+  background: var(--mint-300);
+}
+
+.fish-casts {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+.fish-pips {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.fish-pips i {
+  width: 10px;
+  height: 10px;
+  background: var(--soil-300);
+  border: 2px solid var(--ink);
+}
+
+.fish-pips i.on {
+  background: var(--mint-500);
+}
+
+.fish-list {
+  text-align: center;
+}
+
+.fish-list ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 4px;
+  text-align: left;
+}
+
+.fish-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  background: var(--paper-light);
+  border: 2px solid var(--gold-300);
+  font-size: var(--fs-sm);
+  min-width: 0;
+}
+
+.fish-list-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.fish-list-reward {
+  font-family: var(--font-ui);
+  color: var(--gold-700);
+  white-space: nowrap;
+}
+
+/* Thumb-sized buttons; while the line is in the water there is one big "Reel in" button. */
+.fishing-live .info-actions .btn {
+  min-height: 52px;
+  font-size: var(--fs-body);
+}
+
+.fishing-one .info-actions {
+  grid-template-columns: 1fr;
+}
+
+.fishing-one .info-actions .fish-reel {
+  flex: 1;
+}
+
+.fish-now {
+  animation: fish-now 0.5s steps(2) infinite alternate;
+}
+
+@keyframes fish-now {
+  to {
+    box-shadow:
+      0 var(--px) 0 var(--ink),
+      0 0 14px var(--gold-500);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pond-ripples,
+  .pond-holo,
+  .pond-float,
+  .pond-rings .ring,
+  .pond-bang,
+  .pond-catch,
+  .fish-now {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .pond-bite .ring,
+  .pond-wait .ring-a {
+    opacity: 1;
+  }
+}

@@ -119,6 +119,7 @@ export function Backdrop({
   friends = false,
   friendsDot = false,
   arena = false,
+  fishing = false,
 }: {
   fraction: number;
   blurFill?: boolean;
@@ -130,6 +131,8 @@ export function Backdrop({
   friendsDot?: boolean;
   /** The Arena is live (state.arena): its pin opens the Arena instead of "Soon". */
   arena?: boolean;
+  /** Fishing is live (state.fishing): its pin opens the fishing window instead of "Soon". */
+  fishing?: boolean;
   account?: string;
   village?: Village;
   skyTop?: number;
@@ -253,7 +256,7 @@ export function Backdrop({
         {/* The weather: over the village AND past it on every side (the sky above the art on a
             laptop window, the lawn below), under the place pins (and the plots, TaniBot and HUD). */}
         <WeatherFx look={weather} v={v} phone={phone} />
-        {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} friends={friends} friendsDot={friendsDot} arena={arena} />}
+        {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} friends={friends} friendsDot={friendsDot} arena={arena} fishing={fishing} />}
       </div>
       {/* The plain ground colour below the art: only where there is no lawn (laptops have one). */}
       {blurFill && !groundWide && <div class="bg-soil-ext" style={{ background: v.groundExt }} />}

@@ -92,7 +92,7 @@ export interface Activity {
   error: string | null;
   createdAt: number;
   /** 'referral' = a referral reward / bonus mint; 'arena' = an Arena prize (missing on older servers). */
-  note?: 'referral' | 'arena' | null;
+  note?: 'referral' | 'arena' | 'fishing' | null;
 }
 
 /** A sticker a visitor left in your garden (newest first). */
@@ -356,6 +356,8 @@ export interface GameState {
   referral?: ReferralView;
   /** Arena 1 VS 1 (missing on servers without the Arena: the Arena pin says "Soon"). */
   arena?: ArenaState;
+  /** Fishing (missing when the server has no fishing or FISHING=off: the pin says "Soon"). */
+  fishing?: FishingState;
   seeds: { id: number; species: Species; quality: Quality | null; parentTreeId: number | null; source: string }[];
   seedSlots: { used: number; max: number };
   fruits: { species: Species; quality: Quality; qty: number }[];
@@ -421,6 +423,8 @@ export interface ServerConfig {
   devLogin: boolean;
   /** The online Arena duel is switched on (server ARENA_ONLINE; missing on older servers = off). */
   arenaOnline?: boolean;
+  /** Fishing is switched on (server FISHING; missing on older servers = off). */
+  fishing?: boolean;
   contracts: { panen: string; pohon: string };
   wallet: {
     loginRecipient: string;
@@ -553,6 +557,7 @@ export const ACTIVITY_LABELS: Record<string, string> = {
 /** The log label of a chain job (referral mints are not harvest sales). */
 export function activityLabel(a: Pick<Activity, 'kind' | 'note'>): string {
   if (a.note === 'arena') return 'Arena prize minted';
+  if (a.note === 'fishing') return 'Fishing catch paid';
   if (a.note === 'referral') return a.kind === 'mint_reward' ? 'Referral reward paid' : 'Referral bonus minted';
   return ACTIVITY_LABELS[a.kind] ?? a.kind;
 }
@@ -736,4 +741,58 @@ export interface ArenaCan {
   ok: boolean;
   reason: 'own_garden' | 'no_tree' | 'no_tree_them' | 'limit' | 'pair_today' | null;
   left: number;
+}
+
+// ---------- Fishing (server/src/fishing.ts, docs/PLAN-fishing.md) ----------
+
+export type FishingCatchId =
+  | 'tilapia'
+  | 'catfish'
+  | 'carp'
+  | 'gourami'
+  | 'golden_arowana'
+  | 'stone'
+  | 'driftwood'
+  | 'fish_bone'
+  | 'old_boot'
+  | 'mango_seed'
+  | 'fertilizer'
+  | 'bottle'
+  | 'chest';
+
+/** What was caught (the server sends it only with the reel). */
+export interface CatchView {
+  id: number;
+  catch: FishingCatchId;
+  name: string;
+  kind: 'fish' | 'junk' | 'item';
+  /** PANEN really paid (after the Season rule). */
+  panen: number;
+  basePanen: number;
+  xp: number;
+  /** Over the day's paid-catch limit of this browser / IP: let go, 1 XP only. */
+  released: boolean;
+  item: 'seed' | 'seed_sold' | 'fertilizer' | null;
+  line: string | null;
+  moment: 'golden_arowana' | null;
+  jobId: number | null;
+  jobStatus: string | null;
+  /** Pulled in by the server (nobody reeled within a minute). */
+  auto: boolean;
+  at: number;
+}
+
+export interface FishingState {
+  left: number;
+  max: number;
+  msUntilNextDay: number;
+  /** A line in the water (never its catch). */
+  open: { id: number; biteInMs: number } | null;
+  last: CatchView | null;
+}
+
+export interface FishingView extends FishingState {
+  catches: { id: FishingCatchId; name: string; kind: CatchView['kind']; panen: number; panenNow: number }[];
+  chest: { min: number; max: number };
+  today: CatchView[];
 }
