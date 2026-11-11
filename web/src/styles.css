@@ -14363,8 +14363,9 @@ html.duel-open .duel-bg .backdrop * {
   flex: none;
   display: grid;
   place-items: center;
-  width: 64px;
+  min-width: 64px;
   height: 64px;
+  padding: 0 4px;
   background: var(--paper);
   border: 2px solid var(--soil-300);
 }
@@ -14455,9 +14456,18 @@ html.duel-open .duel-bg .backdrop * {
   margin: 6px 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 4px;
   text-align: left;
+}
+
+/* No list bullet (the icon is the marker); the general .info-body ul li rules add one. */
+.info-body .fish-list li {
+  padding-left: 6px;
+}
+
+.info-body .fish-list li::before {
+  content: none;
 }
 
 .fish-list li {
@@ -14469,6 +14479,13 @@ html.duel-open .duel-bg .backdrop * {
   border: 2px solid var(--gold-300);
   font-size: var(--fs-sm);
   min-width: 0;
+}
+
+.fish-list-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
 }
 
 .fish-list-name {

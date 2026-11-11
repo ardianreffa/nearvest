@@ -203,7 +203,9 @@ export function FishingWindow({
             <ul>
               {view.catches.map((x) => (
                 <li key={x.id}>
-                  <CatchIcon id={x.id} scale={2} />
+                  <span class="fish-list-icon">
+                    <CatchIcon id={x.id} scale={2} />
+                  </span>
                   <span class="fish-list-name">{x.name}</span>
                   <span class="fish-list-reward">
                     {x.kind === 'fish' ? `${x.panenNow} PANEN` : x.id === 'chest' ? `${view.chest.min}-${view.chest.max} PANEN` : x.kind === 'junk' ? '1 XP' : x.id === 'bottle' ? '5 XP' : x.id === 'mango_seed' ? 'Seed' : 'Item'}

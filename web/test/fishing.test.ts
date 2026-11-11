@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CatchView } from '../src/api.ts';
+import { CATCH_GRIDS, FISH_PALETTE } from '../src/art/catch-grids.ts';
 import { autoCatchToShow, autoNotice, castsLeftText, catchNote, rewardChips, startPhase, untilText } from '../src/fishing-logic.ts';
 
 const NOW = 1_800_000_000_000;
@@ -63,5 +64,16 @@ describe('fishing window', () => {
     assert.equal(autoCatchToShow(st({ last: c({ id: 11, auto: true, at: NOW - 2 * 86_400_000 }) }), 0, NOW), null, 'too old');
     assert.equal(autoCatchToShow(undefined, 0, NOW), null);
     assert.equal(autoNotice(c({ name: 'Catfish', panen: 5, auto: true })), 'TaniBot pulled in your fishing line: Catfish (+5 PANEN).');
+  });
+
+  it('catch icons: every grid is a clean rectangle and uses only known colours', () => {
+    const known = new Set(['.', 'k', 'w', 'y', 'Y', ...Object.keys(FISH_PALETTE)]);
+    const ids = ['tilapia', 'catfish', 'carp', 'gourami', 'golden_arowana', 'stone', 'driftwood', 'fish_bone', 'old_boot', 'bottle', 'chest'] as const;
+    for (const id of ids) {
+      const g = CATCH_GRIDS[id]!;
+      assert.ok(g, id);
+      assert.ok(g.every((r) => r.length === g[0].length), `${id}: rows of one width`);
+      for (const ch of g.join('')) assert.ok(known.has(ch), `${id}: unknown colour ${ch}`);
+    }
   });
 });

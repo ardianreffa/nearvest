@@ -126,6 +126,11 @@ check(/Come back at 07:00 WIB/.test(await pg.locator('.fish-status').innerText()
 await pg.locator('.fish-list .link-btn').click();
 check((await pg.locator('.fish-list li').count()) === 13, 'What can I catch? lists 13 catches');
 await fits('list open');
+await pg.evaluate(() => {
+  const b = document.querySelector('.fishing-dialog .info-body');
+  b.scrollTop = b.scrollHeight;
+});
+check(await pg.evaluate(() => [...document.querySelectorAll('.fish-list-name')].every((e) => e.getBoundingClientRect().height < 40)), 'catch names stay on one or two lines');
 await pg.screenshot({ path: `${out}/fish-${tag}-4-list.png` });
 await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
 
