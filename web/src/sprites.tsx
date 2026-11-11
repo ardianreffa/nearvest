@@ -296,9 +296,11 @@ const UI_ICON_PALETTE: Record<string, string> = {
   F: 'var(--paper)',
   H: 'var(--red-500)',
   M: 'var(--mint-700)',
-  S: 'var(--soil-300)',
-  D: 'var(--soil-500)',
   C: 'var(--cyan-300)',
+  // Rock (pixel art, own colours): light, mid and dark stone grey.
+  '1': '#C3C8CE',
+  '2': '#8A9098',
+  '3': '#555B63',
 };
 
 export const UI_ICONS = {
@@ -340,22 +342,23 @@ export const UI_ICONS = {
     '................',
     '................',
   ],
-  // Arena v2: Rock (Rock / Paper / Scissors buttons and the picks above the TaniBots).
+  // Arena v2: Rock (Rock / Paper / Scissors buttons and the picks above the TaniBots): an angular grey
+  // stone with flat sides, light top-left, dark bottom-right, and one crack (K) from the top edge.
   rock: [
     '................',
     '................',
-    '.....KKKKK......',
-    '....KSSSSSKK....',
-    '...KSSSSSSSSK...',
-    '..KSSSSSSSSSSK..',
-    '..KSSSSDSSSSSK..',
-    '.KSSSSSSSSSDSSK.',
-    '.KSSDSSSSSSSSSK.',
-    '.KSSSSSSSDSSSSK.',
-    '.KDSSSSSSSSSSDK.',
-    '.KDDSSSSSSSSDDK.',
-    '..KDDDDDDDDDDK..',
-    '...KKKKKKKKKK...',
+    '......KKKKK.....',
+    '.....K1111KK....',
+    '....K111112KK...',
+    '...K11K11222K...',
+    '..K1111K12222K..',
+    '..K11112K22223K.',
+    '.K1111222K22233K',
+    '.K1112222222333K',
+    '.K1122222223333K',
+    '.K2222222233333K',
+    '..K22222333333K.',
+    '...KKKKKKKKKKK..',
     '................',
     '................',
   ],
