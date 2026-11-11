@@ -521,6 +521,66 @@ function PlotPanel({
 
   if (!p.tree) {
     const groups = groupSeeds(state.seeds, true);
+    const m = p.memorial;
+    // "Move to Memorials": only when the server has it (older servers send no `movable`).
+    const moveMemorial = m?.movable && (
+      <button
+        class={sheet ? 'link-btn move-memorial' : 'btn btn-small move-memorial'}
+        disabled={busy}
+        onClick={async () => {
+          if (await ask(`Move this Memorial ${SPECIES_NAME[m.species]} to your Memorial list in the Village tab? The plot becomes empty. Its NFT stays yours.`, 'Move')) {
+            await act('/api/memorial/move', { plot: plotIndex }, `Memorial ${SPECIES_NAME[m.species]} moved to your Memorials (Village tab)`);
+          }
+        }}
+      >
+        Move to Memorials
+      </button>
+    );
+    const seedRow =
+      groups.length === 0 ? (
+        <p class="muted">You have no seeds.</p>
+      ) : (
+        <SeedRow arrows={bar}>
+          {groups.map((g) => (
+            <SeedCard
+              key={g.key}
+              group={g}
+              compact={sheet || bar}
+              disabled={busy}
+              onPick={() => act('/api/plant', { plot: plotIndex, seedId: g.ids[0] }, `Planted ${SPECIES_NAME[g.species]}!`)}
+            />
+          ))}
+        </SeedRow>
+      );
+    if (bar) {
+      // Laptops: a short, wide bar. Title, the Memorial line and its button on one row, the seeds
+      // in one row below; the long planting note waits behind the "?" button.
+      return (
+        <Panel
+          title={m ? `Plot ${plotIndex + 1} · Memorial` : `Plot ${plotIndex + 1} · empty`}
+          class="plot-empty plot-bar bar-compact"
+          right={
+            <div class="bar-head-right">
+              {m && (
+                <p
+                  class="memorial-note bar-memorial"
+                  title={`A Memorial ${SPECIES_NAME[m.species]} stands here (${m.harvestCount} harvests). ${m.movable ? 'Plant a seed here or move it' : 'Planting a seed here moves it'} to your Memorial list in the Village tab; its NFT stays yours.`}
+                >
+                  Memorial {SPECIES_NAME[m.species]} · {m.harvestCount} harvests · NFT stays yours{m.movable ? '' : ' · planting moves it to Village'}
+                </p>
+              )}
+              {moveMemorial}
+              <button class="icon-btn bar-help-btn" onClick={() => setHelp(!help)} aria-label="How planting works" aria-expanded={help}>
+                ?
+              </button>
+            </div>
+          }
+        >
+          {seedRow}
+          {help && <p class="seed-note">Tap a seed to plant it: a Tree NFT is minted to your account. {SEED_ODDS_TEXT}</p>}
+        </Panel>
+      );
+    }
     return (
       <Panel
         title={p.memorial ? `Plot ${plotIndex + 1} · Memorial` : `Plot ${plotIndex + 1} · empty`}
@@ -533,28 +593,23 @@ function PlotPanel({
           )
         }
       >
-        {p.memorial && (
+        {m && (
           <p class={`memorial-note${sheet ? ' short' : ''}`}>
-            {sheet
-              ? `Memorial ${SPECIES_NAME[p.memorial.species]} · planting moves it to Village`
-              : `A Memorial ${SPECIES_NAME[p.memorial.species]} stands here (${p.memorial.harvestCount} harvests). Planting a seed moves it to your Memorial list in the Village tab; its NFT stays yours.`}
+            {sheet ? (
+              moveMemorial ? (
+                <>
+                  Memorial {SPECIES_NAME[m.species]} · {moveMemorial}
+                </>
+              ) : (
+                `Memorial ${SPECIES_NAME[m.species]} · planting moves it to Village`
+              )
+            ) : (
+              `A Memorial ${SPECIES_NAME[m.species]} stands here (${m.harvestCount} harvests). Planting a seed moves it to your Memorial list in the Village tab; its NFT stays yours.`
+            )}
           </p>
         )}
-        {groups.length === 0 ? (
-          <p class="muted">You have no seeds.</p>
-        ) : (
-          <SeedRow arrows={bar}>
-            {groups.map((g) => (
-              <SeedCard
-                key={g.key}
-                group={g}
-                compact={sheet || bar}
-                disabled={busy}
-                onPick={() => act('/api/plant', { plot: plotIndex, seedId: g.ids[0] }, `Planted ${SPECIES_NAME[g.species]}!`)}
-              />
-            ))}
-          </SeedRow>
-        )}
+        {!sheet && moveMemorial}
+        {seedRow}
         {/* Phones: the long note waits behind the "?" button. */}
         {(!sheet || help) && <p class="seed-note">Tap a seed to plant it: a Tree NFT is minted to your account. {SEED_ODDS_TEXT}</p>}
       </Panel>
@@ -698,6 +753,64 @@ function PlotPanel({
           </div>
         )}
       </section>
+    );
+  }
+
+  if (bar) {
+    // Laptops: a short, wide bar in two columns: the tree's state on the left (growth, status,
+    // next harvest, fertilizer), the three actions and "Cut down tree" on the right. The longer
+    // help text waits behind the "?" button.
+    return (
+      <Panel
+        class="plot-bar bar-compact bar-tree"
+        title={`${QUALITY_NAME[t.quality]} ${SPECIES_NAME[t.species]}`}
+        right={
+          <div class="bar-head-right">
+            <span class="tree-info">
+              <span>{STAGE_NAME[t.stage]}</span>
+              <span>
+                Harvests {t.harvestCount}/{t.maxHarvests}
+              </span>
+              <span>Age {t.ageDays}d</span>
+            </span>
+            <span class="muted small">
+              {t.tokenId ? `NFT #${t.tokenId}` : 'minting NFT...'} <Info k="treeNft" label="the Tree NFT" />
+            </span>
+            <button class="icon-btn bar-help-btn" onClick={() => setHelp(!help)} aria-label="How this tree grows" aria-expanded={help}>
+              ?
+            </button>
+          </div>
+        }
+      >
+        <div class="bar-main">
+          <div class="progress" aria-label="Growth">
+            <div class="progress-bar" style={{ width: `${Math.min(100, t.growthPercent)}%` }} />
+          </div>
+          <p class="muted small bar-status">{statusText}</p>
+          <div class="bar-line">
+            {t.isFertilized && t.fertMsLeft - elapsed > 0 ? (
+              <span class="fert-badge" role="status">
+                <Sprite name="fertilizer" scale={2} />
+                <span>
+                  Fertilized: <b>{t.fertSpeed}x speed</b> · {formatDuration(t.fertMsLeft - elapsed)} left
+                </span>
+              </span>
+            ) : (
+              buyLink
+            )}
+            {t.stage !== 'old' && (
+              <span class="odds-line small">
+                Next harvest: <OddsLine odds={t.nextHarvestOdds} /> <Info k="nextHarvest" label="the next harvest quality" />
+              </span>
+            )}
+          </div>
+          {help && <p class="muted small bar-help">{helpText}</p>}
+        </div>
+        <div class="bar-side">
+          {actions}
+          {chop}
+        </div>
+      </Panel>
     );
   }
 

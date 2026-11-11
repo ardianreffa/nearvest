@@ -55,6 +55,11 @@ export interface MemorialView {
   diedAt: number | null;
   /** The plot it still stands on (until a new seed is planted there), or null. */
   plot: number | null;
+  /**
+   * On a plot: this server has "Move to Memorials" (POST /api/memorial/move). Missing on older
+   * servers: the web then hides the button.
+   */
+  movable?: boolean;
 }
 
 export type WeatherKind = 'clear' | 'rain' | 'drought';

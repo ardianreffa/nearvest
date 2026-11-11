@@ -25,22 +25,25 @@ const FISH = [
   '....####....',
 ];
 
-/** Roof sign: panel 16 x 11 units with a 1-unit edge and the fish, on two legs (rows 11-12). */
+/**
+ * Roof sign: panel 22 x 11 units (about the shape of the Arena's "1 VS 1" screen) with a 1-unit
+ * edge and the fish in the middle, on two legs (rows 11-12).
+ */
 function FishSign({ style }: { style: Record<string, string> }) {
   const cells: preact.JSX.Element[] = [];
   FISH.forEach((row, y) =>
     [...row].forEach((c, x) => {
       if (c === '.') return;
-      cells.push(<rect key={`${x}-${y}`} class={c === '-' ? 'fh-scale' : 'fh-line'} x={x + 2} y={y + 2} width={1} height={1} />);
+      cells.push(<rect key={`${x}-${y}`} class={c === '-' ? 'fh-scale' : 'fh-line'} x={x + 5} y={y + 2} width={1} height={1} />);
     }),
   );
   return (
     <span class="fish-holo" style={style}>
-      <svg viewBox="0 0 16 13" preserveAspectRatio="none" shape-rendering="crispEdges">
-        <path class="fh-leg" d="M3 11h1v2H3zM12 11h1v2h-1z" />
+      <svg viewBox="0 0 22 13" preserveAspectRatio="none" shape-rendering="crispEdges">
+        <path class="fh-leg" d="M4 11h1v2H4zM17 11h1v2h-1z" />
         <g class="fh-glow">
-          <rect class="fh-panel" x={0} y={0} width={16} height={11} />
-          <path class="fh-edge" d="M1 0h14v1H1zM1 10h14v1H1zM0 1h1v9H0zM15 1h1v9h-1z" />
+          <rect class="fh-panel" x={0} y={0} width={22} height={11} />
+          <path class="fh-edge" d="M1 0h20v1H1zM1 10h20v1H1zM0 1h1v9H0zM21 1h1v9h-1z" />
           {cells}
         </g>
       </svg>

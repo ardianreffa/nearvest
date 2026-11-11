@@ -71,6 +71,7 @@ const ACTION_SOUNDS: Record<string, SoundName> = {
   '/api/sell': 'coins',
   '/api/shop/buy': 'burn',
   '/api/chop': 'click',
+  '/api/memorial/move': 'click',
   '/api/clean': 'harvest',
   '/api/seeds/sell': 'coins',
   '/api/seeds/discard': 'click',

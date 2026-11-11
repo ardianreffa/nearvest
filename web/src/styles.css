@@ -3233,6 +3233,133 @@ input:focus-visible {
   align-self: center;
 }
 
+/* ---------- Laptop plot bar, compact (garden.tsx PlotPanel `bar`, Ardian 2026-11-11) ----------
+   Wide and short so the trees, their labels, the soil mounds and TaniBot stay in view above it
+   (the bar may cover the bush rows repeated below the village art). Tree: two columns (state
+   left, actions right). Empty / Memorial: title + Memorial line + Move button on one row, the
+   seeds in one row. Long help texts wait behind "?". Its height is BAR_H in app.tsx. */
+.hud-bar > .panel.plot-bar.bar-compact {
+  max-width: none;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+  row-gap: 4px;
+  align-items: start;
+  padding: 8px 12px;
+}
+
+.plot-bar.bar-compact > .panel-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 !important;
+  min-width: 0;
+}
+
+.plot-bar.bar-compact > .panel-head h2 {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.plot-bar.bar-compact .bar-head-right {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.plot-bar.bar-compact .bar-head-right .tree-info {
+  padding: 0;
+}
+
+.plot-bar.bar-compact .bar-help-btn {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  padding: 0;
+  font-size: var(--fs-sm);
+}
+
+/* Tree: state on the left, actions on the right. */
+.plot-bar.bar-tree > .bar-main {
+  grid-column: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.plot-bar.bar-tree > .bar-side {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.plot-bar.bar-tree .bar-side .actions {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+}
+
+.plot-bar.bar-tree .bar-side .actions .btn {
+  min-width: 104px;
+  min-height: 48px;
+}
+
+.plot-bar.bar-tree .bar-side .link-btn.danger {
+  font-size: var(--fs-xs);
+}
+
+.plot-bar.bar-tree .bar-status,
+.plot-bar.bar-tree .bar-help {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.plot-bar.bar-tree .bar-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+}
+
+.plot-bar.bar-tree .bar-line > * {
+  margin: 0;
+}
+
+/* Empty / Memorial: the seeds in one row under the title row. */
+.plot-bar.bar-compact.plot-empty > * {
+  grid-column: 1 / -1;
+}
+
+.plot-bar.bar-compact .bar-memorial {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 3px 8px;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plot-bar.bar-compact .move-memorial {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Phones: the Move link sits inside the one-line Memorial note. */
+.memorial-note .link-btn.move-memorial {
+  font-size: inherit;
+  color: var(--purple-700);
+  text-decoration: underline;
+}
+
 .qty-season {
   margin: 0;
   font-size: var(--fs-xs);
@@ -10266,7 +10393,7 @@ html.page-locked body {
   }
 }
 
-/* The roof sign (panel + legs, 16 x 13 units). */
+/* The roof sign (panel + legs, 22 x 13 units). */
 .fish-holo {
   pointer-events: none;
   display: block;

@@ -13,6 +13,7 @@
 // Water drone (EXISTING dev garden with a tree; fake-chain server): node tools/ui-test.mjs <outDir> --water=<devUser> [w] [h] (REDUCED_MOTION=1 too)
 // Info (i) bubbles in every panel of an EXISTING dev garden (fake-chain server): node tools/ui-test.mjs <outDir> --info=<devUser> [w] [h]
 // Garden scene of an EXISTING dev garden (no changes): UI_URL='http://localhost:5173/?time=dusk' node tools/ui-test.mjs <outDir> --scene=<devUser> [w] [h]
+//   PLOTSHOTS=1 selects plots 1-3 (empty / tree / Memorial), screenshots each and reports what the plot panel covers.
 //   FISHING=1 reports the fishing corner (rod, basket, hologram, what moves, rain layers) and opens / closes the Fishing window.
 //   PINS=1 checks the pins and (phones) the sheet; it always reports the garden (mounds, plots and village in view, TaniBot clear of other plots and labels).
 //   Add &bg=v1 to UI_URL for the first village. REDUCED_MOTION=1 emulates prefers-reduced-motion.
@@ -2102,6 +2103,28 @@ try {
         await sleep(300);
         console.log('birds:', await evaluate(`[...document.querySelectorAll('.bird')].filter(b => getComputedStyle(b.closest('.sky-day, .sky-dusk')).opacity > 0).slice(0, 2).map(b => { const r = b.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }).join(' | ') || 'none visible'`));
         await screenshot('birds');
+      }
+      if (process.env.PLOTSHOTS) {
+        // Laptop plot panel: select each plot (empty / tree / Memorial), screenshot, and report
+        // whether the panel (.hud-bar) covers a tree, its label, a soil mound or TaniBot.
+        for (let i = 0; i < 3; i++) {
+          await evaluate(`document.querySelectorAll('.plot')[${i}]?.click()`);
+          await sleep(1800);
+          console.log(`plot ${i + 1}:`, await evaluate(`(() => {
+            const bar = document.querySelector('.hud-bar, .plot-sheet');
+            if (!bar) return 'no panel';
+            const b = bar.getBoundingClientRect();
+            const hit = (r) => r.width && r.left < b.right && b.left < r.right && r.top < b.bottom && b.top < r.bottom;
+            const what = [['tree', '.plot-art'], ['label', '.badge'], ['mound', '.soil'], ['TaniBot', '.bot-spot .tanibot']];
+            const covers = what.flatMap(([n, sel]) => [...document.querySelectorAll(sel)].filter(e => hit(e.getBoundingClientRect())).map(e => n + '(' + Math.round(b.top - e.getBoundingClientRect().bottom) + 'px)'));
+            const panel = bar.querySelector('.panel, section') || bar;
+            const seeds = [...bar.querySelectorAll('.seed-card')].map(e => Math.round(e.getBoundingClientRect().top));
+            const title = (bar.querySelector('h2')?.innerText || '').replace(/\\n/g, ' ');
+            const over = [...bar.querySelectorAll('*')].some(e => e.scrollHeight > e.clientHeight + 2 && getComputedStyle(e).overflowY === 'hidden' && e.clientHeight > 0);
+            return '"' + title + '" panel ' + Math.round(b.left) + ',' + Math.round(b.top) + ' ' + Math.round(b.width) + 'x' + Math.round(b.height) + ' (window ' + innerWidth + 'x' + innerHeight + ') | seed rows ' + new Set(seeds).size + ' (' + seeds.length + ' cards) | buttons ' + [...bar.querySelectorAll('button.btn')].map(x => x.innerText.trim().replace(/\\s+/g, ' ')).join(' / ') + ' | covers: ' + (covers.join(', ') || 'nothing') + (over ? ' | CLIPPED CONTENT' : '');
+          })()`));
+          await screenshot(`plot-${i + 1}`);
+        }
       }
       if (process.env.FISHING) {
         // The fishing corner (v3): rod, float, basket, hologram on screen; what moves (nothing with

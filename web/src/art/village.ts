@@ -34,7 +34,7 @@ export interface FishingCorner {
   /** The rod: its handle (bottom left) stands in the basket, its tip points right. */
   rod: Box;
   bucket: Box;
-  /** The roof sign: panel + two small legs (16 x 13 units). */
+  /** The roof sign: panel + two small legs (22 x 13 units), about the size of the Arena's "1 VS 1" screen. */
   holo: Box;
   spot: SpotPlace;
 }
@@ -369,14 +369,15 @@ export const V3_WEB: Village = {
   // In front of the Friends house, on the grass (left of the side menu on every laptop).
   robot: { x: 196, y: 101, homeX: 196, stay: true },
   // The left-hand hut (ridge at 65,57, eaves at row 74, porch floor at row 84, stairs down to row
-  // 92): the sign stands on the roof just below the ridge (under the Fishing pin); the basket + rod
+  // 92): the sign stands on the middle of the ridge (under the Fishing pin); the basket + rod
   // stand on the grass in front of the porch, below the stairs' foot and right of plot 1's tree
   // (which reaches x 75 when grown), tip at row 93 (below the stairs and the porch floor), float over
   // the grass. Sprites at 2 art px per game px, like the 480x270 art (rod 13x18, basket 8x10).
   fishing: {
     rod: [77, 93, 6.5, 9],
     bucket: [76, 97.5, 4, 5],
-    holo: [60, 58, 10, 8.125],
+    // Centred on the ridge (x 65), as wide as the "1 VS 1" screen (15.5 x 7.5), top just below the pin.
+    holo: [57.25, 57.5, 15.5, 9.16],
     spot: { box: [51, 57, 40, 36], pin: [66, 57] },
   },
 };
@@ -444,7 +445,8 @@ export const V3_PHONE: Village = {
   fishing: {
     rod: [40, 117.8, 3.25, 4.5],
     bucket: [39.5, 120, 2, 2.5],
-    holo: [28, 90.2, 8, 6.5],
+    // Centred on the ridge (x 32), as wide as the phone's "1 VS 1" screen (9.9 x 4.8), below the pin.
+    holo: [27.05, 89, 9.9, 5.85],
     spot: { box: [29, 89, 20, 28], pin: [32, 89] },
   },
 };
