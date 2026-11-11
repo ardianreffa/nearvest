@@ -192,6 +192,37 @@ export function playGoldDurian(part: 'charge' | 'fall' | 'impact'): void {
   }
 }
 
+/**
+ * A soft whoosh of leaves for the wipe between gardens (visit-wipe.tsx), made right here with Web
+ * Audio: filtered noise, no sound file, nothing copied (docs/ASSETS.md). `soft` = the quieter one
+ * when the squares leave. Follows the Sound switch like every effect.
+ */
+export function playWhoosh(soft = false): void {
+  if (!prefs.sfx || !ctx || !sfxGain) return;
+  if (ctx.state === 'suspended') void ctx.resume();
+  const c = ctx;
+  const t = c.currentTime;
+  const dur = 0.34;
+  const len = Math.floor(c.sampleRate * dur);
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  const f = c.createBiquadFilter();
+  f.type = 'bandpass';
+  f.Q.value = 0.9;
+  f.frequency.setValueAtTime(soft ? 1400 : 500, t);
+  f.frequency.exponentialRampToValueAtTime(soft ? 500 : 1600, t + dur);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(soft ? 0.08 : 0.14, t + dur * 0.45);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(sfxGain);
+  src.start(t);
+  src.stop(t + dur + 0.05);
+}
+
 export function getAudioPrefs(): AudioPrefs {
   return prefs;
 }

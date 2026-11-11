@@ -53,6 +53,10 @@
 //   Market: Mr. Darto says "Fresh fruit! ..." (bubble on screen, nothing scrolls), rows glow, "Sell now ↓" when the row is off screen, dot gone (server market.seenAt); opened again without the dot = normal greeting; Seeds section closed / open and the "Seeds (6) ↓" jump (6 kinds of the 17 seeds); a new
 //   harvest (fruit_at) brings the dot back; then no seeds + an empty plot: Shop dot, hint + Mango glow, dot gone:
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --marketdot=<user> [w] [h]
+// Visit wipe (pixel leaves between gardens; fake-chain server, DEV build for window.__wipeFreeze): visit <b> from Farmers
+//   of Tandur (screens half covered, full with the title, half open), speed (frame gaps), back to my garden, a slow
+//   server (stays covered), a failed visit (opens on your garden + error), reduced motion (fade only):
+//   UI_URL=http://127.0.0.1:5174 node tools/ui-test.mjs <outDir> --visitwipe=<a>:<b> [w] [h]
 // Add friend + Online (fake-chain server; API_URL = that server, default http://127.0.0.1:8788): makes <a> and <b>
 //   through the API (b pings = Online). As <a>: Farmers of Tandur (b Online, Add), visit b (Add friend in one row with
 //   Sticker / Duel / My garden), Add friend -> Friends ✓, Friends section, Remove friend? window, Arena list. As <b>:
@@ -1438,6 +1442,123 @@ try {
       console.log('end:', await evaluate(stickerBtn));
     });
     throw { done: true };
+  }
+  if (name.startsWith('--visitwipe=')) {
+    const [a, b] = name.slice('--visitwipe='.length).split(':');
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return { status: res.status, body: await res.json().catch(() => null) };
+    };
+    const make = async (user) => {
+      const token = (await call('POST', '/auth/dev', null, { username: user })).body.token;
+      let st = (await call('GET', '/api/me', token)).body;
+      if (st.error) st = (await call('POST', '/api/player', token, { name: user, demo: true })).body;
+      for (let i = 0; i < 40 && st.player.accountStatus !== 'ready'; i++) (await sleep(300), (st = (await call('GET', '/api/me', token)).body));
+      if (!st.plots[0].tree) {
+        await call('POST', '/api/checkin', token);
+        st = (await call('GET', '/api/me', token)).body;
+        await call('POST', '/api/plant', token, { plot: 0, seedId: (st.seeds.find((x) => x.species === 'mango') ?? st.seeds[0]).id });
+      }
+      return token;
+    };
+    const openFarmers = async () => {
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-garden')?.click()`);
+      await sleep(300);
+      await evaluate(`document.querySelector('.pin-friends').click()`);
+      await sleep(300);
+      if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
+      await sleep(500);
+    };
+    const visitB = `[...document.querySelectorAll('.farmers-dialog .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(b)})?.querySelector('button.btn-mint').click()`;
+    const wipeInfo = `(() => { const w = document.querySelector('.visit-wipe'); if (!w) return 'no wipe';
+      const c = w.querySelector('canvas'); const g = c.getContext('2d'); const d = g.getImageData(0, 0, c.width, c.height).data; let on = 0; const step = 16;
+      let n = 0; for (let y = 0; y < c.height; y += step) for (let x = 0; x < c.width; x += step) { n++; if (d[(y * c.width + x) * 4 + 3] > 0) on++; }
+      const t = w.querySelector('.visit-wipe-text'); return 'covered ' + Math.round(on / n * 100) + '% | canvas ' + c.width + 'x' + c.height + ' (css ' + c.clientWidth + 'x' + c.clientHeight + ', smoothing ' + g.imageSmoothingEnabled + ') | text ' + (t.classList.contains('on') ? '"' + t.innerText + '" ' + getComputedStyle(t).fontFamily.split(',')[0] : 'hidden') + ' | visiting panel: ' + !!document.querySelector('.visit-head'); })()`;
+    const frameGaps = `window.__gaps = []; window.__gapOn = []; (() => { let last = performance.now(); const tick = (t) => { window.__gaps.push(t - last); window.__gapOn.push(!!document.querySelector('.visit-wipe-text.on')); last = t; if (window.__gaps.length < 120) requestAnimationFrame(tick); }; requestAnimationFrame(tick); })(); true`;
+    await step(`make ${a} and ${b}`, async () => {
+      await make(a);
+      await make(b);
+    });
+    await step(`${a}: Visit ${b}: half covered, full with the title, half open`, async () => {
+      await evaluate(`localStorage.removeItem('nearvest.token')`);
+      await send('Page.navigate', { url: UI_URL });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      await typeInto('#dev-user', a);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await sleep(2500);
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      await openFarmers();
+      await evaluate(`window.__wipeFreeze = { phase: 'cover', p: 0.45 }`);
+      await evaluate(visitB);
+      await sleep(400);
+      console.log('cover 45%:', await evaluate(wipeInfo));
+      await screenshot('wipe-half-covered');
+      await evaluate(`window.__wipeFreeze = { phase: 'hold' }`);
+      await sleep(900);
+      console.log('full + title:', await evaluate(wipeInfo));
+      await screenshot('wipe-full-title');
+      await evaluate(`window.__wipeFreeze = { phase: 'reveal', p: 0.5 }`);
+      await sleep(400);
+      console.log('reveal 50%:', await evaluate(wipeInfo));
+      await screenshot('wipe-half-open');
+      await evaluate(`delete window.__wipeFreeze`);
+      await waitFor(`!document.querySelector('.visit-wipe')`, 'wipe gone', 5000);
+      console.log('after:', await evaluate(`document.querySelector('.visit-head')?.innerText.replace(/\\n/g, ' ').slice(0, 60) ?? 'no visit panel'`));
+      await screenshot('wipe-visit-done');
+    });
+    await step(`${a}: back to my garden (timed, frame gaps)`, async () => {
+      await evaluate(frameGaps);
+      const t0 = Date.now();
+      await clickText('My garden');
+      await sleep(250);
+      console.log('mid back:', await evaluate(wipeInfo));
+      await waitFor(`!document.querySelector('.visit-wipe')`, 'wipe gone', 5000);
+      const ms = Date.now() - t0;
+      const gaps = await evaluate(`window.__gaps.slice(1)`);
+      const sorted = [...gaps].sort((x, y) => x - y);
+      const on = await evaluate(`window.__gapOn.slice(1)`);
+      const moving = gaps.filter((g, i) => !on[i]);
+      console.log(`slow frames (> 34 ms): ${gaps.map((g, i) => g > 34 ? Math.round(g) + ' ms ' + (on[i] ? '(screen covered, title on)' : '(squares moving)') : '').filter(Boolean).join(', ') || 'none'} | worst while squares move: ${Math.max(...moving).toFixed(1)} ms`);
+      console.log(`back wipe took ~${ms} ms | frames: ${gaps.length}, median gap ${sorted[Math.floor(sorted.length / 2)].toFixed(1)} ms, worst ${sorted[sorted.length - 1].toFixed(1)} ms | own garden: ${await evaluate(`!document.querySelector('.visit-head') && !!document.querySelector('.plots')`)}`);
+    });
+    await step(`${a}: slow server (1.5 s): stays covered with the title until ${b}'s garden is there`, async () => {
+      await send('Network.enable');
+      await openFarmers();
+      await send('Network.emulateNetworkConditions', { offline: false, latency: 1500, downloadThroughput: -1, uploadThroughput: -1 });
+      const t0 = Date.now();
+      await evaluate(visitB);
+      await sleep(1100);
+      console.log('at 1.1 s:', await evaluate(wipeInfo));
+      await waitFor(`!document.querySelector('.visit-wipe')`, 'wipe gone', 15000);
+      console.log(`opened after ~${Date.now() - t0} ms | garden shown: ${await evaluate(`!!document.querySelector('.visit-head') && !document.querySelector('.visit-panel .muted')`)}`);
+      await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+      await clickText('My garden');
+      await waitFor(`!document.querySelector('.visit-wipe')`, 'wipe gone', 5000);
+    });
+    await step(`${a}: failed visit: opens on your own garden with the error`, async () => {
+      await openFarmers();
+      await send('Network.setBlockedURLs', { urls: [`*api/farmers/${b}`] });
+      await evaluate(visitB);
+      await waitFor(`!document.querySelector('.visit-wipe')`, 'wipe gone', 15000);
+      await sleep(300);
+      console.log('own garden:', await evaluate(`!document.querySelector('.visit-head') && !!document.querySelector('.plots')`), '| notice:', await evaluate(TOAST_CHECK));
+      await screenshot('wipe-failed');
+      await send('Network.setBlockedURLs', { urls: [] });
+    });
+    await step(`${a}: reduced motion: a fade, no squares`, async () => {
+      await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+      await openFarmers();
+      await evaluate(visitB);
+      await sleep(80);
+      console.log('reduced:', await evaluate(`(() => { const w = document.querySelector('.visit-wipe'); return w ? 'class ' + w.className + ' | opacity ' + w.style.opacity : 'no wipe'; })()`));
+      await waitFor(`!document.querySelector('.visit-wipe')`, 'wipe gone', 5000);
+      console.log('visit shown:', await evaluate(`!!document.querySelector('.visit-head')`));
+      await send('Emulation.setEmulatedMedia', { features: [] });
+    });
+    throw Object.assign(new Error('visitwipe done'), { done: true });
   }
   if (name.startsWith('--friends=')) {
     const [a, b] = name.slice('--friends='.length).split(':');

@@ -25,6 +25,8 @@ import { overlayKey } from './overlay-key';
 import { FarmersWindow, friendCall, VisitGarden } from './friends';
 import { friendAddNotice } from './friends-logic';
 import { usePresence } from './presence';
+import { useVisitWipe } from './visit-wipe';
+import { BACK_TEXT, visitingText, WIPE_WAIT_MAX_MS } from './visit-wipe-plan';
 import { SPECIES_NAME as SPECIES_LABEL } from './ui';
 import { burnAt, coinsToBalance, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
@@ -146,6 +148,9 @@ export function App() {
   /** Garden visits (friends.tsx): the farmer list window, and the friend's garden being visited. */
   const [farmersOpen, setFarmersOpen] = useState(false);
   const [visiting, setVisiting] = useState<string | null>(null);
+  // The pixel-leaf wipe between gardens; a visit waits under it until the friend's garden loaded.
+  const wipe = useVisitWipe();
+  const visitWait = useRef<{ name: string; done: (ok: boolean, error?: string) => void } | null>(null);
   /** Arena 1 VS 1 (arena.tsx): the Arena window, the duel on screen, the garden being challenged. */
   const [arenaOpen, setArenaOpen] = useState(false);
   const [duel, setDuel] = useState<DuelView | null>(null);
@@ -943,11 +948,42 @@ export function App() {
     const later = afterDuel.current.splice(0);
     later.forEach((f, i) => window.setTimeout(f, 400 + i * 200));
   };
+  /**
+   * Visit a garden (Farmers of Tandur, Friends, Visitors, notices, invites...): the leaves cover the
+   * screen, the visit starts underneath and they open once the friend's garden has loaded. If it
+   * cannot load, they open on your own garden with the error notice.
+   */
   const startVisit = (name: string) => {
     setFarmersOpen(false);
-    setVisiting(name);
-    if (!wide) setTab('garden');
+    if (visiting === name) return;
+    wipe.run(
+      visitingText(name),
+      () =>
+        new Promise<void>((settle) => {
+          visitWait.current = {
+            name,
+            done: (ok, error) => {
+              visitWait.current = null;
+              if (!ok) {
+                setVisiting(null);
+                playSound('error');
+                toast({ kind: 'error', text: `Could not open ${name}'s garden: ${error ?? 'please try again.'}` });
+              }
+              settle();
+            },
+          };
+          setVisiting(name);
+          if (!wide) setTab('garden');
+          window.setTimeout(() => visitWait.current?.name === name && visitWait.current.done(false, 'the server did not answer.'), WIPE_WAIT_MAX_MS - 500);
+        }),
+    );
   };
+  /** Back to my garden (the visit panel's button, or another tab): the same wipe, then `then`. */
+  const backHome = (then?: () => void) =>
+    wipe.run(BACK_TEXT, () => {
+      setVisiting(null);
+      then?.();
+    });
   visitRef.current = startVisit;
   /** "Add back" (notice and Village tab): add a garden that added us. */
   const addBack = async (name: string) => {
@@ -970,7 +1006,8 @@ export function App() {
       elapsed={elapsed}
       big={wide}
       immersive={immersive}
-      onBack={() => setVisiting(null)}
+      onBack={() => backHome()}
+      onLoaded={(ok, error) => visitWait.current?.done(ok, error)}
       onState={applyState}
       notify={toast}
       onDuel={state.arena ? startDuel : undefined}
@@ -1187,7 +1224,7 @@ export function App() {
           </div>
           <nav class="tabs">
             {(['garden', 'storage', 'shop', 'market', 'village'] as Tab[]).map((t) => (
-              <TabButton key={t} tab={t} current={tab} set={(x) => (playSound('click'), setVisiting(null), setTab(x))} icon={tabIcons[t]} label={tabLabels[t]} dot={dots[t]} />
+              <TabButton key={t} tab={t} current={tab} set={(x) => (playSound('click'), visiting ? backHome(() => setTab(x)) : setTab(x))} icon={tabIcons[t]} label={tabLabels[t]} dot={dots[t]} />
             ))}
             <button class="tab tab-bot" onClick={openBot} aria-label={botDotTitle}>
               <span class="tab-icon">{botIcon}</span>
@@ -1199,6 +1236,7 @@ export function App() {
 
       {flash > 0 && <div class="chain-flash" key={overlayKey('flash', flash)} aria-hidden="true" />}
       <ToastStrip shown={toastShown} dismiss={dismissToast} setHidden={setToastHidden} />
+      {wipe.node}
       {dialogView}
       {infoView}
       {farmersOpen && (

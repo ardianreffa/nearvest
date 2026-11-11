@@ -7,7 +7,7 @@
 // apart: only the button counts down, from the server's time). Search finds any ready garden by the start of its name.
 
 import { createPortal } from 'preact/compat';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { duelButton } from './arena-play';
 import { api, type ArenaCan, type FarmerRow, type FarmersResponse, type GameState, type HelpResult, type MyFriends, type PublicGarden, type VisitResponse } from './api';
 import { addFriendBlocked, friendButtonLabel, othersAfterFriends } from './friends-logic';
@@ -308,6 +308,7 @@ export function VisitGarden({
   notify,
   onDuel,
   duelBusy = false,
+  onLoaded,
 }: {
   name: string;
   mine: GameState;
@@ -320,7 +321,11 @@ export function VisitGarden({
   /** Arena (servers with `state.arena`): challenge this garden. */
   onDuel?: (name: string) => void;
   duelBusy?: boolean;
+  /** The garden loaded (or could not): the wipe between gardens opens then. */
+  onLoaded?: (ok: boolean, error?: string) => void;
 }) {
+  const loadedRef = useRef(onLoaded);
+  loadedRef.current = onLoaded;
   const [visit, setVisit] = useState<VisitResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState(0);
@@ -365,8 +370,13 @@ export function VisitGarden({
         // Start on the first thirsty tree (or the first tree).
         const first = v.garden.plots.findIndex((p) => p.tree?.needsWater);
         setSelected(first >= 0 ? first : Math.max(0, v.garden.plots.findIndex((p) => p.tree)));
+        loadedRef.current?.(true);
       })
-      .catch((e) => alive && setError(errorText(e)));
+      .catch((e) => {
+        if (!alive) return;
+        setError(errorText(e));
+        loadedRef.current?.(false, errorText(e));
+      });
     return () => {
       alive = false;
     };
