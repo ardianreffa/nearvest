@@ -13,6 +13,7 @@
 // Water drone (EXISTING dev garden with a tree; fake-chain server): node tools/ui-test.mjs <outDir> --water=<devUser> [w] [h] (REDUCED_MOTION=1 too)
 // Info (i) bubbles in every panel of an EXISTING dev garden (fake-chain server): node tools/ui-test.mjs <outDir> --info=<devUser> [w] [h]
 // Garden scene of an EXISTING dev garden (no changes): UI_URL='http://localhost:5173/?time=dusk' node tools/ui-test.mjs <outDir> --scene=<devUser> [w] [h]
+//   FISHING=1 reports the fishing corner (rod, basket, hologram, what moves, rain layers) and opens / closes the Fishing window.
 //   PINS=1 checks the pins and (phones) the sheet; it always reports the garden (mounds, plots and village in view, TaniBot clear of other plots and labels).
 //   Add &bg=v1 to UI_URL for the first village. REDUCED_MOTION=1 emulates prefers-reduced-motion.
 // Tutorial on a NEW dev garden (fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tutorial=<newDevUser> [w] [h]
@@ -2101,6 +2102,18 @@ try {
         await sleep(300);
         console.log('birds:', await evaluate(`[...document.querySelectorAll('.bird')].filter(b => getComputedStyle(b.closest('.sky-day, .sky-dusk')).opacity > 0).slice(0, 2).map(b => { const r = b.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }).join(' | ') || 'none visible'`));
         await screenshot('birds');
+      }
+      if (process.env.FISHING) {
+        // The fishing corner (v3): rod, float, basket, hologram on screen; what moves (nothing with
+        // REDUCED_MOTION=1); rain layers; then the Fishing pin opens its small "coming soon" window.
+        console.log('fishing:', await evaluate(`(() => { const q = (s) => document.querySelector(s); const box = (e) => { if (!e) return 'missing'; const r = e.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }; const anim = (s) => [...document.querySelectorAll(s)].map(e => getComputedStyle(e).animationName).join('/') || 'none'; return 'rod ' + box(q('.fish-rod')) + ' | basket ' + box(q('.fish-bucket')) + ' | holo ' + box(q('.fish-holo')) + ' | anims: float ' + anim('.fish-float') + ', holo ' + anim('.fish-holo') + ', rain ' + anim('.wx-rain-layer') + ' | rain layers ' + document.querySelectorAll('.wx-rain-layer').length; })()`));
+        await evaluate(`document.querySelector('.place-pin.pin-fishing').click()`);
+        await sleep(600);
+        console.log('fishing window:', await evaluate(`(() => { const d = document.querySelector('.fishing-dialog'); return d ? d.innerText.replace(/\\n+/g, ' | ') : 'NOT OPEN'; })()`));
+        await screenshot('fishing-window');
+        await evaluate(`document.querySelector('.fishing-dialog .info-close').click()`);
+        await sleep(300);
+        console.log('fishing window closed:', await evaluate(`!document.querySelector('.fishing-dialog')`));
       }
       if (process.env.PINS) {
         if (process.env.PINS === 'closed') { await evaluate(`document.querySelector('.drawer-close')?.click()`); await sleep(1500); }

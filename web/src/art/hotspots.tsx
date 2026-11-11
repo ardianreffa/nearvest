@@ -4,6 +4,7 @@
 // Laptop (a mouse): hovering a place or its pin lights the building's outline, enlarges the
 // pin and shows the full label; a click opens it. Phone (touch): the first tap shows a bubble
 // with an "Open" button. Places a server does not have yet (garden visits, the Arena) say "Soon".
+// Fishing (v3 villages) says "Soon" too, and a tap opens its small "coming soon" window.
 // Pins and bubbles slide inside the visible part of the scene and away from the HUD, the
 // side menu, TaniBot, bubbles, tree timers and plots. The hotspots sit under the plots and
 // TaniBot, so they never take a click meant for the garden.
@@ -13,7 +14,9 @@ import { Sprite, type SpriteName } from '../sprites';
 import { DartoHead } from './darto';
 import { boxIn, V1, type Box, type Spot, type Village } from './village';
 
-export type Place = 'shop' | 'market' | 'village' | 'friends' | 'arena';
+export type Place = 'shop' | 'market' | 'village' | 'friends' | 'arena' | 'fishing';
+/** The five places of every village, plus Fishing where the village has a fishing corner (v3). */
+type PinId = Spot | 'fishing';
 
 interface SpotInfo {
   /** Pin name (laptop) and its short form (phones). */
@@ -25,6 +28,8 @@ interface SpotInfo {
   icon: SpriteName | 'dartoHead';
   /** Opens this panel; null = coming soon. */
   open: Place | null;
+  /** Says "Soon" although it opens something (Fishing opens its small "coming soon" window). */
+  soon?: boolean;
 }
 
 const SPOTS: Record<Spot, SpotInfo> = {
@@ -35,12 +40,14 @@ const SPOTS: Record<Spot, SpotInfo> = {
   arena: { name: 'Arena', short: 'Arena', label: 'Arena: 1v1 duels for PANEN, coming soon', icon: 'sparkle', open: null },
 };
 const IDS = Object.keys(SPOTS) as Spot[];
+/** The Fishing pin (village.ts `fishing`): a tap opens the "Fishing pond coming soon!" window. */
+const FISHING: SpotInfo = { name: 'Fishing', short: 'Fishing', label: 'Fishing pond: coming soon', icon: 'fish', open: 'fishing', soon: true };
 /** The Friends pin once garden visits are live (the server sends `helps`). */
 const FRIENDS_LIVE: SpotInfo = { name: 'Friends', short: 'Friends', label: 'Visit farmers and help water a tree', icon: 'sprout', open: 'friends' };
 /** The Arena pin once the server has the Arena (`state.arena`; docs/PLAN-arena.md). */
 const ARENA_LIVE: SpotInfo = { name: 'Arena', short: 'Arena', label: 'Arena: 1 VS 1 duels, the winner gets PANEN', icon: 'sparkle', open: 'arena' };
 /** Whole-number scales so every pin icon fits its 16 px box and stays sharp (Mr. Darto: his small head, 15 x 14). */
-const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2, sparkle: 2, sprout: 1 };
+const ICON_SCALE: Partial<Record<SpriteName, number>> = { seedPacket: 2, bolt: 2, sparkle: 2, sprout: 1, fish: 2 };
 
 /**
  * Things a pin or bubble must never cover or hide under. Mr. Darto stays fully visible in front
@@ -229,12 +236,14 @@ export function Hotspots({
   friendsDot?: boolean;
 }) {
   const v = village;
-  const spot = (id: Spot): SpotInfo => (id === 'friends' && friends ? FRIENDS_LIVE : id === 'arena' && arena ? ARENA_LIVE : SPOTS[id]);
-  const [bubble, setBubble] = useState<Spot | null>(null);
-  const [hover, setHover] = useState<Spot | null>(null);
+  const ids: PinId[] = v.fishing ? [...IDS, 'fishing'] : IDS;
+  const spot = (id: PinId): SpotInfo => (id === 'fishing' ? FISHING : id === 'friends' && friends ? FRIENDS_LIVE : id === 'arena' && arena ? ARENA_LIVE : SPOTS[id]);
+  const where = (id: PinId) => (id === 'fishing' ? v.fishing!.spot : v.spots[id]);
+  const [bubble, setBubble] = useState<PinId | null>(null);
+  const [hover, setHover] = useState<PinId | null>(null);
   const [hint, setHint] = useState(false);
   const host = useRef<HTMLDivElement>(null);
-  const pins = useRef<Partial<Record<Spot, HTMLElement | null>>>({});
+  const pins = useRef<Partial<Record<PinId, HTMLElement | null>>>({});
   const bubbleEl = useRef<HTMLDivElement>(null);
 
   // The first visit (once per account): every pin blinks softly twice.
@@ -267,15 +276,15 @@ export function Hotspots({
       const obstacles = obstacleRects(h, v);
       const placed: Rect[] = [];
       const pinObstacles = pinObstacleRects();
-      for (const id of IDS) {
+      for (const id of ids) {
         const el = pins.current[id];
         if (!el) continue;
-        const { pin: [x, y] } = v.spots[id];
+        const { pin: [x, y] } = where(id);
         placePin(el, h, v, x, y, area, [...pinObstacles, ...placed.map((r) => ({ ...r, weight: 10 }))]);
         placed.push(el.getBoundingClientRect());
       }
       if (bubble && bubbleEl.current) {
-        const [x, y, w, bh] = v.spots[bubble].box;
+        const [x, y, w, bh] = where(bubble).box;
         const below = y < v.h * 0.22;
         place(bubbleEl.current, h, v, x + w / 2, below ? y + bh : y, area, obstacles.filter((o) => !bubbleEl.current!.contains(document.elementFromPoint(o.left + 1, o.top + 1))), below);
       }
@@ -289,9 +298,10 @@ export function Hotspots({
     };
   }, [bubble, hover, v]);
 
-  const tap = (id: Spot) => {
+  const tap = (id: PinId) => {
     const s = spot(id);
-    if (s.open && canHover()) {
+    // Fishing opens its small window right away, also on phones (nothing to choose first).
+    if (s.open && (canHover() || s.soon)) {
       setBubble(null);
       onPlace(s.open);
     } else setBubble(bubble === id ? null : id);
@@ -300,22 +310,22 @@ export function Hotspots({
   const b = bubble ? spot(bubble) : null;
   return (
     <div class={`hotspots${hint ? ' pins-hint' : ''}`} ref={host}>
-      {IDS.map((id) => {
+      {ids.map((id) => {
         const s = spot(id);
         const lit = hover === id || bubble === id;
         return (
           <button
             key={id}
             class={`hotspot hs-${id}${lit ? ' active' : ''}`}
-            style={boxIn(v, ...v.spots[id].box)}
+            style={boxIn(v, ...where(id).box)}
             onClick={() => tap(id)}
             onMouseEnter={() => setHover(id)}
             onMouseLeave={() => setHover((h) => (h === id ? null : h))}
-            aria-label={s.open ? `Open ${s.label}` : s.label}
+            aria-label={s.open && !s.soon ? `Open ${s.label}` : s.label}
           />
         );
       })}
-      {IDS.map((id, i) => {
+      {ids.map((id, i) => {
         const s = spot(id);
         const lit = hover === id || bubble === id;
         return (
@@ -324,7 +334,7 @@ export function Hotspots({
             ref={(el) => {
               pins.current[id] = el;
             }}
-            class={`place-pin pin-${id}${lit ? ' lit' : ''}${s.open ? '' : ' soon'}`}
+            class={`place-pin pin-${id}${lit ? ' lit' : ''}${s.open && !s.soon ? '' : ' soon'}`}
             style={{ animationDelay: `${-(i * 0.6).toFixed(1)}s` }}
             onClick={() => tap(id)}
             onMouseEnter={() => setHover(id)}
@@ -340,7 +350,7 @@ export function Hotspots({
               </span>
               <span class="pin-name">{lit && canHover() ? s.label : s.name}</span>
               <span class="pin-short">{s.short}</span>
-              {!s.open && !lit && <span class="pin-soon">Soon</span>}
+              {(!s.open || s.soon) && !lit && <span class="pin-soon">Soon</span>}
             </span>
             {/* Outside the frame: its stepped-corner clip would cut the dot. */}
             {id === 'friends' && friends && friendsDot && <i class="pin-dot" />}

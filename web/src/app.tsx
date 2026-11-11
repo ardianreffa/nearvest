@@ -148,6 +148,8 @@ export function App() {
   const [info, setInfo] = useState<'help' | 'panen' | 'profile' | 'tanibot' | 'checkin' | 'judge' | null>(null);
   /** Garden visits (friends.tsx): the farmer list window, and the friend's garden being visited. */
   const [farmersOpen, setFarmersOpen] = useState(false);
+  /** The Fishing pin's small "coming soon" window (v3 village). */
+  const [fishingOpen, setFishingOpen] = useState(false);
   const [visiting, setVisiting] = useState<string | null>(null);
   /** "Invite a friend" window (Farmers of Tandur, Profile). */
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -924,7 +926,10 @@ export function App() {
       big={wide}
       immersive={immersive}
       onBot={openBot}
-      onPlace={(p) => (playSound('click'), p === 'friends' ? setFarmersOpen(true) : p === 'arena' ? setArenaOpen(true) : wide ? openSide(p) : setTab(p))}
+      onPlace={(p) =>
+        (playSound('click'),
+        p === 'friends' ? setFarmersOpen(true) : p === 'arena' ? setArenaOpen(true) : p === 'fishing' ? setFishingOpen(true) : wide ? openSide(p) : setTab(p))
+      }
     />
   );
   /** Online duel: answer an invite (Accept opens the duel; Decline lets them fight your TaniBot). */
@@ -1375,6 +1380,11 @@ export function App() {
           {shopSetupText(config.wallet.gameKey.allowance).map((t) => (
             <p key={t}>{t}</p>
           ))}
+        </Modal>
+      )}
+      {fishingOpen && (
+        <Modal title="Fishing" onClose={() => setFishingOpen(false)} closeLabel="Close" class="fishing-dialog">
+          <p>Fishing pond coming soon! Catch fish with TaniBot after the hackathon.</p>
         </Modal>
       )}
       {info === 'checkin' && (

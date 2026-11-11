@@ -8,7 +8,7 @@
 //   4. code effects: volcano smoke, waterfalls, lanterns, holograms, the Arena's mint ring,
 //      passing delivery drones, fireflies; v2 also has Mr. Darto at his stand and a little robot;
 //   5. hotspots with always-visible pins (hotspots.tsx): Shop, Market, Village Stats, Friends,
-//      Arena.
+//      Arena, and (v3) Fishing (Soon; the fishing corner itself is art/fishing.tsx).
 // All coordinates are game pixels of the village's grid (village.ts).
 
 import { Drone } from './tanibot';
@@ -20,6 +20,7 @@ import type { WeatherLook } from '../weather';
 import { skyBands } from './sky-colors';
 import { boxIn, V1, type Village } from './village';
 import { VillageDarto, VillageRobot } from './village-life';
+import { FishingProps } from './fishing';
 
 export type Phase = 'dawn' | 'day' | 'dusk' | 'night';
 
@@ -234,6 +235,7 @@ export function Backdrop({
             <i key={i} class={`holo${v.softHolograms ? ' soft' : ''}`} style={{ ...at(x, y, w, h), animationDelay: `${i * 1.7}s` }} />
           ))}
           {v.billboard && <Billboard style={at(...v.billboard)} />}
+          {v.fishing && <FishingProps v={v} f={v.fishing} />}
           {v.lanterns.map(([x, y, w, h], i) => (
             <i key={i} class="lamp" style={{ ...at(x - 2, y - 2, w + 4, h + 4), animationDelay: `${i * 0.7}s` }} />
           ))}

@@ -115,6 +115,16 @@ export const SPRITES = {
     '..cccc..',
     '........',
   ],
+  fish: [
+    '........',
+    '..ccc..c',
+    '.ckcccc.',
+    'ccccccc.',
+    '.cccccc.',
+    '..ccc..c',
+    '........',
+    '........',
+  ],
   sparkle: [
     '...y...',
     '...y...',

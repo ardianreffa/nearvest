@@ -9962,13 +9962,25 @@ html.page-locked body {
   background: linear-gradient(color-mix(in srgb, var(--ink) 55%, transparent), color-mix(in srgb, var(--ink) 32%, transparent) 55%, color-mix(in srgb, var(--ink) 16%, transparent));
 }
 
+/* Rain hides the sky's lights behind the clouds: sun, moon, stars, meteor and UFO dimmed. */
 .wx-look-rain .sky-sun,
-.wx-look-rain .sun-glow {
-  opacity: 0.15;
+.wx-look-rain .sun-glow,
+.wx-look-rain .sky-moon {
+  opacity: 0.12;
+  animation: none;
+  filter: none;
 }
 
+.wx-look-rain .star,
+.wx-look-rain .meteor,
+.wx-look-rain .ufo {
+  visibility: hidden;
+}
+
+/* Darker, fuller rain clouds (keeps the dusk / night colouring of .cloud). */
 .wx-look-rain .cloud {
-  filter: brightness(0.75);
+  opacity: 1;
+  filter: sepia(calc(var(--dusk) * 0.4)) brightness(calc(0.5 - 0.25 * var(--night))) contrast(1.1);
 }
 
 /* Drought: a warm gold haze over the sky. */
@@ -10036,10 +10048,55 @@ html.page-locked body {
   animation-iteration-count: infinite;
 }
 
-.wx-particles.rain i {
-  width: 3px;
-  height: 18px;
-  background: color-mix(in srgb, var(--cyan-300) 90%, var(--paper-light));
+/* Rain: two layers of thin pixel drops (art/weather.tsx). Each layer is one tiled mask (the drop
+   shapes; the colour comes from the palette) that slides down 2 tiles and left 1 tile per loop:
+   drops lean 1 px left per 4 px down and fall along that slant, the loop has no seam, and only a
+   transform moves (GPU, cheap on phones). Far = small, faint, slower; near = longer, a bit
+   brighter, faster. */
+.wx-rain-layer {
+  position: absolute;
+  top: calc(-2 * var(--rain-h));
+  left: 0;
+  right: calc(-1 * var(--rain-w));
+  bottom: 0;
+  background: color-mix(in srgb, var(--cyan-300) 70%, var(--paper-light));
+  -webkit-mask-image: var(--rain-drops);
+  mask-image: var(--rain-drops);
+  -webkit-mask-size: var(--rain-w) var(--rain-h);
+  mask-size: var(--rain-w) var(--rain-h);
+  will-change: transform;
+  animation: wx-rain var(--rain-s) linear infinite;
+}
+
+.wx-rain-layer.far {
+  --rain-w: 32px;
+  --rain-h: 64px;
+  --rain-s: 0.9s;
+  --rain-drops: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='64' shape-rendering='crispEdges'%3E%3Cpath d='M6 3h1v3H6zM5 6h1v3H5zM22 35h1v3h-1zM21 38h1v3h-1zM28 17h1v3h-1zM27 20h1v3h-1zM14 49h1v3h-1zM13 52h1v3h-1z'/%3E%3C/svg%3E");
+  opacity: 0.32;
+}
+
+.wx-rain-layer.near {
+  --rain-w: 48px;
+  --rain-h: 96px;
+  --rain-s: 0.55s;
+  --rain-drops: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='96' shape-rendering='crispEdges'%3E%3Cpath d='M10 4h1v4h-1zM9 8h1v4H9zM8 12h1v3H8zM36 26h1v4h-1zM35 30h1v4h-1zM34 34h1v3h-1zM24 58h1v4h-1zM23 62h1v4h-1zM22 66h1v3h-1zM44 80h1v4h-1zM43 84h1v4h-1zM42 88h1v3h-1z'/%3E%3C/svg%3E");
+  opacity: 0.5;
+}
+
+/* Phones: a little smaller and lighter drops (more of the village stays readable). */
+.backdrop.village-v3-phone .wx-rain-layer.near,
+.backdrop.village-v2-phone .wx-rain-layer.near {
+  opacity: 0.42;
+}
+
+@keyframes wx-rain {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(calc(-1 * var(--rain-w)), calc(2 * var(--rain-h)), 0);
+  }
 }
 
 .wx-particles.ash i {
@@ -10146,11 +10203,138 @@ html.page-locked body {
     display: none;
   }
 
+  /* Rain stays visible, still. */
+  .wx-rain-layer {
+    animation: none;
+  }
+
   .wx-lava,
   .plot-art.volcanic::after,
   .wx-look-warning .bg-art,
   .wx-look-eruption .bg-art {
     animation: none;
+  }
+}
+
+/* =====================================================================
+   Fishing corner at the left-hand hut (art/fishing.tsx, village.ts `fishing`; Soon).
+   The rod and basket are Ardian's ChatGPT pixel art: warmer at dusk, darker at night like the
+   village; the float sways one sprite pixel. The fish hologram is drawn in code like the image's
+   holograms: see-through cyan, a soft glow, a slow blink, a scan line; it stays lit at night.
+   ===================================================================== */
+.fish-prop {
+  pointer-events: none;
+  filter: sepia(calc(var(--dusk) * 0.35)) brightness(calc(1 - 0.5 * var(--night)));
+}
+
+.fish-prop img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.fish-rod.flip {
+  transform: scaleX(-1);
+}
+
+/* The float: one sprite pixel (100% / 28 of the rod) left and right, a slow pendulum. */
+.fish-float {
+  animation: fish-float 3.6s steps(1) infinite;
+}
+
+@keyframes fish-float {
+  0%,
+  50% {
+    translate: 0 0;
+  }
+  25% {
+    translate: 3.572% 0;
+  }
+  75% {
+    translate: -3.572% 0;
+  }
+}
+
+.fish-holo {
+  pointer-events: none;
+  display: block;
+  overflow: hidden;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--cyan-500) 85%, transparent)) drop-shadow(0 0 5px color-mix(in srgb, var(--cyan-500) 50%, transparent));
+  opacity: calc(0.82 + 0.15 * var(--night));
+  animation: fish-holo-bob 4.8s steps(1) infinite, fish-holo-blink 6.5s steps(1) infinite;
+}
+
+.fish-holo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.fish-holo .fh-panel {
+  fill: color-mix(in srgb, var(--cyan-500) 50%, transparent);
+}
+
+.fish-holo .fh-edge {
+  fill: var(--cyan-300);
+}
+
+.fish-holo .fh-line {
+  fill: var(--paper-light);
+}
+
+.fish-holo .fh-scale {
+  fill: color-mix(in srgb, var(--cyan-300) 75%, transparent);
+}
+
+/* The scan line: a light band sliding down the panel. */
+.fish-holo::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 18%;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--cyan-300) 70%, transparent), transparent);
+  animation: holo-soft-scan 5.5s linear infinite;
+}
+
+/* Floats: up one step and back now and then. */
+@keyframes fish-holo-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -6%;
+  }
+}
+
+/* A slow, soft blink (never off). */
+@keyframes fish-holo-blink {
+  0%,
+  44%,
+  50%,
+  100% {
+    opacity: calc(0.82 + 0.15 * var(--night));
+  }
+  46% {
+    opacity: calc(0.5 + 0.15 * var(--night));
+  }
+  48% {
+    opacity: calc(0.68 + 0.15 * var(--night));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fish-float,
+  .fish-holo {
+    animation: none;
+  }
+
+  .fish-holo::after {
+    display: none;
   }
 }
 
