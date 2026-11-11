@@ -925,7 +925,7 @@ export class Game {
       if (!Number.isInteger(plot) || plot < 0 || plot >= plotCount(p.xp)) throw new GameError('This plot is locked');
       if (this.treeOnPlot(p.id, plot)) throw new GameError('This plot already has a tree');
       // A Memorial Tree standing here moves to the player's Memorial list (its NFT stays).
-      this.db.prepare("UPDATE trees SET plot = NULL WHERE player_id = ? AND plot = ? AND status = 'dead'").run(p.id, plot);
+      this.moveMemorialOff(p.id, plot);
       const seed = this.db.prepare('SELECT * FROM seeds WHERE id = ? AND player_id = ?').get(seedId, p.id) as
         | { id: number; species: Species; quality: Quality | null; parent_tree_id: number | null }
         | undefined;
@@ -1214,6 +1214,25 @@ export class Game {
         referral,
       };
     });
+  }
+
+  /**
+   * "Move to Memorials": the Memorial Tree standing on a plot moves to the player's Memorial list
+   * without planting anything, so the plot is empty. Same step as planting there (plantNow). Its NFT
+   * stays the player's: no chain job, nothing deleted (only the tree's plot becomes NULL).
+   */
+  moveMemorial(playerId: number, plot: number) {
+    return tx(this.db, () => {
+      const p = this.getPlayer(playerId);
+      if (!Number.isInteger(plot) || plot < 0 || plot >= plotCount(p.xp)) throw new GameError('This plot is locked');
+      if (!this.moveMemorialOff(p.id, plot)) throw new GameError('There is no Memorial Tree on this plot');
+      return { moved: true };
+    });
+  }
+
+  /** Takes the Memorial Tree(s) off a plot (they stay in the Memorial list). Returns how many moved. */
+  private moveMemorialOff(playerId: number, plot: number): number {
+    return Number(this.db.prepare("UPDATE trees SET plot = NULL WHERE player_id = ? AND plot = ? AND status = 'dead'").run(playerId, plot).changes);
   }
 
   /** The Memorial Tree standing on a plot (an old or cut-down tree), if any. */
@@ -1622,7 +1641,10 @@ export class Game {
           ageDays: Math.floor((now - t.planted_at) / dayMs),
         };
       }
-      plotViews.push({ plot, locked: plot >= plots, tree, memorial: tree ? null : this.memorialOnPlot(p.id, plot) });
+      const memorial = tree ? null : this.memorialOnPlot(p.id, plot);
+      // `movable`: this server has "Move to Memorials" (POST /api/memorial/move); older servers
+      // send no flag, so the web hides the button.
+      plotViews.push({ plot, locked: plot >= plots, tree, memorial: memorial ? { ...memorial, movable: true } : null });
     }
 
     const nextTitle = TITLES.find((t) => t.xp > p.xp) ?? null;

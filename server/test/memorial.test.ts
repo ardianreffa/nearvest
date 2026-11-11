@@ -72,6 +72,66 @@ describe('Memorial Trees stay visible', () => {
   });
 });
 
+describe('Move to Memorials (without planting)', () => {
+  it('moves the Memorial Tree to the list, the plot is empty, the NFT stays, no chain job', async () => {
+    const w = makeWorld();
+    const p = await garden(w);
+    w.game.chop(p.id, 0);
+    await w.worker.drain();
+    const before = w.game.state(p.id);
+    assert.equal(before.plots[0].memorial!.movable, true, 'the server tells the web it can move it');
+    const tokenId = before.plots[0].memorial!.tokenId!;
+    const jobs = () => (w.db.prepare('SELECT COUNT(*) AS n FROM chain_jobs').get() as { n: number }).n;
+    const jobsBefore = jobs();
+    const seedsBefore = before.seeds.length;
+    assert.deepEqual(w.game.moveMemorial(p.id, 0), { moved: true });
+    const s = w.game.state(p.id);
+    assert.equal(s.plots[0].tree, null);
+    assert.equal(s.plots[0].memorial, null, 'the plot is empty');
+    assert.equal(s.memorials.length, 1);
+    assert.equal(s.memorials[0].tokenId, tokenId);
+    assert.equal(s.memorials[0].plot, null, 'in the Memorial list, no longer on a plot');
+    assert.equal(s.seeds.length, seedsBefore, 'nothing planted, no seed used');
+    assert.equal(jobs(), jobsBefore, 'no new chain transaction');
+    assert.equal(w.chain.trees.get(tokenId)!.memorial, true, 'the NFT is still there, still a Memorial Tree');
+    assert.equal(w.chain.trees.get(tokenId)!.owner, p.account_id, 'still the player\'s');
+  });
+
+  it('refuses a plot without a Memorial Tree (empty, living tree, locked, twice)', async () => {
+    const w = makeWorld();
+    const p = await garden(w);
+    assert.throws(() => w.game.moveMemorial(p.id, 0), /no Memorial Tree/, 'a living tree');
+    assert.throws(() => w.game.moveMemorial(p.id, 1), /no Memorial Tree/, 'an empty plot');
+    assert.throws(() => w.game.moveMemorial(p.id, 5), /locked/);
+    w.game.chop(p.id, 0);
+    w.game.moveMemorial(p.id, 0);
+    assert.throws(() => w.game.moveMemorial(p.id, 0), /no Memorial Tree/, 'already moved');
+    assert.ok(w.game.state(p.id).plots[0].tree === null);
+  });
+
+  it('only moves your own Memorial Tree', async () => {
+    const w = makeWorld();
+    const p = await garden(w);
+    w.game.chop(p.id, 0);
+    const other = w.newPlayer('budi');
+    await w.worker.drain();
+    assert.throws(() => w.game.moveMemorial(other.id, 0), /no Memorial Tree/);
+    assert.ok(w.game.state(p.id).plots[0].memorial, 'sari\'s Memorial Tree still stands');
+  });
+
+  it('the plot can be planted afterwards', async () => {
+    const w = makeWorld();
+    const p = await garden(w);
+    w.game.chop(p.id, 0);
+    w.game.moveMemorial(p.id, 0);
+    const seed = w.game.state(p.id).seeds.find((x: any) => x.species === 'mango')!;
+    w.game.plant(p.id, 0, seed.id);
+    const s = w.game.state(p.id);
+    assert.ok(s.plots[0].tree);
+    assert.equal(s.memorials.length, 1);
+  });
+});
+
 describe('TaniBot leaves old trees and Memorial Trees to the player', () => {
   it('rules: does not harvest an old tree; says why once', async () => {
     const w = makeWorld();

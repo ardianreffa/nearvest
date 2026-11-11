@@ -485,6 +485,9 @@ export function createApp(deps: AppDeps) {
   app.post('/api/seeds/sell', async (c) => respond(c, game.sellSeeds(playerId(c), (await body(c)).seedIds)));
   app.post('/api/seeds/discard', async (c) => respond(c, game.discardSeeds(playerId(c), (await body(c)).seedIds)));
   app.post('/api/chop', async (c) => respond(c, game.chop(playerId(c), plotOf(await body(c)))));
+  // "Move to Memorials": the Memorial Tree on a plot goes to the Village list, the plot is empty
+  // (no chain transaction: its NFT stays the player's).
+  app.post('/api/memorial/move', async (c) => respond(c, game.moveMemorial(playerId(c), plotOf(await body(c)))));
 
   app.post('/api/sell', async (c) => {
     const b = await body(c);
