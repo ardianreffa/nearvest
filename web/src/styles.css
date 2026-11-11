@@ -10638,27 +10638,11 @@ html.page-locked body {
   flex: none;
 }
 
-/* The search box and "Invite a friend" in one row (the button keeps its text on one line). */
-.farmer-search {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  margin: 0 0 8px;
-}
-
-.farmer-search .farmer-invite {
-  flex: none;
-  min-height: 44px;
-  white-space: nowrap;
-}
-
 .farmer-search input {
   box-sizing: border-box;
-  flex: 1 1 auto;
-  min-width: 0;
   width: 100%;
   min-height: 44px;
-  margin: 0;
+  margin: 0 0 8px;
   padding: 6px 10px;
   font-family: var(--font-ui);
   /* 16 px: iPhone Safari zooms into smaller inputs. */
@@ -10676,6 +10660,31 @@ html.page-locked body {
 }
 
 .farmers-empty {
+  flex: none;
+}
+
+/* "Invite new farmers": its own section at the bottom of the window (under the scrolling list). */
+.farmers-invite {
+  flex: none;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 2px solid color-mix(in srgb, var(--soil-700) 35%, transparent);
+}
+
+.farmers-invite-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.farmers-invite-row span {
+  flex: 1 1 160px;
+  color: var(--ink-soft);
+}
+
+.farmers-invite-btn {
   flex: none;
 }
 

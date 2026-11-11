@@ -202,11 +202,6 @@ export function FarmersWindow({
             enterKeyHint="search"
             onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
           />
-          {onInvite && (
-            <button class="btn btn-small btn-mint farmer-invite" onClick={() => (playSound('click'), onInvite())}>
-              Invite a friend
-            </button>
-          )}
         </div>
       </div>
       {error && <p class="error-text">Could not load the farmers: {error}</p>}
@@ -236,6 +231,18 @@ export function FarmersWindow({
             </ul>
           )}
         </div>
+      )}
+      {onInvite && (
+        // Its own section under the list (the search box only finds players).
+        <section class="farmers-invite" aria-label="Invite new farmers">
+          <h3 class="farmer-section-title">Invite new farmers</h3>
+          <div class="farmers-invite-row">
+            <span class="small">Send your link: you both get PANEN after their first harvest.</span>
+            <button class="btn btn-small btn-mint farmers-invite-btn" onClick={() => (playSound('click'), onInvite())}>
+              Invite by link
+            </button>
+          </div>
+        </section>
       )}
       {removing &&
         createPortal(

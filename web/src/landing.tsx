@@ -193,25 +193,62 @@ function useReveal() {
   }, []);
 }
 
+/** The page is at the very top (the hero fully in view). */
+const atTop = () => window.scrollY <= 8;
+
+/**
+ * Smooth scroll to `y` with our own animation (ease in-out, ~600 ms): the browser's smooth
+ * scrollIntoView did not move the page for Ardian. Reduced motion = a jump. A wheel / touch / key
+ * by the visitor stops it. Returns a stop function.
+ */
+function scrollToY(y: number): () => void {
+  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const from = window.scrollY;
+  const dist = y - from;
+  if (reduced || Math.abs(dist) < 2) {
+    window.scrollTo(0, y);
+    return () => undefined;
+  }
+  const ms = 600;
+  const t0 = performance.now();
+  let raf = 0;
+  const stop = () => {
+    cancelAnimationFrame(raf);
+    for (const ev of ['wheel', 'touchstart', 'keydown'] as const) window.removeEventListener(ev, stop);
+  };
+  const step = (t: number) => {
+    const k = Math.min(1, (t - t0) / ms);
+    const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+    window.scrollTo(0, Math.round(from + dist * e));
+    if (k < 1) raf = requestAnimationFrame(step);
+    else stop();
+  };
+  for (const ev of ['wheel', 'touchstart', 'keydown'] as const) window.addEventListener(ev, stop, { passive: true });
+  raf = requestAnimationFrame(step);
+  return stop;
+}
+
 /**
  * "See how it works ↓": a small button on the strip of the next section that peeks under the hero
- * (the hero is a little shorter than the screen). Tap = smooth scroll to the first section. Gone
- * for good once the visitor starts scrolling; the arrow bobs slowly (still with reduced motion).
+ * (the hero is a little shorter than the screen). Tap = smooth scroll to the start of the first
+ * section. Shown whenever the page is at the very top, hidden as soon as it is scrolled down
+ * (it comes back at the top). The arrow bobs slowly (still with reduced motion).
  */
 function HowItWorks() {
-  const [gone, setGone] = useState(() => typeof window !== 'undefined' && window.scrollY > 8);
+  const [top, setTop] = useState(() => typeof window === 'undefined' || atTop());
   useEffect(() => {
-    if (gone) return;
-    const on = () => window.scrollY > 8 && setGone(true);
+    const on = () => setTop(atTop());
+    on();
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
-  }, [gone]);
+  }, []);
   const go = (e: Event) => {
     e.preventDefault();
-    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    document.getElementById('trees')?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
-    setGone(true);
+    const target = document.getElementById('trees');
+    if (!target) return;
+    scrollToY(Math.round(target.getBoundingClientRect().top + window.scrollY));
   };
+  const gone = !top;
   return (
     <a class={`btn btn-small lp-how${gone ? ' gone' : ''}`} href="#trees" onClick={go} aria-hidden={gone} tabIndex={gone ? -1 : 0}>
       See how it works <span class="lp-how-arrow" aria-hidden="true">↓</span>

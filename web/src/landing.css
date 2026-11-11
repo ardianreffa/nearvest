@@ -137,11 +137,15 @@
    next section that peeks under the hero; fades out once the visitor scrolls. */
 .lp-how {
   position: fixed;
-  left: 50%;
+  /* Centred with left / right / auto margins, never transform: .btn:active sets its own transform,
+     which made the button jump half its width on press and the click was lost. */
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin-inline: auto;
   bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 4;
-  transform: translateX(-50%);
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
   white-space: nowrap;
@@ -590,10 +594,12 @@
 
   .lp-float {
     top: auto;
-    right: auto;
-    left: 50%;
+    /* Centred without transform (.btn:active sets transform: the button jumped on press). */
+    right: 0;
+    left: 0;
+    width: fit-content;
+    margin-inline: auto;
     bottom: calc(16px + env(safe-area-inset-bottom));
-    transform: translateX(-50%);
     min-width: 220px;
     justify-content: center;
     translate: 0 12px;
