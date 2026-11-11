@@ -211,7 +211,7 @@ describe('arena v2 matches', () => {
     // state.arena tells the web that v2 is here, and the open match to resume.
     const me = JSON.parse((await call('GET', '/api/me')).text) as { arena: { v: number; active: { id: number; opponent: string } } };
     assert.equal(me.arena.v, 2);
-    assert.deepEqual(me.arena.active, { id, opponent: 'wati' });
+    assert.deepEqual(me.arena.active, { id, opponent: 'wati', live: false });
   });
 
   it('a retry of a decided turn gives the same result; a later turn is refused; Gold Durian only with a full bar', async () => {

@@ -749,3 +749,65 @@ ping writes at most every 20 s, online first, HTTP + privacy incl. exact keys, p
 server) at 390x844 and 1280x800: Online dot + Add, Add friend -> Friends ✓, Remove window (Keep),
 Friends section, Arena list, b's notice with Add back / Visit + Village dot, Visitors row + Add back ->
 mutual, hidden tab -> offline at once and no pings while hidden.
+
+### 7.12 Built: the online duel (v3 part 2; Ardian 2026-11-11, local commit, NOT released; VPS untouched)
+
+**Switch:** `ARENA_ONLINE=on|off` in `server/.env` (default **off**; name in `server/.env.example`). The server
+sends it to the web as `/api/config` `arenaOnline` and `state.arena.online`. **Off = no invite ever, the ping
+stays at 30 s, no mint dot on Duel buttons; Duel fights the other garden's TaniBot exactly as v2.** So the online
+part can be hidden without a code change (restart the server only).
+
+**Flow** (`server/src/arena-match.ts`, same table `arena_matches`, `kind 'live'`):
+1. Duel on a garden that is **Online** (and not a judge garden, not already in a duel): `POST /api/arena/match
+   { opponent, live: true }` makes the match `status 'invite'` for 30 s (`ARENA_INVITE_MS`). The challenger
+   sees "Waiting for budi to accept... 30" with **Fight budi's TaniBot now** and **Cancel**.
+2. With the switch on the web pings every **4 s** (`PING_LIVE_MS`, sent as `state.friends.pingMs`); the ping's
+   answer carries `invite` and the challenged player gets the popup **"<NAME> CHALLENGES YOU!"** (Accept /
+   Decline, 30 s countdown; an outside click does nothing).
+3. **Decline / no answer in 30 s / busy / judge garden / "Fight the TaniBot now"** = the same match goes on as a
+   TaniBot duel (`kind 'bot'`, `inviteResult` 'declined' / 'timeout' / 'busy' / 'judge' / 'skipped'; the
+   challenger sees "budi said no: you fight budi's TaniBot!"). Offline gardens = a normal TaniBot duel at once.
+4. **Accept** (`POST /api/arena/match/:id/accept`): both play. Each turn 10 s for both, measured on the server
+   (+1.5 s grace). The picks are stored in `pick_c` / `pick_d`; **the other side's open pick is never in any
+   answer** (only `theyPicked: true`); the turn is decided when both picked or the time ran out. No pick = that
+   player loses the turn ("Time’s up!"); nobody picked = both are hit (so an idle duel always ends).
+5. Both webs ask for the match every **1 s** (`GET /api/arena/match/:id`, one small row, no open connection).
+
+**Gone / leaving:** a side whose web has not asked for **5 s** (`ARENA_GONE_MS`; closing the page or Leave sends
+`POST .../leave` at once) pauses the duel; the other side sees **"Waiting for budi... 20"** (`ARENA_PAUSE_MS`).
+Back within 20 s = the duel goes on (the open turn starts its 10 s again; a reload re-opens the duel by itself).
+Not back = the one who stayed **wins** (prize + XP like any win, in THEIR daily limits); the one who left gets no
+XP. Gone **before the first turn was decided** = **cancelled** (no prize, no XP, not counted for anyone). Both
+gone = no winner ("abandoned", counts as one of the challenger's duels, nobody paid).
+
+**Prize and limits (as v2):** 8 PANEN `mint_reward` (Season rule) to the **winner, whichever side**; win 15 XP
+(demo x5, at most 3 XP-wins a day per garden, both roles counted), loss 1 XP. The duel uses **one of the
+challenger's 3 duels a day** (and the 1-per-opponent rule); accepting uses **none** of the challenged player's.
+Paid wins per day: max 3 per browser and 10 per IP of **the winner** (`ip_d` / `device_d` when the challenged
+player wins). The challenged player gets no "your TaniBot was challenged" notice for an online duel (they
+played it); it shows in Recent duels for both.
+
+**Anti-cheat:** the same person (same sign-in, a browser both gardens used in `devices`), **the same IP or the
+same browser at Accept** = practice (no prize, no XP). Judge gardens cannot be challenged online.
+
+**Database:** new nullable / DEFAULT columns on `arena_matches` only (`pick_c, pick_d, seen_d, invite_ends_at,
+invite_result, paused_side, pause_ends_at, ip_d, device_d`), added by `migrate()`. **`nearvest-b7edf49` runs on
+the upgraded database** (checked on a copy with live / cancelled rows, fake chain: `/api/me`, `/api/arena`, a v2
+match start + pick all 200). After a rollback it ignores invites / paused / cancelled rows (it only reads
+`status 'playing'`) and counts a cancelled duel toward the day's 3 (harmless). No database restore needed.
+
+**Web:** `web/src/arena-invite.tsx` (popup), `arena-match.tsx` (waiting panel, "Waiting for <name>...", Leave
+text, result lines, 1 s polling, `pagehide` = leave), `arena-turn.ts` (`asMine`: the challenged player sees the
+duel turned around, "me" always on the left, so the Fruit Fight, life / skill bars, Gold Durian, Tandur Arena
+and K.O. are reused unchanged; `foeLabel`, `inviteNote`, live texts), `presence.ts` (the ping's answer), Duel
+buttons with a mint Online dot when the switch is on and the farmer is online (Arena window, Friends rows,
+visit panel). **Old servers** (no `arenaOnline`): the web never sends `live`, pings every 30 s, no popup
+(checked with `--oldserver` on `nearvest-b7edf49` at 390x844 and 1280x800: no problems).
+
+**Tests:** `server/test/arena-online.test.ts` (14: switch off, invite + accept, decline / no answer / skip,
+too late + cancel not counted, offline / judge / busy, open pick never sent, 10 s for both + both missed,
+pause + back, not back = the stayer wins + both players' limits, cancel before the first turn + sweep, K.O.
+prize either side, same IP / same browser = practice, limits, HTTP + privacy); `web/test/arena-online.test.ts`
+(6). Two browsers: `FAKE_DB=... PLAYWRIGHT=... node tools/duel-online.mjs <outDir> <prefix> [w] [h]
+[ko,decline,gone,cancel]` (two separate browser contexts = a normal window + an Incognito window) at 390x844
+and 1280x800: all checks pass.

@@ -39,6 +39,7 @@ export function FarmersWindow({
   onClose,
   onVisit,
   onDuel,
+  liveDuel = false,
   onState,
   notify,
 }: {
@@ -46,6 +47,8 @@ export function FarmersWindow({
   onVisit: (name: string) => void;
   /** Arena (servers with `state.arena`): challenge a friend from the Friends section. */
   onDuel?: (name: string) => void;
+  /** The online duel is switched on: Duel on an online farmer sends a live invite (a mint dot on the button). */
+  liveDuel?: boolean;
   onState?: (s: GameState) => void;
   notify?: Notify;
 }) {
@@ -151,7 +154,13 @@ export function FarmersWindow({
           Visit
         </button>
         {isFriendRow && onDuel && (
-          <button class="btn btn-small farmer-duel" disabled={f.trees === 0} title={f.trees === 0 ? 'No tree to duel yet' : `Challenge ${f.name}`} onClick={() => (onClose(), onDuel(f.name))}>
+          <button
+            class="btn btn-small farmer-duel"
+            disabled={f.trees === 0}
+            title={f.trees === 0 ? 'No tree to duel yet' : liveDuel && f.online && !f.judge ? `Challenge ${f.name} live (online now)` : `Challenge ${f.name}`}
+            onClick={() => (onClose(), onDuel(f.name))}
+          >
+            {liveDuel && f.online && !f.judge && <span class="online-dot inline" aria-hidden="true" />}
             Duel
           </button>
         )}
@@ -453,7 +462,11 @@ export function VisitGarden({
       onSticker={() => (playSound('click'), setStickerOpen(true))}
       sticker={stickerStatus}
       bar={!!immersive}
-      duel={onDuel && arenaLeft !== undefined && !visit?.own ? { ...duelButton(can), busy: duelBusy, onClick: () => onDuel(name) } : null}
+      duel={
+        onDuel && arenaLeft !== undefined && !visit?.own
+          ? { ...duelButton(can), busy: duelBusy, live: !!mine.arena?.online && !!visit?.online && !name.startsWith('judge-'), onClick: () => onDuel(name) }
+          : null
+      }
       friend={
         visit && visit.friend !== undefined && !visit.own
           ? {
@@ -532,7 +545,8 @@ function VisitPanel({
   sticker: StickerStatus;
   bar: boolean;
   /** Arena: the Duel button (null = no Arena on this server, or your own garden). */
-  duel: { label: string; enabled: boolean; title: string; busy: boolean; onClick: () => void } | null;
+  /** `live`: the online duel is on and this farmer is online (Duel sends a live invite). */
+  duel: { label: string; enabled: boolean; title: string; busy: boolean; live?: boolean; onClick: () => void } | null;
   /** Add friend (null = not on this server, or your own garden). Friends: tap = Remove friend? */
   friend: { isFriend: boolean; busy: boolean; blocked: string | null; onClick: () => void } | null;
 }) {
@@ -606,6 +620,7 @@ function VisitPanel({
           <button class="btn visit-duel" onClick={duel.onClick} disabled={!duel.enabled || duel.busy} title={duel.title} aria-label={duel.enabled ? `Challenge ${name} in the Arena` : duel.title}>
             {duel.label === 'Dueled' ? <UiIcon name="check" /> : <Sprite name="sparkle" scale={2} />}
             <span>{duel.busy ? 'Dueling...' : duel.label}</span>
+            {duel.live && duel.enabled && <span class="online-dot inline" aria-label="live" />}
           </button>
         )}
         {friend && (

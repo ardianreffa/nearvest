@@ -54,6 +54,9 @@ const worker = new ChainWorker({
   log: (msg) => console.log(`[chain] ${msg}`),
 });
 
+game.arenaOnline = config.arenaOnline;
+console.log(`[arena] online duel: ${config.arenaOnline ? 'on' : 'off'} (ARENA_ONLINE)`);
+
 try {
   game.seasonDivisor = (await chain.villageStats()).rewardDivisor;
 } catch (err) {
@@ -96,7 +99,7 @@ setInterval(() => {
     .catch((err) => console.warn('TaniBot tick failed:', err instanceof Error ? err.message : err))
     .finally(() => (ticking = false));
 }, 5_000);
-// Arena v2: close matches whose player left for 2 minutes (a loss without prize), every 10 seconds.
+// Arena: decide missed turns, expired invites and online duels whose player left, every 10 seconds.
 const arenaMatches = new ArenaMatches(db, game, new Arena(db, game, systemNow, { explorerTxUrl: config.explorerTxUrl }), systemNow, { explorerTxUrl: config.explorerTxUrl });
 setInterval(() => {
   try {

@@ -49,6 +49,8 @@ export function ArenaWindow({
   const [data, setData] = useState<ArenaView | null>(null);
   const v2 = state.arena?.v === 2;
   const active = state.arena?.active ?? null;
+  /** Online duel switched on: Duel on an online garden (not a judge garden) invites the player. */
+  const liveOn = !!state.arena?.online;
   const [error, setError] = useState<string | null>(null);
   // Reload after each duel: our own (the state's `left` changes) and one we received while the
   // window is open (the newest received duel changes; the 8 s state poll brings it).
@@ -76,7 +78,7 @@ export function ArenaWindow({
         </p>
         {active && onResume && (
           <div class="arena-active">
-            <span>Your duel with {active.opponent}'s TaniBot is waiting.</span>
+            <span>{active.live ? `Your online duel with ${active.opponent} is waiting for you.` : `Your duel with ${active.opponent}'s TaniBot is waiting.`}</span>
             <button class="btn btn-small btn-mint" onClick={() => (playSound('click'), onResume(active.id))}>
               Continue
             </button>
@@ -120,9 +122,10 @@ export function ArenaWindow({
                   <button
                     class="btn btn-small btn-gold arena-duel-btn"
                     disabled={!!blocked || f.dueledToday || !!busy || !!active}
-                    title={f.dueledToday ? 'You already challenged this garden today' : `Challenge ${f.name}`}
+                    title={f.dueledToday ? 'You already challenged this garden today' : liveOn && f.online && !f.judge ? `Challenge ${f.name} live (online now)` : `Challenge ${f.name}`}
                     onClick={() => onDuel(f.name)}
                   >
+                    {liveOn && f.online && !f.judge && !f.dueledToday && <span class="online-dot inline" aria-hidden="true" />}
                     {busy === f.name ? 'Dueling...' : f.dueledToday ? 'Dueled' : 'Duel'}
                   </button>
                 </li>

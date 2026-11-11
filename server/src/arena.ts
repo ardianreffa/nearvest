@@ -176,8 +176,13 @@ export const arenaDay = (now: number) => dayIndex(now, false);
  * Every Arena fight for the limits: v1 duels and v2 matches (arena-match.ts) count together
  * (3 a day, 1 per opponent, paid wins, XP caps). A v2 match counts from the moment it starts.
  */
-const ALL_FIGHTS = `(SELECT challenger_id, defender_id, duel_day, winner, prize_micro, xp_c, xp_d, ip, device_id FROM arena_duels
-  UNION ALL SELECT challenger_id, defender_id, duel_day, winner, prize_micro, xp_c, xp_d, ip, device_id FROM arena_matches)`;
+// Online duels (kind 'live'): a cancelled one (left before the first turn) does not count; when the
+// challenged player wins, the paid-win limits count THEIR browser / IP (ip_d / device_d).
+const ALL_FIGHTS = `(SELECT 'duel' AS kind, challenger_id, defender_id, duel_day, winner, prize_micro, xp_c, xp_d, ip, device_id FROM arena_duels
+  UNION ALL SELECT kind, challenger_id, defender_id, duel_day, winner, prize_micro, xp_c, xp_d,
+    CASE WHEN kind = 'live' AND winner = 'defender' THEN ip_d ELSE ip END,
+    CASE WHEN kind = 'live' AND winner = 'defender' THEN device_d ELSE device_id END
+  FROM arena_matches WHERE status != 'cancelled')`;
 
 const countFights = (db: DB, where: string, ...args: (string | number)[]) =>
   (db.prepare(`SELECT count(*) AS n FROM ${ALL_FIGHTS} WHERE ${where}`).get(...args) as { n: number }).n;
@@ -203,12 +208,23 @@ export function overPaidLimit(db: DB, deviceId: string | null, ip: string | null
   );
 }
 
+/** Wins with XP today of this garden: as a challenger, and as the challenged player of an online duel. */
+export function winsToday(db: DB, playerId: number, now: number): number {
+  return countFights(
+    db,
+    "duel_day = ? AND ((challenger_id = ? AND winner = 'challenger' AND xp_c > 0) OR (defender_id = ? AND kind = 'live' AND winner = 'defender' AND xp_d > 0))",
+    arenaDay(now),
+    playerId,
+    playerId,
+  );
+}
+
 /** Today's XP so far: wins with XP of the challenger, defences with XP of the defender. */
 export function xpToday(db: DB, challengerId: number, defenderId: number, now: number): { wins: number; defended: number } {
   const day = arenaDay(now);
   return {
-    wins: countFights(db, "challenger_id = ? AND duel_day = ? AND winner = 'challenger' AND xp_c > 0", challengerId, day),
-    defended: countFights(db, 'defender_id = ? AND duel_day = ? AND xp_d > 0', defenderId, day),
+    wins: winsToday(db, challengerId, now),
+    defended: countFights(db, "defender_id = ? AND duel_day = ? AND xp_d > 0 AND kind != 'live'", defenderId, day),
   };
 }
 
@@ -224,7 +240,7 @@ export function arenaState(db: DB, playerId: number, now: number, prizeNow: numb
 /** The newest duel or finished match this garden received (Village red dot). */
 export function arenaNewsAt(db: DB, playerId: number): number {
   const duel = (db.prepare('SELECT max(created_at) AS at FROM arena_duels WHERE defender_id = ?').get(playerId) as { at: number | null }).at ?? 0;
-  const match = (db.prepare("SELECT max(ended_at) AS at FROM arena_matches WHERE defender_id = ? AND status = 'done'").get(playerId) as { at: number | null }).at ?? 0;
+  const match = (db.prepare("SELECT max(ended_at) AS at FROM arena_matches WHERE defender_id = ? AND status = 'done' AND kind != 'live'").get(playerId) as { at: number | null }).at ?? 0;
   return Math.max(duel, match);
 }
 

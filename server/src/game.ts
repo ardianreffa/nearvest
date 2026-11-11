@@ -53,6 +53,7 @@ import {
   isOnline,
   ONLINE_MS,
   PING_MS,
+  PING_LIVE_MS,
   WATER_DAYS,
   WELCOME_PACKS_PER_IP_PER_DAY,
   WELCOME_PANEN,
@@ -263,6 +264,8 @@ export class Game {
   private d: GameDeps;
   /** Current Season divisor (1, 2, 4, 8), refreshed from the chain. */
   seasonDivisor = 1;
+  /** The online Arena duel (ARENA_ONLINE in .env, default off; set by main.ts). Off = Arena v2 only. */
+  arenaOnline = false;
 
   constructor(deps: GameDeps) {
     this.d = deps;
@@ -747,7 +750,7 @@ export class Game {
     const day = dayIndex(this.d.now(), false);
     const count = (this.db.prepare('SELECT count(*) AS n FROM friends WHERE player_id = ?').get(playerId) as { n: number }).n;
     const adds = (this.db.prepare('SELECT count(*) AS n FROM friend_adds WHERE player_id = ? AND add_day = ?').get(playerId, day) as { n: number }).n;
-    return { count, max: FRIENDS_MAX, addsLeft: Math.max(0, FRIENDS_ADDS_PER_DAY - adds), addsPerDay: FRIENDS_ADDS_PER_DAY, onlineMs: ONLINE_MS, pingMs: PING_MS };
+    return { count, max: FRIENDS_MAX, addsLeft: Math.max(0, FRIENDS_ADDS_PER_DAY - adds), addsPerDay: FRIENDS_ADDS_PER_DAY, onlineMs: ONLINE_MS, pingMs: this.arenaOnline ? PING_LIVE_MS : PING_MS };
   }
 
   /** Waves back the visitor got from gardens they visited (newest first, last 10). */
@@ -1702,7 +1705,7 @@ export class Game {
       market: this.marketNews(p.id),
       /** Arena 1 VS 1 (arena.ts): duels left today, the prize now, duels this garden received. */
       // v2 (arena-match.ts): `v: 2`, the open match to resume and matches received; old webs ignore them.
-      arena: { ...arenaState(this.db, p.id, now, this.afterSeason(ARENA_PRIZE), this.d.explorerTxUrl), ...arenaMatchState(this.db, p.id, this.d.explorerTxUrl) },
+      arena: { ...arenaState(this.db, p.id, now, this.afterSeason(ARENA_PRIZE), this.d.explorerTxUrl), ...arenaMatchState(this.db, p.id, this.d.explorerTxUrl, this.arenaOnline) },
     };
   }
 

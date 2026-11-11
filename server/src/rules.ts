@@ -185,6 +185,16 @@ export const ARENA_FRUIT_DAMAGE = { mango: 14, rambutan: 18, durian: 24 } as con
 export const ARENA_QUALITY_DAMAGE = { common: 1, rare: 1.3, gold: 1.6 } as const;
 /** Garden bonus on every hit: 0-20%, from the v1 garden score (0-9): max(0, score - 3) / 6 x 20%. */
 export const ARENA_BONUS_MAX = 20;
+// Arena v3 part 2: the online duel against a real player (arena-match.ts, docs/PLAN-arena.md 7.12).
+// Only when the server's switch ARENA_ONLINE=on (default off: then the Arena works as v2).
+/** The challenged player has this long to Accept / Decline; no answer = the duel goes on against their TaniBot. */
+export const ARENA_INVITE_MS = 30_000;
+/** While the online duel is switched on, the web pings this often (invites arrive within ~4 s). */
+export const PING_LIVE_MS = 4_000;
+/** A side of an online duel whose web has not asked for the match this long is "gone": the duel pauses. */
+export const ARENA_GONE_MS = 5_000;
+/** The other side waits this long ("Waiting for <name>... 20"); back in time = the duel goes on. */
+export const ARENA_PAUSE_MS = 20_000;
 
 /** Fertilizer adds +50% growth speed for one game day. */
 export const FERTILIZER_DAYS = 1;

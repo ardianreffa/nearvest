@@ -31,6 +31,8 @@ export interface Config {
   tanibotAiMaxCallsPerDay: number;
   /** Total dollar brake: no more AI calls once the estimated cost reaches this. */
   tanibotAiBudgetUsd: number;
+  /** Arena: the online duel against a real player (ARENA_ONLINE=on). Off (default) = the Duel button only fights TaniBots. */
+  arenaOnline: boolean;
 }
 
 function env(name: string, fallback?: string): string {
@@ -88,6 +90,7 @@ export function loadConfig(): Config {
     tanibotAiModel: env('TANIBOT_AI_MODEL', 'Qwen/Qwen3-VL-30B-A3B-Instruct'),
     tanibotAiMaxCallsPerDay: Number(env('TANIBOT_AI_MAX_CALLS_PER_DAY', '30')),
     tanibotAiBudgetUsd: Number(env('TANIBOT_AI_BUDGET_USD', '8')),
+    arenaOnline: bool('ARENA_ONLINE', false),
   };
   const wanted = bool('DEV_LOGIN', false);
   config.devLogin = devLoginAllowed(wanted, config.webOrigins);

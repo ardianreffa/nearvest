@@ -4,15 +4,26 @@
 // (no WebSocket, no Server-Sent Events): the VPS has about 1 GB free. Servers without
 // `state.friends` get no ping at all.
 
-import { useEffect } from 'preact/hooks';
-import { api, apiKeepalive } from './api';
+import { useEffect, useRef } from 'preact/hooks';
+import { api, apiKeepalive, type ArenaInvite } from './api';
 import { presenceOnVisibility } from './friends-logic';
 
-export function usePresence(pingMs: number | null | undefined): void {
+/** The ping's answer. With the online Arena duel switched on, it carries an invite waiting for this player. */
+export interface PingAnswer {
+  online: boolean;
+  invite?: ArenaInvite | null;
+}
+
+export function usePresence(pingMs: number | null | undefined, onAnswer?: (a: PingAnswer) => void): void {
+  const cb = useRef(onAnswer);
+  cb.current = onAnswer;
   useEffect(() => {
     if (!pingMs) return;
     let timer = 0;
-    const ping = () => void api('POST', '/api/ping', {}).catch(() => undefined);
+    const ping = () =>
+      void api<PingAnswer>('POST', '/api/ping', {})
+        .then((a) => cb.current?.(a))
+        .catch(() => undefined);
     const stop = () => {
       if (timer) window.clearInterval(timer);
       timer = 0;
@@ -20,7 +31,8 @@ export function usePresence(pingMs: number | null | undefined): void {
     const start = () => {
       stop();
       ping();
-      timer = window.setInterval(ping, Math.max(10_000, pingMs));
+      // The online duel's invites need a quicker ping (the server sends 4 s then); never below 3 s.
+      timer = window.setInterval(ping, Math.max(3_000, pingMs));
     };
     const away = () => {
       stop();

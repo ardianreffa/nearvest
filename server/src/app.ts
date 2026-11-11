@@ -82,6 +82,8 @@ export function createApp(deps: AppDeps) {
       explorerTxUrl: config.explorerTxUrl,
       googleClientId: config.googleClientId || null,
       devLogin: config.devLogin,
+      // The online Arena duel (ARENA_ONLINE in server/.env, default off): off = no live invites at all.
+      arenaOnline: game.arenaOnline,
       contracts: { panen: config.panenContractId, pohon: config.pohonContractId },
       wallet: {
         loginRecipient: config.factoryAccountId,
@@ -386,7 +388,13 @@ export function createApp(deps: AppDeps) {
   // Wave back to a visitor (a row of the Village tab "Visitors" list).
   // Add friend + Online (social.ts, docs/PLAN-arena.md 7.11). The ping is tiny on purpose: one
   // indexed UPDATE at most every 20 s, no open connection (the VPS has about 1 GB free).
-  app.post('/api/ping', async (c) => c.json(social.ping(playerId(c), (await body(c)).away === true)));
+  // With the online duel switched on, the ping also carries an invite waiting for this player.
+  app.post('/api/ping', async (c) => {
+    const pid = playerId(c);
+    const away = (await body(c)).away === true;
+    const r = social.ping(pid, away);
+    return c.json(game.arenaOnline && !away ? { ...r, invite: matches.invite(pid) } : r);
+  });
   app.post('/api/friends/:name', (c) => {
     const pid = playerId(c);
     const result = social.addFriend(pid, c.req.param('name'));
@@ -425,8 +433,20 @@ export function createApp(deps: AppDeps) {
   app.post('/api/arena/match', async (c) => {
     const pid = playerId(c);
     const b = await body(c);
-    const r = matches.start(pid, b.opponent, clientIp(c), b.deviceId);
+    // `live: true` = an online duel when the switch is on and the garden is online (else its TaniBot).
+    const r = matches.start(pid, b.opponent, clientIp(c), b.deviceId, b.live === true);
     return c.json({ ...r, state: game.state(pid) });
+  });
+  // Online duel (arena-match.ts, docs/PLAN-arena.md 7.12): accept / decline an invite, leave the duel.
+  app.post('/api/arena/match/:id/accept', async (c) => {
+    const pid = playerId(c);
+    const r = matches.accept(pid, Number(c.req.param('id')), clientIp(c), (await body(c)).deviceId);
+    return c.json({ ...r, state: game.state(pid) });
+  });
+  app.post('/api/arena/match/:id/decline', (c) => c.json(matches.decline(playerId(c), Number(c.req.param('id')))));
+  app.post('/api/arena/match/:id/leave', (c) => {
+    const pid = playerId(c);
+    return c.json({ ...matches.leave(pid, Number(c.req.param('id'))), state: game.state(pid) });
   });
   app.get('/api/arena/match/:id', (c) => {
     const pid = playerId(c);

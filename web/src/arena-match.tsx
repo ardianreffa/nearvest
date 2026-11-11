@@ -7,10 +7,32 @@
 // Light on phones: the screen is drawn again only when the turn's frame changes; motion is CSS.
 
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { api, ApiError, type Activity, type ArenaPick, type GameState, type MatchSummary, type MatchView, type Rps } from './api';
+import { api, ApiError, apiKeepalive, type Activity, type ArenaPick, type GameState, type MatchSummary, type MatchView, type Rps } from './api';
 import { Fighter, FighterHud, FlyingFruit, hitSound, reducedMotion } from './arena';
 import { flightMs, fmt, hitFlash, HIT_FLASH_MS, seasonLine } from './arena-play';
-import { bonusLine, clockOf, controls, countdown, endBanner, fruitName, matchLine, matchPost, matchReward, matchWon, PICK_LABEL, turnAt, turnBanner, turnLength, turnLine, turnReason, type TurnClock, type TurnFrame } from './arena-turn';
+import {
+  asMine,
+  bonusLine,
+  clockOf,
+  controls,
+  countdown,
+  endBanner,
+  foeLabel,
+  fruitName,
+  inviteNote,
+  matchLine,
+  matchPost,
+  matchReward,
+  matchWon,
+  PICK_LABEL,
+  turnAt,
+  turnBanner,
+  turnLength,
+  turnLine,
+  turnReason,
+  type TurnClock,
+  type TurnFrame,
+} from './arena-turn';
 import { Avatar } from './art/avatars';
 import { DuelBackdrop } from './art/duel-backdrop';
 import { playGoldDurian, playSound } from './audio';
@@ -25,6 +47,10 @@ const CELEBRATE_MS = 1400;
 const AFTER_DEADLINE_MS = 1_800;
 /** Also asked now and then while the duel is open (another tab, a long pause). */
 const POLL_MS = 15_000;
+/** Online duel (and its invite): both webs ask every second (one small row; the server measures who is gone). */
+const LIVE_POLL_MS = 1_000;
+const isOpen = (s: MatchView['status']) => s === 'invite' || s === 'playing' || s === 'paused';
+const isOver = (s: MatchView['status']) => s === 'done' || s === 'cancelled';
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -164,13 +190,17 @@ export function MatchScreen({
     document.documentElement.classList.add('duel-open');
     return () => document.documentElement.classList.remove('duel-open');
   }, []);
-  const [m, setMatch] = useState<MatchView>(initial);
+  const [m, setMatch] = useState<MatchView>(() => asMine(initial));
   /** The turn clock on this device, set from every answer (the server decides; this only shows it). */
   const [clock, setClock] = useState<TurnClock | null>(() => clockOf(initial, Date.now()));
+  /** When the last answer arrived (local clock): the invite / pause countdowns count from it. */
+  const [answeredAt, setAnsweredAt] = useState(() => Date.now());
+  /** Why an online duel became a TaniBot duel ("budi said no..."), until the first turn is decided. */
+  const [note, setNote] = useState<string | null>(() => inviteNote(initial));
   /** The decided turn being played back (index into m.turns) and when it started. */
   const [anim, setAnim] = useState<{ i: number; t0: number } | null>(null);
   /** The end: K.O.!, the celebration, then the result. */
-  const [end, setEnd] = useState<number | null>(initial.status === 'done' ? -Infinity : null);
+  const [end, setEnd] = useState<number | null>(isOver(initial.status) ? -Infinity : null);
   const [sending, setSending] = useState<ArenaPick | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
@@ -180,31 +210,56 @@ export function MatchScreen({
   const asking = useRef(false);
 
   /** A new answer from the server: the match, its clock, and the newly decided turn to play back. */
-  const take = (next: MatchView, state?: GameState, titleUp?: string | null) => {
-    const before = mRef.current.turns.length;
+  const take = (raw: MatchView, state?: GameState, titleUp?: string | null) => {
+    const next = asMine(raw);
+    const prev = mRef.current;
+    const before = prev.turns.length;
+    mRef.current = next;
     setMatch(next);
     setClock(clockOf(next, Date.now()));
+    setAnsweredAt(Date.now());
+    if (prev.status === 'invite' && next.status !== 'invite') setNote(inviteNote(next));
     // Several turns may have been decided while away: the last one is played back.
     if (next.turns.length > before) setAnim({ i: next.turns.length - 1, t0: Date.now() });
-    else if (next.status === 'done' && mRef.current.status === 'playing') setEnd(Date.now());
+    else if (isOver(next.status) && !isOver(prev.status)) {
+      // Online duel cancelled or won because the other player left: straight to the result (no K.O.).
+      const quiet = next.status === 'cancelled' || (next.kind === 'live' && (next.endReason === 'left' || next.endReason === 'abandoned'));
+      setEnd(quiet ? -Infinity : Date.now());
+    }
     if (state) onDone(state, titleUp ?? null);
   };
 
   const ask = () => {
     if (asking.current) return;
     asking.current = true;
-    api<{ match: MatchView; state?: GameState }>('GET', `/api/arena/match/${mRef.current.id}`)
-      .then((r) => take(r.match, r.state))
+    api<{ match: MatchView; state?: GameState; titleUp?: string | null }>('GET', `/api/arena/match/${mRef.current.id}`)
+      .then((r) => take(r.match, r.state, r.titleUp))
       .catch(() => undefined)
       .finally(() => (asking.current = false));
   };
 
   // Now and then while the duel is open (another tab, a long pause).
+  // Online duel and its invite: every second, so each side sees the other's moves and the server
+  // knows who is still here (a web gone for 5 s pauses the duel).
+  const live = m.kind === 'live' || m.status === 'invite';
   useEffect(() => {
-    if (m.status !== 'playing') return;
-    const id = window.setInterval(ask, POLL_MS);
+    if (!isOpen(m.status)) return;
+    const id = window.setInterval(ask, live ? LIVE_POLL_MS : POLL_MS);
     return () => window.clearInterval(id);
-  }, [m.id, m.status]);
+  }, [m.id, m.status, live]);
+  // The invite / pause countdowns tick on screen.
+  useEffect(() => {
+    if (m.status !== 'invite' && m.status !== 'paused') return;
+    const id = window.setInterval(() => setTick(String(Math.floor(Date.now() / 250))), 250);
+    return () => window.clearInterval(id);
+  }, [m.status]);
+  // Online duel: closing the page counts as leaving (the other side waits 20 s; back in time = it goes on).
+  useEffect(() => {
+    if (m.kind !== 'live' && m.status !== 'invite') return;
+    const bye = () => apiKeepalive(`/api/arena/match/${mRef.current.id}/leave`, {});
+    window.addEventListener('pagehide', bye);
+    return () => window.removeEventListener('pagehide', bye);
+  }, [m.kind, m.status === 'invite']);
 
   // The countdown: drawn about 5 times a second while the player can pick; when the 10 s (and the
   // server's grace) are over without a pick, the web asks for the turn the server decided.
@@ -255,7 +310,7 @@ export function MatchScreen({
   }, [event]);
 
   const pick = async (p: ArenaPick) => {
-    if (sending || anim || m.status !== 'playing') return;
+    if (sending || anim || m.status !== 'playing' || m.myPick) return;
     playSound('click');
     setSending(p);
     setError(null);
@@ -274,9 +329,25 @@ export function MatchScreen({
 
   const me = m.challenger;
   const them = m.defender;
+  const foe = foeLabel(m);
+  const isLive = m.kind === 'live';
+  /** Leaves the duel screen. Invite: cancelled. Online duel: the other side waits 20 s for you. */
+  const leave = () => {
+    if (isLive || m.status === 'invite') void api('POST', `/api/arena/match/${m.id}/leave`, {}).catch(() => undefined);
+    onClose();
+  };
+  /** "Fight budi's TaniBot now" while waiting for an answer. */
+  const skipInvite = () => {
+    playSound('click');
+    api<{ match: MatchView }>('POST', `/api/arena/match/${m.id}/decline`, {})
+      .then((r) => take(r.match))
+      .catch((e) => setError(errorText(e)));
+  };
+  const secsLeft = (ms: number | undefined) => Math.max(0, Math.ceil(((ms ?? 0) - (now() - answeredAt)) / 1000));
   const last = anim ? m.turns[anim.i] : m.turns[m.turns.length - 1];
   const done = endPhase === 'result';
-  const over = m.status === 'done' && !anim;
+  const over = isOver(m.status) && !anim;
+  const noWinner = m.status === 'cancelled' || m.winner === null;
   // Life and skill shown: the playing turn's frame, else the match now.
   const hp: [number, number] = frame ? frame.hp : [m.hp.c, m.hp.d];
   const skill: [number, number] = frame ? frame.skill : [m.skill.c, m.skill.d];
@@ -286,6 +357,7 @@ export function MatchScreen({
   const flash = !!hitShown && hitFlash(frame!.sinceImpact);
   const pose = (who: 'me' | 'them') => {
     if (over && endPhase !== null) {
+      if (noWinner) return 'idle';
       const loser = won ? 'them' : 'me';
       return who === loser ? 'ko' : endPhase === 'ko' ? 'idle' : 'win';
     }
@@ -301,6 +373,8 @@ export function MatchScreen({
   // server); then both picks of the decided turn, kept until the next pick.
   const bubble = (who: 'me' | 'them') => {
     if (sending) return who === 'me' ? { pick: sending, pop: true } : { pick: '?' as const, pop: false };
+    // Online duel: your pick is in, theirs stays secret until the turn is decided.
+    if (m.myPick && !anim && m.status !== 'done') return who === 'me' ? { pick: m.myPick, pop: false } : { pick: '?' as const, pop: false };
     // During the Gold Durian the big title needs the room (the picks were shown just before).
     if (!last || done || gold) return null;
     return { pick: who === 'me' ? last.pick.c : last.pick.d, pop: !!frame && frame.phase === 'reveal' };
@@ -324,12 +398,12 @@ export function MatchScreen({
   const paid = m.prize > 0 && m.you === 'challenger' && !txUrl;
   const pending = paid && (!job || job.status === 'pending');
   // The banner of the turn: after the picks pop up, while the hits play (the Gold Durian has its own title).
-  const banner = frame && frame.phase !== 'reveal' && last && !gold ? turnBanner(last, them.name) : null;
+  const banner = frame && frame.phase !== 'reveal' && last && !gold ? turnBanner(last, them.name, isLive) : null;
   const clockNow = clock && devClock() !== undefined ? clock.startsAt + devClock()! : now();
 
   return (
     <div class="dialog-backdrop duel-backdrop" role="presentation">
-      <div class={`duel match panel${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={`Arena duel: ${me.name} vs ${them.name}'s TaniBot`}>
+      <div class={`duel match panel${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={`Arena duel: ${me.name} vs ${foe}`}>
         <header class="panel-head duel-head">
           <h2>FRUIT FIGHT</h2>
           {anim && !done && (
@@ -339,8 +413,8 @@ export function MatchScreen({
           )}
           <button
             class="icon-btn info-close"
-            onClick={() => (m.status === 'playing' ? setLeaving(true) : onClose())}
-            aria-label={m.status === 'playing' ? 'Leave the duel' : 'Close'}
+            onClick={() => (m.status === 'playing' || m.status === 'paused' ? setLeaving(true) : leave())}
+            aria-label={m.status === 'playing' || m.status === 'paused' ? 'Leave the duel' : m.status === 'invite' ? 'Cancel the challenge' : 'Close'}
           >
             x
           </button>
@@ -355,7 +429,7 @@ export function MatchScreen({
               <span class="duel-vs">VS</span>
             </div>
             {/* Their TaniBot's name AND its title (its look comes from the title). */}
-            <FighterHud side={{ ...them, name: `${them.name}'s TaniBot` }} hp={hp[1]} right skill={{ n: skill[1], max: m.skillMax }} />
+            <FighterHud side={{ ...them, name: foe }} hp={hp[1]} right skill={{ n: skill[1], max: m.skillMax }} />
           </div>
           <div class="fight-floor" style={`--bot-w:${58 * scale}px;--bot-h:${64 * scale}px`}>
             <Fighter side={me} right={false} scale={scale} state={pose('me')} hard={heavy(frame)} pick={bubble('me')} flash={flash} />
@@ -378,14 +452,40 @@ export function MatchScreen({
             </div>
           )}
           {(endPhase === 'ko' || endPhase === 'celebrate') && endT !== Infinity && <div class="fight-ko">{endBanner(m)}</div>}
+          {m.status === 'paused' && m.waitingFor && !anim && (
+            <div class="match-wait" role="status" aria-live="polite">
+              <b>Waiting for {m.waitingFor}...</b>
+              <span class="match-wait-secs">{secsLeft(m.pauseLeftMs)}</span>
+              <small>If {m.waitingFor} does not come back, you win.</small>
+            </div>
+          )}
         </div>
 
-        {!done && (
+        {!done && m.status === 'invite' && (
+          <div class="match-invite" role="status" aria-live="polite">
+            <p class="match-invite-line">
+              Waiting for <b>{them.name}</b> to accept... <span class="match-wait-secs">{secsLeft(m.inviteLeftMs)}</span>
+            </p>
+            <p class="match-invite-hint">No answer in time? You fight {them.name}'s TaniBot instead.</p>
+            <div class="duel-actions">
+              <button class="btn btn-gold" onClick={skipInvite}>
+                Fight {them.name}'s TaniBot now
+              </button>
+              <button class="btn" onClick={leave}>
+                Cancel
+              </button>
+            </div>
+            {error && <p class="error-text match-error">{error}</p>}
+          </div>
+        )}
+
+        {!done && m.status !== 'invite' && (
           <div class="match-info" aria-live="polite">
+            {note && m.turns.length === 0 && <p class="match-note">{note}</p>}
             <p class="match-turn">{turnLine(m, !!sending, anim?.i)}</p>
             {last && (
               <p class="match-why">
-                {turnReason(last, them.name)}
+                {turnReason(last, them.name, isLive)}
                 {/* The damage only once the fruit has landed. */}
                 {(!frame || frame.phase === 'impact' || frame.phase === 'done') &&
                   last.hits.map((h, k) => (
@@ -400,7 +500,7 @@ export function MatchScreen({
           </div>
         )}
 
-        {!over && (
+        {!over && m.status !== 'invite' && (
           <div class="match-controls">
             {idle && clock && <TurnTimer clock={clock} now={clockNow} />}
             <button
@@ -426,7 +526,7 @@ export function MatchScreen({
 
         {done && (
           <div class={`duel-result${won ? ' win' : ' lose'}`}>
-            <div class="duel-headline">{won ? 'YOU WIN!' : 'THEY WIN'}</div>
+            <div class="duel-headline">{m.status === 'cancelled' ? 'CANCELLED' : noWinner ? 'NO WINNER' : won ? 'YOU WIN!' : isLive ? `${them.name.toUpperCase()} WINS` : 'THEY WIN'}</div>
             {(reward.panen !== null || reward.xp > 0) && (
               <div class="duel-gains">
                 {reward.panen !== null && <span class="gain gain-panen">+{fmt(reward.panen)} PANEN</span>}
@@ -434,9 +534,11 @@ export function MatchScreen({
               </div>
             )}
             <p class="duel-reward">{reward.line}</p>
-            <p class="duel-reward muted">
-              {m.turns.length} turns · life {m.hp.c} vs {m.hp.d}
-            </p>
+            {m.status !== 'cancelled' && (
+              <p class="duel-reward muted">
+                {m.turns.length} turn{m.turns.length === 1 ? '' : 's'} · life {m.hp.c} vs {m.hp.d}
+              </p>
+            )}
             {reward.panen !== null && season && <p class="duel-season">{seasonLine(season)}</p>}
             {txUrl ? (
               <p class="duel-tx">
@@ -450,7 +552,7 @@ export function MatchScreen({
               <p class="duel-tx muted">Prize sent: see it in the Village log.</p>
             ) : null}
             <div class="duel-actions">
-              {won && !m.practice && m.you === 'challenger' && (
+              {won && !m.practice && m.you === 'challenger' && m.status === 'done' && (
                 <a class="btn btn-mint" href={postUrl(matchPost(m), PUBLIC_SITE)} target="_blank" rel="noopener noreferrer" onClick={() => playSound('click')}>
                   Share on X
                 </a>
@@ -464,15 +566,22 @@ export function MatchScreen({
 
         {leaving && (
           <div class="match-leave" role="alertdialog" aria-label="Leave the duel?">
-            <p>
-              Leave the duel? It keeps going without you: every turn you miss (10 s) the TaniBot hits you. Come back soon (Arena window: Continue), or you lose without a
-              prize.
-            </p>
+            {isLive ? (
+              <p>
+                Leave the duel? {them.name} waits 20 s for you. If you do not come back in time, {them.name} wins
+                {m.turns.length === 0 ? ' (before the first turn ends, the duel is simply cancelled).' : '.'}
+              </p>
+            ) : (
+              <p>
+                Leave the duel? It keeps going without you: every turn you miss (10 s) the TaniBot hits you. Come back soon (Arena window: Continue), or you lose without a
+                prize.
+              </p>
+            )}
             <div class="duel-actions">
               <button class="btn btn-mint" onClick={() => setLeaving(false)}>
                 Stay
               </button>
-              <button class="btn" onClick={onClose}>
+              <button class="btn" onClick={leave}>
                 Leave
               </button>
             </div>

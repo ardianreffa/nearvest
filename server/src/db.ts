@@ -308,7 +308,18 @@ CREATE TABLE IF NOT EXISTS arena_matches (
   seen_at INTEGER NOT NULL,        -- the player's last request for this match
   turn_started_at INTEGER,         -- when the open turn's 10 s started (server clock; arena-match.ts)
   created_at INTEGER NOT NULL,
-  ended_at INTEGER
+  ended_at INTEGER,
+  -- Online duel (kind 'live', 2026-11-11; status may also be 'invite' | 'paused' | 'cancelled').
+  -- Added by migrate() on older databases; older releases name their columns, so they ignore these.
+  pick_c TEXT,                     -- this turn's picks of the two players: NEVER sent to the other side
+  pick_d TEXT,
+  seen_d INTEGER NOT NULL DEFAULT 0, -- the challenged player's last request (seen_at = the challenger's)
+  invite_ends_at INTEGER,
+  invite_result TEXT,              -- 'accepted' | 'declined' | 'timeout' | 'busy' | 'skipped'
+  paused_side TEXT,                -- 'challenger' | 'defender' while paused
+  pause_ends_at INTEGER,
+  ip_d TEXT,                       -- the challenged player's IP and browser (paid-win limits when they win)
+  device_d TEXT
 );
 CREATE INDEX IF NOT EXISTS arena_match_challenger ON arena_matches (challenger_id, duel_day);
 CREATE INDEX IF NOT EXISTS arena_match_defender ON arena_matches (defender_id, ended_at);
@@ -365,6 +376,19 @@ function migrate(db: DB): void {
   if (!has('players', 'last_seen_at')) db.exec('ALTER TABLE players ADD COLUMN last_seen_at INTEGER');
   // Arena v2 turn timer (2026-11-11): only local test databases had arena_matches before it.
   if (!has('arena_matches', 'turn_started_at')) db.exec('ALTER TABLE arena_matches ADD COLUMN turn_started_at INTEGER');
+  // Online duel (2026-11-11): new nullable / DEFAULT columns only (older releases ignore them).
+  for (const [col, type] of [
+    ['pick_c', 'TEXT'],
+    ['pick_d', 'TEXT'],
+    ['seen_d', 'INTEGER NOT NULL DEFAULT 0'],
+    ['invite_ends_at', 'INTEGER'],
+    ['invite_result', 'TEXT'],
+    ['paused_side', 'TEXT'],
+    ['pause_ends_at', 'INTEGER'],
+    ['ip_d', 'TEXT'],
+    ['device_d', 'TEXT'],
+  ])
+    if (!has('arena_matches', col)) db.exec(`ALTER TABLE arena_matches ADD COLUMN ${col} ${type}`);
   // Red dot on the Village tab (2026-11-10): the newest social event the owner has seen (0 = none).
   if (!has('players', 'village_seen_at')) db.exec('ALTER TABLE players ADD COLUMN village_seen_at INTEGER NOT NULL DEFAULT 0');
   // Red dot on the Market tab (2026-11-10): when fruit was last added (a harvest) and when the owner

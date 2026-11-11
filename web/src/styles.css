@@ -13523,3 +13523,134 @@ html.duel-open .duel-bg .backdrop * {
     calc(var(--n) * 2) 100%, calc(var(--n) * 2) calc(100% - var(--n)), var(--n) calc(100% - var(--n)), var(--n) calc(100% - var(--n) * 2), 0 calc(100% - var(--n) * 2)
   );
 }
+
+/* ---------- Arena online duel (arena-invite.tsx, arena-match.tsx; docs/PLAN-arena.md 7.12) ---------- */
+/* The invite popup sits above every window (also the Arena window and Farmers of Tandur). */
+.invite-backdrop {
+  z-index: 45;
+}
+
+.arena-invite {
+  max-width: 360px;
+}
+
+.arena-invite .panel-head h2 {
+  font-size: var(--fs-h3);
+}
+
+.arena-invite-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 4px;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+}
+
+.arena-invite-body p {
+  flex: 1;
+  margin: 0;
+}
+
+.arena-invite-secs,
+.match-wait-secs {
+  font-family: var(--font-ui);
+  font-size: var(--fs-h2);
+  color: var(--gold-700);
+  min-width: 2ch;
+  text-align: center;
+}
+
+.arena-invite-hint {
+  padding: 0 12px;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+}
+
+.btn .online-dot.inline {
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* The challenger waits for the answer (under the stage, where the buttons will be). */
+.match-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+}
+
+.match-invite p {
+  margin: 0;
+}
+
+.match-invite-line {
+  font-size: var(--fs-body);
+}
+
+.match-invite .match-wait-secs {
+  font-size: var(--fs-h3);
+}
+
+.match-invite .duel-actions {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.match-invite-hint {
+  color: var(--ink-soft);
+}
+
+/* Why the online duel became a TaniBot duel ("budi said no..."). */
+.match-note {
+  margin: 0;
+  padding: 4px 8px;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: var(--gold-300);
+  border: 2px solid var(--gold-700);
+}
+
+/* "Waiting for budi... 17" on the stage while the other player is gone. */
+.match-wait {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 6;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 14px;
+  max-width: 86%;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--paper-light);
+  background: color-mix(in srgb, var(--hud) 92%, transparent);
+  border: 2px solid var(--cyan-500);
+}
+
+.match-wait b {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+}
+
+.match-wait .match-wait-secs {
+  color: var(--gold-500);
+}
+
+.match-wait small {
+  font-size: var(--fs-sm);
+  color: var(--cyan-300);
+}

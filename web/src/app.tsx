@@ -2,7 +2,7 @@
 
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { activityLabel, api, ApiError, hasToken, setToken, type Activity, type DuelView, type GameState, type MatchView, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
+import { activityLabel, api, ApiError, hasToken, setToken, type Activity, type ArenaInvite, type DuelView, type GameState, type MatchView, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
 import { DartoHead } from './art/darto';
 import { LOOK_LABEL, lookOf, lookText, withWeather, type WeatherLook } from './weather';
 import { lockedFraction, phaseOf } from './art/backdrop';
@@ -21,6 +21,7 @@ import { ArenaPanel, ArenaWindow, DuelScreen } from './arena';
 import { receivedNotice } from './arena-play';
 import { matchNotice } from './arena-turn';
 import { MatchScreen } from './arena-match';
+import { InvitePopup } from './arena-invite';
 import { overlayKey } from './overlay-key';
 import { FarmersWindow, friendCall, VisitGarden } from './friends';
 import { friendAddNotice } from './friends-logic';
@@ -157,6 +158,15 @@ export function App() {
   const [duelBusy, setDuelBusy] = useState<string | null>(null);
   /** Arena v2: the turn-based match on screen (servers with `state.arena.v === 2`). */
   const [match, setMatch] = useState<MatchView | null>(null);
+  /** Online duel (server switch ARENA_ONLINE): an invite to this garden, from the ping. */
+  const [invite, setInvite] = useState<{ invite: ArenaInvite; at: number } | null>(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const inviteBusyRef = useRef(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  /** Invites already answered or expired here (a slow ping must not show them again). */
+  const invitesDone = useRef<Set<number>>(new Set());
+  /** An online duel this page already resumed after a reload (once). */
+  const resumedLive = useRef<number | null>(null);
   /** While a duel plays, a new title's moment (banner, TaniBot evolving) waits until it closes. */
   const duelOnScreen = useRef(false);
   const afterDuel = useRef<(() => void)[]>([]);
@@ -494,7 +504,13 @@ export function App() {
   }, [applyState]);
 
   // Online dot: a tiny ping every 30 s while this tab is visible (servers with `state.friends` only).
-  usePresence(phase === 'play' ? state?.friends?.pingMs : null);
+  // With the online duel switched on, the ping (every 4 s then) also brings invites to this garden.
+  usePresence(phase === 'play' ? state?.friends?.pingMs : null, (a) => {
+    const inv = a.invite ?? null;
+    if (!inv) return setInvite((cur) => (cur && !inviteBusyRef.current ? null : cur));
+    if (invitesDone.current.has(inv.id)) return;
+    setInvite((cur) => (cur?.invite.id === inv.id ? cur : { invite: inv, at: Date.now() }));
+  });
 
   // Poll faster while transactions are on their way.
   const pending = state?.activity.some((a) => a.status === 'pending') ?? false;
@@ -838,6 +854,22 @@ export function App() {
       </>
     );
   }
+  // Online duel: after a reload (or from another tab) go straight back into it, once: the other
+  // player waits 20 s for this page.
+  const activeLive = state?.arena?.active?.live ? state.arena.active.id : null;
+  useEffect(() => {
+    if (phase !== 'play' || !activeLive || match || resumedLive.current === activeLive) return;
+    resumedLive.current = activeLive;
+    api<{ match: MatchView }>('GET', `/api/arena/match/${activeLive}`)
+      .then((r) => {
+        if (r.match.status !== 'playing' && r.match.status !== 'paused' && r.match.status !== 'invite') return;
+        duelOnScreen.current = true;
+        setArenaOpen(false);
+        setMatch(r.match);
+      })
+      .catch(() => undefined);
+  }, [phase, activeLive, !!match]);
+
   if (phase === 'create') return <CreateGarden onCreated={(s) => (applyState(s), setPhase('play'))} onLogout={logout} />;
   if (!state) return null;
 
@@ -886,6 +918,38 @@ export function App() {
       onPlace={(p) => (playSound('click'), p === 'friends' ? setFarmersOpen(true) : p === 'arena' ? setArenaOpen(true) : wide ? openSide(p) : setTab(p))}
     />
   );
+  /** Online duel: answer an invite (Accept opens the duel; Decline lets them fight your TaniBot). */
+  const answerInvite = async (accept: boolean) => {
+    if (!invite) return;
+    const id = invite.invite.id;
+    playSound('click');
+    if (!accept) {
+      invitesDone.current.add(id);
+      setInvite(null);
+      void api('POST', `/api/arena/match/${id}/decline`, {}).catch(() => undefined);
+      return;
+    }
+    setInviteBusy(true);
+    inviteBusyRef.current = true;
+    setInviteError(null);
+    try {
+      const r = await api<{ match: MatchView; state: GameState }>('POST', `/api/arena/match/${id}/accept`, { deviceId: judgeDeviceId() });
+      invitesDone.current.add(id);
+      setInvite(null);
+      applyState(r.state);
+      resumedLive.current = r.match.id;
+      setFarmersOpen(false);
+      openMatch(r.match);
+    } catch (e) {
+      playSound('error');
+      invitesDone.current.add(id);
+      setInvite(null);
+      toast({ kind: 'error', text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setInviteBusy(false);
+      inviteBusyRef.current = false;
+    }
+  };
   /** Arena v2: opens a match (new or resumed) on the turn-based duel screen. */
   const openMatch = (m: MatchView) => {
     duelOnScreen.current = true;
@@ -909,8 +973,11 @@ export function App() {
     setDuelBusy(name);
     if (state?.arena?.v === 2) {
       try {
-        const r = await api<{ match: MatchView; state: GameState }>('POST', '/api/arena/match', { opponent: name, deviceId: judgeDeviceId() });
+        // Online duel switched on: an invite when the garden is online (the server decides; else its TaniBot).
+        const live = !!config?.arenaOnline;
+        const r = await api<{ match: MatchView; state: GameState }>('POST', '/api/arena/match', { opponent: name, deviceId: judgeDeviceId(), ...(live ? { live: true } : {}) });
         applyState(r.state);
+        if (r.match.kind === 'live') resumedLive.current = r.match.id;
         openMatch(r.match);
       } catch (e) {
         // A duel is still open (another tab, or left earlier): continue it.
@@ -1244,9 +1311,20 @@ export function App() {
       {dialogView}
       {infoView}
       {farmersOpen && (
-        <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} onDuel={state.arena ? startDuel : undefined} onState={applyState} notify={toast} />
+        <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} onDuel={state.arena ? startDuel : undefined} liveDuel={!!state.arena?.online} onState={applyState} notify={toast} />
       )}
       {arenaOpen && state.arena && <ArenaWindow state={state} busy={duelBusy} onClose={() => setArenaOpen(false)} onDuel={startDuel} onReplay={showDuel} onResume={resumeMatch} />}
+      {invite && !match && (
+        <InvitePopup
+          invite={invite.invite}
+          receivedAt={invite.at}
+          busy={inviteBusy}
+          error={inviteError}
+          onAccept={() => void answerInvite(true)}
+          onDecline={() => void answerInvite(false)}
+          onExpire={() => (invitesDone.current.add(invite.invite.id), setInvite(null))}
+        />
+      )}
       {duel && <DuelScreen key={overlayKey('duel', duel.id)} duel={duel} wide={wide} activity={state.activity} season={state.season} onClose={closeDuel} />}
       {match && (
         <MatchScreen

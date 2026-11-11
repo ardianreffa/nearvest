@@ -414,6 +414,8 @@ export interface ServerConfig {
   explorerTxUrl: string;
   googleClientId: string | null;
   devLogin: boolean;
+  /** The online Arena duel is switched on (server ARENA_ONLINE; missing on older servers = off). */
+  arenaOnline?: boolean;
   contracts: { panen: string; pohon: string };
   wallet: {
     loginRecipient: string;
@@ -610,9 +612,11 @@ export interface ArenaState {
   /** 2 = the server plays turn-based matches (Arena v2, Rock / Paper / Scissors); missing = v1 duels only. */
   v?: 2;
   /** v2: this garden's match still being played (resume it). */
-  active?: { id: number; opponent: string } | null;
+  active?: { id: number; opponent: string; live?: boolean } | null;
   /** v2: finished matches this garden was challenged in (newest first). */
   receivedMatches?: MatchSummary[];
+  /** The online duel is switched on (server ARENA_ONLINE): Duel on an online garden sends an invite. */
+  online?: boolean;
 }
 
 // ---------- Arena v2 (server/src/arena-match.ts): Rock / Paper / Scissors against a TaniBot ----------
@@ -631,7 +635,7 @@ export interface TurnHit {
 export interface TurnLog {
   turn: number;
   /** 'timeout' = the player did not pick within the 10 s and lost the turn. */
-  pick: { c: ArenaPick | 'timeout'; d: ArenaPick };
+  pick: { c: ArenaPick | 'timeout'; d: ArenaPick | 'timeout' };
   winner: 'challenger' | 'defender' | 'tie' | 'both';
   hits: TurnHit[];
   hp: { c: number; d: number };
@@ -641,13 +645,15 @@ export interface TurnLog {
 export interface MatchSummary {
   id: number;
   v: 2;
-  kind: 'bot';
+  /** 'bot' = against the other garden's TaniBot; 'live' = the online duel against the player. */
+  kind: 'bot' | 'live';
   at: number;
   endedAt: number | null;
   you: 'challenger' | 'defender';
   challenger: DuelSide;
   defender: DuelSide;
-  status: 'playing' | 'done';
+  /** 'invite' / 'paused' / 'cancelled' only in online duels (servers with ARENA_ONLINE). */
+  status: 'invite' | 'playing' | 'paused' | 'done' | 'cancelled';
   /** Turns decided so far; the next pick is for turn `turn`. */
   turn: number;
   /** The turn clock, measured on the server: 10 s per turn. The open turn's 10 s start in
@@ -662,13 +668,33 @@ export interface MatchSummary {
   /** Garden bonus in percent (0-20). */
   bonus: { c: number; d: number };
   winner: 'challenger' | 'defender' | null;
-  endReason: 'ko' | 'turns' | 'left' | null;
+  endReason: 'ko' | 'turns' | 'left' | 'abandoned' | null;
   practice: 'self' | 'limit' | null;
   prize: number;
   prizeStatus: 'pending' | 'done' | 'failed' | null;
   txUrl: string | null;
   gainedXp: number;
   turnCount?: number;
+  // Online duel (servers with ARENA_ONLINE): the other player's open pick is never sent.
+  /** Your own pick for the open turn (kept after a refresh). */
+  myPick?: ArenaPick | null;
+  /** The other player has picked for the open turn (not what). */
+  theyPicked?: boolean;
+  inviteLeftMs?: number;
+  /** How the invite ended: 'declined' / 'timeout' / 'busy' / 'skipped' / 'judge' = a TaniBot duel now. */
+  inviteResult?: 'accepted' | 'declined' | 'timeout' | 'busy' | 'skipped' | 'judge' | 'cancelled' | null;
+  /** Paused: the player the duel waits for, and their time left. */
+  waitingFor?: string | null;
+  pauseLeftMs?: number;
+}
+
+/** An online duel invite (in the ping's answer). */
+export interface ArenaInvite {
+  id: number;
+  from: string;
+  avatar: string;
+  title: string;
+  msLeft: number;
 }
 
 export interface MatchView extends MatchSummary {
