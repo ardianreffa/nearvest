@@ -62,7 +62,7 @@ Steps 2-9 done on 2026-11-08 (each with Ardian's OK; Entropy stayed PID 1904180 
 
 **Entropy reference PID (for the read-only check in rule 6): 4077255** since 2026-11-10 11:49 WIB (Ardian restarted Entropy himself to fix the bot, not because of NEARvest); before that 3665978 (2026-11-09) and 1904180.
 
-Latest release: `nearvest-e8312ea` (2026-11-11 11:12 WIB: Arena 1 VS 1 v1 + Fruit Fight; adds only the new table `arena_duels` with 2 indexes, no change to existing tables; prizes are normal `mint_reward` chain jobs); rollback: `nearvest-da0cbea` (works on the upgraded database: it ignores `arena_duels`, no restore needed; backup before the release: `nearvest-2026-11-11T11-10-54.sqlite`). Older: `nearvest-63c8c17` (2026-11-10: Market / Shop dots, columns `players.fruit_at` / `market_seen_at`), `nearvest-08d00e3`, `nearvest-69becf1`.
+Latest release: `nearvest-edfb355` (2026-11-11 15:24 WIB: Arena v2 lite, Rock / Paper / Scissors turns with 10 s server-timed turns; adds only the new table `arena_matches` with 3 indexes, no change to existing tables); rollback: `nearvest-e8312ea` (works on the upgraded database: it ignores `arena_matches`, no restore needed; backup before the release: `nearvest-2026-11-11T15-22-49.sqlite`). Older: `nearvest-da0cbea` (2026-11-11 morning: before the Arena; ignores `arena_duels` / `arena_matches`), `nearvest-63c8c17` (2026-11-10: Market / Shop dots, columns `players.fruit_at` / `market_seen_at`), `nearvest-08d00e3`, `nearvest-69becf1`.
 
 ## Step 2: read-only check right before deploying (no change)
 
