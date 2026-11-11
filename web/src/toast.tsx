@@ -1,52 +1,34 @@
 // Notifications at the top of the garden, just below the HUD. Normal ones ("Watered!", "On NEAR:
 // Tree NFT minted · view tx") are ONE thin line; errors (red) and warnings (gold) show their whole
-// text on up to four lines, stay 6 s and close with a tap (×). Only one shows at a time: notices
-// that arrive while one is showing replace it and are counted ("+2 more"). Normal ones hide after
-// 3.5 s, and a tap opens the transaction when there is one. Nothing ever covers the top HUD, the
+// text on up to four lines, stay 6 s and close with a tap (×). Only one shows at a time: normal
+// notices that arrive while one is showing replace it and are counted ("+2 more"); important ones
+// (errors, warnings, news from other players) are never lost: they wait their turn and only count
+// their time while on screen (toast-queue.ts). Normal ones hide after 3.5 s, and a tap opens the
+// transaction when there is one. Nothing ever covers the top HUD, the
 // bottom panel, the tab bar or the side menu (normal lines also keep clear of TaniBot and the
 // plots); while a window is open it moves to free room above or below the window, or waits hidden.
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { Sprite } from './sprites';
+import { dueIn, EMPTY, hideToast, isAlert, nextToast, pushToast, unhideToast, type Shown, type Toast, type ToastQueue } from './toast-queue';
 
-export interface Toast {
-  id: number;
-  kind: 'info' | 'warn' | 'error' | 'chain' | 'success';
-  text: string;
-  link?: string;
-  /** Stays as long as an alert (news the player should not miss, e.g. a friend watered a tree). */
-  long?: boolean;
-}
+export type { Toast } from './toast-queue';
 
-interface Shown {
-  toast: Toast;
-  /** Notices merged into this one (arrived while it was showing). */
-  more: number;
-  until: number;
-}
-
-const LIFE_MS = 3500;
-/** Errors and warnings: long enough to read two or three lines. */
-const ERROR_MS = 6000;
-
-/** Errors and warnings show their whole text (several lines) and a close mark. */
-const isAlert = (kind: Toast['kind']) => kind === 'error' || kind === 'warn';
-
-/** The toast() function and the strip that shows it. */
+/** The toast() function and the strip that shows it (rules: toast-queue.ts). */
 export function useToasts() {
-  const [shown, setShown] = useState<Shown | null>(null);
-  const timer = useRef(0);
-  const toast = useCallback((t: Omit<Toast, 'id'>) => {
-    const life = isAlert(t.kind) || t.long ? ERROR_MS : LIFE_MS;
-    setShown((cur) => ({
-      toast: { ...t, id: Math.random() },
-      more: cur && cur.until > Date.now() ? cur.more + 1 : 0,
-      until: Date.now() + life,
-    }));
-    window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => setShown(null), life);
-  }, []);
-  return { toast, shown, dismiss: () => setShown(null) };
+  const [q, setQ] = useState<ToastQueue>(EMPTY);
+  const toast = useCallback((t: Omit<Toast, 'id'>) => setQ((cur) => pushToast(cur, { ...t, id: Math.random() }, Date.now())), []);
+  // One timer for whatever is due next (none while an important notice waits hidden).
+  useEffect(() => {
+    const ms = dueIn(q, Date.now());
+    if (ms === null) return;
+    const id = window.setTimeout(() => setQ((cur) => nextToast(cur, Date.now())), ms);
+    return () => window.clearTimeout(id);
+  }, [q]);
+  const dismiss = useCallback(() => setQ((cur) => nextToast(cur, Date.now())), []);
+  /** The strip reports whether it found room on screen. */
+  const setHidden = useCallback((hidden: boolean) => setQ((cur) => (hidden ? hideToast(cur, Date.now()) : unhideToast(cur, Date.now()))), []);
+  return { toast, shown: q.shown, dismiss, setHidden };
 }
 
 type Rect = { top: number; bottom: number; left: number; right: number; width: number };
@@ -89,7 +71,7 @@ function placeStrip(h: number, alert = false): { top: number; left: number; widt
   return { top: alert ? below : safeTop, left, width };
 }
 
-export function ToastStrip({ shown, dismiss }: { shown: Shown | null; dismiss: () => void }) {
+export function ToastStrip({ shown, dismiss, setHidden }: { shown: Shown | null; dismiss: () => void; setHidden: (hidden: boolean) => void }) {
   const el = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   useLayoutEffect(() => {
@@ -106,6 +88,11 @@ export function ToastStrip({ shown, dismiss }: { shown: Shown | null; dismiss: (
       window.removeEventListener('resize', update);
     };
   }, [shown]);
+  // No room (a window covers the strip): important notices stop their clock until there is room.
+  const hidden = !!shown && !pos;
+  useEffect(() => {
+    if (shown) setHidden(hidden);
+  }, [hidden, shown?.toast.id, setHidden]);
   if (!shown) return <div class="toasts" role="status" aria-live="polite" />;
   const t = shown.toast;
   const body = (

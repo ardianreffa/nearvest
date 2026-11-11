@@ -128,7 +128,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>('garden');
   const [sideTab, setSideTab] = useState<SideTab>('storage');
   const [busy, setBusy] = useState(false);
-  const { toast, shown: toastShown, dismiss: dismissToast } = useToasts();
+  const { toast, shown: toastShown, dismiss: dismissToast, setHidden: setToastHidden } = useToasts();
   const [flash, setFlash] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [dialog, setDialog] = useState<Dialog | null>(null);
@@ -1099,7 +1099,7 @@ export function App() {
       )}
 
       {flash > 0 && <div class="chain-flash" key={flash} aria-hidden="true" />}
-      <ToastStrip shown={toastShown} dismiss={dismissToast} />
+      <ToastStrip shown={toastShown} dismiss={dismissToast} setHidden={setToastHidden} />
       {dialogView}
       {infoView}
       {farmersOpen && <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} />}

@@ -43,8 +43,10 @@ export function ArenaWindow({
 }) {
   const [data, setData] = useState<ArenaView | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Reload after each duel (the state's `left` changes).
+  // Reload after each duel: our own (the state's `left` changes) and one we received while the
+  // window is open (the newest received duel changes; the 8 s state poll brings it).
   const left = state.arena?.left;
+  const newestReceived = state.arena?.received[0]?.id ?? 0;
   useEffect(() => {
     let alive = true;
     api<ArenaView>('GET', '/api/arena')
@@ -53,7 +55,7 @@ export function ArenaWindow({
     return () => {
       alive = false;
     };
-  }, [left]);
+  }, [left, newestReceived]);
 
   const blocked = data?.blocked;
   return (
