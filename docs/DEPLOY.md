@@ -62,7 +62,7 @@ Steps 2-9 done on 2026-11-08 (each with Ardian's OK; Entropy stayed PID 1904180 
 
 **Entropy reference PID (for the read-only check in rule 6): 4077255** since 2026-11-10 11:49 WIB (Ardian restarted Entropy himself to fix the bot, not because of NEARvest); before that 3665978 (2026-11-09) and 1904180.
 
-Latest release: `nearvest-da0cbea` (2026-11-10: Market / Shop dots with hint, Market Seeds section; adds columns `players.fruit_at` and `players.market_seen_at`, both DEFAULT 0, and sets `fruit_at = 1` for gardens holding fruit); rollback: `nearvest-63c8c17` (works on the upgraded database: it names its columns and ignores the new ones, no restore needed; backup before the release: `nearvest-2026-11-10T17-13-41.sqlite`). Older: `nearvest-08d00e3`, `nearvest-69becf1`.
+Latest release: `nearvest-e8312ea` (2026-11-11 11:12 WIB: Arena 1 VS 1 v1 + Fruit Fight; adds only the new table `arena_duels` with 2 indexes, no change to existing tables; prizes are normal `mint_reward` chain jobs); rollback: `nearvest-da0cbea` (works on the upgraded database: it ignores `arena_duels`, no restore needed; backup before the release: `nearvest-2026-11-11T11-10-54.sqlite`). Older: `nearvest-63c8c17` (2026-11-10: Market / Shop dots, columns `players.fruit_at` / `market_seen_at`), `nearvest-08d00e3`, `nearvest-69becf1`.
 
 ## Step 2: read-only check right before deploying (no change)
 
