@@ -40,6 +40,8 @@
 //   Visitors rows, a visit (no dots), a sticker: ONE countdown, the window closed + opened again and the page refreshed
 //   keep counting from the server's time:
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --dots=<owner>:<visitor> [w] [h]
+// New web on an OLD server without the Arena (e.g. the live release's server code, fake chain): Arena pin "Soon", no
+//   Duel button when visiting, no Village Arena box: UI_URL=http://127.0.0.1:5174 node tools/ui-test.mjs <outDir> --oldserver=<me>:<friend> [w] [h]
 // Arena 1 VS 1 (fake-chain server; API_URL = that server, default http://127.0.0.1:8788; FAKE_DB=<its sqlite> makes <foe>
 //   strong): makes <me>, <foe> and <me>x through the API, <foe> challenges <me>; the Arena pin, window, a duel, Skip,
 //   the Village Arena box and the visit Duel button:
@@ -567,6 +569,75 @@ try {
       console.log('fonts of the counter:', await evaluate(`getComputedStyle(document.querySelector('.name-count')).fontFamily + ' ' + getComputedStyle(document.querySelector('.name-count')).fontSize`));
     });
     throw { done: true };
+  }
+  if (name.startsWith('--oldserver=')) {
+    // New web on an OLD server (no Arena; e.g. the live nearvest-da0cbea, fake chain): the Arena pin
+    // stays "Soon", no Duel button while visiting, no Arena box in the Village tab, no errors.
+    const [me, friend] = name.slice('--oldserver='.length).split(':');
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return { status: res.status, body: await res.json().catch(() => null) };
+    };
+    const make = async (user) => {
+      const token = (await call('POST', '/auth/dev', null, { username: user })).body.token;
+      let st = (await call('GET', '/api/me', token)).body;
+      if (st.error) st = (await call('POST', '/api/player', token, { name: user, demo: true })).body;
+      for (let i = 0; i < 40 && st.player.accountStatus !== 'ready'; i++) (await sleep(300), (st = (await call('GET', '/api/me', token)).body));
+      if (!st.plots[0].tree) {
+        await call('POST', '/api/checkin', token);
+        st = (await call('GET', '/api/me', token)).body;
+        await call('POST', '/api/plant', token, { plot: 0, seedId: (st.seeds.find((x) => x.species === 'mango') ?? st.seeds[0]).id });
+      }
+      return token;
+    };
+    await step(`old server: make ${me} and ${friend}; does it know the Arena?`, async () => {
+      const tok = await make(me);
+      await make(friend);
+      const st = (await call('GET', '/api/me', tok)).body;
+      console.log('state.arena:', st.arena === undefined ? 'missing (old server)' : JSON.stringify(st.arena), '| state.news:', st.news ? 'yes' : 'no');
+      console.log('GET /api/arena:', (await call('GET', '/api/arena', tok)).status, '| POST /api/arena/duel:', (await call('POST', '/api/arena/duel', tok, { opponent: friend })).status);
+    });
+    await step(`${me}: the garden and the Arena pin`, async () => {
+      await evaluate(`localStorage.removeItem('nearvest.token')`);
+      await send('Page.navigate', { url: UI_URL });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      await typeInto('#dev-user', me);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await sleep(2500);
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      console.log('Arena pin:', await evaluate(`(() => { const p = document.querySelector('.pin-arena'); return p ? '"' + p.innerText.replace(/\\n/g, ' ') + '" | soon class: ' + p.classList.contains('soon') : 'missing'; })()`));
+      await screenshot('old-garden');
+      await evaluate(`document.querySelector('.pin-arena').click()`);
+      await sleep(400);
+      console.log('after tapping the Arena pin: bubble', await evaluate(`document.querySelector('.hs-bubble')?.innerText.replace(/\\n/g, ' ') ?? 'none'`), '| Arena window:', await evaluate(`!!document.querySelector('.arena-dialog')`), '| duel screen:', await evaluate(`!!document.querySelector('.duel')`));
+      await screenshot('old-arena-pin');
+      await evaluate(`document.querySelector('.hs-bubble') && document.body.click()`);
+      await realClick(5, H - 5);
+      await sleep(300);
+    });
+    await step(`${me}: Village tab (no Arena box)`, async () => {
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-village').click()`);
+      else await evaluate(`(document.querySelector('.side-tabs .tab-village') ?? document.querySelector('.rail-village'))?.click()`);
+      await sleep(800);
+      console.log('Arena box:', await evaluate(`document.querySelector('.arena-panel') ? 'SHOWN' : 'none'`), '| boxes:', await evaluate(`[...document.querySelectorAll('.panel > .panel-head h2')].map(h => h.innerText).join(', ')`));
+      await screenshot('old-village');
+    });
+    await step(`${me}: visit ${friend} (no Duel button)`, async () => {
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-garden').click()`);
+      await sleep(400);
+      await evaluate(`document.querySelector('.pin-friends').click()`);
+      await sleep(300);
+      if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
+      await evaluate(`[...document.querySelectorAll('.farmers-dialog .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(friend)})?.querySelector('button').click()`);
+      await waitFor(`!!document.querySelector('.visit-head')`, 'visit panel', 15000);
+      await sleep(1500);
+      console.log('Duel button:', await evaluate(`document.querySelector('.visit-duel') ? 'SHOWN' : 'none'`), '| visit buttons:', await evaluate(`[...document.querySelectorAll('.visit-head .btn')].map(b => b.innerText.replace(/\\n/g, ' ')).join(' | ')`));
+      await screenshot('old-visit');
+    });
+    throw Object.assign(new Error('oldserver done'), { done: true });
   }
   if (name.startsWith('--arena=')) {
     // Arena 1 VS 1 (docs/PLAN-arena.md): <me> (a watered Common Mango) and <foe> (FAKE_DB: a Gold Durian
