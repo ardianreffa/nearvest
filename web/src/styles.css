@@ -10218,9 +10218,10 @@ html.page-locked body {
 
 /* =====================================================================
    Fishing corner at the left-hand hut (art/fishing.tsx, village.ts `fishing`; Soon).
-   The rod and basket are Ardian's ChatGPT pixel art: warmer at dusk, darker at night like the
-   village; the float sways one sprite pixel. The fish hologram is drawn in code like the image's
-   holograms: see-through cyan, a soft glow, a slow blink, a scan line; it stays lit at night.
+   Basket + rod on the grass in front of the porch (Ardian's ChatGPT pixel art at the hut's own
+   pixel size): warmer at dusk, darker at night like the village; the float sways one sprite
+   pixel. The fish sign on the roof is drawn in code like the image's holograms: see-through cyan,
+   a soft glow, a slow blink, a scan line; it stays lit at night.
    ===================================================================== */
 .fish-prop {
   pointer-events: none;
@@ -10235,11 +10236,7 @@ html.page-locked body {
   image-rendering: pixelated;
 }
 
-.fish-rod.flip {
-  transform: scaleX(-1);
-}
-
-/* The float: one sprite pixel (100% / 28 of the rod) left and right, a slow pendulum. */
+/* The float: one sprite pixel (100% / 13 of the rod) left and right, a slow pendulum. */
 .fish-float {
   animation: fish-float 3.6s steps(1) infinite;
 }
@@ -10250,26 +10247,30 @@ html.page-locked body {
     translate: 0 0;
   }
   25% {
-    translate: 3.572% 0;
+    translate: 7.693% 0;
   }
   75% {
-    translate: -3.572% 0;
+    translate: -7.693% 0;
   }
 }
 
+/* The roof sign (panel + legs, 16 x 13 units). */
 .fish-holo {
   pointer-events: none;
   display: block;
-  overflow: hidden;
   filter: drop-shadow(0 0 2px color-mix(in srgb, var(--cyan-500) 85%, transparent)) drop-shadow(0 0 5px color-mix(in srgb, var(--cyan-500) 50%, transparent));
-  opacity: calc(0.82 + 0.15 * var(--night));
-  animation: fish-holo-bob 4.8s steps(1) infinite, fish-holo-blink 6.5s steps(1) infinite;
+  opacity: calc(0.85 + 0.15 * var(--night));
+  animation: fish-holo-blink 6.5s steps(1) infinite;
 }
 
 .fish-holo svg {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.fish-holo .fh-leg {
+  fill: var(--soil-700);
 }
 
 .fish-holo .fh-panel {
@@ -10288,26 +10289,33 @@ html.page-locked body {
   fill: color-mix(in srgb, var(--cyan-300) 75%, transparent);
 }
 
-/* The scan line: a light band sliding down the panel. */
-.fish-holo::after {
+/* The scan line: a light band sliding down the panel only (11 of the 13 rows; not the legs). */
+.fish-holo .fh-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(100% * 11 / 13);
+  overflow: hidden;
+}
+
+.fish-holo .fh-scan::after {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
   top: 0;
-  height: 18%;
+  height: 20%;
   background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--cyan-300) 70%, transparent), transparent);
-  animation: holo-soft-scan 5.5s linear infinite;
+  animation: fish-scan 5.5s linear infinite;
 }
 
-/* Floats: up one step and back now and then. */
-@keyframes fish-holo-bob {
-  0%,
-  100% {
-    translate: 0 0;
+@keyframes fish-scan {
+  from {
+    transform: translateY(-100%);
   }
-  50% {
-    translate: 0 -6%;
+  to {
+    transform: translateY(500%);
   }
 }
 
@@ -10317,13 +10325,13 @@ html.page-locked body {
   44%,
   50%,
   100% {
-    opacity: calc(0.82 + 0.15 * var(--night));
+    opacity: calc(0.85 + 0.15 * var(--night));
   }
   46% {
     opacity: calc(0.5 + 0.15 * var(--night));
   }
   48% {
-    opacity: calc(0.68 + 0.15 * var(--night));
+    opacity: calc(0.7 + 0.15 * var(--night));
   }
 }
 
@@ -10333,7 +10341,7 @@ html.page-locked body {
     animation: none;
   }
 
-  .fish-holo::after {
+  .fish-holo .fh-scan {
     display: none;
   }
 }

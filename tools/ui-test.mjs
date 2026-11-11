@@ -2107,6 +2107,7 @@ try {
         // The fishing corner (v3): rod, float, basket, hologram on screen; what moves (nothing with
         // REDUCED_MOTION=1); rain layers; then the Fishing pin opens its small "coming soon" window.
         console.log('fishing:', await evaluate(`(() => { const q = (s) => document.querySelector(s); const box = (e) => { if (!e) return 'missing'; const r = e.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }; const anim = (s) => [...document.querySelectorAll(s)].map(e => getComputedStyle(e).animationName).join('/') || 'none'; return 'rod ' + box(q('.fish-rod')) + ' | basket ' + box(q('.fish-bucket')) + ' | holo ' + box(q('.fish-holo')) + ' | anims: float ' + anim('.fish-float') + ', holo ' + anim('.fish-holo') + ', rain ' + anim('.wx-rain-layer') + ' | rain layers ' + document.querySelectorAll('.wx-rain-layer').length; })()`));
+        if (process.env.MEASURE) console.log(await evaluate((await import('node:fs')).readFileSync(process.env.MEASURE, 'utf8')));
         await evaluate(`document.querySelector('.place-pin.pin-fishing').click()`);
         await sleep(600);
         console.log('fishing window:', await evaluate(`(() => { const d = document.querySelector('.fishing-dialog'); return d ? d.innerText.replace(/\\n+/g, ' | ') : 'NOT OPEN'; })()`));

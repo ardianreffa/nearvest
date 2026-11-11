@@ -1,18 +1,20 @@
 // The fishing corner at the left-hand hut of the v3 village (village.ts `fishing`), a "Soon" place:
-//   - the rod (Ardian's ChatGPT image, docs/art-source/fishing-props.png, cut with
-//     tools/pixelize/cutout.py --alpha) leans on a hut post; its float is its own layer
+//   - one small set on the grass in front of the porch: the woven fish basket with the rod standing
+//     in it, tip to the right (away from the hut), the line and float hanging over the grass. Both
+//     are Ardian's ChatGPT image (docs/art-source/fishing-props.png, cut with
+//     tools/pixelize/cutout.py --alpha at the hut's own pixel size); the float is its own layer
 //     (tools/pixelize/split.py) and sways one pixel left and right, slowly;
-//   - the woven fish basket from the same image stands on the ground at the hut's front;
-//   - a fish hologram drawn here in code, in the style of the image's holograms (the durian sign
-//     by the Shop, the robot head at the Friends house): a see-through cyan panel with a pixel
-//     fish, a soft glow, a slow blink and a scan line, floating beside the roof.
-// The rod and basket follow the village clock (warmer at dusk, darker at night); the hologram
-// stays lit. With prefers-reduced-motion nothing moves (CSS). The pin and the "coming soon"
-// window are in hotspots.tsx / app.tsx.
+//   - a fish hologram drawn here in code, mounted on the roof near the ridge like a neon sign (two
+//     small legs), in the style of the image's holograms (the durian sign by the Shop, the robot
+//     head at the Friends house): a see-through cyan panel with a pixel fish, a soft glow, a slow
+//     blink and a scan line.
+// The set follows the village clock (warmer at dusk, darker at night); the sign stays lit. With
+// prefers-reduced-motion nothing moves (CSS). The pin and the "coming soon" window are in
+// hotspots.tsx / app.tsx.
 
 import { boxIn, type FishingCorner, type Village } from './village';
 
-/** The hologram's pixel fish (12 x 7): `#` = outline, `o` = eye, `-` = scales. */
+/** The sign's pixel fish (12 x 7): `#` = outline, `o` = eye, `-` = scales. */
 const FISH = [
   '....####....',
   '..##----#..#',
@@ -23,8 +25,8 @@ const FISH = [
   '....####....',
 ];
 
-/** Fish hologram: panel 16 x 11 units with a 1-unit edge, the fish in the middle. */
-function FishHologram({ style }: { style: Record<string, string> }) {
+/** Roof sign: panel 16 x 11 units with a 1-unit edge and the fish, on two legs (rows 11-12). */
+function FishSign({ style }: { style: Record<string, string> }) {
   const cells: preact.JSX.Element[] = [];
   FISH.forEach((row, y) =>
     [...row].forEach((c, x) => {
@@ -34,11 +36,15 @@ function FishHologram({ style }: { style: Record<string, string> }) {
   );
   return (
     <span class="fish-holo" style={style}>
-      <svg viewBox="0 0 16 11" preserveAspectRatio="none" shape-rendering="crispEdges">
-        <rect class="fh-panel" x={0} y={0} width={16} height={11} />
-        <path class="fh-edge" d="M1 0h14v1H1zM1 10h14v1H1zM0 1h1v9H0zM15 1h1v9h-1z" />
-        {cells}
+      <svg viewBox="0 0 16 13" preserveAspectRatio="none" shape-rendering="crispEdges">
+        <path class="fh-leg" d="M3 11h1v2H3zM12 11h1v2h-1z" />
+        <g class="fh-glow">
+          <rect class="fh-panel" x={0} y={0} width={16} height={11} />
+          <path class="fh-edge" d="M1 0h14v1H1zM1 10h14v1H1zM0 1h1v9H0zM15 1h1v9h-1z" />
+          {cells}
+        </g>
       </svg>
+      <i class="fh-scan" />
     </span>
   );
 }
@@ -47,14 +53,15 @@ export function FishingProps({ v, f }: { v: Village; f: FishingCorner }) {
   const at = (b: [number, number, number, number]) => boxIn(v, ...b);
   return (
     <>
-      <span class={`fish-prop fish-rod${f.rodFlip ? ' flip' : ''}`} style={at(f.rod)}>
+      <span class="fish-prop fish-rod" style={at(f.rod)}>
         <img src="/assets/fishing/rod.png" alt="" />
         <img class="fish-float" src="/assets/fishing/float.png" alt="" />
       </span>
+      {/* In front of the rod: the handle stands inside the basket. */}
       <span class="fish-prop fish-bucket" style={at(f.bucket)}>
         <img src="/assets/fishing/bucket.png" alt="" />
       </span>
-      <FishHologram style={at(f.holo)} />
+      <FishSign style={at(f.holo)} />
     </>
   );
 }

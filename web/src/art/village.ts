@@ -25,15 +25,16 @@ export interface SpotPlace {
 }
 
 /**
- * v3: the fishing corner at the left-hand hut (art/fishing.tsx): Ardian's ChatGPT rod (leaning on a
- * hut post, its float sways) and fish basket (on the ground at the hut's front), a fish hologram
- * drawn in code beside the roof, and the "Fishing" pin (Soon). Game px of the village's grid.
+ * v3: the fishing corner at the left-hand hut (art/fishing.tsx): one small set on the grass in
+ * front of the porch (Ardian's ChatGPT fish basket with the rod standing in it, tip to the right,
+ * away from the hut; its float sways), a fish hologram drawn in code mounted on the roof near the
+ * ridge like a neon sign, and the "Fishing" pin (Soon). Game px of the village's grid.
  */
 export interface FishingCorner {
+  /** The rod: its handle (bottom left) stands in the basket, its tip points right. */
   rod: Box;
-  /** Mirror the rod (its tip leans left onto the post). */
-  rodFlip?: boolean;
   bucket: Box;
+  /** The roof sign: panel + two small legs (16 x 13 units). */
   holo: Box;
   spot: SpotPlace;
 }
@@ -367,15 +368,15 @@ export const V3_WEB: Village = {
   darto: { x: 151, y: 94, shrink: 3 },
   // In front of the Friends house, on the grass (left of the side menu on every laptop).
   robot: { x: 196, y: 101, homeX: 196, stay: true },
-  // The left-hand hut (roof 47..91, eaves at row 74, floor at row 92): the rod leans on its right
-  // corner post beside the stairs (mirrored; plot 1's tree and label stand left of the hut), the
-  // basket stands under the floor, the hologram floats right of the roof above the rod (clear of
-  // the Arena pin). Sprites at 2 art px per game px, like the 480x270 art.
+  // The left-hand hut (ridge at 65,57, eaves at row 74, porch floor at row 84, stairs down to row
+  // 92): the sign stands on the roof just below the ridge (under the Fishing pin); the basket + rod
+  // stand on the grass in front of the porch, below the stairs' foot and right of plot 1's tree
+  // (which reaches x 75 when grown), tip at row 93 (below the stairs and the porch floor), float over
+  // the grass. Sprites at 2 art px per game px, like the 480x270 art (rod 13x18, basket 8x10).
   fishing: {
-    rod: [89, 74, 14, 20],
-    rodFlip: true,
-    bucket: [65, 83, 7.5, 9],
-    holo: [92, 59.5, 12, 8.25],
+    rod: [77, 93, 6.5, 9],
+    bucket: [76, 97.5, 4, 5],
+    holo: [60, 58, 10, 8.125],
     spot: { box: [51, 57, 40, 36], pin: [66, 57] },
   },
 };
@@ -436,15 +437,14 @@ export const V3_PHONE: Village = {
   },
   darto: { x: 74, y: 120.5, shrink: 4 },
   robot: { x: 100.5, y: 128.5, homeX: 100.5, stay: true },
-  // The hut behind the Shop (roof 20..48, eaves at row 102, stairs to row 117): the rod leans on
-  // the right corner post (mirrored), the basket stands under the floor, the hologram floats in
-  // front of the roof's right side (the Arena pin is right of the roof). Sprites at 4 art px per
-  // game px, like the 480x720 art.
+  // The hut behind the Shop (ridge at 32,90, eaves at row 102, stairs down to row 117): the sign
+  // stands on the roof below the ridge (under the Fishing pin); basket + rod on the grass in front
+  // of the porch, below the stairs, right of plot 1's tree (to x 36) and above TaniBot's hat (row
+  // 125). Sprites at 4 art px per game px, like the 480x720 art.
   fishing: {
-    rod: [48, 106.5, 7, 10],
-    rodFlip: true,
-    bucket: [36, 111.5, 3.75, 4.5],
-    holo: [38.5, 95.5, 9.6, 6.6],
+    rod: [40, 117.8, 3.25, 4.5],
+    bucket: [39.5, 120, 2, 2.5],
+    holo: [28, 90.2, 8, 6.5],
     spot: { box: [29, 89, 20, 28], pin: [32, 89] },
   },
 };
