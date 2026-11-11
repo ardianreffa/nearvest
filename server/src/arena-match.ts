@@ -11,10 +11,14 @@
 //   deciding the fight.
 // - Each turn won fills the skill bar by 1; full (3) = the Gold Durian: a sure hit of 40 (x bonus)
 //   that cannot be dodged. The TaniBot throws its own as soon as its bar is full.
-// - At most 15 turns; no K.O. by then = most life wins, then most hits landed, then the challenged
-//   garden (as v1's tie rule).
+// - Each turn the player has 10 s (ARENA_TURN_MS, measured HERE, plus a small grace for slow
+//   networks). No pick in time = the player loses the turn: the TaniBot throws (or uses its Gold
+//   Durian) and its skill bar fills. Missed turns are decided on the next request or by the 10 s
+//   sweep in main.ts, one after another, so a closed page keeps losing turns.
+// - No turn limit: the match runs until a K.O. It always ends: a player who does nothing is hit
+//   every ~13 s (a safety net of 200 turns is never reached in practice).
 // - Prize, XP, limits and anti-cheat are v1's (arena.ts): the match counts toward the day's 3 from
-//   the moment it starts; no request from the player for 2 minutes = a loss without prize.
+//   the moment it starts. A loss while the player missed the last 3 turns in a row = "left" (no XP).
 //
 // Privacy: like v1, only names, avatars, titles, round scores and the trees' public data.
 
@@ -31,13 +35,18 @@ import {
   ARENA_FRUIT_DAMAGE,
   ARENA_GOLD_DURIAN,
   ARENA_HP,
-  ARENA_LEAVE_MS,
-  ARENA_MAX_TURNS,
+  ARENA_IDLE_TURNS,
+  ARENA_PLAYBACK_GOLD_MS,
+  ARENA_PLAYBACK_MS,
   ARENA_PRIZE,
   ARENA_QUALITY_CHANCE,
   ARENA_QUALITY_DAMAGE,
   ARENA_RECENT,
+  ARENA_SAFETY_TURNS,
   ARENA_SKILL_MAX,
+  ARENA_START_MS,
+  ARENA_TURN_GRACE_MS,
+  ARENA_TURN_MS,
   ARENA_XP_DEFEND,
   ARENA_XP_LOSS,
   ARENA_XP_WIN,
@@ -53,6 +62,8 @@ export type Pick = Rps | 'gold';
 export const RPS: readonly Rps[] = ['rock', 'paper', 'scissors'];
 const BEATS: Record<Rps, Rps> = { rock: 'scissors', scissors: 'paper', paper: 'rock' };
 export const isPick = (v: unknown): v is Pick => v === 'gold' || RPS.includes(v as Rps);
+/** What the player did in a decided turn: a pick, or nothing in time ('timeout'). */
+export type TurnPick = Pick | 'timeout';
 
 /** A random whole number in [0, n). */
 export type Rand = (n: number) => number;
@@ -74,7 +85,7 @@ export interface TurnHit {
 /** One decided turn, as stored and shown (both picks are only known once the turn is decided). */
 export interface TurnLog {
   turn: number;
-  pick: { c: Pick; d: Pick };
+  pick: { c: TurnPick; d: Pick };
   winner: 'challenger' | 'defender' | 'tie' | 'both';
   hits: TurnHit[];
   /** Life and skill bars after the turn. */
@@ -116,14 +127,23 @@ const GOLD_DURIAN: Fruit = { species: 'durian', quality: 'gold' };
 /** The computer's pick: its Gold Durian as soon as the bar is full, else Rock / Paper / Scissors at random (cannot be read). */
 export const botPick = (skill: number, rand: Rand): Pick => (skill >= ARENA_SKILL_MAX ? 'gold' : RPS[rand(3)]);
 
-/** Decides one turn. `pc` / `pd` must be valid (the Gold Durian only with a full bar). */
-export function resolveTurn(b: Bars, turn: number, pc: Pick, pd: Pick, rand: Rand): { bars: Bars; log: TurnLog } {
+/**
+ * Decides one turn. `pc` / `pd` must be valid (the Gold Durian only with a full bar). `pc` =
+ * 'timeout': the player did not pick in time and loses the turn (the TaniBot throws its fruit, or
+ * its Gold Durian when that was its pick, and its skill bar fills).
+ */
+export function resolveTurn(b: Bars, turn: number, pc: TurnPick, pd: Pick, rand: Rand): { bars: Bars; log: TurnLog } {
   const next = { ...b };
   const hits: TurnHit[] = [];
   let winner: TurnLog['winner'];
   const cg = pc === 'gold';
   const dg = pd === 'gold';
-  if (cg || dg) {
+  if (pc === 'timeout' && !dg) {
+    winner = 'defender';
+    const fruit = rollFruit(rand);
+    hits.push({ to: 'challenger', fruit, damage: fruitDamage(fruit, b.bonus_d), gold: false });
+    next.skill_d = Math.min(ARENA_SKILL_MAX, next.skill_d + 1);
+  } else if (cg || dg) {
     // A Gold Durian always hits; a side that throws it does not play Rock / Paper / Scissors this turn.
     if (cg) {
       hits.push({ to: 'defender', fruit: GOLD_DURIAN, damage: goldDamage(b.bonus_c), gold: true });
@@ -151,10 +171,16 @@ export function resolveTurn(b: Bars, turn: number, pc: Pick, pd: Pick, rand: Ran
   return { bars: next, log: { turn, pick: { c: pc, d: pd }, winner, hits, hp: { c: next.hp_c, d: next.hp_d }, skill: { c: next.skill_c, d: next.skill_d } } };
 }
 
-/** Is the match over after `turns` decided turns? K.O. first; after the last turn: most life, then most hits landed, then the challenged garden. */
+/** How long the web plays a decided turn before the next turn's 10 s start (the Gold Durian is longer). */
+export const playbackMs = (log: TurnLog) => ARENA_PLAYBACK_MS + log.hits.filter((h) => h.gold).length * ARENA_PLAYBACK_GOLD_MS;
+
+/**
+ * Is the match over? Only by a K.O. (no turn limit). If both fall in the same turn, or the safety net
+ * of 200 turns is reached: most life, then most hits landed, then the challenged garden.
+ */
 export function matchEnd(b: Bars, turns: TurnLog[]): { winner: 'challenger' | 'defender'; reason: 'ko' | 'turns' } | null {
   const ko = b.hp_c <= 0 || b.hp_d <= 0;
-  if (!ko && turns.length < ARENA_MAX_TURNS) return null;
+  if (!ko && turns.length < ARENA_SAFETY_TURNS) return null;
   const reason = ko ? ('ko' as const) : ('turns' as const);
   if (b.hp_c !== b.hp_d) return { winner: b.hp_c > b.hp_d ? 'challenger' : 'defender', reason };
   const landed = (to: TurnHit['to']) => turns.reduce((n, t) => n + t.hits.filter((h) => h.to === to).length, 0);
@@ -189,6 +215,7 @@ interface MatchRow extends Bars {
   ip: string | null;
   device_id: string | null;
   seen_at: number;
+  turn_started_at: number | null;
   created_at: number;
   ended_at: number | null;
   job_status?: string | null;
@@ -201,9 +228,11 @@ const MATCH_SELECT = 'SELECT m.*, j.status AS job_status, j.tx_hash FROM arena_m
  * A match as a player sees it. NEVER holds `bot_pick`: the open turn's computer pick stays on the
  * server until the player's pick for that turn arrived (then it is part of the decided turn).
  */
-export function matchView(r: MatchRow, viewerId: number, explorerTxUrl: string) {
+export function matchView(r: MatchRow, viewerId: number, explorerTxUrl: string, now = 0) {
   const data = JSON.parse(r.data) as MatchData;
   const you = r.challenger_id === viewerId ? ('challenger' as const) : ('defender' as const);
+  const started = r.turn_started_at ?? r.created_at;
+  const open = r.status === 'playing';
   return {
     id: r.id,
     v: 2 as const,
@@ -216,7 +245,11 @@ export function matchView(r: MatchRow, viewerId: number, explorerTxUrl: string) 
     status: r.status,
     /** Turns decided so far; the next pick is for turn `turn`. */
     turn: r.turn,
-    maxTurns: ARENA_MAX_TURNS,
+    /** The turn clock (server time): 10 s per turn. The open turn's 10 s start in `turnStartsInMs`
+     *  (while the web plays the last turn), then `turnMsLeft` count down. 0 / 0 when the match is over. */
+    turnMs: ARENA_TURN_MS,
+    turnStartsInMs: open ? Math.max(0, started - now) : 0,
+    turnMsLeft: open ? Math.min(ARENA_TURN_MS, Math.max(0, started + ARENA_TURN_MS - now)) : 0,
     hp: { c: r.hp_c, d: r.hp_d },
     maxHp: ARENA_HP,
     skill: { c: r.skill_c, d: r.skill_d },
@@ -278,7 +311,7 @@ export class ArenaMatches {
   }
 
   private view(r: MatchRow, viewerId: number): MatchView {
-    return matchView(r, viewerId, this.explorerTxUrl);
+    return matchView(r, viewerId, this.explorerTxUrl, this.now());
   }
 
   /** Finished matches of this garden, both roles (Arena window "Recent duels"). */
@@ -290,10 +323,13 @@ export class ArenaMatches {
     ).map((r) => matchSummary(r, viewerId, this.explorerTxUrl));
   }
 
-  /** The open match of this garden, if any (after closing one whose player left). */
+  /** The open match of this garden, if any (after deciding its missed turns: it may be over now). */
   private openOf(playerId: number): MatchRow | undefined {
     const r = this.db.prepare(`${MATCH_SELECT} WHERE m.challenger_id = ? AND m.status = 'playing' ORDER BY m.id DESC LIMIT 1`).get(playerId) as unknown as MatchRow | undefined;
-    return r && this.expire(r) ? undefined : r;
+    if (!r) return undefined;
+    this.advance(r);
+    const again = this.row(r.id)!;
+    return again.status === 'playing' ? again : undefined;
   }
 
   /** Starts a match against the garden `name`'s TaniBot (the v1 checks and limits; counts toward the day's 3 at once). */
@@ -321,22 +357,22 @@ export class ArenaMatches {
       const id = Number(
         this.db
           .prepare(
-            `INSERT INTO arena_matches (kind, status, challenger_id, defender_id, duel_day, turn, hp_c, hp_d, skill_c, skill_d, bonus_c, bonus_d, bot_pick, practice, data, ip, device_id, seen_at, created_at)
-             VALUES ('bot', 'playing', ?, ?, ?, 0, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO arena_matches (kind, status, challenger_id, defender_id, duel_day, turn, hp_c, hp_d, skill_c, skill_d, bonus_c, bonus_d, bot_pick, practice, data, ip, device_id, seen_at, created_at, turn_started_at)
+             VALUES ('bot', 'playing', ?, ?, ?, 0, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(me.id, them.id, arenaDay(now), ARENA_HP, ARENA_HP, gardenBonus(c.scores), gardenBonus(d.scores), botPick(0, this.rand), practice, JSON.stringify(data), ip, deviceId, now, now)
+          .run(me.id, them.id, arenaDay(now), ARENA_HP, ARENA_HP, gardenBonus(c.scores), gardenBonus(d.scores), botPick(0, this.rand), practice, JSON.stringify(data), ip, deviceId, now, now, now + ARENA_START_MS)
           .lastInsertRowid,
       );
       return { match: this.view(this.row(id)!, me.id) };
     });
   }
 
-  /** A match for one of its two gardens (the challenger's request also keeps it alive: the 2-minute rule). */
+  /** A match for one of its two gardens (its missed turns decided first). */
   get(viewerId: number, id: number): { match: MatchView } {
     const r = this.mine(viewerId, id);
-    if (r.status === 'playing' && r.challenger_id === viewerId) {
-      if (this.expire(r)) return { match: this.view(this.row(id)!, viewerId) };
-      this.db.prepare('UPDATE arena_matches SET seen_at = ? WHERE id = ?').run(this.now(), id);
+    if (r.status === 'playing') {
+      tx(this.db, () => this.advance(this.row(id)!));
+      if (r.challenger_id === viewerId) this.db.prepare('UPDATE arena_matches SET seen_at = ? WHERE id = ?').run(this.now(), id);
     }
     return { match: this.view(this.row(id)!, viewerId) };
   }
@@ -353,44 +389,76 @@ export class ArenaMatches {
    */
   pick(viewerId: number, id: number, turn: unknown, pick: unknown): { match: MatchView; titleUp: string | null } {
     return tx(this.db, () => {
-      const r = this.mine(viewerId, id);
-      if (r.challenger_id !== viewerId) throw new GameError('Only the challenger plays this duel.', 403, { code: 'not_your_turn' });
-      if (r.status === 'playing' && this.expire(r)) return { match: this.view(this.row(id)!, viewerId), titleUp: null };
+      const first = this.mine(viewerId, id);
+      if (first.challenger_id !== viewerId) throw new GameError('Only the challenger plays this duel.', 403, { code: 'not_your_turn' });
+      // Turns whose 10 s (+ grace) ran out are decided first: a pick that came too late finds its
+      // turn already lost and gets the match as it is now.
+      const lost = this.advance(first);
+      const r = this.row(id)!;
       if (typeof turn !== 'number' || !Number.isInteger(turn) || turn < 0) throw new GameError('Missing turn', 400, { code: 'bad_turn' });
-      if (turn < r.turn || r.status === 'done') return { match: this.view(r, viewerId), titleUp: null };
+      if (turn < r.turn || r.status === 'done') return { match: this.view(r, viewerId), titleUp: lost };
       if (turn > r.turn) throw new GameError('That turn has not started yet.', 409, { code: 'turn_wrong' });
       if (!isPick(pick)) throw new GameError('Pick Rock, Paper or Scissors.', 400, { code: 'bad_pick' });
       if (pick === 'gold' && r.skill_c < ARENA_SKILL_MAX) throw new GameError('Fill the skill bar first: win 3 turns.', 400, { code: 'no_skill' });
 
       const now = this.now();
-      const data = JSON.parse(r.data) as MatchData;
-      const bot = r.bot_pick ?? botPick(r.skill_d, this.rand);
-      const { bars, log } = resolveTurn(r, r.turn, pick, bot, this.rand);
-      data.turns.push(log);
-      const end = matchEnd(bars, data.turns);
-      this.db
-        .prepare('UPDATE arena_matches SET turn = ?, hp_c = ?, hp_d = ?, skill_c = ?, skill_d = ?, bot_pick = ?, data = ?, seen_at = ? WHERE id = ?')
-        .run(r.turn + 1, bars.hp_c, bars.hp_d, bars.skill_c, bars.skill_d, end ? null : botPick(bars.skill_d, this.rand), JSON.stringify(data), now, id);
-      let titleUp: string | null = null;
-      if (end) titleUp = this.finish(this.row(id)!, end.winner, end.reason);
-      return { match: this.view(this.row(id)!, viewerId), titleUp };
+      const titleUp = this.decide(r, pick, now, now);
+      return { match: this.view(this.row(id)!, viewerId), titleUp: titleUp ?? lost };
     });
   }
 
-  /** Closes a match whose player made no request for 2 minutes: a loss without prize. True if closed. */
-  private expire(r: MatchRow): boolean {
-    if (r.status !== 'playing' || this.now() - r.seen_at < ARENA_LEAVE_MS) return false;
-    this.finish(r, 'defender', 'left');
-    return true;
+  /**
+   * Decides the open turn with the player's pick (or 'timeout') and the TaniBot's locked pick, then
+   * opens the next turn (its 10 s start once the web has played this one). Returns a new title.
+   */
+  private decide(r: MatchRow, pick: TurnPick, at: number, now: number): string | null {
+    const data = JSON.parse(r.data) as MatchData;
+    const bot = r.bot_pick ?? botPick(r.skill_d, this.rand);
+    const { bars, log } = resolveTurn(r, r.turn, pick, bot, this.rand);
+    data.turns.push(log);
+    const end = matchEnd(bars, data.turns);
+    this.db
+      .prepare('UPDATE arena_matches SET turn = ?, hp_c = ?, hp_d = ?, skill_c = ?, skill_d = ?, bot_pick = ?, data = ?, seen_at = ?, turn_started_at = ? WHERE id = ?')
+      .run(r.turn + 1, bars.hp_c, bars.hp_d, bars.skill_c, bars.skill_d, end ? null : botPick(bars.skill_d, this.rand), JSON.stringify(data), now, at + playbackMs(log), r.id);
+    if (!end) return null;
+    // Lost while away: the last 3 turns were all missed = "left" (no XP).
+    const idle = data.turns.slice(-ARENA_IDLE_TURNS);
+    const left = end.winner === 'defender' && idle.length === ARENA_IDLE_TURNS && idle.every((t) => t.pick.c === 'timeout');
+    return this.finish(this.row(r.id)!, end.winner, left ? 'left' : end.reason);
   }
 
-  /** Closes every match whose player left (every 10 s from main.ts). */
+  /** The time the open turn's pick must have arrived by (10 s + the grace for slow networks). */
+  private deadline(r: MatchRow): number {
+    return (r.turn_started_at ?? r.created_at) + ARENA_TURN_MS + ARENA_TURN_GRACE_MS;
+  }
+
+  /**
+   * Decides every turn whose time ran out, one after another (each missed turn is lost; the next
+   * turn's clock starts after the previous one, as if the web had played it). Returns a new title.
+   */
+  private advance(start: MatchRow): string | null {
+    let r = start;
+    let title: string | null = null;
+    const now = this.now();
+    for (let guard = 0; r.status === 'playing' && now >= this.deadline(r) && guard < ARENA_SAFETY_TURNS; guard++) {
+      title = this.decide(r, 'timeout', this.deadline(r), now) ?? title;
+      r = this.row(r.id)!;
+    }
+    return title;
+  }
+
+  /** Decides the missed turns of every open match (every 10 s from main.ts), so a closed page loses its turns too. */
   sweep(): number {
-    const stale = this.db
-      .prepare(`${MATCH_SELECT} WHERE m.status = 'playing' AND m.seen_at < ?`)
-      .all(this.now() - ARENA_LEAVE_MS) as unknown as MatchRow[];
+    const due = this.db
+      .prepare(`${MATCH_SELECT} WHERE m.status = 'playing' AND COALESCE(m.turn_started_at, m.created_at) <= ?`)
+      .all(this.now() - ARENA_TURN_MS - ARENA_TURN_GRACE_MS) as unknown as MatchRow[];
     let n = 0;
-    for (const r of stale) tx(this.db, () => (this.expire(this.row(r.id)!) ? n++ : 0));
+    for (const r of due)
+      tx(this.db, () => {
+        const before = this.row(r.id)!;
+        this.advance(before);
+        if (this.row(r.id)!.turn !== before.turn) n++;
+      });
     return n;
   }
 

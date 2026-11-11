@@ -716,6 +716,9 @@ try {
     await step(`make ${me} and ${foe}; a v2 server?`, async () => {
       const tok = await make(me);
       await make(foe);
+      // ME_XP / FOE_XP: titles for the two gardens (their TaniBots' looks in the duel: Farmer 200, Durian King 1500, Legend 4000).
+      if (process.env.ME_XP) db.prepare('UPDATE players SET xp = ? WHERE name = ?').run(Number(process.env.ME_XP), me);
+      if (process.env.FOE_XP) db.prepare('UPDATE players SET xp = ? WHERE name = ?').run(Number(process.env.FOE_XP), foe);
       const st = await call('GET', '/api/me', tok);
       console.log('state.arena.v:', st.arena?.v, '| active:', JSON.stringify(st.arena?.active), '| left:', st.arena?.left);
     });
@@ -741,6 +744,8 @@ try {
       await waitFor(`!!document.querySelector('.duel.match')`, 'match screen', 15000);
       await sleep(600);
       console.log('start:', await evaluate(info));
+      console.log('TaniBot looks:', await evaluate(`(() => { const t = (sel) => { const b = document.querySelector(sel); return b ? [...b.classList].filter(c => c.startsWith('tier-'))[0] + ' | effects: ' + [...b.querySelectorAll('.bot-aura, .bot-halo, .bot-sweep, .bot-scan, .bot-cape')].map(e => (e.getAttribute('class') || '').split(' ')[0]).join(',') : 'missing'; };
+        return 'me: ' + t('.duel.match .fighter.me .tanibot') + ' || them: ' + t('.duel.match .fighter.them .tanibot') + ' || HUD titles: ' + [...document.querySelectorAll('.duel.match .fighter-name span')].map(e => e.innerText).join(' / '); })()`));
       console.log('buttons:', await evaluate(box('.rps-row')), '| Gold Durian button:', await evaluate(box('.gold-durian-btn')), '| panel:', await evaluate(box('.duel.match')));
       await screenshot('match-buttons');
     });
@@ -778,33 +783,84 @@ try {
       await unfreeze();
       await waitFor(ready, 'next turn', 10000);
     });
-    await step('turns 2-3: Paper vs Rock, Scissors vs Paper (the skill bar fills)', async () => {
+    await step('the 10 s turn clock (frozen at 7 s and at 2 s: red)', async () => {
+      await evaluate(`(window.__clockNow = 2500, true)`);
+      await sleep(500);
+      console.log('clock 7 s:', await evaluate(`document.querySelector('.turn-timer')?.className + ' | ' + document.querySelector('.turn-secs')?.innerText + ' | bar ' + document.querySelector('.turn-bar i')?.style.width`), '|', await evaluate(box('.turn-timer')));
+      await screenshot('match-clock');
+      await evaluate(`(window.__clockNow = 8200, true)`);
+      await sleep(500);
+      console.log('clock 2 s:', await evaluate(`document.querySelector('.turn-timer')?.className + ' | ' + document.querySelector('.turn-secs')?.innerText + ' | colour ' + getComputedStyle(document.querySelector('.turn-secs')).color`));
+      await screenshot('match-clock-red');
+      await evaluate(`(delete window.__clockNow, true)`);
+    });
+    await step('turn 2: no pick for 10 s -> the turn is lost (decided by the server)', async () => {
+      lock('paper');
+      const t0 = Date.now();
+      await waitFor(`!!document.querySelector('.fighter.me .pick-bubble.late')`, 'the missed turn', 25000);
+      console.log(`missed turn shown after ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+      await freeze(700 + 300 + 250, 700);
+      console.log('too slow:', await evaluate(info), '| banner', await evaluate(box('.turn-banner')), '| bubbles', await evaluate(box('.fighter.me .pick-bubble')), await evaluate(box('.fighter.them .pick-bubble')));
+      await screenshot('match-too-slow');
+      await unfreeze();
+      await waitFor(ready, 'turn 3', 15000);
+    });
+    await step('turns 3-4: Paper vs Rock, Scissors vs Paper (the skill bar fills)', async () => {
       await freeze(300, 0);
       await play('paper', 'rock');
-      await waitFor(`!!document.querySelector('.fighter.them .pick-bubble:not(.secret)')`, 'both picks of turn 2', 10000);
+      await waitFor(`!!document.querySelector('.fighter.them .pick-bubble:not(.secret)') && !!document.querySelector('.fighter.me .pick-bubble[aria-label="Paper"]')`, 'both picks of turn 3', 10000);
       await sleep(300);
-      console.log('turn 2 picks:', await evaluate(info));
+      console.log('turn 3 picks:', await evaluate(info));
       await screenshot('match-picks-paper');
       await unfreeze();
-      await waitFor(ready, 'turn 3', 10000);
+      await waitFor(ready, 'turn 4', 10000);
       await play('scissors', 'paper');
       await sleep(300);
-      await waitFor(ready, 'turn 4', 10000);
+      await waitFor(ready, 'turn 5', 10000);
       await sleep(300);
       console.log('skill bar full:', await evaluate(info));
       await screenshot('match-gold-ready');
     });
-    await step('turn 4: the Gold Durian', async () => {
-      await freeze(700 + 300 + 300, 0);
-      await play('gold', 'rock');
-      await waitFor(`!!document.querySelector('.fighter.me .pick-bubble.gold') && !!document.querySelector('.fighter.them .pick-bubble:not(.secret)')`, 'gold turn', 10000);
-      await sleep(300);
-      console.log('Gold Durian flying:', await evaluate(info));
-      await screenshot('match-gold-durian-flying');
-      await freeze(700 + 300 + 850 + 150);
-      console.log('Gold Durian hit:', await evaluate(info));
-      await screenshot('match-gold-durian-hit');
+    // Gold Durian timing (web/src/arena-turn.ts): reveal 700, charge 900, meteor 1100, impact 1200.
+    const goldShots = async (who) => {
+      await waitFor(`!!document.querySelector('.fighter.charging')`, 'gold turn', 10000);
+      // The aura's CSS animation grows for 0.9 s from the moment it appears.
+      await sleep(800);
+      console.log(`${who} Gold Durian, charge:`, await evaluate(info), '| aura', await evaluate(`!!document.querySelector('.fighter.charging .charge-aura')`), '| title', await evaluate(`document.querySelector('.gold-title')?.innerText ?? 'none'`));
+      await screenshot(`match-${who}-gold-charge`);
+      // The meteor's CSS animation runs from the moment it appears: wait for its slow-motion end.
+      await freeze(700 + 900 + 850, 850);
+      console.log(`${who} Gold Durian, meteor:`, await evaluate(`(() => { const m = document.querySelector('.gold-meteor'); return m ? 'meteor ' + JSON.stringify(m.getBoundingClientRect()) : 'no meteor'; })()`));
+      await screenshot(`match-${who}-gold-meteor`);
+      await freeze(700 + 900 + 1100 + 120);
+      console.log(`${who} Gold Durian, impact:`, await evaluate(info), '| flash/wave/shards', await evaluate(`[!!document.querySelector('.gold-flash'), !!document.querySelector('.gold-wave'), document.querySelectorAll('.gold-shard').length].join(' / ')`), '| shake', await evaluate(`document.querySelector('.fight-stage').className`));
+      await screenshot(`match-${who}-gold-impact`);
+      await freeze(700 + 900 + 1100 + 500);
+      console.log(`${who} Gold Durian, damage:`, await evaluate(`document.querySelector('.gold-damage')?.innerText ?? 'none'`));
+      await screenshot(`match-${who}-gold-damage`);
       await unfreeze();
+    };
+    await step('turn 5: my Gold Durian (charge, meteor, impact, damage)', async () => {
+      if (process.env.PERF) {
+        // PERF=1: play it live and count the frames drawn (smooth on phones?).
+        await evaluate(`(window.__frames = [], (function f(t) { window.__frames.push(t); if (window.__frames.length < 2000) requestAnimationFrame(f); })(performance.now()), true)`);
+        await play('gold', 'rock');
+        await sleep(4200);
+        console.log('Gold Durian frames:', await evaluate(`(() => { const f = window.__frames; const d = f.slice(1).map((t, i) => t - f[i]); const s = (f[f.length - 1] - f[0]) / 1000; return JSON.stringify({ seconds: s.toFixed(1), fps: Math.round(d.length / s), slowestFrameMs: Math.round(Math.max(...d)), framesOver50ms: d.filter(x => x > 50).length }); })()`));
+        return;
+      }
+      await freeze(700 + 400, 0);
+      await play('gold', 'rock');
+      await goldShots('me');
+    });
+    await step("turn 6: the TaniBot's Gold Durian (as grand)", async () => {
+      await waitFor(`!!document.querySelector('.fight-ko, .duel-result') || (${ready})`, 'turn 6', 15000);
+      if (await evaluate(`!!document.querySelector('.fight-ko, .duel-result')`)) return console.log('(the match already ended)');
+      const m = openMatch();
+      if (m) db.prepare("UPDATE arena_matches SET skill_d = 3 WHERE id = ?").run(m.id);
+      await freeze(700 + 400, 0);
+      await play('rock', 'gold');
+      await goldShots('them');
     });
     await step('win turns until K.O.!, then the result', async () => {
       for (let i = 0; i < 12; i++) {

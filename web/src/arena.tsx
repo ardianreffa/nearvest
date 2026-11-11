@@ -9,7 +9,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { api, type Activity, type ArenaPick, type ArenaView, type DuelSide, type DuelView, type GameState, type MatchSummary } from './api';
 import { duelPost, fightAt, fightTimes, flightMs, fmt, headline, hpTone, prizeChip, recentLine, rewardOf, roundView, roundWhat, ROUND_NAME, seasonLine, sides, youWon, type Fruit, type Hit } from './arena-play';
 import { Avatar } from './art/avatars';
-import { TaniBot, tierOf } from './art/tanibot';
+import { BotDrones, TaniBot, TANIBOT_H, tierOf } from './art/tanibot';
 import { playSound, type SoundName } from './audio';
 import { confetti } from './fx';
 import { GoldDurian, Sprite, UiIcon } from './sprites';
@@ -270,12 +270,26 @@ export function FlyingFruit({ fruit, from, ms, hitKey, big }: { fruit: Fruit; fr
   );
 }
 
-/** The pick above a TaniBot's head (Arena v2): Rock / Paper / Scissors / the Gold Durian, or "?" while it is still secret. */
-export function PickBubble({ pick, pop }: { pick: ArenaPick | '?'; pop: boolean }) {
-  const label = pick === '?' ? 'Choosing...' : pick === 'gold' ? 'Gold Durian' : pick.charAt(0).toUpperCase() + pick.slice(1);
+/** What a bubble above a TaniBot's head can show (Arena v2). */
+export type BubblePick = ArenaPick | '?' | 'timeout';
+
+/**
+ * The pick above a TaniBot's head (Arena v2): Rock / Paper / Scissors / the Gold Durian, "?" while it
+ * is still secret, or "Too slow" (a red clock) when the player did not pick within the 10 s.
+ */
+export function PickBubble({ pick, pop }: { pick: BubblePick; pop: boolean }) {
+  const label = pick === '?' ? 'Choosing...' : pick === 'gold' ? 'Gold Durian' : pick === 'timeout' ? 'Too slow' : pick.charAt(0).toUpperCase() + pick.slice(1);
   return (
-    <span class={`pick-bubble${pop ? ' pop' : ''}${pick === 'gold' ? ' gold' : ''}${pick === '?' ? ' secret' : ''}`} role="img" aria-label={label}>
-      {pick === '?' ? <b class="pick-q">?</b> : pick === 'gold' ? <GoldDurian scale={3} /> : <UiIcon name={pick} scale={2} />}
+    <span class={`pick-bubble${pop ? ' pop' : ''}${pick === 'gold' ? ' gold' : ''}${pick === '?' ? ' secret' : ''}${pick === 'timeout' ? ' late' : ''}`} role="img" aria-label={label}>
+      {pick === '?' ? (
+        <b class="pick-q">?</b>
+      ) : pick === 'timeout' ? (
+        <b class="pick-late">0s</b>
+      ) : pick === 'gold' ? (
+        <GoldDurian scale={3} />
+      ) : (
+        <UiIcon name={pick} scale={2} />
+      )}
     </span>
   );
 }
@@ -292,15 +306,30 @@ export function Fighter({
   side: DuelSide;
   right: boolean;
   scale: number;
-  state: 'idle' | 'windup' | 'hit' | 'ko' | 'win' | 'dodge';
+  state: 'idle' | 'windup' | 'hit' | 'ko' | 'win' | 'dodge' | 'charging';
   hard: boolean;
   /** v2: the pick shown above its head (pop = it just appeared). */
-  pick?: { pick: ArenaPick | '?'; pop: boolean } | null;
+  pick?: { pick: BubblePick; pop: boolean } | null;
 }) {
+  // The same look as in the garden: the title's TaniBot with its effects AND its drones (Ardian
+  // 2026-11-11: the duel had no drones, so a Farmer / Durian King / Legend did not look like itself).
   const tier = tierOf(side.title);
   return (
-    <div class={`fighter ${right ? 'them' : 'me'} ${state}${hard ? ' hard' : ''}`}>
+    <div class={`fighter ${right ? 'them' : 'me'} ${state}${hard ? ' hard' : ''} tier-${tier}`}>
       {pick && <PickBubble pick={pick.pick} pop={pick.pop} />}
+      <BotDrones tier={tier} scale={Math.max(1, scale)} shadow={Math.round(TANIBOT_H * scale * 0.36)} parked={state === 'ko'} />
+      {state === 'charging' && (
+        // The Gold Durian charge: a growing gold aura, small sparks, gold motes drawn in.
+        <span class="gold-charge" aria-hidden="true">
+          <i class="charge-aura" />
+          {[0, 1, 2, 3].map((k) => (
+            <i key={`s${k}`} class={`charge-spark s${k}`} />
+          ))}
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((k) => (
+            <i key={`m${k}`} class="charge-mote" style={`--a:${k * 45}deg`} />
+          ))}
+        </span>
+      )}
       <div class={`fighter-art${state === 'ko' ? ' asleep' : ''}`}>
         <TaniBot tier={tier} scale={scale} effects={state !== 'ko'} />
       </div>

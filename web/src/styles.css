@@ -12285,9 +12285,23 @@ html.page-locked body {
   }
 }
 
+/* The turn's banner: a small dark chip in the row of the pick bubbles, between them (never over the
+   names, the life bars or the TaniBots' faces), above the fighters and the flying fruit. */
 .turn-banner {
-  top: 6px;
+  z-index: 8;
+  top: 31%;
   bottom: auto;
+  left: 35%;
+  right: 35%;
+  padding: 4px 6px;
+  font-size: var(--fs-sm);
+  line-height: 1.25;
+  background: color-mix(in srgb, var(--hud) 88%, transparent);
+  border: 2px solid var(--gold-500);
+}
+
+.duel.wide .turn-banner {
+  font-size: var(--fs-body);
 }
 
 .turn-banner.gold {
@@ -12468,4 +12482,500 @@ html.page-locked body {
 .duel.match.wide .pick-bubble {
   scale: 1.5;
   transform-origin: 50% 100%;
+}
+
+/* ---------- Arena v2: turn clock, missed turns, drones, the Gold Durian (Ardian 2026-11-11) ---------- */
+
+/* The duel's TaniBots carry their drones like in the garden (same look everywhere). */
+.fighter .bot-drones {
+  bottom: 36%;
+  z-index: auto;
+}
+
+/* The 10 s clock above the buttons: seconds + a shrinking bar; red and pulsing in the last 3 s. */
+.turn-timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.turn-secs {
+  min-width: 2ch;
+  font-family: var(--font-ui);
+  font-size: var(--fs-h2);
+  line-height: 1;
+  text-align: center;
+  color: var(--paper-light);
+}
+
+.turn-bar {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  overflow: hidden;
+  background: var(--ink);
+  border: 2px solid var(--paper-light);
+}
+
+.turn-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--cyan-500);
+  transition: width 200ms linear;
+}
+
+.turn-timer.urgent .turn-secs {
+  color: var(--red-500);
+  animation: timer-pulse 1000ms ease-out;
+}
+
+.turn-timer.urgent .turn-bar {
+  border-color: var(--red-500);
+}
+
+.turn-timer.urgent .turn-bar i {
+  background: var(--red-500);
+}
+
+@keyframes timer-pulse {
+  0% {
+    transform: scale(1.5);
+  }
+  60% {
+    transform: scale(1);
+  }
+}
+
+/* "Too slow": the player did not pick within the 10 s. */
+.pick-bubble.late {
+  background: var(--red-500);
+  border-color: var(--ink);
+}
+
+.pick-late {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  color: var(--paper-light);
+}
+
+/* The Gold Durian, part 1: the thrower charges up (a growing gold aura, sparks, motes drawn in). */
+.gold-charge {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  bottom: 45%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.charge-aura {
+  position: absolute;
+  left: calc(var(--bot-w) * -1);
+  top: calc(var(--bot-w) * -1);
+  width: calc(var(--bot-w) * 2);
+  height: calc(var(--bot-w) * 2);
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold-300) 90%, transparent), color-mix(in srgb, var(--gold-500) 45%, transparent) 45%, transparent 70%);
+  animation: charge-grow 900ms ease-in both;
+}
+
+/* The charging TaniBot glows gold and lifts a little. */
+.fighter.charging .fighter-art {
+  filter: drop-shadow(0 0 6px var(--gold-300)) drop-shadow(0 0 2px var(--gold-500));
+  animation: charge-lift 900ms ease-in-out both;
+}
+
+@keyframes charge-lift {
+  to {
+    translate: 0 -8px;
+  }
+}
+
+@keyframes charge-grow {
+  from {
+    transform: scale(0.2);
+    opacity: 0.4;
+  }
+  to {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+.charge-spark {
+  position: absolute;
+  width: 3px;
+  height: 12px;
+  background: var(--paper-light);
+  box-shadow: 0 0 6px var(--gold-300);
+  opacity: 0;
+  animation: charge-spark 300ms steps(2) infinite;
+}
+
+.charge-spark.s0 {
+  transform: translate(calc(var(--bot-w) * -0.5), calc(var(--bot-w) * -0.4)) rotate(30deg);
+}
+
+.charge-spark.s1 {
+  transform: translate(calc(var(--bot-w) * 0.45), calc(var(--bot-w) * -0.3)) rotate(-25deg);
+  animation-delay: 80ms;
+}
+
+.charge-spark.s2 {
+  transform: translate(calc(var(--bot-w) * -0.35), calc(var(--bot-w) * 0.3)) rotate(-40deg);
+  animation-delay: 160ms;
+}
+
+.charge-spark.s3 {
+  transform: translate(calc(var(--bot-w) * 0.4), calc(var(--bot-w) * 0.35)) rotate(50deg);
+  animation-delay: 240ms;
+}
+
+@keyframes charge-spark {
+  50% {
+    opacity: 1;
+  }
+}
+
+.charge-mote {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--gold-300);
+  box-shadow: 0 0 4px var(--gold-500);
+  animation: charge-mote 600ms ease-in infinite;
+}
+
+.charge-mote:nth-child(odd) {
+  animation-delay: 300ms;
+}
+
+@keyframes charge-mote {
+  from {
+    transform: rotate(var(--a)) translateX(calc(var(--bot-w) * 1.1));
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    transform: rotate(var(--a)) translateX(0);
+    opacity: 0;
+  }
+}
+
+/* The stage around it: dark, speed lines, the big title slams in. */
+.fight-stage.gold-on .fight-floor {
+  z-index: 3;
+}
+
+/* The life bars stay bright above the dark layer (the hit must be seen). */
+.fight-stage.gold-on .fight-hud {
+  z-index: 7;
+}
+
+.gold-stage {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  pointer-events: none;
+}
+
+.gold-dim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
+  animation: gold-dim-in 250ms ease-out both;
+}
+
+@keyframes gold-dim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.speed-lines {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 0;
+  height: 0;
+}
+
+.gold-stage.phase-impact .speed-lines {
+  display: none;
+}
+
+.speed-lines i {
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 260px;
+  height: 2px;
+  transform-origin: 0 50%;
+  background: linear-gradient(to right, transparent, color-mix(in srgb, var(--paper-light) 85%, transparent) 55%, transparent);
+  opacity: 0;
+  animation: speed-line 420ms linear infinite;
+  animation-delay: var(--d);
+}
+
+@keyframes speed-line {
+  from {
+    transform: rotate(var(--a)) translateX(240px) scaleX(0.4);
+    opacity: 0.9;
+  }
+  to {
+    transform: rotate(var(--a)) translateX(20px) scaleX(1);
+    opacity: 0;
+  }
+}
+
+.gold-title {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  right: 0;
+  top: 31%;
+  text-align: center;
+  font-family: var(--font-title);
+  font-size: var(--fs-h2);
+  text-transform: uppercase;
+  color: var(--gold-300);
+  text-shadow:
+    3px 3px 0 var(--ink),
+    -3px 3px 0 var(--ink),
+    3px -3px 0 var(--ink),
+    -3px -3px 0 var(--ink),
+    0 0 16px var(--gold-500);
+  animation: gold-slam 450ms cubic-bezier(0.2, 1.7, 0.4, 1) both;
+}
+
+.duel.wide .gold-title {
+  font-size: var(--fs-h1);
+}
+
+@keyframes gold-slam {
+  from {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+}
+
+/* Part 2 and 3, at the target: the meteor, then flash, shock wave, shards and the damage number. */
+.gold-floor {
+  --tx: calc(100% - 4% - var(--bot-w) * 0.5);
+  --from: -1;
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  pointer-events: none;
+}
+
+.gold-floor.at-me {
+  --tx: calc(4% + var(--bot-w) * 0.5);
+  --from: 1;
+}
+
+.gold-meteor,
+.gold-flash,
+.gold-wave,
+.gold-shard,
+.gold-damage {
+  position: absolute;
+  left: var(--tx);
+  bottom: calc(var(--bot-h) * 0.5);
+}
+
+.gold-meteor {
+  translate: -50% 50%;
+  filter: drop-shadow(0 0 10px var(--gold-300)) drop-shadow(0 0 4px var(--gold-500));
+  animation: meteor-fall 1100ms both;
+}
+
+/* Falls in from the sky, then slows down just before it hits (slow motion). */
+@keyframes meteor-fall {
+  0% {
+    transform: translate(calc(var(--from) * 140px), -320px) scale(0.55) rotate(-40deg);
+    animation-timing-function: ease-in;
+  }
+  72% {
+    transform: translate(calc(var(--from) * 22px), -46px) scale(1.05) rotate(-6deg);
+    animation-timing-function: cubic-bezier(0.1, 0.1, 0.3, 1);
+  }
+  100% {
+    transform: translate(0, 0) scale(1.12) rotate(0deg);
+  }
+}
+
+/* The gold fire tail behind the falling durian. */
+.meteor-tail {
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  bottom: 40%;
+  width: 70%;
+  height: 260%;
+  translate: -50% 0;
+  transform-origin: 50% 100%;
+  transform: rotate(calc(var(--from) * -24deg));
+  border-radius: 50% 50% 40% 40%;
+  background: linear-gradient(to top, var(--gold-300), color-mix(in srgb, var(--gold-500) 70%, transparent) 35%, color-mix(in srgb, var(--red-500) 35%, transparent) 65%, transparent);
+  animation: tail-flicker 120ms steps(2) infinite;
+}
+
+@keyframes tail-flicker {
+  50% {
+    opacity: 0.75;
+    scale: 0.92 1.05;
+  }
+}
+
+.gold-flash {
+  width: calc(var(--bot-w) * 3);
+  height: calc(var(--bot-w) * 3);
+  translate: -50% 50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--paper-light), color-mix(in srgb, var(--gold-300) 85%, transparent) 35%, transparent 70%);
+  animation: gold-flash 520ms ease-out both;
+}
+
+@keyframes gold-flash {
+  from {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.gold-wave {
+  width: calc(var(--bot-w) * 0.8);
+  height: calc(var(--bot-w) * 0.8);
+  translate: -50% 50%;
+  border-radius: 50%;
+  border: 4px solid var(--gold-300);
+  box-shadow: 0 0 12px var(--gold-500);
+  animation: gold-wave 760ms ease-out both;
+}
+
+@keyframes gold-wave {
+  from {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  to {
+    transform: scale(3.4);
+    opacity: 0;
+  }
+}
+
+.gold-shard {
+  width: 6px;
+  height: 6px;
+  background: var(--gold-500);
+  border: 1px solid var(--gold-300);
+  animation: gold-shard 900ms cubic-bezier(0.1, 0.8, 0.3, 1) both;
+}
+
+@keyframes gold-shard {
+  from {
+    transform: rotate(var(--a)) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: rotate(var(--a)) translateX(calc(var(--bot-w) * 1.3 * var(--r))) rotate(220deg);
+    opacity: 0;
+  }
+}
+
+.gold-damage {
+  bottom: calc(var(--bot-h) * 0.95);
+  translate: -50% 0;
+  font-family: var(--font-title);
+  font-size: var(--fs-h1);
+  line-height: 1;
+  color: var(--gold-300);
+  text-shadow:
+    3px 3px 0 var(--ink),
+    -3px 3px 0 var(--ink),
+    3px -3px 0 var(--ink),
+    -3px -3px 0 var(--ink);
+  animation: gold-damage 1200ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+@keyframes gold-damage {
+  from {
+    transform: translateY(20px) scale(0.3);
+    opacity: 0;
+  }
+  25% {
+    transform: translateY(0) scale(1.3);
+    opacity: 1;
+  }
+  80% {
+    transform: translateY(-10px) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-24px) scale(1);
+    opacity: 0;
+  }
+}
+
+/* A hard shake for the Gold Durian's impact. */
+.fight-stage.shake.mega {
+  animation: fight-shake-mega 600ms steps(10);
+}
+
+@keyframes fight-shake-mega {
+  10% {
+    transform: translate(-9px, 4px);
+  }
+  20% {
+    transform: translate(8px, -6px);
+  }
+  30% {
+    transform: translate(-7px, -3px);
+  }
+  40% {
+    transform: translate(6px, 5px);
+  }
+  50% {
+    transform: translate(-5px, 2px);
+  }
+  60% {
+    transform: translate(4px, -3px);
+  }
+  70% {
+    transform: translate(-3px, 2px);
+  }
+  80% {
+    transform: translate(2px, -1px);
+  }
+}
+
+/* Reduced motion: a short, still Gold Durian (title, the durian at the target, the number). */
+.gold-floor.still .gold-meteor {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gold-title,
+  .gold-dim,
+  .gold-damage,
+  .charge-aura,
+  .charge-spark,
+  .charge-mote,
+  .fighter.charging .fighter-art,
+  .turn-timer.urgent .turn-secs,
+  .meteor-tail {
+    animation: none;
+  }
 }

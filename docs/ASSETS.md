@@ -64,6 +64,7 @@ Converted to AAC (`.m4a`, `afconvert` on macOS) so they are small and play in ev
 | `moment-durian.m4a` (share moment: Rare / Gold durian harvest) | Impact Sounds `impactPunch_heavy_000.ogg` | Kenney | CC0 (kenney.nl page + bundled License.txt, checked 2026-11-09) | https://kenney.nl/assets/impact-sounds |
 | `moment-evolve.m4a` (share moment: TaniBot evolved) | Sci-Fi Sounds `computerNoise_002.ogg`, first 1.2 s with a 30 ms fade-in and 150 ms fade-out | Kenney | CC0 (kenney.nl page + bundled License.txt, checked 2026-11-09) | https://kenney.nl/assets/sci-fi-sounds |
 | `moment-legend.m4a` (share moment: Legend; replaced the first choice, Kenney `jingles_NES00`, which falls F-E-D#-D in D minor and sounded sad) | "8-Bit Victory Loop" (`8bitvictory.ogg`, Famitracker chiptune), seconds 9.2-11.8 (C major, the melody leaps up an octave G4 -> G5), mono, 20 ms fade-in, 350 ms fade-out | josepharaoh99 | CC0 (OpenGameArt page, license field "CC0" only, checked 2026-11-09) | https://opengameart.org/content/8-bit-victory-loop |
+| (no file) Gold Durian sound in the Arena duel: charge, meteor whoosh, impact | made in code with Web Audio (`playGoldDurian` in `web/src/audio.ts`, 2026-11-11) | NEARvest (written for this game) | original, nothing copied | — |
 
 Ambient files (2026-11-09): converted on the Mac with `afconvert` to AAC mono 22 kHz 32 kbps (about 50-185 KB each); the rumble was cut with a small Node script first. They play quietly under the music, follow the Sound switch (not the music switch) and start only after the first tap.
 

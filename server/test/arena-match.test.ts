@@ -6,9 +6,9 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Arena } from '../src/arena.ts';
-import { ArenaMatches, botPick, fruitDamage, gardenBonus, goldDamage, matchEnd, resolveTurn, rollFruit, type Bars, type Pick, type TurnLog } from '../src/arena-match.ts';
+import { ArenaMatches, botPick, fruitDamage, gardenBonus, goldDamage, matchEnd, playbackMs, resolveTurn, rollFruit, type Bars, type Pick, type TurnLog } from '../src/arena-match.ts';
 import type { PlayerRow } from '../src/game.ts';
-import { ARENA_DUELS_PER_DAY, ARENA_LEAVE_MS, ARENA_MAX_TURNS, ARENA_PRIZE, ARENA_SKILL_MAX, ARENA_XP_DEFEND, ARENA_XP_WIN } from '../src/rules.ts';
+import { ARENA_DUELS_PER_DAY, ARENA_PLAYBACK_MS, ARENA_PRIZE, ARENA_SAFETY_TURNS, ARENA_SKILL_MAX, ARENA_START_MS, ARENA_TURN_GRACE_MS, ARENA_TURN_MS, ARENA_XP_DEFEND, ARENA_XP_WIN } from '../src/rules.ts';
 import { makeWorld } from './helpers.ts';
 
 type World = ReturnType<typeof makeWorld>;
@@ -102,12 +102,23 @@ describe('arena v2 rules', () => {
     assert.equal(both.log.winner, 'both');
     assert.deepEqual(both.log.hp, { c: 60, d: 60 });
     assert.deepEqual(both.log.skill, { c: 0, d: 0 });
+    // A missed turn ('timeout'): the TaniBot wins it, throws, and its skill bar fills; with a full bar it throws its Gold Durian.
+    const late = resolveTurn(bars({ skill_d: 1 }), 0, 'timeout', 'rock', fixed(0));
+    assert.equal(late.log.winner, 'defender');
+    assert.deepEqual(late.log.hits, [{ to: 'challenger', fruit: { species: 'mango', quality: 'common' }, damage: 14, gold: false }]);
+    assert.equal(late.bars.skill_d, 2);
+    const lateGold = resolveTurn(bars({ skill_d: 3 }), 0, 'timeout', 'gold', fixed(0));
+    assert.deepEqual(lateGold.log.hits.map((h) => [h.to, h.gold, h.damage]), [['challenger', true, 40]]);
+    assert.equal(lateGold.bars.skill_d, 0);
+    // The web needs longer for a Gold Durian, so the next turn's clock waits for it.
+    assert.equal(playbackMs(late.log), ARENA_PLAYBACK_MS);
+    assert.ok(playbackMs(lateGold.log) > ARENA_PLAYBACK_MS + 3000);
     // The computer throws its own as soon as its bar is full; else a random Rock / Paper / Scissors.
     assert.equal(botPick(ARENA_SKILL_MAX, fixed(0)), 'gold');
     assert.deepEqual([0, 1, 2].map((v) => botPick(0, fixed(v))), ['rock', 'paper', 'scissors']);
   });
 
-  it('K.O. ends the match; after 15 turns most life wins, then most hits landed, then the challenged garden', () => {
+  it('only a K.O. ends the match (no turn limit); both down at once: most life, then most hits, then the challenged garden', () => {
     const log = (to: 'challenger' | 'defender' | null): TurnLog => ({
       turn: 0,
       pick: { c: 'rock', d: 'rock' },
@@ -117,12 +128,16 @@ describe('arena v2 rules', () => {
       skill: { c: 0, d: 0 },
     });
     assert.equal(matchEnd(bars(), [log(null)]), null);
+    const many = (n: number, to: 'challenger' | 'defender' | null) => Array.from({ length: n }, () => log(to));
+    assert.equal(matchEnd(bars({ hp_c: 30, hp_d: 20 }), many(15, null)), null, 'the old 15-turn limit is gone');
+    assert.equal(matchEnd(bars({ hp_c: 30, hp_d: 20 }), many(60, null)), null);
     assert.deepEqual(matchEnd(bars({ hp_d: 0 }), [log('defender')]), { winner: 'challenger', reason: 'ko' });
     assert.deepEqual(matchEnd(bars({ hp_c: 0 }), [log('challenger')]), { winner: 'defender', reason: 'ko' });
-    const full = (to: 'challenger' | 'defender' | null) => Array.from({ length: ARENA_MAX_TURNS }, () => log(to));
-    assert.deepEqual(matchEnd(bars({ hp_c: 30, hp_d: 20 }), full(null)), { winner: 'challenger', reason: 'turns' });
-    assert.deepEqual(matchEnd(bars({ hp_c: 20, hp_d: 20 }), [...full(null).slice(1), log('defender')]), { winner: 'challenger', reason: 'turns' });
-    assert.deepEqual(matchEnd(bars({ hp_c: 20, hp_d: 20 }), full(null)), { winner: 'defender', reason: 'turns' });
+    // Both thrown down by two Gold Durians in the same turn.
+    assert.deepEqual(matchEnd(bars({ hp_c: 0, hp_d: 0 }), [log('defender'), log('defender')]), { winner: 'challenger', reason: 'ko' });
+    assert.deepEqual(matchEnd(bars({ hp_c: 0, hp_d: 0 }), [log(null)]), { winner: 'defender', reason: 'ko' });
+    // Only a safety net that a real match never reaches.
+    assert.deepEqual(matchEnd(bars({ hp_c: 30, hp_d: 20 }), many(ARENA_SAFETY_TURNS, null)), { winner: 'challenger', reason: 'turns' });
   });
 });
 
@@ -223,7 +238,7 @@ describe('arena v2 matches', () => {
     let m = matches.start(a.id, 'budi', '1.1.1.1', 'dev-a').match;
     const xp0 = w.game.getPlayer(a.id).xp;
     let guard = 0;
-    while (m.status === 'playing' && guard++ < ARENA_MAX_TURNS) {
+    while (m.status === 'playing' && guard++ < 30) {
       lockBot(w, m.id, 'scissors');
       m = matches.pick(a.id, m.id, m.turn, m.skill.c >= ARENA_SKILL_MAX ? 'gold' : 'rock').match;
     }
@@ -269,39 +284,104 @@ describe('arena v2 matches', () => {
     for (const n of names) await garden(w, n);
     const m1 = matches.start(a.id, 'budi', '1.1.1.1', 'dev-a').match;
     assert.throws(() => matches.start(a.id, 'citra', '1.1.1.1', 'dev-a'), (e: { details?: { code: string; matchId: number } }) => e.details?.code === 'match_open' && e.details.matchId === m1.id);
-    // Leave it (2 minutes) -> closed; the next one may start.
-    w.advance(ARENA_LEAVE_MS + 1);
+    // Leave it: its turns run out one after another until the K.O.; then the next one may start.
+    w.advance(10 * 60_000);
     assert.equal(matches.sweep(), 1);
+    assert.equal(w.db.prepare('SELECT status FROM arena_matches WHERE id = ?').get(m1.id)!.status, 'done');
     assert.throws(() => matches.start(a.id, 'budi', '1.1.1.1', 'dev-a'), /already challenged budi/);
     assert.throws(() => arena.duel(a.id, 'budi', '1.1.1.1', 'dev-a'), /already challenged budi/, 'a v1 duel sees the match too');
     arena.duel(a.id, 'citra', '1.1.1.1', 'dev-a');
     matches.start(a.id, 'dewi', '1.1.1.1', 'dev-a');
-    w.advance(ARENA_LEAVE_MS + 1);
+    w.advance(10 * 60_000);
     matches.sweep();
     assert.equal(w.game.state(a.id).arena.left, 0);
     assert.throws(() => matches.start(a.id, 'eko', '1.1.1.1', 'dev-a'), new RegExp(`${ARENA_DUELS_PER_DAY} duels today`));
     assert.equal(arena.canChallenge(a.id, 'eko').reason, 'limit');
   });
 
-  it('leaving for 2 minutes = a loss without prize or XP; coming back in time = the match goes on', async () => {
+  it('each turn has 10 s on the server clock (+ a small grace); the view shows the time left', async () => {
+    const { w, matches } = setup();
+    const a = await garden(w, 'sari');
+    await garden(w, 'budi');
+    const m = matches.start(a.id, 'budi', '1.1.1.1', 'dev-a').match;
+    // The first turn starts when the screen is open.
+    assert.equal(m.turnStartsInMs, ARENA_START_MS);
+    assert.equal(m.turnMsLeft, ARENA_TURN_MS);
+    w.advance(ARENA_START_MS + 4000);
+    assert.equal(matches.get(a.id, m.id).match.turnMsLeft, ARENA_TURN_MS - 4000);
+    // A pick 0.5 s after the 10 s (slow network) still counts.
+    w.advance(ARENA_TURN_MS - 4000 + 500);
+    lockBot(w, m.id, 'scissors');
+    const r = matches.pick(a.id, m.id, 0, 'rock').match;
+    assert.equal(r.turns[0].pick.c, 'rock');
+    assert.equal(r.turns[0].winner, 'challenger');
+    // The next turn's 10 s start after the web has played this one.
+    assert.equal(r.turnStartsInMs, playbackMs(r.turns[0]));
+    assert.equal(r.turnMsLeft, ARENA_TURN_MS);
+  });
+
+  it('no pick in time = the turn is lost: the TaniBot throws and its skill bar fills; a late pick gets the match as it is', async () => {
+    const { w, matches } = setup();
+    const a = await garden(w, 'sari');
+    await garden(w, 'budi');
+    const m = matches.start(a.id, 'budi', '1.1.1.1', 'dev-a').match;
+    w.advance(ARENA_START_MS + ARENA_TURN_MS + ARENA_TURN_GRACE_MS + 1);
+    const late = matches.pick(a.id, m.id, 0, 'rock').match;
+    assert.equal(late.turns.length, 1, 'the late pick did not play the turn again');
+    assert.equal(late.turns[0].pick.c, 'timeout');
+    assert.equal(late.turns[0].winner, 'defender');
+    assert.equal(late.turns[0].hits[0].to, 'challenger');
+    assert.equal(late.skill.d, 1);
+    assert.ok(late.hp.c < 100);
+    // The TaniBot's Gold Durian also hits a player who does not pick.
+    w.db.prepare("UPDATE arena_matches SET skill_d = 3, bot_pick = 'gold' WHERE id = ?").run(m.id);
+    w.advance(playbackMs(late.turns[0]) + ARENA_TURN_MS + ARENA_TURN_GRACE_MS + 1);
+    const gold = matches.get(a.id, m.id).match;
+    assert.equal(gold.turns[1].pick.c, 'timeout');
+    assert.equal(gold.turns[1].pick.d, 'gold');
+    assert.ok(gold.turns[1].hits[0].gold);
+  });
+
+  it('a player who closes the page always ends K.O. ("left": no prize, no XP); the defender gets its XP', async () => {
     const { w, matches } = setup();
     const a = await garden(w, 'sari');
     const b = await garden(w, 'budi');
     const m = matches.start(a.id, 'budi', '1.1.1.1', 'dev-a').match;
-    w.advance(ARENA_LEAVE_MS - 1000);
-    assert.equal(matches.get(a.id, m.id).match.status, 'playing', 'the poll keeps it alive');
-    w.advance(ARENA_LEAVE_MS - 1000);
-    assert.equal(matches.sweep(), 0);
-    w.advance(2000);
-    assert.equal(matches.sweep(), 1);
+    // Away: the sweep decides the missed turns as they run out.
+    let rounds = 0;
+    while (w.db.prepare('SELECT status FROM arena_matches WHERE id = ?').get(m.id)!.status === 'playing' && rounds++ < 200) {
+      w.advance(5000);
+      matches.sweep();
+    }
     const done = matches.get(a.id, m.id).match;
     assert.equal(done.status, 'done');
-    assert.equal(done.endReason, 'left');
     assert.equal(done.winner, 'defender');
+    assert.equal(done.endReason, 'left');
+    assert.equal(done.hp.c, 0);
+    assert.ok(done.turns.every((t) => t.pick.c === 'timeout'));
+    assert.ok(done.turns.length <= 8, `K.O. after ${done.turns.length} missed turns`);
+    // About 13-14 s per missed turn (10 s + grace + playback): K.O. within about two minutes.
+    assert.ok(rounds * 5 <= 120, `ended after about ${rounds * 5} s`);
     assert.equal(done.prize, 0);
     assert.equal(done.gainedXp, 0);
     assert.equal(w.game.state(b.id).arena.receivedMatches[0].gainedXp, ARENA_XP_DEFEND);
     assert.equal(w.db.prepare("SELECT count(*) AS n FROM chain_jobs WHERE payload LIKE '%Arena prize%'").get()!.n, 0);
+  });
+
+  it('coming back in time: the match goes on from where the missed turns left it', async () => {
+    const { w, matches } = setup();
+    const a = await garden(w, 'sari');
+    await garden(w, 'budi');
+    const m = matches.start(a.id, 'budi', '1.1.1.1', 'dev-a').match;
+    w.advance(ARENA_START_MS + ARENA_TURN_MS + ARENA_TURN_GRACE_MS + 1);
+    const back = matches.get(a.id, m.id).match;
+    assert.equal(back.status, 'playing');
+    assert.equal(back.turn, 1);
+    w.advance(back.turnStartsInMs + 1000);
+    lockBot(w, m.id, 'scissors');
+    const on = matches.pick(a.id, m.id, 1, 'rock').match;
+    assert.equal(on.turns[1].winner, 'challenger');
+    assert.equal(on.status, 'playing');
   });
 
   it('one person\'s two gardens play a practice match: no prize, no XP', async () => {

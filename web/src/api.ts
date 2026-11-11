@@ -578,7 +578,8 @@ export interface TurnHit {
 /** A decided turn (both picks are only sent once the turn is decided). */
 export interface TurnLog {
   turn: number;
-  pick: { c: ArenaPick; d: ArenaPick };
+  /** 'timeout' = the player did not pick within the 10 s and lost the turn. */
+  pick: { c: ArenaPick | 'timeout'; d: ArenaPick };
   winner: 'challenger' | 'defender' | 'tie' | 'both';
   hits: TurnHit[];
   hp: { c: number; d: number };
@@ -597,7 +598,11 @@ export interface MatchSummary {
   status: 'playing' | 'done';
   /** Turns decided so far; the next pick is for turn `turn`. */
   turn: number;
-  maxTurns: number;
+  /** The turn clock, measured on the server: 10 s per turn. The open turn's 10 s start in
+   *  `turnStartsInMs` (while the last turn plays back), then `turnMsLeft` count down (at answer time). */
+  turnMs?: number;
+  turnStartsInMs?: number;
+  turnMsLeft?: number;
   hp: { c: number; d: number };
   maxHp: number;
   skill: { c: number; d: number };

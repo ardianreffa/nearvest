@@ -138,8 +138,26 @@ export const ARENA_RECENT = 10;
 // other garden's TaniBot. Draft numbers, tune in testing.
 /** Life of each side. */
 export const ARENA_HP = 100;
-/** At most this many turns; no K.O. by then = most life wins. */
-export const ARENA_MAX_TURNS = 15;
+/**
+ * No turn limit: a match runs until a K.O. (Ardian 2026-11-11). It always ends: a player who does not
+ * pick loses the turn every ~13 s and is hit each time. This many turns is only a safety net that
+ * a real match never reaches (then most life wins).
+ */
+export const ARENA_SAFETY_TURNS = 200;
+/** Each turn the player has 10 s to pick (measured on the server). */
+export const ARENA_TURN_MS = 10_000;
+/** Extra time a pick may arrive after the 10 s (slow networks); the web never shows it. */
+export const ARENA_TURN_GRACE_MS = 1_500;
+/**
+ * The next turn's 10 s start after the web has played the decided turn: about 3 s for a normal
+ * turn, about 4 s more for each Gold Durian (its big animation).
+ */
+export const ARENA_PLAYBACK_MS = 3_000;
+export const ARENA_PLAYBACK_GOLD_MS = 4_200;
+/** The first turn starts this long after the duel opens (the screen appears). */
+export const ARENA_START_MS = 1_500;
+/** A match lost while the player missed this many turns in a row at the end = left (no XP). */
+export const ARENA_IDLE_TURNS = 3;
 /** Turns won to fill the skill bar (then the Gold Durian can be thrown). */
 export const ARENA_SKILL_MAX = 3;
 /** The Gold Durian: a sure hit that cannot be dodged (x the garden bonus). */
@@ -151,8 +169,7 @@ export const ARENA_FRUIT_DAMAGE = { mango: 14, rambutan: 18, durian: 24 } as con
 export const ARENA_QUALITY_DAMAGE = { common: 1, rare: 1.3, gold: 1.6 } as const;
 /** Garden bonus on every hit: 0-20%, from the v1 garden score (0-9): max(0, score - 3) / 6 x 20%. */
 export const ARENA_BONUS_MAX = 20;
-/** A computer match with no request from the player for this long ends as a loss without prize. */
-export const ARENA_LEAVE_MS = 2 * 60_000;
+
 /** Fertilizer adds +50% growth speed for one game day. */
 export const FERTILIZER_DAYS = 1;
 export const FERTILIZER_BOOST = 0.5;

@@ -135,6 +135,63 @@ export function playSound(name: SoundName): void {
   src.start();
 }
 
+/**
+ * The Gold Durian's own sound (Arena v2), made right here with Web Audio: no sound file, nothing
+ * copied (docs/ASSETS.md). charge = a rising hum while TaniBot gathers power, fall = the whoosh of the
+ * meteor, impact = a deep boom with a bright gold ring. Follows the Sound switch like every effect.
+ */
+export function playGoldDurian(part: 'charge' | 'fall' | 'impact'): void {
+  if (!prefs.sfx || !ctx || !sfxGain) return;
+  if (ctx.state === 'suspended') void ctx.resume();
+  const c = ctx;
+  const out = sfxGain;
+  const t = c.currentTime;
+  const tone = (type: OscillatorType, f0: number, f1: number, dur: number, vol: number, delay = 0) => {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t + delay);
+    o.frequency.exponentialRampToValueAtTime(f1, t + delay + dur);
+    g.gain.setValueAtTime(0.0001, t + delay);
+    g.gain.exponentialRampToValueAtTime(vol, t + delay + Math.min(0.08, dur / 4));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + delay + dur);
+    o.connect(g).connect(out);
+    o.start(t + delay);
+    o.stop(t + delay + dur + 0.05);
+  };
+  const noise = (dur: number, vol: number, f0: number, f1: number, type: BiquadFilterType) => {
+    const len = Math.floor(c.sampleRate * dur);
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const f = c.createBiquadFilter();
+    f.type = type;
+    f.frequency.setValueAtTime(f0, t);
+    f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f).connect(g).connect(out);
+    src.start(t);
+    src.stop(t + dur + 0.05);
+  };
+  if (part === 'charge') {
+    tone('sawtooth', 110, 520, 0.9, 0.12);
+    tone('triangle', 220, 1040, 0.9, 0.06);
+  } else if (part === 'fall') {
+    noise(1.1, 0.35, 300, 2600, 'bandpass');
+    tone('sine', 900, 180, 1.1, 0.05);
+  } else {
+    tone('sine', 95, 38, 0.8, 0.9);
+    noise(0.35, 0.6, 1800, 200, 'lowpass');
+    tone('triangle', 1320, 1760, 0.5, 0.12, 0.05);
+    tone('triangle', 1980, 2640, 0.4, 0.06, 0.12);
+  }
+}
+
 export function getAudioPrefs(): AudioPrefs {
   return prefs;
 }

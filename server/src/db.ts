@@ -305,7 +305,8 @@ CREATE TABLE IF NOT EXISTS arena_matches (
   data TEXT NOT NULL,              -- JSON: both sides (public data) + the decided turns
   ip TEXT,
   device_id TEXT,
-  seen_at INTEGER NOT NULL,        -- the player's last request for this match (2-minute leave rule)
+  seen_at INTEGER NOT NULL,        -- the player's last request for this match
+  turn_started_at INTEGER,         -- when the open turn's 10 s started (server clock; arena-match.ts)
   created_at INTEGER NOT NULL,
   ended_at INTEGER
 );
@@ -340,6 +341,8 @@ function migrate(db: DB): void {
   if (!has('players', 'avatar')) db.exec("ALTER TABLE players ADD COLUMN avatar TEXT NOT NULL DEFAULT 'farmer_hat'");
   // Tutorial step (game.ts TUTORIAL_STEPS); gardens made before the tutorial existed count as done.
   if (!has('players', 'last_seen_at')) db.exec('ALTER TABLE players ADD COLUMN last_seen_at INTEGER');
+  // Arena v2 turn timer (2026-11-11): only local test databases had arena_matches before it.
+  if (!has('arena_matches', 'turn_started_at')) db.exec('ALTER TABLE arena_matches ADD COLUMN turn_started_at INTEGER');
   // Red dot on the Village tab (2026-11-10): the newest social event the owner has seen (0 = none).
   if (!has('players', 'village_seen_at')) db.exec('ALTER TABLE players ADD COLUMN village_seen_at INTEGER NOT NULL DEFAULT 0');
   // Red dot on the Market tab (2026-11-10): when fruit was last added (a harvest) and when the owner

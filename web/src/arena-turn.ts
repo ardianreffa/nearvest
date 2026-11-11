@@ -7,7 +7,7 @@
 import type { ArenaPick, MatchSummary, MatchView, TurnHit, TurnLog } from './api';
 import { flightMs, fmt, type Fruit } from './arena-play.ts';
 
-export const PICK_LABEL: Record<ArenaPick, string> = { rock: 'Rock', paper: 'Paper', scissors: 'Scissors', gold: 'Gold Durian' };
+export const PICK_LABEL: Record<ArenaPick | 'timeout', string> = { rock: 'Rock', paper: 'Paper', scissors: 'Scissors', gold: 'Gold Durian', timeout: 'Too slow' };
 
 /** The player's side ("me", left) and the computer's ("them", right). */
 export const sideOf = (to: TurnHit['to']): 'me' | 'them' => (to === 'challenger' ? 'me' : 'them');
@@ -36,20 +36,33 @@ export interface TurnTimes {
   windup: number;
   impact: number;
   dodge: number;
+  /** The Gold Durian (about 3 s, Ardian 2026-11-11): the thrower charges up, a giant durian falls
+   *  from the sky like a meteor (slowing down just before it hits), then the big impact. */
+  charge: number;
+  meteor: number;
+  goldImpact: number;
 }
 
 export function turnTimes(reduced: boolean): TurnTimes {
-  return reduced ? { reveal: 500, windup: 0, impact: 600, dodge: 600 } : { reveal: 700, windup: 300, impact: 700, dodge: 800 };
+  return reduced
+    ? { reveal: 500, windup: 0, impact: 600, dodge: 600, charge: 0, meteor: 0, goldImpact: 900 }
+    : { reveal: 700, windup: 300, impact: 700, dodge: 800, charge: 900, meteor: 1100, goldImpact: 1200 };
+}
+
+/** One hit's length: wind-up + flight + impact, or the Gold Durian's charge + meteor + impact. */
+function hitLength(h: TurnHit, T: TurnTimes, reduced: boolean): number {
+  if (h.gold) return T.charge + T.meteor + T.goldImpact;
+  return (reduced ? 0 : T.windup + flightMs(h.fruit)) + T.impact;
 }
 
 /** How long a decided turn plays (ms). */
 export function turnLength(log: TurnLog, reduced: boolean): number {
   const T = turnTimes(reduced);
   if (!log.hits.length) return T.reveal + T.dodge;
-  return T.reveal + log.hits.reduce((n, h) => n + (reduced ? 0 : T.windup + flightMs(h.fruit)) + T.impact, 0);
+  return T.reveal + log.hits.reduce((n, h) => n + hitLength(h, T, reduced), 0);
 }
 
-export type TurnPhase = 'reveal' | 'windup' | 'flight' | 'impact' | 'dodge' | 'done';
+export type TurnPhase = 'reveal' | 'windup' | 'flight' | 'charge' | 'meteor' | 'impact' | 'dodge' | 'done';
 
 export interface TurnFrame {
   phase: TurnPhase;
@@ -63,7 +76,8 @@ export interface TurnFrame {
 
 /**
  * What a decided turn shows `t` ms after it started: the two picks pop up (reveal), then each hit
- * (the thrower winds up, the fruit flies, it lands: life drops), or both dodge on a tie.
+ * (the thrower winds up, the fruit flies, it lands: life drops), or both dodge on a tie. A Gold
+ * Durian: charge, meteor, impact (`sinceImpact` counts from the landing as for any hit).
  */
 export function turnAt(m: MatchView, i: number, t: number, reduced: boolean): TurnFrame {
   const log = m.turns[i];
@@ -76,16 +90,26 @@ export function turnAt(m: MatchView, i: number, t: number, reduced: boolean): Tu
   if (!log.hits.length) return { phase: t < at + T.dodge ? 'dodge' : 'done', hit: null, sinceImpact: 0, hp, skill: after };
   for (let k = 0; k < log.hits.length; k++) {
     const h = log.hits[k];
-    const fly = reduced ? 0 : flightMs(h.fruit);
     const hit = { ...h, from: sideOf(h.to) === 'me' ? ('them' as const) : ('me' as const), index: k };
-    if (!reduced && t < at + T.windup) return { phase: 'windup', hit, sinceImpact: 0, hp, skill: skillPrev };
-    if (!reduced && t < at + T.windup + fly) return { phase: 'flight', hit, sinceImpact: 0, hp, skill: skillPrev };
-    const land = at + (reduced ? 0 : T.windup + fly);
+    let land: number;
+    let impact: number;
+    if (h.gold) {
+      if (t < at + T.charge) return { phase: 'charge', hit, sinceImpact: t - at, hp, skill: skillPrev };
+      if (t < at + T.charge + T.meteor) return { phase: 'meteor', hit, sinceImpact: t - at - T.charge, hp, skill: skillPrev };
+      land = at + T.charge + T.meteor;
+      impact = T.goldImpact;
+    } else {
+      const fly = reduced ? 0 : flightMs(h.fruit);
+      if (!reduced && t < at + T.windup) return { phase: 'windup', hit, sinceImpact: 0, hp, skill: skillPrev };
+      if (!reduced && t < at + T.windup + fly) return { phase: 'flight', hit, sinceImpact: 0, hp, skill: skillPrev };
+      land = at + (reduced ? 0 : T.windup + fly);
+      impact = T.impact;
+    }
     // The hit lands: that side's life drops by this hit.
     if (h.to === 'challenger') hp[0] = Math.max(0, hp[0] - h.damage);
     else hp[1] = Math.max(0, hp[1] - h.damage);
-    if (t < land + T.impact) return { phase: 'impact', hit, sinceImpact: t - land, hp, skill: after };
-    at = land + T.impact;
+    if (t < land + impact) return { phase: 'impact', hit, sinceImpact: t - land, hp, skill: after };
+    at = land + impact;
   }
   return { phase: 'done', hit: null, sinceImpact: 0, hp: [log.hp.c, log.hp.d], skill: after };
 }
@@ -94,13 +118,15 @@ export function turnAt(m: MatchView, i: number, t: number, reduced: boolean): Tu
 export function turnBanner(log: TurnLog, them: string): string {
   if (log.winner === 'both') return 'GOLD DURIAN x2!';
   if (log.hits.some((h) => h.gold)) return 'GOLD DURIAN!';
+  if (log.pick.c === 'timeout') return "TIME'S UP!";
   if (log.winner === 'tie') return 'Dodge!';
   return log.winner === 'challenger' ? 'You win the turn!' : `${them}'s TaniBot wins the turn`;
 }
 
 /** Why the turn went that way, in words ("Rock beats Scissors"). */
-export function turnReason(log: TurnLog): string {
+export function turnReason(log: TurnLog, them = 'the'): string {
   const { c, d } = log.pick;
+  if (c === 'timeout') return `Time's up! No move in 10 s, so ${them === 'the' ? 'the' : `${them}'s`} TaniBot wins the turn.`;
   if (c === 'gold' || d === 'gold') return 'The Gold Durian always hits.';
   if (c === d) return `${PICK_LABEL[c]} and ${PICK_LABEL[d]}: both dodge.`;
   const [w, l] = log.winner === 'challenger' ? [c, d] : [d, c];
@@ -115,7 +141,7 @@ export function fruitName(f: Fruit): string {
 
 export const matchWon = (m: MatchSummary) => m.winner === m.you;
 
-/** The big line under K.O. ("K.O.!" or "TIME UP!" after 15 turns). */
+/** The big line at the end ("K.O.!"; "TIME UP!" only after the 200-turn safety net). */
 export const endBanner = (m: MatchSummary) => (m.endReason === 'turns' ? 'TIME UP!' : 'K.O.!');
 
 /** What the result gave the player: PANEN after the Season rule (server), XP and a line. */
@@ -123,7 +149,7 @@ export function matchReward(m: MatchSummary): { panen: number | null; xp: number
   const xp = m.gainedXp;
   if (m.practice === 'self') return { panen: null, xp: 0, line: 'Practice duel: these gardens share a browser or sign-in, so there is no prize or XP.' };
   if (m.you === 'defender') return { panen: null, xp, line: matchWon(m) ? 'Your TaniBot defended your garden!' : 'No PANEN lost: the Arena never takes your tokens.' };
-  if (m.endReason === 'left') return { panen: null, xp: 0, line: 'You left the duel for 2 minutes, so it counts as a loss. No PANEN lost.' };
+  if (m.endReason === 'left') return { panen: null, xp: 0, line: 'You missed your last 3 turns, so it counts as leaving the duel. No PANEN lost.' };
   if (!matchWon(m)) return { panen: null, xp, line: 'No PANEN lost: the Arena never takes your tokens.' };
   if (m.practice === 'limit') return { panen: null, xp, line: "Today's prizes from this device or network are used up." };
   return { panen: m.prize, xp, line: 'Paid by the game: nobody loses a token in the Arena.' };
@@ -164,11 +190,35 @@ export function matchPost(m: MatchSummary): string {
 /** "Your garden bonus +13% · Theirs +20%". */
 export const bonusLine = (m: MatchSummary) => `Garden bonus: you +${fmt(m.bonus.c)}% · them +${fmt(m.bonus.d)}%`;
 
-/** The line under the stage while playing. */
+/** The line under the stage while playing (no turn limit: a duel runs until a K.O.). */
 export function turnLine(m: MatchView, waiting: boolean, playing?: number): string {
   // While a decided turn plays back: that turn's number (the next one starts after it).
-  if (playing !== undefined) return `Turn ${playing + 1} of ${m.maxTurns}`;
+  if (playing !== undefined) return `Turn ${playing + 1}`;
   if (m.status === 'done') return `${m.turns.length} turn${m.turns.length === 1 ? '' : 's'} played`;
-  const n = `Turn ${m.turn + 1} of ${m.maxTurns}`;
+  const n = `Turn ${m.turn + 1}`;
   return waiting ? `${n} · TaniBot is choosing...` : `${n} · Pick your move!`;
+}
+
+/** The 10 s clock on the web, from the server's answer (`at` = when the answer arrived, local clock). */
+export interface TurnClock {
+  /** Local time the open turn's 10 s start, and run out (the server decides; the web only shows it). */
+  startsAt: number;
+  endsAt: number;
+}
+
+export function clockOf(m: MatchView, at: number): TurnClock | null {
+  if (m.status !== 'playing' || m.turnMsLeft === undefined) return null;
+  const startsAt = at + (m.turnStartsInMs ?? 0);
+  return { startsAt, endsAt: startsAt + Math.min(m.turnMs ?? 10_000, m.turnMsLeft) };
+}
+
+/**
+ * What the countdown shows at local time `now`: whole seconds left (10 ... 0), red and pulsing in the
+ * last 3 s, and whether the 10 s have started yet (they start after the last turn's animation).
+ */
+export function countdown(c: TurnClock, now: number): { secs: number; urgent: boolean; started: boolean; over: boolean } {
+  const started = now >= c.startsAt;
+  const left = c.endsAt - Math.max(now, c.startsAt);
+  const secs = Math.max(0, Math.ceil(left / 1000));
+  return { secs, urgent: started && secs <= 3, started, over: now >= c.endsAt };
 }

@@ -591,3 +591,55 @@ database:** commit `e8312ea` started on a copy of the upgraded test database (wi
 `/api/arena` and a v1 duel all 200, no errors in its log. **New web on `e8312ea`:** `--oldserver` (now
 also plays a duel on a v1 Arena server) at both sizes: the v1 duel screen opens, no Rock / Paper /
 Scissors buttons.
+
+### 7.8 After Ardian's play test (2026-11-11, local commit, NOT released)
+
+Ardian played v2 on the laptop (everything worked) and asked for five changes before the release.
+
+1. **Paper icon** = an original pixel drawing in the style of a paper scroll (no copied image): an
+   upright white sheet, the top-right corner slightly curled, the bottom rolled into a grey roll, four
+   short blue writing lines of different lengths, a black outline and a soft grey shadow
+   (`UI_ICONS.paper` in `web/src/sprites.tsx`). Rock and Scissors unchanged.
+2. **Bug: the duel's TaniBots did not look like in the garden.** The tier body and effects were right
+   (classes `tier-durian_king` etc.), but the duel left out the **drones** that belong to the look
+   (1 from Farmer, 2 for the Legend), and the opponent's header showed "X's TaniBot" instead of its
+   title. Fixed: one `BotDrones` component (`web/src/art/tanibot.tsx`) for the garden and the duel;
+   the header shows "X's TaniBot" + the title. The pure tier helpers moved to `web/src/art/tiers.ts`
+   (unit test: every title's look and drone count). ui-test logs both looks (`ME_XP` / `FOE_XP`).
+3. **10 s per turn, decided on the server** (also the base for v3's online turns):
+   - `arena_matches.turn_started_at` (new column; old local test databases get it by `migrate()`).
+     Each turn: 10 s (`ARENA_TURN_MS`) + 1.5 s grace for slow networks (`ARENA_TURN_GRACE_MS`, never
+     shown). The next turn's 10 s start after the web has played the last turn (3 s, plus 4.2 s per
+     Gold Durian: `playbackMs`). The view sends `turnMs`, `turnStartsInMs`, `turnMsLeft`.
+   - No pick in time = the player loses the turn (`pick.c = 'timeout'`): the TaniBot throws its fruit
+     (or its Gold Durian when its bar is full) and its skill bar fills. Missed turns are decided on
+     the next request or by the 10 s sweep in `main.ts`, one after another (a closed page catches up).
+     A pick that arrives too late gets the match as it is (never a second roll).
+   - **No turn limit**: a match ends only by K.O. It always ends: a player who does nothing is hit
+     about every 13 s (10 + 1.5 + playback) and falls in at most about 8 missed turns (under 2 minutes).
+     A safety net of 200 turns (most life wins) is never reached in practice.
+   - **Closing the page**: the duel keeps running on the server. Coming back (Arena window: Continue)
+     continues it with the turns missed meanwhile already lost. A loss where the last 3 turns were all
+     missed counts as "left" (no XP, no prize; `ARENA_IDLE_TURNS`); the defender gets its XP as usual.
+     The old "2 minutes without a request" rule is gone (the timer covers it).
+   - Web: a countdown above the buttons (seconds + a shrinking bar, red and pulsing in the last 3 s);
+     when the time is up the web asks the server for the decided turn; "Too slow" bubble (red "0s"),
+     banner "TIME'S UP!", line "Time's up! No move in 10 s, so X's TaniBot wins the turn."
+4. **The Gold Durian is a big moment** (~3.2 s, Skip in the header, the same for the TaniBot's):
+   charge 0.9 s (dark screen, speed lines, "GOLD DURIAN!" slams in, the thrower glows and lifts, a
+   growing gold aura, sparks, gold motes drawn in), meteor 1.1 s (a giant gold durian falls from the
+   sky with a gold fire tail, slowing down just before it hits), impact 1.2 s (white-gold flash,
+   ring-shaped shock wave, hard shake, gold shards, big damage number). Sound: made in code with Web
+   Audio (`playGoldDurian`, no file; docs/ASSETS.md). Reduced motion: a short still version (no shake,
+   flash or meteor). Headless Chrome at 390x844 (x2 pixels): 56 fps during it, slowest frame 33 ms.
+   The pick bubbles hide during it (the title needs the room); the turn banner moved to a small chip
+   between the bubbles.
+5. Tests: server `test/arena-match.test.ts` (16: no turn limit, the 10 s + grace, a late pick, a missed
+   turn incl. the TaniBot's Gold Durian, an idle player always K.O. as "left", coming back);
+   web `test/arena-turn.test.ts` (countdown, missed turn, Gold Durian phases, tiers + drones).
+   Browser `--match` (fake chain): clock 7 s / red 2 s, a real missed turn (decided ~12 s after the
+   turn started), both Gold Durians in 4 frames each, K.O., result; `PERF=1` counts frames.
+   `--oldserver` on `nearvest-e8312ea` (which also runs on the upgraded database): the v1 duel.
+
+**Database for the release:** still only the new table `arena_matches` (now with `turn_started_at`);
+`nearvest-e8312ea` ignores it, so a rollback needs no restore.

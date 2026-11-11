@@ -10,9 +10,9 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, ApiError, type Activity, type ArenaPick, type GameState, type MatchSummary, type MatchView, type Rps } from './api';
 import { Fighter, FighterHud, FlyingFruit, hitSound, reducedMotion } from './arena';
 import { flightMs, fmt, seasonLine } from './arena-play';
-import { bonusLine, controls, endBanner, fruitName, matchLine, matchPost, matchReward, matchWon, PICK_LABEL, turnAt, turnBanner, turnLength, turnLine, turnReason } from './arena-turn';
+import { bonusLine, clockOf, controls, countdown, endBanner, fruitName, matchLine, matchPost, matchReward, matchWon, PICK_LABEL, turnAt, turnBanner, turnLength, turnLine, turnReason, type TurnClock, type TurnFrame } from './arena-turn';
 import { Avatar } from './art/avatars';
-import { playSound } from './audio';
+import { playGoldDurian, playSound } from './audio';
 import { confetti } from './fx';
 import { PUBLIC_SITE } from './referral';
 import { postUrl } from './share';
@@ -20,8 +20,10 @@ import { GoldDurian, UiIcon } from './sprites';
 
 const KO_MS = 1300;
 const CELEBRATE_MS = 1400;
-/** A request every 20 s while the duel is open keeps it alive (no request for 2 minutes = a loss). */
-const KEEPALIVE_MS = 20_000;
+/** The server takes picks a little after the 10 s (slow networks); after that the web asks for the decided turn. */
+const AFTER_DEADLINE_MS = 1_800;
+/** Also asked now and then while the duel is open (another tab, a long pause). */
+const POLL_MS = 15_000;
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -29,6 +31,70 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 function ago(at: number, now = Date.now()): string {
   const days = Math.floor((now - at) / 86_400_000);
   return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+}
+
+/**
+ * The Gold Durian on the stage (Ardian 2026-11-11: it must feel huge, about 3 s): the screen darkens,
+ * speed lines, a big "GOLD DURIAN!" slams in; the thrower charges up (Fighter "charging"); a giant
+ * gold durian falls from the sky like a meteor with a gold fire tail, slowing down just before it
+ * hits; then a white-gold flash, a ring-shaped shock wave, a hard shake, gold shards and the big
+ * damage number. Motion = transform / opacity (light on phones). Reduced motion: a short version
+ * without shake and flash. Pixel art (the durian) keeps its own colours; the rest uses tokens.
+ */
+function GoldStageFx({ frame, reduced }: { frame: TurnFrame; reduced: boolean }) {
+  return (
+    <div class={`gold-stage phase-${frame.phase}${reduced ? ' still' : ''}`} aria-hidden="true">
+      <i class="gold-dim" />
+      {!reduced && (
+        <span class="speed-lines">
+          {Array.from({ length: 10 }, (_, k) => (
+            <i key={k} style={`--a:${k * 36}deg;--d:${(k % 3) * 70}ms`} />
+          ))}
+        </span>
+      )}
+      <b class="gold-title">GOLD DURIAN!</b>
+    </div>
+  );
+}
+
+function GoldFloorFx({ frame, wide, reduced }: { frame: TurnFrame; wide: boolean; reduced: boolean }) {
+  const hit = frame.hit!;
+  const at = hit.from === 'me' ? 'them' : 'me';
+  return (
+    <div class={`gold-floor at-${at} phase-${frame.phase}${reduced ? ' still' : ''}`} aria-hidden="true">
+      {(frame.phase === 'meteor' || reduced) && (
+        <span class="gold-meteor">
+          {!reduced && <i class="meteor-tail" />}
+          <GoldDurian scale={wide ? 16 : 9} />
+        </span>
+      )}
+      {frame.phase === 'impact' && (
+        <>
+          {!reduced && <i class="gold-flash" />}
+          {!reduced && <i class="gold-wave" />}
+          {!reduced &&
+            Array.from({ length: 10 }, (_, k) => <i key={k} class="gold-shard" style={`--a:${k * 36 + 10}deg;--r:${(k % 3) * 0.25 + 0.75}`} />)}
+          <b class="gold-damage">-{hit.damage}</b>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** The 10 s turn clock (numbers from the server; red and pulsing in the last 3 s). */
+function TurnTimer({ clock, now }: { clock: TurnClock; now: number }) {
+  const c = countdown(clock, now);
+  const pct = c.started ? Math.max(0, Math.min(100, ((clock.endsAt - now) / (clock.endsAt - clock.startsAt)) * 100)) : 100;
+  return (
+    <div class={`turn-timer${c.urgent ? ' urgent' : ''}`} role="timer" aria-live="off" aria-label={`${c.secs} seconds to pick`}>
+      <b class="turn-secs" key={c.urgent ? c.secs : 'calm'}>
+        {c.secs}
+      </b>
+      <span class="turn-bar">
+        <i style={{ width: `${pct}%` }} />
+      </span>
+    </div>
+  );
 }
 
 /** A finished match in Recent duels / the Village Arena box. */
@@ -66,6 +132,8 @@ export function MatchRow({ m, onRematch, busy }: { m: MatchSummary; onRematch?: 
 
 /** Dev builds: window.__turnT = <ms> freezes the playing turn at that moment (screenshots, tools/ui-test.mjs). */
 const devT = () => (import.meta.env.DEV ? (window as unknown as { __turnT?: number }).__turnT : undefined);
+/** Dev builds: window.__clockNow = <ms> freezes the turn clock that many ms after its start (screenshots). */
+const devClock = () => (import.meta.env.DEV ? (window as unknown as { __clockNow?: number }).__clockNow : undefined);
 
 /**
  * The v2 duel screen. `initial` is the match from the server (new or resumed). `onDone` gets the
@@ -87,10 +155,12 @@ export function MatchScreen({
   onClose: () => void;
 }) {
   const reduced = reducedMotion();
-  const [m, setM] = useState<MatchView>(initial);
+  const [m, setMatch] = useState<MatchView>(initial);
+  /** The turn clock on this device, set from every answer (the server decides; this only shows it). */
+  const [clock, setClock] = useState<TurnClock | null>(() => clockOf(initial, Date.now()));
   /** The decided turn being played back (index into m.turns) and when it started. */
   const [anim, setAnim] = useState<{ i: number; t0: number } | null>(null);
-  /** The end: K.O. / TIME UP!, the celebration, then the result. */
+  /** The end: K.O.!, the celebration, then the result. */
   const [end, setEnd] = useState<number | null>(initial.status === 'done' ? -Infinity : null);
   const [sending, setSending] = useState<ArenaPick | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,30 +168,59 @@ export function MatchScreen({
   const [, setTick] = useState('');
   const mRef = useRef(m);
   mRef.current = m;
+  const asking = useRef(false);
 
-  // Keep the duel alive while it is open (the 2-minute rule only closes duels nobody looks at).
+  /** A new answer from the server: the match, its clock, and the newly decided turn to play back. */
+  const take = (next: MatchView, state?: GameState, titleUp?: string | null) => {
+    const before = mRef.current.turns.length;
+    setMatch(next);
+    setClock(clockOf(next, Date.now()));
+    // Several turns may have been decided while away: the last one is played back.
+    if (next.turns.length > before) setAnim({ i: next.turns.length - 1, t0: Date.now() });
+    else if (next.status === 'done' && mRef.current.status === 'playing') setEnd(Date.now());
+    if (state) onDone(state, titleUp ?? null);
+  };
+
+  const ask = () => {
+    if (asking.current) return;
+    asking.current = true;
+    api<{ match: MatchView; state?: GameState }>('GET', `/api/arena/match/${mRef.current.id}`)
+      .then((r) => take(r.match, r.state))
+      .catch(() => undefined)
+      .finally(() => (asking.current = false));
+  };
+
+  // Now and then while the duel is open (another tab, a long pause).
   useEffect(() => {
     if (m.status !== 'playing') return;
-    const id = window.setInterval(() => {
-      api<{ match: MatchView }>('GET', `/api/arena/match/${m.id}`)
-        .then((r) => r.match.status === 'done' && mRef.current.status === 'playing' && (setM(r.match), setEnd(Date.now())))
-        .catch(() => undefined);
-    }, KEEPALIVE_MS);
+    const id = window.setInterval(ask, POLL_MS);
     return () => window.clearInterval(id);
   }, [m.id, m.status]);
+
+  // The countdown: drawn about 5 times a second while the player can pick; when the 10 s (and the
+  // server's grace) are over without a pick, the web asks for the turn the server decided.
+  const idle = m.status === 'playing' && !anim && !sending;
+  useEffect(() => {
+    if (!idle || !clock) return;
+    const id = window.setInterval(() => {
+      setTick(String(Math.floor(Date.now() / 200)));
+      if (devClock() === undefined && Date.now() >= clock.endsAt + AFTER_DEADLINE_MS) ask();
+    }, 200);
+    return () => window.clearInterval(id);
+  }, [idle, clock]);
 
   // Time of the playing turn (or the end), drawn again only when the frame changes.
   const now = () => Date.now();
   const tTurn = () => (anim ? (devT() ?? now() - anim.t0) : 0);
   const frame = anim ? turnAt(m, anim.i, tTurn(), reduced) : null;
-  const frameKey = frame ? `${anim!.i}|${frame.phase}|${frame.hit?.index}|${frame.hp}|${frame.sinceImpact < 350}|${frame.sinceImpact < 1000}` : '';
+  const frameKey = (f: TurnFrame | null) => (f ? `${f.phase}|${f.hit?.index}|${f.hp}|${f.sinceImpact < 350}|${f.sinceImpact < 1000}` : '');
   const endT = end === null ? null : end === -Infinity ? Infinity : now() - end;
   const endPhase = endT === null ? null : endT < KO_MS ? 'ko' : endT < KO_MS + CELEBRATE_MS ? 'celebrate' : 'result';
   useEffect(() => {
     if (!anim && (end === null || endPhase === 'result')) return;
     const id = window.setInterval(() => {
       const f = anim ? turnAt(mRef.current, anim.i, tTurn(), reduced) : null;
-      setTick(`${frameKey}|${f?.phase}|${f?.hit?.index}|${f?.hp}|${f && f.sinceImpact < 350}|${f && f.sinceImpact < 1000}|${end !== null ? Math.floor((now() - (end === -Infinity ? 0 : end)) / 100) : ''}`);
+      setTick(`${anim?.i}|${frameKey(f)}|${end !== null ? Math.floor((now() - (end === -Infinity ? 0 : end)) / 100) : ''}`);
       if (anim && devT() === undefined && now() - anim.t0 >= turnLength(mRef.current.turns[anim.i], reduced)) {
         setAnim(null);
         if (mRef.current.status === 'done') setEnd(now());
@@ -130,12 +229,17 @@ export function MatchScreen({
     return () => window.clearInterval(id);
   }, [anim, end, endPhase]);
 
+  /** Skip the turn playing now (the Gold Durian too): its result shows at once. */
+  const skip = () => anim && setAnim({ i: anim.i, t0: now() - 1e7 });
+
   // Sounds and confetti, once per event.
   const event = frame ? `${anim!.i}:${frame.phase}:${frame.hit?.index}` : `end:${endPhase}`;
   const won = matchWon(m);
   useEffect(() => {
     if (frame?.phase === 'reveal') playSound('click');
-    if (frame?.phase === 'impact' && frame.hit) playSound(frame.hit.gold ? 'momentDurian' : hitSound(frame.hit));
+    if (frame?.phase === 'charge') playGoldDurian('charge');
+    if (frame?.phase === 'meteor') playGoldDurian('fall');
+    if (frame?.phase === 'impact' && frame.hit) frame.hit.gold ? playGoldDurian('impact') : playSound(hitSound(frame.hit));
     if (endPhase === 'ko' && endT !== Infinity) playSound('momentEvolve');
     if (endPhase === 'celebrate' && won) confetti(36);
     if (endPhase === 'result' && end !== -Infinity && end !== null) playSound(won ? 'levelup' : 'click');
@@ -148,15 +252,12 @@ export function MatchScreen({
     setError(null);
     try {
       const r = await api<{ match: MatchView; state?: GameState; titleUp?: string | null }>('POST', `/api/arena/match/${m.id}/pick`, { turn: m.turn, pick: p });
-      setM(r.match);
-      if (r.match.turns.length > m.turns.length) setAnim({ i: r.match.turns.length - 1, t0: Date.now() });
-      else if (r.match.status === 'done') setEnd(Date.now());
-      if (r.state) onDone(r.state, r.titleUp ?? null);
+      take(r.match, r.state, r.titleUp);
     } catch (e) {
       playSound('error');
       setError(errorText(e));
       // The turn may have moved on (another tab): read the match again.
-      if (e instanceof ApiError && e.status === 409) api<{ match: MatchView }>('GET', `/api/arena/match/${m.id}`).then((r) => setM(r.match)).catch(() => undefined);
+      if (e instanceof ApiError && e.status === 409) ask();
     } finally {
       setSending(null);
     }
@@ -170,6 +271,8 @@ export function MatchScreen({
   // Life and skill shown: the playing turn's frame, else the match now.
   const hp: [number, number] = frame ? frame.hp : [m.hp.c, m.hp.d];
   const skill: [number, number] = frame ? frame.skill : [m.skill.c, m.skill.d];
+  const gold = !!frame?.hit?.gold && (frame.phase === 'charge' || frame.phase === 'meteor' || frame.phase === 'impact');
+  const heavy = (f: TurnFrame | null) => !!f?.hit && (f.hit.gold || f.hit.fruit.species === 'durian');
   const hitShown = frame?.phase === 'impact' && frame.sinceImpact < 1000;
   const pose = (who: 'me' | 'them') => {
     if (over && endPhase !== null) {
@@ -179,6 +282,7 @@ export function MatchScreen({
     if (!frame) return 'idle';
     if (frame.phase === 'dodge') return 'dodge';
     if (!frame.hit) return 'idle';
+    if (frame.phase === 'charge' && frame.hit.from === who) return 'charging';
     if ((frame.phase === 'windup' || frame.phase === 'flight') && frame.hit.from === who) return 'windup';
     if (hitShown && frame.hit.from !== who) return 'hit';
     return 'idle';
@@ -187,10 +291,20 @@ export function MatchScreen({
   // server); then both picks of the decided turn, kept until the next pick.
   const bubble = (who: 'me' | 'them') => {
     if (sending) return who === 'me' ? { pick: sending, pop: true } : { pick: '?' as const, pop: false };
-    if (!last || done) return null;
+    // During the Gold Durian the big title needs the room (the picks were shown just before).
+    if (!last || done || gold) return null;
     return { pick: who === 'me' ? last.pick.c : last.pick.d, pop: !!frame && frame.phase === 'reveal' };
   };
-  const shake = !reduced && frame?.phase === 'impact' && frame.sinceImpact < 350 ? (frame.hit!.gold || frame.hit!.fruit.species === 'durian' ? ' shake hard' : ' shake') : '';
+  const shake =
+    reduced || frame?.phase !== 'impact'
+      ? ''
+      : frame.hit?.gold && frame.sinceImpact < 600
+        ? ' shake mega'
+        : frame.sinceImpact < 350
+          ? heavy(frame)
+            ? ' shake hard'
+            : ' shake'
+          : '';
   // The Gold Durian button follows the bar on screen (it fills when the hit lands).
   const ctl = controls({ ...m, skill: { c: skill[0], d: skill[1] } }, !!sending || !!anim);
   const scale = wide ? 4 : 2;
@@ -199,14 +313,20 @@ export function MatchScreen({
   const txUrl = m.txUrl ?? job?.explorerUrl ?? null;
   const paid = m.prize > 0 && m.you === 'challenger' && !txUrl;
   const pending = paid && (!job || job.status === 'pending');
-  // The banner of the turn: after the picks pop up, while the hits play.
-  const banner = frame && frame.phase !== 'reveal' && last ? turnBanner(last, them.name) : null;
+  // The banner of the turn: after the picks pop up, while the hits play (the Gold Durian has its own title).
+  const banner = frame && frame.phase !== 'reveal' && last && !gold ? turnBanner(last, them.name) : null;
+  const clockNow = clock && devClock() !== undefined ? clock.startsAt + devClock()! : now();
 
   return (
     <div class="dialog-backdrop duel-backdrop" role="presentation">
       <div class={`duel match panel${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={`Arena duel: ${me.name} vs ${them.name}'s TaniBot`}>
         <header class="panel-head duel-head">
           <h2>FRUIT FIGHT</h2>
+          {anim && !done && (
+            <button class="btn btn-small duel-skip" onClick={skip}>
+              Skip
+            </button>
+          )}
           <button
             class="icon-btn info-close"
             onClick={() => (m.status === 'playing' ? setLeaving(true) : onClose())}
@@ -216,30 +336,33 @@ export function MatchScreen({
           </button>
         </header>
 
-        <div class={`fight-stage${shake}${reduced ? ' still' : ''}`}>
+        <div class={`fight-stage${shake}${reduced ? ' still' : ''}${gold ? ' gold-on' : ''}`}>
+          {gold && frame && <GoldStageFx frame={frame} reduced={reduced} />}
           <div class="fight-hud">
             <FighterHud side={me} hp={hp[0]} right={false} skill={{ n: skill[0], max: m.skillMax }} />
             <div class="fight-score">
               <span class="duel-vs">VS</span>
             </div>
-            <FighterHud side={{ ...them, title: `${them.name}'s TaniBot` }} hp={hp[1]} right skill={{ n: skill[1], max: m.skillMax }} />
+            {/* Their TaniBot's name AND its title (its look comes from the title). */}
+            <FighterHud side={{ ...them, name: `${them.name}'s TaniBot` }} hp={hp[1]} right skill={{ n: skill[1], max: m.skillMax }} />
           </div>
           <div class="fight-floor" style={`--bot-w:${58 * scale}px;--bot-h:${64 * scale}px`}>
-            <Fighter side={me} right={false} scale={scale} state={pose('me')} hard={!!frame?.hit && (frame.hit.gold || frame.hit.fruit.species === 'durian')} pick={bubble('me')} />
-            {!reduced && frame?.hit && frame.phase === 'flight' && (
-              <FlyingFruit fruit={frame.hit.fruit} from={frame.hit.from} ms={flightMs(frame.hit.fruit)} hitKey={`${anim!.i}-${frame.hit.index}`} big={wide || frame.hit.gold} />
+            <Fighter side={me} right={false} scale={scale} state={pose('me')} hard={heavy(frame)} pick={bubble('me')} />
+            {!reduced && frame?.hit && !frame.hit.gold && frame.phase === 'flight' && (
+              <FlyingFruit fruit={frame.hit.fruit} from={frame.hit.from} ms={flightMs(frame.hit.fruit)} hitKey={`${anim!.i}-${frame.hit.index}`} big={wide} />
             )}
-            {hitShown && (
+            {hitShown && !frame!.hit!.gold && (
               <span
                 key={`burst-${anim!.i}-${frame!.hit!.index}`}
-                class={`hit-burst at-${frame!.hit!.from === 'me' ? 'them' : 'me'}${frame!.hit!.gold || frame!.hit!.fruit.species === 'durian' ? ' hard' : ''} q-${frame!.hit!.fruit.quality}`}
+                class={`hit-burst at-${frame!.hit!.from === 'me' ? 'them' : 'me'}${heavy(frame) ? ' hard' : ''} q-${frame!.hit!.fruit.quality}`}
                 aria-hidden="true"
               />
             )}
-            <Fighter side={them} right scale={scale} state={pose('them')} hard={!!frame?.hit && (frame.hit.gold || frame.hit.fruit.species === 'durian')} pick={bubble('them')} />
+            {gold && frame && (frame.phase === 'meteor' || frame.phase === 'impact') && <GoldFloorFx key={`gold-${anim!.i}-${frame.hit!.index}-${frame.phase}`} frame={frame} wide={wide} reduced={reduced} />}
+            <Fighter side={them} right scale={scale} state={pose('them')} hard={heavy(frame)} pick={bubble('them')} />
           </div>
           {banner && (
-            <div class={`fight-banner turn-banner${last?.hits.some((h) => h.gold) ? ' gold' : ''}`} key={`banner-${anim?.i}`}>
+            <div class="fight-banner turn-banner" key={`banner-${anim?.i}`}>
               {banner}
             </div>
           )}
@@ -251,14 +374,15 @@ export function MatchScreen({
             <p class="match-turn">{turnLine(m, !!sending, anim?.i)}</p>
             {last && (
               <p class="match-why">
-                {turnReason(last)}
+                {turnReason(last, them.name)}
                 {/* The damage only once the fruit has landed. */}
-                {(!frame || frame.phase === 'impact' || frame.phase === 'done') && last.hits.map((h, k) => (
-                  <span key={k}>
-                    {' '}
-                    {h.to === 'defender' ? 'You hit' : 'You got hit'} with a {fruitName(h.fruit)}: -{h.damage}.
-                  </span>
-                ))}
+                {(!frame || frame.phase === 'impact' || frame.phase === 'done') &&
+                  last.hits.map((h, k) => (
+                    <span key={k}>
+                      {' '}
+                      {h.to === 'defender' ? 'You hit' : 'You got hit'} with a {fruitName(h.fruit)}: -{h.damage}.
+                    </span>
+                  ))}
               </p>
             )}
             <p class="match-bonus">{bonusLine(m)}</p>
@@ -267,6 +391,7 @@ export function MatchScreen({
 
         {!over && (
           <div class="match-controls">
+            {idle && clock && <TurnTimer clock={clock} now={clockNow} />}
             <button
               class={`btn gold-durian-btn${ctl.goldLit ? ' lit' : ''}`}
               disabled={!ctl.gold}
@@ -328,7 +453,10 @@ export function MatchScreen({
 
         {leaving && (
           <div class="match-leave" role="alertdialog" aria-label="Leave the duel?">
-            <p>Leave the duel? It waits for you: come back within 2 minutes (Arena window: Continue), or it counts as a loss without prize.</p>
+            <p>
+              Leave the duel? It keeps going without you: every turn you miss (10 s) the TaniBot hits you. Come back soon (Arena window: Continue), or you lose without a
+              prize.
+            </p>
             <div class="duel-actions">
               <button class="btn btn-mint" onClick={() => setLeaving(false)}>
                 Stay

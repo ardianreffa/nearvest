@@ -5,7 +5,7 @@ import { loadToken, type GameState, type TreeView } from './api';
 import { Backdrop, lockedFraction, phaseOf } from './art/backdrop';
 import type { Place } from './art/hotspots';
 import { playSound } from './audio';
-import { BASKET, Drone, droneCount, HOE, TaniBot, TANIBOT_H, TANIBOT_W, tierOf, tierRank, type Tier } from './art/tanibot';
+import { BASKET, BotDrones, Drone, droneCount, HOE, TaniBot, TANIBOT_H, TANIBOT_W, tierOf, tierRank, type Tier } from './art/tanibot';
 import { TreePixels, treeTopRow } from './art/trees';
 import { leafBurst } from './fx';
 import { Pixels, Sprite } from './sprites';
@@ -289,16 +289,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
             <i />
           </span>
         )}
-        {droneCount(tier) > 0 && (
-          // Drones orbit TaniBot's shoulders; their shadows run along the ground. Asleep: parked and dim.
-          <div class={`bot-drones${on ? '' : ' parked'}`} aria-hidden="true">
-            {Array.from({ length: droneCount(tier) }, (_, i) => (
-              <span key={i} class={`orbit o${i + 1}`}>
-                <Drone scale={droneScale} shadow={Math.round(TANIBOT_H * botScale * 0.36)} />
-              </span>
-            ))}
-          </div>
-        )}
+        {/* Drones orbit TaniBot's shoulders; their shadows run along the ground. Asleep: parked and dim. */}
+        <BotDrones tier={tier} scale={droneScale} shadow={Math.round(TANIBOT_H * botScale * 0.36)} parked={!on} />
         {visit ? (
           hello.id > 0 && (
             <span class="bot-hint bot-hint-flash bot-hello" role="status" key={hello.id}>

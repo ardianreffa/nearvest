@@ -13,35 +13,13 @@
 import type { ComponentChildren } from 'preact';
 import { Pixels } from '../sprites';
 import { TANIBOT_ROWS, TANIBOT_V1 } from './tanibot-sprite';
-import { EVOLUTION_PALETTE, TANIBOT_EVOLUTIONS, type EvolutionId } from './tanibot-evolutions';
+import { EVOLUTION_PALETTE, TANIBOT_EVOLUTIONS } from './tanibot-evolutions';
 
 export const TANIBOT_W = 58;
 export const TANIBOT_H = 64;
 
-export type Tier = EvolutionId;
-export const TIERS: Tier[] = ['seedling', 'farmhand', 'farmer', 'orchard_master', 'durian_king', 'legend'];
-export const TIER_TITLE: Record<Tier, string> = {
-  seedling: 'Seedling',
-  farmhand: 'Farmhand',
-  farmer: 'Farmer',
-  orchard_master: 'Orchard Master',
-  durian_king: 'Durian King',
-  legend: 'Legend',
-};
-
-/** The TaniBot look that belongs to a title. */
-export function tierOf(title: string): Tier {
-  return TIERS.find((t) => TIER_TITLE[t] === title) ?? 'seedling';
-}
-
-export function tierRank(tier: Tier): number {
-  return TIERS.indexOf(tier);
-}
-
-/** Drones that fly with TaniBot: none at first, one from Farmer, two for the Legend. */
-export function droneCount(tier: Tier): number {
-  return tier === 'legend' ? 2 : tierRank(tier) >= tierRank('farmer') ? 1 : 0;
-}
+export { TIERS, TIER_TITLE, droneCount, tierOf, tierRank, type Tier } from './tiers';
+import { TIER_TITLE, droneCount, tierRank, type Tier } from './tiers';
 
 const PALETTE: Record<string, string> = { ...EVOLUTION_PALETTE, ...TANIBOT_V1 };
 
@@ -298,6 +276,24 @@ const PROP_B = [
   '.....................',
 ];
 const DRONE_PAL = { k: '#1B1B2F', m: '#9CA3AF', n: '#E5E7EB', D: '#4B5563', c: '#22D3EE' };
+
+/**
+ * The drones that fly with TaniBot (1 from Farmer, 2 for the Legend), orbiting its shoulders; asleep
+ * (`parked`) they rest and dim. The garden and the Arena duel use the same ones (one look everywhere).
+ */
+export function BotDrones({ tier, scale, shadow, parked = false }: { tier: Tier; scale: number; shadow: number; parked?: boolean }) {
+  const n = droneCount(tier);
+  if (n === 0) return null;
+  return (
+    <div class={`bot-drones${parked ? ' parked' : ''}`} aria-hidden="true">
+      {Array.from({ length: n }, (_, i) => (
+        <span key={i} class={`orbit o${i + 1}`}>
+          <Drone scale={scale} shadow={shadow} />
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export function Drone({ scale = 2, class: className = '', shadow = 0, children }: { scale?: number; class?: string; shadow?: number; children?: ComponentChildren }) {
   return (

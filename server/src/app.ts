@@ -412,7 +412,12 @@ export function createApp(deps: AppDeps) {
     const r = matches.start(pid, b.opponent, clientIp(c), b.deviceId);
     return c.json({ ...r, state: game.state(pid) });
   });
-  app.get('/api/arena/match/:id', (c) => c.json(matches.get(playerId(c), Number(c.req.param('id')))));
+  app.get('/api/arena/match/:id', (c) => {
+    const pid = playerId(c);
+    const r = matches.get(pid, Number(c.req.param('id')));
+    // Missed turns may have ended the match during this request: then the game state too.
+    return c.json(r.match.status === 'done' ? { ...r, state: game.state(pid) } : r);
+  });
   app.post('/api/arena/match/:id/pick', async (c) => {
     const pid = playerId(c);
     const b = await body(c);

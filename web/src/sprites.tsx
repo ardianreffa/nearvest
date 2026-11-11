@@ -301,8 +301,9 @@ const UI_ICON_PALETTE: Record<string, string> = {
   '1': '#C3C8CE',
   '2': '#8A9098',
   '3': '#555B63',
-  // Paper (pixel art, own colour): the soft shadow along the sheet's bottom edge.
-  '4': '#D9CCA8',
+  // Paper (pixel art, own colours): the blue writing lines and the soft grey shadow under the roll.
+  '6': '#3D74D6',
+  '5': '#B7BCC3',
 };
 
 export const UI_ICONS = {
@@ -364,27 +365,27 @@ export const UI_ICONS = {
     '................',
     '................',
   ],
-  // Arena v2: Paper (Rock / Paper / Scissors buttons and the picks above the TaniBots): one blank
-  // upright sheet (no lines, no text) with a gentle wave in its top and bottom edges like paper in the
-  // wind, the top-right corner folded, a light shade where it bends and a thin darker cream shadow
-  // following the wavy bottom edge.
+  // Arena v2: Paper (Rock / Paper / Scissors buttons and the picks above the TaniBots), an original
+  // pixel drawing in the style of a paper scroll: an upright white sheet, its top-right corner slightly
+  // curled (grey underside), the bottom rolled up into a grey roll (spiral ends), four short blue lines
+  // of different lengths as writing, a black outline and a soft grey shadow underneath.
   paper: [
-    '................',
-    '......KKKK......',
-    '..KKKKPPPPKK....',
-    '..KFFPPPPPKFK...',
-    '..KPPPPPPPKKKK..',
+    '..KKKKKKKKKK....',
+    '..KPPPPPPPP2KK..',
+    '..KPPPPPPPP12K..',
+    '..KP666666PPPK..',
     '..KPPPPPPPPPPK..',
+    '..KP6666PPPPPK..',
     '..KPPPPPPPPPPK..',
+    '..KP6666666PPK..',
     '..KPPPPPPPPPPK..',
+    '..KP666PPPPPPK..',
     '..KPPPPPPPPPPK..',
-    '..KPPPPPPPPPPK..',
-    '..KPPPPPPPPPPK..',
-    '..KPPP4444PPPK..',
-    '..K444KKKK444K..',
-    '..KKKK....KKKK..',
-    '................',
-    '................',
+    '.KKKKKKKKKKKKKK.',
+    '.K311111111112K.',
+    '.K322222222223K.',
+    '..KKKKKKKKKKKK..',
+    '...5555555555...',
   ],
   // Arena v2: Scissors (Rock / Paper / Scissors buttons and the picks above the TaniBots).
   scissors: [
