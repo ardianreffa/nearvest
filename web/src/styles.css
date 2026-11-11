@@ -13418,3 +13418,39 @@ html.duel-open .duel-bg .backdrop * {
   align-items: center;
 }
 
+/* Small labels (tags / chips: "ONLINE", "1 THIRSTY", "FRIENDS ✓", Rare / Gold, "100% Common", TaniBot
+   ON / OFF, AI, Demo; Ardian 2026-11-11): no pointed (bevelled) ends any more. A plain rectangle with
+   stepped pixel corners like the boxes, buttons and place pins; steps of 1px stay inside their 2px
+   outline. Content, colours, icons and text sizes are unchanged. */
+.tag,
+.owned-chip,
+.seed-q,
+.bot-status,
+.ai-tag,
+.tag-demo {
+  --n: 1px;
+  border-radius: 0 !important;
+  corner-shape: square !important;
+  clip-path: polygon(
+    0 calc(var(--n) * 2),
+    var(--n) calc(var(--n) * 2),
+    var(--n) var(--n),
+    calc(var(--n) * 2) var(--n),
+    calc(var(--n) * 2) 0,
+    calc(100% - var(--n) * 2) 0,
+    calc(100% - var(--n) * 2) var(--n),
+    calc(100% - var(--n)) var(--n),
+    calc(100% - var(--n)) calc(var(--n) * 2),
+    100% calc(var(--n) * 2),
+    100% calc(100% - var(--n) * 2),
+    calc(100% - var(--n)) calc(100% - var(--n) * 2),
+    calc(100% - var(--n)) calc(100% - var(--n)),
+    calc(100% - var(--n) * 2) calc(100% - var(--n)),
+    calc(100% - var(--n) * 2) 100%,
+    calc(var(--n) * 2) 100%,
+    calc(var(--n) * 2) calc(100% - var(--n)),
+    var(--n) calc(100% - var(--n)),
+    var(--n) calc(100% - var(--n) * 2),
+    0 calc(100% - var(--n) * 2)
+  );
+}
