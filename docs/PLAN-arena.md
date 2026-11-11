@@ -1,6 +1,6 @@
 # Plan: Arena 1 VS 1 (simple, not real-time)
 
-Status: **Arena v1 BUILT 2026-11-11 (local commit, not released; VPS untouched).** Server `server/src/arena.ts`
+Status: **Arena v1 live 2026-11-11 (`nearvest-e8312ea`). v2 / v3 (Rock Paper Scissors, online, Add friend) = plan only, section 7.** v1 was built 2026-11-11. Server `server/src/arena.ts`
 (table `arena_duels`, `GET /api/arena`, `GET /api/arena/can/:name`, `POST /api/arena/duel`, `state.arena`, Village news,
 log note 'arena'), tests `server/test/arena.test.ts` (13); web `web/src/arena.tsx` + `arena-play.ts` (Arena window from
 the pin, duel screen, Village "Arena" box, Duel button in the visit panel, notice for received duels), tests
@@ -278,3 +278,264 @@ iPhone Safari's visible area). Old-server check: pin says "Soon".
 Build order: server rules + tests -> `GET/POST` endpoints -> Arena window + visit button -> duel
 screen -> notices / dot -> ui-test at 390x844 and 1280x800 -> local commit. Release to the VPS and
 push only after Ardian's OK (normal steps in docs/DEPLOY.md, Entropy untouched).
+
+---
+
+## 7. v2 / v3: Rock Paper Scissors Fruit Fight (PLAN ONLY, Ardian 2026-11-11; no code yet)
+
+**v2 = against the computer (the opponent's TaniBot), built first. v3 = against an online player +
+Add friend, built only after v2 is stable; if v3 is not done before the feature freeze (Thu 12 Nov
+evening) its online part and Add friend stay hidden** (the server sends no `live` / `friends` flags,
+so the web shows nothing of them).
+
+### 7.1 One duel engine on the server (both kinds)
+
+A **match** is played turn by turn. Every turn each side picks **Rock / Paper / Scissors**, or fires
+its **Gold Durian** when its skill bar is full. The server stores the picks, decides the turn, keeps
+the life and skill bars, and ends the match. The web only sends "my pick for turn N" and plays the
+animation of what the server decided.
+
+| Rule | Value (draft, `rules.ts`) |
+|---|---|
+| Life | 100 each (`ARENA_HP`) |
+| Turn | Rock beats Scissors, Scissors beat Paper, Paper beats Rock. Same pick = **both dodge**, no damage |
+| Turn winner's throw | a random fruit: Mango 50% / Rambutan 35% / Durian 15%; quality Common 70% / Rare 22% / Gold 8% (`crypto.randomInt`, server only) |
+| Damage | Mango 14, Rambutan 18, Durian 24; x1 Common, x1.3 Rare, x1.6 Gold (average about 19: a K.O. needs 5-6 hits) |
+| Garden bonus | all hits x (1 + bonus), **bonus 0-20%** from the v1 garden score (fruit quality + care + ripeness, 0-9): `bonus = max(0, score - 3) / 6 x 20%`. Veteran 3/3/3 = +20%, new player with a watered fruiting Mango 1/3/3 = +13%, neglected seed = 0% |
+| Skill bar | +1 per turn won, full at **3** (`ARENA_SKILL_MAX`). Full = the **Gold Durian** button lights up |
+| Gold Durian | used **instead of** a pick: a sure hit of **40** (x garden bonus) that cannot be dodged; the bar empties. If both fire in the same turn, both hit. A side that fires does not get the Rock / Paper / Scissors result that turn |
+| Length | max **15 turns**; no K.O. by then = most life wins; equal life = most hits landed; still equal = the challenged side (same as v1's tie rule) |
+| TaniBot (computer side) | picks uniformly at random (it cannot be read or exploited); fires its Gold Durian on the first turn its bar is full |
+
+**Secrecy:** the opponent's pick (the TaniBot's or the other player's) is locked in the database at
+the start of the turn (TaniBot) or when it arrives (player), and is **never sent to the web before
+both picks of that turn are in**. A test scans every answer for it. Picks are idempotent per turn
+(a retry of the same turn returns the same result; a pick for an old turn = 409 `turn_over`), so a
+refresh can never re-roll.
+
+**Prize and limits (same as v1):** 8 PANEN base `mint_reward` (Season rule), 15 XP for a win
+(`DEMO_XP_MULTIPLIER` as usual), loss 1 XP, 3 challenges per garden per day (v1 duels and v2/v3
+matches counted **together**), 1 per opponent per day (rematch the other way allowed), max 3 paid
+wins per garden / per device, 10 per IP; same person = practice (no prize, no XP); judge gardens
+take part. A match **counts toward the day's 3 from the moment it starts**.
+
+**Leaving a computer match:** the web polls the match while it is open. No poll for **2 minutes** =
+the match ends as a **loss without prize** for the player (TaniBot wins; defender XP as in v1). A
+sweep every 10 s in the existing worker loop (`main.ts`) closes such matches, so nobody has to come
+back for it to finish. Closing the page and coming back within 2 minutes = the match continues where
+it was (the turn has no clock against the computer).
+
+**The challenged garden** gets the notice and the Village red dot as in v1 ("budi challenged your
+TaniBot: your TaniBot won 72-0 (+3 XP)!"), through the fixed notice strip (section A fix: important
+notices are never lost behind a window).
+
+### 7.2 v3: online player + Add friend
+
+**Online dot:** a garden is **Online** when its web sent a sign of life in the last 60 s. The web
+calls `GET /api/ping` every **4 s while the page is visible** (not while the tab is hidden; on
+coming back it calls at once). The server stores `players.active_at` (written at most every 20 s, so
+pings cost almost no disk writes) and answers with any invite waiting for this player. `last_seen_at`
+(updated only every 10 minutes) stays as it is.
+
+**Challenge an online player:**
+1. The challenger taps Duel on an online garden: `POST /api/arena/match { opponent, live: true }`.
+   The server creates the match as `invite` for **30 s**. The challenger sees "Waiting for budi to
+   accept... 30".
+2. budi's next ping (at most 4 s later) returns the invite: a popup **"<NAME> CHALLENGES YOU!"** with
+   **Accept / Decline** and the countdown. Accept = `POST /api/arena/match/:id/accept`.
+3. Declined or no answer in 30 s: the same match goes on **against budi's TaniBot** (rules of 7.1;
+   the challenger sees "budi is busy: you fight budi's TaniBot!"). Never stuck.
+4. A player can be in only one match at a time; an invite to a busy player is answered at once with
+   "budi is in a duel: fight budi's TaniBot?" (409 `busy`, the web offers the computer match).
+
+**Turns online:** each turn has **10 s**; a side that has not picked by then gets a random pick
+(server). During a live match both browsers poll `GET /api/arena/match/:id` about every **1 s**
+(answer = one row, about 1 KB). The turn result is shown to both once both picks are in.
+
+**Leaving / connection lost:** a side whose browser has not polled for **5 s** is "gone": the match
+pauses (the turn clock stops) and the other side sees **"Waiting for <name>... 20"**.
+- Back within 20 s: the match continues (the turn restarts its 10 s).
+- Not back: the player who stayed **WINS** (same prize and XP as a normal win, counted in their
+  daily caps); the one who left loses (loss XP only).
+- Left **before the first turn was decided**: the match is **cancelled** (no prize, no XP, it does
+  NOT count toward either player's 3 a day).
+- Both gone for 20 s: the match ends without winner (counts for the challenger, nobody paid).
+- The countdown and the decision are made by the server (on the next poll or by the 10 s sweep), so
+  the player who stays is never left waiting.
+
+**Who gets the prize online:** the **winner, whichever side** (both played live; budi accepted). The
+match uses **1 of the challenger's 3 challenges**; accepting does **not** use one of budi's. A paid
+win counts toward the **winner's** own caps (3 paid Arena wins per garden per day, all kinds
+together; 3 per device; 10 per IP). When the winner's caps are full the win is shown as "Practice:
+no prize today". The loser gets 1 XP. Same person on both sides = practice, as in v1. When the match
+fell back to budi's TaniBot, it is a computer match: only the challenger can win the prize; budi
+gets the v1 defender XP if the TaniBot wins.
+
+**Add friend (one way, no accept needed):**
+- "Add friend" in the visit panel and on each row of Farmers of Tandur; "Remove friend" to undo.
+- Friends come first in Farmers of Tandur (section "FRIENDS (n)"), each with the Online dot, Visit
+  and Duel.
+- The added player gets the notice **"<name> added you as a friend"** with **Add back** (and the
+  Village red dot; a "Friends" row in the Village Visitors box). Removing sends no notice.
+- Limits (proposal): at most **50 friends** per garden (`FRIENDS_MAX`), at most **20 adds per day**
+  (`FRIENDS_ADDS_PER_DAY`, so nobody can spam notices), one notice per pair ever (add / remove / add
+  again does not notify twice). No chat, no free text.
+- Judge gardens can add friends and be added (they are filled in Farmers already).
+
+**Why polling and not WebSockets:** the VPS has about 1 GB free and Entropy must stay safe. Short
+HTTP polls keep no open connections and no new process: one indexed SQLite read per poll. Estimate:
+50 players online = about 13 pings/s, plus 2 polls/s per live match; Hono + node:sqlite handle that
+in well under 1% CPU and with no extra memory (the server stays far below its 300 MB limit; now
+64 MB). If it ever gets busy, the ping moves to 6 s and the match poll to 1.5 s (only the countdown
+gets less smooth). Server-Sent Events would be smoother but hold one connection per player through
+Caddy; not needed for this size.
+
+### 7.3 Server changes
+
+New tables only + one new column with DEFAULT (old releases name their columns, so they ignore them):
+- `arena_matches (id, kind 'bot'|'live', status 'invite'|'playing'|'paused'|'done'|'cancelled',
+  challenger_id, defender_id, duel_day, turn, hp_c, hp_d, skill_c, skill_d, bonus_c, bonus_d,
+  pick_c, pick_d /* this turn's locked picks, NULL until chosen */, turn_ends_at, invite_ends_at,
+  paused_side, pause_ends_at, seen_c, seen_d /* last poll of each side */, winner, end_reason
+  'ko'|'turns'|'left'|'abandoned'|'cancelled', practice, prize_micro, job_id, xp_c, xp_d,
+  log TEXT /* JSON per decided turn: picks, fruit, quality, damage, special */, ip, device_id,
+  created_at, updated_at)` + indexes `(challenger_id, duel_day)`, `(defender_id, created_at)`,
+  `(status)`.
+- `friends (player_id, friend_id, created_at, notified INTEGER, PRIMARY KEY (player_id, friend_id))`
+  + index `(friend_id, created_at)` (v3).
+- `players.active_at INTEGER DEFAULT 0` (v3).
+
+v1's `arena_duels` stays untouched: old 3-round duels keep showing; matches live in their own table,
+so an old release never reads a JSON format it does not know.
+
+Endpoints:
+- v2: `POST /api/arena/match { opponent, deviceId }` -> the match (computer side); `GET
+  /api/arena/match/:id` (poll: life, skill, turn, last decided turn, never the open pick);
+  `POST /api/arena/match/:id/pick { turn, pick: 'rock'|'paper'|'scissors'|'gold' }`;
+  `GET /api/arena` and `state.arena` gain `v: 2`, `active` (a running match to resume) and
+  `matches` (recent matches, both roles). `POST /api/arena/duel` (v1) keeps working for old webs.
+- v3: `GET /api/ping` -> `{ invite?: { id, from, title, avatar, endsAt } }`;
+  `POST /api/arena/match { ..., live: true }`; `POST /api/arena/match/:id/accept|decline`;
+  `POST /api/friends/:name`, `DELETE /api/friends/:name`; `GET /api/farmers` rows gain `friend`,
+  `online`; `state.friendAdds` (who added you, with `mutual`), `state.arena.live: true`,
+  `news.latestAt` includes friend adds.
+- Sweep (every 10 s, inside the existing worker interval): ends matches whose time ran out.
+
+**Old release `nearvest-e8312ea` on the new database: yes, it runs.** It ignores the new tables and
+the new column (checked the same way as before: start the old release on a copy of the upgraded
+database and load a garden). After a rollback, v2/v3 matches simply do not show and do not count
+toward v1's daily limit that day; their prizes are normal `mint_reward` jobs the old worker sends.
+No database restore needed.
+
+**New web on the v1 server (`nearvest-e8312ea`): safe.** The web uses the turn-based duel only when
+`state.arena.v >= 2`; otherwise it keeps the v1 Fruit Fight (the server decides 3 rounds). It pings
+and shows Online / invites / Add friend only when the server sends `live` / `friends`. **Old web on
+the new server:** v1 endpoints stay, new fields are ignored. Release order as always: server first,
+then web.
+
+### 7.4 Screens (tokens only)
+
+**Duel screen, phone 390x844** (also fits 390x664 with no scroll):
+- Top (as v1): names, titles, life bars; under each life bar a **skill bar** of 3 pixel segments
+  (`--gold-500` fill on `--hud`, the Gold Durian icon at the end).
+- Middle: the two TaniBots facing each other (v1). After both picks: the two pick icons pop over the
+  bots for 0.6 s (16x16 pixel icons: rock, paper, scissors), then the v1 fruit throw / hit / knock-
+  back, or a tie: both sidestep ("Dodge!"). Gold Durian = the big v1 durian throw with gold trail
+  and the heavy drum.
+- "Turn 4/15" (`--font-ui`, `--fs-sm`) and, online only, a 10 s bar (`--cyan-500`) shrinking.
+- Bottom (thumb zone): **Rock / Paper / Scissors** = 3 equal buttons in one row, at least 56 px high
+  (`--paper-light`, `--ink` outline, icon above the word, `--font-ui --fs-body`; the chosen one
+  `--mint-500`, then "Waiting for budi..." under them). Above them one wide **Gold Durian** button:
+  off = `--soil-300` with the bar's progress "2/3"; full = `--gold-500` with a soft pulse (still
+  with reduced motion: steady glow). Skip only for replays.
+- Result: v1 result panel (K.O.!, chips "+2 PANEN" / "+15 XP", Season line, Share, Back).
+
+**Laptop 1280x800:** the v1 centred panel; the buttons sit under the stage (3 x 160 px + the Gold
+Durian button on the right). Keys 1 / 2 / 3 and Space work as well.
+
+**Challenge popup (v3)**, on top of any window (not over a running duel): a paper window 320 px wide
+on phones / 400 px on laptops: "<NAME> CHALLENGES YOU!" (`--font-title --fs-h3`), their avatar +
+title, the 30 s bar, **Accept** (`--mint-500`) / **Decline** (`--paper-light`). Short chime
+(existing sound). A notice strip stays out of its way (fixed strip rules).
+
+**"Waiting for <name>..." (v3):** the stage dims (`--ink` 60%), centre paper card with the name, a
+big countdown "20" (`--font-ui --fs-h1`) and "If budi does not come back, you win." Nothing to tap
+but "Leave" (= you lose; confirm first).
+
+**Online dot (v3):** an 8 px square `--mint-500` with `--ink` outline on the avatar's corner plus
+the word "Online" (`--fs-xs` on phones, `--fs-sm` on laptops) in Farmers of Tandur and the Arena
+list. Online players are listed first after friends.
+
+**Add friend (v3):** in the visit panel a small button next to the garden name (person + "+" pixel
+icon, "Add friend" / check mark "Friend"; tap "Friend" -> "Remove budi from your friends?"); in
+Farmers rows a small "Add" chip. Phones keep the name row + "← My garden / Sticker / Duel" row
+unchanged. Village Visitors box: "budi added you as a friend · today" with **Add back** + **Visit**.
+
+**Judge gardens:** the Arena window shows a duel against the first opponent's TaniBot at the top
+("Quick duel"); 15 turns at about 3 s each = under 1 minute.
+
+### 7.5 Tests
+
+**Server (`server/test/arena-match.test.ts`, fake clock + seeded rng):** Rock/Paper/Scissors table;
+damage table and garden bonus (never above 20%, new player > 0); tie = no damage; skill bar fills at
+3 wins, Gold Durian = 40 x bonus, cannot be dodged, both firing = both hit, bar resets; 15 turns ->
+most life, then most hits, then the challenged side; **the open pick never appears in any answer**
+(deep key scan of every endpoint before both picked); pick idempotent, old turn 409; computer
+match: 2 minutes without a poll = loss, no prize; back within 2 minutes = continues; limits shared
+with v1 duels (3 a day, pair once a day, practice, device / IP caps); judge garden can play.
+v3: invite 30 s -> TaniBot; decline -> TaniBot; busy -> 409; turn 10 s -> random pick; gone 5 s ->
+paused; back within 20 s -> continues; 20 s -> the stayer wins with prize and caps; left before turn
+1 decided -> cancelled and not counted for either; both gone -> no winner; online prize goes to the
+winner of either side and counts in the winner's caps; friends add / remove / limits / one notice
+per pair / no private data; ping writes `active_at` at most every 20 s.
+**Database:** the upgraded database opened by the `nearvest-e8312ea` code (a git worktree of that
+commit) still serves `/api/me` and `/api/arena`.
+
+**Web unit (`web/test/arena-match.test.ts`):** button states (picking, waiting, Gold Durian off /
+full), the turn animation timeline from a decided turn, countdown texts, `v` < 2 -> v1 duel.
+
+**Browser (`tools/ui-test.mjs`, fake-chain server):** `--match=<me>:<foe>` (v2): full computer
+match, Gold Durian, result, leave + come back, at 390x844, 390x664 and 1280x800. `--live=<a>:<b>`
+(v3): **two browsers** (two Chrome pages, two dev users): b's popup within 5 s, Accept, both pick,
+picks hidden until both, one side lets the 10 s run out, **b's page is closed in the middle** -> a
+sees "Waiting for b... 20" -> b reopens within 20 s -> the match continues; second run b stays away
+-> a wins + prize notice; b closes before turn 1 -> cancelled, a's "Duels left" unchanged; Decline ->
+TaniBot match; Add friend -> b's notice + Add back; WebKit (iPhone profile) with the page hidden ->
+"gone" after 5 s. `--oldserver`: the new web on `nearvest-e8312ea` shows the v1 duel and no Online /
+Add friend.
+
+### 7.6 Time
+
+| v2 (computer match) | Time |
+|---|---|
+| Engine (pure rules) + table + endpoints + limits + 2-minute rule + sweep | 3 h |
+| Server tests | 1.5 h |
+| Web: picks, skill bar, Gold Durian, turn animation from the v1 Fruit Fight, resume, compat | 3 h |
+| Browser checks at 3 sizes + fixes, docs | 1.5 h |
+| **Total v2** | **about 9 h** |
+
+| v3 (online + Add friend) | Time |
+|---|---|
+| Ping + Online + invite / accept / decline / fallback | 2.5 h |
+| Live turns: 10 s clock, pause / resume / forfeit / cancel, prize rules | 2.5 h |
+| Add friend (server + web + notice) | 2.5 h |
+| Web: popup, waiting screen, online dots | 2 h |
+| Server tests + two-browser test + fixes, docs | 2.5 h |
+| **Total v3** | **about 12 h** |
+
+**v2 is more than 5 h, so the recommended smaller v2 ("v2 lite", about 5 h):**
+- Keep: the whole server engine and secrecy (Rock / Paper / Scissors, random fruit, life, garden
+  bonus, skill bar + Gold Durian, 15 turns, 2-minute leave rule, shared limits, prize), its tests,
+  the 3 buttons + Gold Durian button, the v1 Fruit Fight pieces reused per turn.
+- Cut for later: keyboard keys, replay of matches (Recent shows the result line only), the judge
+  "Quick duel" box (judges use the normal Duel button: it already takes under 1 minute), the pick
+  icons popping over the bots (the winner's throw already shows who won), browser check at 390x664
+  only by screenshot.
+- Lite time: engine + endpoints 2 h, tests 1 h, web 1.5 h, browser check 0.5 h.
+
+**v3 does not fit before the freeze with v2 lite tonight + Thursday buffer.** If there is time on
+Thursday, build **Add friend first** (2.5 h, low risk, no clock), and the online duel only if it
+can be finished and tested with two browsers before the evening; otherwise both stay hidden.
+
+Build order: v2 lite server + tests -> web -> browser check -> local commit -> release after
+Ardian's OK; then v3 (Add friend -> online) only after v2 has run on the VPS without problems.
