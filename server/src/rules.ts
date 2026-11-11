@@ -134,6 +134,25 @@ export const ARENA_DEFEND_XP_PER_DAY = 3;
 export const ARENA_TIE_REROLLS = 5;
 /** Recent duels shown in the Arena window and the Village tab. */
 export const ARENA_RECENT = 10;
+// Arena v2 (arena-match.ts, docs/PLAN-arena.md section 7): Rock / Paper / Scissors against the
+// other garden's TaniBot. Draft numbers, tune in testing.
+/** Life of each side. */
+export const ARENA_HP = 100;
+/** At most this many turns; no K.O. by then = most life wins. */
+export const ARENA_MAX_TURNS = 15;
+/** Turns won to fill the skill bar (then the Gold Durian can be thrown). */
+export const ARENA_SKILL_MAX = 3;
+/** The Gold Durian: a sure hit that cannot be dodged (x the garden bonus). */
+export const ARENA_GOLD_DURIAN = 40;
+/** A turn winner's throw: a random fruit (percent chances) and its damage. */
+export const ARENA_FRUIT_CHANCE = { mango: 50, rambutan: 35, durian: 15 } as const;
+export const ARENA_QUALITY_CHANCE = { common: 70, rare: 22, gold: 8 } as const;
+export const ARENA_FRUIT_DAMAGE = { mango: 14, rambutan: 18, durian: 24 } as const;
+export const ARENA_QUALITY_DAMAGE = { common: 1, rare: 1.3, gold: 1.6 } as const;
+/** Garden bonus on every hit: 0-20%, from the v1 garden score (0-9): max(0, score - 3) / 6 x 20%. */
+export const ARENA_BONUS_MAX = 20;
+/** A computer match with no request from the player for this long ends as a loss without prize. */
+export const ARENA_LEAVE_MS = 2 * 60_000;
 /** Fertilizer adds +50% growth speed for one game day. */
 export const FERTILIZER_DAYS = 1;
 export const FERTILIZER_BOOST = 0.5;

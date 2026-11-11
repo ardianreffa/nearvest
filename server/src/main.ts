@@ -10,6 +10,8 @@ import { systemNow } from './clock.ts';
 import { loadConfig } from './config.ts';
 import { openDb } from './db.ts';
 import { Game } from './game.ts';
+import { Arena } from './arena.ts';
+import { ArenaMatches } from './arena-match.ts';
 import { TaniBotService } from './tanibot.ts';
 import { JudgeService } from './judge.ts';
 import { AiMeter, NearAiBrain } from './brain.ts';
@@ -94,6 +96,15 @@ setInterval(() => {
     .catch((err) => console.warn('TaniBot tick failed:', err instanceof Error ? err.message : err))
     .finally(() => (ticking = false));
 }, 5_000);
+// Arena v2: close matches whose player left for 2 minutes (a loss without prize), every 10 seconds.
+const arenaMatches = new ArenaMatches(db, game, new Arena(db, game, systemNow, { explorerTxUrl: config.explorerTxUrl }), systemNow, { explorerTxUrl: config.explorerTxUrl });
+setInterval(() => {
+  try {
+    arenaMatches.sweep();
+  } catch (err) {
+    console.warn('Arena sweep failed:', err instanceof Error ? err.message : err);
+  }
+}, 10_000);
 // Sync tree stages to the NFTs every 20 seconds.
 setInterval(() => game.syncStages(), 20_000);
 

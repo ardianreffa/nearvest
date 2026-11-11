@@ -170,11 +170,46 @@ export type DuelView = ReturnType<typeof duelView>;
 const DUEL_SELECT = `SELECT a.*, j.status AS job_status, j.tx_hash FROM arena_duels a LEFT JOIN chain_jobs j ON j.id = a.job_id`;
 
 /** The village day for Arena limits: the normal 07:00 WIB day, also for demo gardens. */
-const arenaDay = (now: number) => dayIndex(now, false);
+export const arenaDay = (now: number) => dayIndex(now, false);
 
-/** Duels this garden started today. */
-function duelsToday(db: DB, playerId: number, now: number): number {
-  return (db.prepare('SELECT count(*) AS n FROM arena_duels WHERE challenger_id = ? AND duel_day = ?').get(playerId, arenaDay(now)) as { n: number }).n;
+/**
+ * Every Arena fight for the limits: v1 duels and v2 matches (arena-match.ts) count together
+ * (3 a day, 1 per opponent, paid wins, XP caps). A v2 match counts from the moment it starts.
+ */
+const ALL_FIGHTS = `(SELECT challenger_id, defender_id, duel_day, winner, prize_micro, xp_c, xp_d, ip, device_id FROM arena_duels
+  UNION ALL SELECT challenger_id, defender_id, duel_day, winner, prize_micro, xp_c, xp_d, ip, device_id FROM arena_matches)`;
+
+const countFights = (db: DB, where: string, ...args: (string | number)[]) =>
+  (db.prepare(`SELECT count(*) AS n FROM ${ALL_FIGHTS} WHERE ${where}`).get(...args) as { n: number }).n;
+
+/** Duels and matches this garden started today. */
+export function duelsToday(db: DB, playerId: number, now: number): number {
+  return countFights(db, 'challenger_id = ? AND duel_day = ?', playerId, arenaDay(now));
+}
+
+/** Gardens this garden already challenged today (1 challenge per opponent per day). */
+export function dueledToday(db: DB, playerId: number, now: number): Set<number> {
+  return new Set(
+    (db.prepare(`SELECT defender_id AS id FROM ${ALL_FIGHTS} WHERE challenger_id = ? AND duel_day = ?`).all(playerId, arenaDay(now)) as { id: number }[]).map((r) => r.id),
+  );
+}
+
+/** Paid wins today from this browser / IP reached the limit. */
+export function overPaidLimit(db: DB, deviceId: string | null, ip: string | null, now: number): boolean {
+  const day = arenaDay(now);
+  return (
+    (!!deviceId && countFights(db, 'device_id = ? AND duel_day = ? AND prize_micro > 0', deviceId, day) >= ARENA_PAID_PER_DEVICE_PER_DAY) ||
+    (!!ip && countFights(db, 'ip = ? AND duel_day = ? AND prize_micro > 0', ip, day) >= ARENA_PAID_PER_IP_PER_DAY)
+  );
+}
+
+/** Today's XP so far: wins with XP of the challenger, defences with XP of the defender. */
+export function xpToday(db: DB, challengerId: number, defenderId: number, now: number): { wins: number; defended: number } {
+  const day = arenaDay(now);
+  return {
+    wins: countFights(db, "challenger_id = ? AND duel_day = ? AND winner = 'challenger' AND xp_c > 0", challengerId, day),
+    defended: countFights(db, 'defender_id = ? AND duel_day = ? AND xp_d > 0', defenderId, day),
+  };
 }
 
 /** The Arena part of the game state: duels left today, the prize now and duels this garden received. */
@@ -186,9 +221,11 @@ export function arenaState(db: DB, playerId: number, now: number, prizeNow: numb
   return { left, max: ARENA_DUELS_PER_DAY, prize: ARENA_PRIZE, prizeNow, received };
 }
 
-/** The newest duel this garden received (Village red dot). */
+/** The newest duel or finished match this garden received (Village red dot). */
 export function arenaNewsAt(db: DB, playerId: number): number {
-  return (db.prepare('SELECT max(created_at) AS at FROM arena_duels WHERE defender_id = ?').get(playerId) as { at: number | null }).at ?? 0;
+  const duel = (db.prepare('SELECT max(created_at) AS at FROM arena_duels WHERE defender_id = ?').get(playerId) as { at: number | null }).at ?? 0;
+  const match = (db.prepare("SELECT max(ended_at) AS at FROM arena_matches WHERE defender_id = ? AND status = 'done'").get(playerId) as { at: number | null }).at ?? 0;
+  return Math.max(duel, match);
 }
 
 export class Arena {
@@ -222,13 +259,9 @@ export class Arena {
     ).map((r) => duelView(r, viewerId, this.explorerTxUrl));
   }
 
-  /** Gardens the viewer already challenged today (1 challenge per opponent per day). */
+  /** Gardens the viewer already challenged today (1 challenge per opponent per day; v1 duels and v2 matches). */
   private dueledToday(viewerId: number): Set<number> {
-    return new Set(
-      (this.db.prepare('SELECT defender_id AS id FROM arena_duels WHERE challenger_id = ? AND duel_day = ?').all(viewerId, arenaDay(this.now())) as { id: number }[]).map(
-        (r) => r.id,
-      ),
-    );
+    return dueledToday(this.db, viewerId, this.now());
   }
 
   /** The Arena window: duels left, prize, opponents (the Farmers of Tandur rows with a tree) and recent duels. */
@@ -279,7 +312,7 @@ export class Arena {
   }
 
   /** The two gardens belong to one person: a browser both used, or the same Google / wallet identity. */
-  private samePerson(a: PlayerRow, b: PlayerRow, deviceId: string | null): boolean {
+  samePerson(a: PlayerRow, b: PlayerRow, deviceId: string | null): boolean {
     const ids = (p: PlayerRow) => {
       const u = this.db.prepare('SELECT provider, subject FROM users WHERE id = ?').get(p.user_id) as { provider: string; subject: string };
       const out = new Set([`${u.provider}:${u.subject}`]);
@@ -295,10 +328,7 @@ export class Arena {
 
   /** Paid wins today from this browser / IP reached the limit. */
   private overPaidLimit(deviceId: string | null, ip: string | null): boolean {
-    const day = arenaDay(this.now());
-    const count = (col: 'device_id' | 'ip', v: string) =>
-      (this.db.prepare(`SELECT count(*) AS n FROM arena_duels WHERE ${col} = ? AND duel_day = ? AND prize_micro > 0`).get(v, day) as { n: number }).n;
-    return (!!deviceId && count('device_id', deviceId) >= ARENA_PAID_PER_DEVICE_PER_DAY) || (!!ip && count('ip', ip) >= ARENA_PAID_PER_IP_PER_DAY);
+    return overPaidLimit(this.db, deviceId, ip, this.now());
   }
 
   /**
@@ -330,14 +360,7 @@ export class Arena {
 
       // XP (normal path: the demo multiplier applies). A practice duel of one person's gardens gives none.
       const mult = (p: PlayerRow) => (p.demo === 1 ? DEMO_XP_MULTIPLIER : 1);
-      const defendedToday = (
-        this.db.prepare('SELECT count(*) AS n FROM arena_duels WHERE defender_id = ? AND duel_day = ? AND xp_d > 0').get(them.id, day) as { n: number }
-      ).n;
-      const winXpToday = (
-        this.db
-          .prepare("SELECT count(*) AS n FROM arena_duels WHERE challenger_id = ? AND duel_day = ? AND winner = 'challenger' AND xp_c > 0")
-          .get(me.id, day) as { n: number }
-      ).n;
+      const { wins: winXpToday, defended: defendedToday } = xpToday(this.db, me.id, them.id, now);
       const xpC =
         practice === 'self' ? 0 : challengerWon ? (winXpToday < ARENA_XP_WINS_PER_DAY ? ARENA_XP_WIN * mult(me) : 0) : ARENA_XP_LOSS * mult(me);
       const xpD = practice === 'self' || challengerWon || defendedToday >= ARENA_DEFEND_XP_PER_DAY ? 0 : ARENA_XP_DEFEND * mult(them);

@@ -555,6 +555,67 @@ export interface ArenaState {
   prizeNow: number;
   /** Duels this garden was challenged in (newest first, last 10). */
   received: DuelView[];
+  /** 2 = the server plays turn-based matches (Arena v2, Rock / Paper / Scissors); missing = v1 duels only. */
+  v?: 2;
+  /** v2: this garden's match still being played (resume it). */
+  active?: { id: number; opponent: string } | null;
+  /** v2: finished matches this garden was challenged in (newest first). */
+  receivedMatches?: MatchSummary[];
+}
+
+// ---------- Arena v2 (server/src/arena-match.ts): Rock / Paper / Scissors against a TaniBot ----------
+export type Rps = 'rock' | 'paper' | 'scissors';
+export type ArenaPick = Rps | 'gold';
+
+export interface TurnHit {
+  to: 'challenger' | 'defender';
+  fruit: { species: Species; quality: Quality };
+  damage: number;
+  /** The Gold Durian (sure hit). */
+  gold: boolean;
+}
+
+/** A decided turn (both picks are only sent once the turn is decided). */
+export interface TurnLog {
+  turn: number;
+  pick: { c: ArenaPick; d: ArenaPick };
+  winner: 'challenger' | 'defender' | 'tie' | 'both';
+  hits: TurnHit[];
+  hp: { c: number; d: number };
+  skill: { c: number; d: number };
+}
+
+export interface MatchSummary {
+  id: number;
+  v: 2;
+  kind: 'bot';
+  at: number;
+  endedAt: number | null;
+  you: 'challenger' | 'defender';
+  challenger: DuelSide;
+  defender: DuelSide;
+  status: 'playing' | 'done';
+  /** Turns decided so far; the next pick is for turn `turn`. */
+  turn: number;
+  maxTurns: number;
+  hp: { c: number; d: number };
+  maxHp: number;
+  skill: { c: number; d: number };
+  skillMax: number;
+  /** Garden bonus in percent (0-20). */
+  bonus: { c: number; d: number };
+  winner: 'challenger' | 'defender' | null;
+  endReason: 'ko' | 'turns' | 'left' | null;
+  practice: 'self' | 'limit' | null;
+  prize: number;
+  prizeStatus: 'pending' | 'done' | 'failed' | null;
+  txUrl: string | null;
+  gainedXp: number;
+  turnCount?: number;
+}
+
+export interface MatchView extends MatchSummary {
+  turns: TurnLog[];
 }
 
 export interface ArenaOpponent {
@@ -575,6 +636,9 @@ export interface ArenaView {
   you: DuelSide;
   opponents: ArenaOpponent[];
   recent: DuelView[];
+  /** v2 servers: finished turn-based matches (both roles). */
+  v?: 2;
+  matches?: MatchSummary[];
 }
 
 export interface ArenaCan {

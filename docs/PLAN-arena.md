@@ -1,6 +1,6 @@
 # Plan: Arena 1 VS 1 (simple, not real-time)
 
-Status: **Arena v1 live 2026-11-11 (`nearvest-e8312ea`). v2 / v3 (Rock Paper Scissors, online, Add friend) = plan only, section 7.** v1 was built 2026-11-11. Server `server/src/arena.ts`
+Status: **Arena v1 live 2026-11-11 (`nearvest-e8312ea`). Arena v2 lite BUILT 2026-11-11 (local commit, not released; section 7.7). v3 (online, Add friend) = plan only (section 7).** v1 was built 2026-11-11. Server `server/src/arena.ts`
 (table `arena_duels`, `GET /api/arena`, `GET /api/arena/can/:name`, `POST /api/arena/duel`, `state.arena`, Village news,
 log note 'arena'), tests `server/test/arena.test.ts` (13); web `web/src/arena.tsx` + `arena-play.ts` (Arena window from
 the pin, duel screen, Village "Arena" box, Duel button in the visit panel, notice for received duels), tests
@@ -539,3 +539,55 @@ can be finished and tested with two browsers before the evening; otherwise both 
 
 Build order: v2 lite server + tests -> web -> browser check -> local commit -> release after
 Ardian's OK; then v3 (Add friend -> online) only after v2 has run on the VPS without problems.
+
+### 7.7 Built: v2 lite (2026-11-11, local commit, NOT released; VPS untouched)
+
+Ardian approved v2 lite with one change: **the pick icons above both TaniBots are NOT postponed**
+(after both picks, each TaniBot shows its Rock / Paper / Scissors / Gold Durian, so the player sees
+why a turn was won or lost). Postponed: keyboard keys, replay of matches, the judge "Quick duel" box.
+
+**Server** (`server/src/arena-match.ts`, numbers in `rules.ts`):
+- New table `arena_matches` only (db.ts; `kind` 'bot' now, 'live' later). v1's `arena_duels` and its
+  JSON are untouched. The rules of 7.1 as pure functions (`resolveTurn`, `matchEnd`, `rollFruit`,
+  `fruitDamage`, `goldDamage`, `gardenBonus`, `botPick`); the class `ArenaMatches` stores them.
+- The computer's pick for the open turn is chosen when the turn opens and stored in `bot_pick`; it is
+  in no answer (`matchView` never reads it). Picks are idempotent per turn (a retry of a decided turn
+  returns the same match; a later turn = 409 `turn_wrong`; Gold Durian without a full bar = 400 `no_skill`).
+- Endpoints: `POST /api/arena/match { opponent, deviceId }` (409 `match_open` + `matchId` while one is
+  open), `GET /api/arena/match/:id` (also keeps it alive), `POST /api/arena/match/:id/pick { turn, pick }`
+  (`state` only when the match is over). `GET /api/arena` adds `v: 2` + `matches`; `state.arena` adds
+  `v: 2`, `active` and `receivedMatches` (summaries without the turn log, so the 8 s poll stays small).
+  `POST /api/arena/duel` (v1) still works for old webs.
+- Limits count v1 duels and v2 matches together (`ALL_FIGHTS` in arena.ts: 3 a day, 1 per opponent,
+  paid wins per device / IP, XP caps); a match counts from its start. Leaving: no request for 2 minutes
+  (`ARENA_LEAVE_MS`) = loss, no prize, no XP for the challenger (defender XP as v1); closed by the next
+  request or the 10 s sweep in `main.ts`. Village news / red dot: a received match counts when it ends.
+- Tests `server/test/arena-match.test.ts` (13): rules table, fruit / damage / bonus (0-20), skill bar +
+  Gold Durian (both throw = both hit), K.O. / 15 turns / tie order, **the open pick is never in an
+  answer** (the class answers and the HTTP answers of start / poll / pick are byte-identical whatever
+  the locked pick is), the locked pick decides the turn, retries, shared limits with v1, leave rule,
+  practice, defender view + news, privacy.
+
+**Web** (`web/src/arena-match.tsx` screen + list row, pure logic `web/src/arena-turn.ts`, tests
+`web/test/arena-turn.test.ts` (7)): the v1 Fruit Fight pieces are reused (`Fighter`, `FighterHud` with a
+skill bar, `FlyingFruit`, sounds). Each turn: tap Rock / Paper / Scissors (your pick shows over your
+head at once, theirs "?" while the server decides), then both picks pop up over the heads (0.7 s), the
+winner's random fruit flies and hits (life drops on landing), a tie = both sidestep ("Dodge!"); the line
+under the stage says "Rock beats Scissors." and the damage after the fruit landed. Skill bar: 3 pixel
+segments under each life bar; full = the **Gold Durian** button lights up (gold, pulsing; still glow
+with reduced motion) and the throw is a big gold durian (`GoldDurian` in sprites.tsx: the durian's
+pixels in gold tokens). Last turn: K.O.! (or TIME UP! after 15 turns), loser asleep, winner jumps, then
+the v1 result panel (+PANEN after the Season rule, +XP, tx, Share on X). Close = "Leave the duel?"
+(Stay / Leave); the Arena window then shows "Your duel with X's TaniBot is waiting. Continue" and keeps
+the Duel buttons off. Icons Rock / Paper / Scissors = 16x16 UI icons (tokens only). Notices +
+Village Arena box for received matches. `window.__turnT` freezes a turn (dev).
+**Old server (no `state.arena.v`):** the v1 duel as before (checked on `nearvest-e8312ea`).
+
+**Checks done (fake chain on the Mac, never server/.env):** server 242 tests, web 123 tests, both type
+checks, build. Browser `--match=<me>:<foe>` (new in tools/ui-test.mjs; FAKE_DB sets the locked pick so
+the run is repeatable) at 390x844 and 1280x800: no page scroll, no sideways scroll, bubbles never over
+the life bars, no console errors; leave + Continue; Recent duels row. **Old release on the new
+database:** commit `e8312ea` started on a copy of the upgraded test database (with 4 matches): `/api/me`,
+`/api/arena` and a v1 duel all 200, no errors in its log. **New web on `e8312ea`:** `--oldserver` (now
+also plays a duel on a v1 Arena server) at both sizes: the v1 duel screen opens, no Rock / Paper /
+Scissors buttons.

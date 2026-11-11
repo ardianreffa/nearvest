@@ -12177,3 +12177,295 @@ html.page-locked body {
     transition: none;
   }
 }
+
+/* ---------- Arena v2 (arena-match.tsx, Ardian 2026-11-11): Rock / Paper / Scissors turns ----------
+   Skill bar under each life bar, the picks above the TaniBots' heads, a dodge on a tie, the turn's
+   banner, and the controls at the bottom (thumb zone on phones): the Gold Durian button (lit when the
+   skill bar is full) and Rock / Paper / Scissors. Tokens only; motion = transform / opacity. */
+.skill-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.fighter-hud.right .skill-bar {
+  flex-direction: row-reverse;
+}
+
+.skill-bar i {
+  width: 14px;
+  height: 6px;
+  background: var(--ink);
+  border: 1px solid var(--soil-300);
+}
+
+.skill-bar i.on {
+  background: var(--gold-500);
+  border-color: var(--gold-300);
+}
+
+.skill-bar .skill-durian {
+  margin: 0 2px;
+  opacity: 0.45;
+}
+
+.skill-bar.full .skill-durian {
+  opacity: 1;
+  filter: drop-shadow(0 0 2px var(--gold-300));
+}
+
+/* The pick above a TaniBot's head: a small paper bubble with the 16 px icon x2. */
+.pick-bubble {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: calc(var(--bot-h) + 2px);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  translate: -50% 0;
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--ink) 50%, transparent);
+}
+
+/* Small tail under the bubble. */
+.pick-bubble::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 8px;
+  height: 6px;
+  translate: -50% 0;
+  background: var(--ink);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+/* The Gold Durian on dark blue, so the gold fruit stands out. */
+.pick-bubble.gold {
+  background: var(--hud);
+  border-color: var(--gold-500);
+  box-shadow:
+    0 3px 0 color-mix(in srgb, var(--ink) 50%, transparent),
+    0 0 10px color-mix(in srgb, var(--gold-300) 60%, transparent);
+}
+
+.pick-bubble.secret {
+  background: var(--hud);
+  border-color: var(--cyan-300);
+}
+
+.pick-q {
+  font-family: var(--font-ui);
+  font-size: var(--fs-h3);
+  color: var(--cyan-300);
+}
+
+.pick-bubble.pop {
+  animation: pick-pop 260ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+@keyframes pick-pop {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* A tie: both sidestep up and back. */
+.fighter.dodge {
+  animation: fight-dodge 700ms ease-out;
+}
+
+@keyframes fight-dodge {
+  35% {
+    transform: translate(calc(var(--dir) * 12px), -18px);
+  }
+}
+
+.turn-banner {
+  top: 6px;
+  bottom: auto;
+}
+
+.turn-banner.gold {
+  font-size: var(--fs-h3);
+  color: var(--gold-300);
+}
+
+.match-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+.match-turn {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  color: var(--gold-300);
+}
+
+.match-why {
+  min-height: 2.6em;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--paper-light);
+}
+
+.match-bonus {
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  color: var(--cyan-300);
+}
+
+.match-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rps-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rps-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 64px;
+  padding: 6px 4px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 2px solid var(--ink);
+}
+
+.rps-btn.picked {
+  background: var(--mint-500);
+}
+
+.rps-btn:disabled {
+  opacity: 0.6;
+}
+
+.gold-durian-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  color: var(--paper-light);
+  background: var(--soil-300);
+  border: 2px solid var(--soil-700);
+}
+
+.gold-durian-btn .gold-durian-icon {
+  opacity: 0.55;
+}
+
+.gold-durian-btn.lit {
+  color: var(--ink);
+  background: var(--gold-500);
+  border-color: var(--gold-700);
+  box-shadow: 0 0 0 2px var(--gold-300);
+  animation: gold-pulse 1100ms ease-in-out infinite;
+}
+
+.gold-durian-btn.lit .gold-durian-icon {
+  opacity: 1;
+}
+
+@keyframes gold-pulse {
+  50% {
+    box-shadow:
+      0 0 0 2px var(--gold-300),
+      0 0 16px 4px color-mix(in srgb, var(--gold-300) 70%, transparent);
+  }
+}
+
+.match-error {
+  text-align: center;
+}
+
+.match-leave {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+}
+
+.arena-active {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: var(--mint-300);
+  border: 2px solid var(--mint-700);
+}
+
+.duel.match.wide .rps-row {
+  grid-template-columns: repeat(3, 160px);
+  justify-content: center;
+}
+
+.duel.match.wide .gold-durian-btn {
+  align-self: center;
+  min-width: 320px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pick-bubble.pop,
+  .fighter.dodge {
+    animation: none;
+  }
+  /* Still a steady glow, so a full skill bar is easy to see. */
+  .gold-durian-btn.lit {
+    animation: none;
+    box-shadow:
+      0 0 0 2px var(--gold-300),
+      0 0 12px 3px color-mix(in srgb, var(--gold-300) 70%, transparent);
+  }
+}
+
+/* Arena v2: room above the TaniBots for the pick bubbles (they never cover the life bars), and
+   tight lines under the stage so the whole duel fits a phone screen without scrolling. */
+.duel.match .fight-floor {
+  height: calc(var(--bot-h) + 16px + 58px);
+}
+
+.duel.match .pick-bubble {
+  bottom: calc(var(--bot-h) + 10px);
+}
+
+.duel.match .match-info p {
+  margin: 0;
+}
+
+.duel.match .match-why {
+  min-height: calc(2 * 1.3em);
+  line-height: 1.3;
+}
+
+/* Laptops draw the TaniBots twice as big: the pick bubbles grow with them. */
+.duel.match.wide .pick-bubble {
+  scale: 1.5;
+  transform-origin: 50% 100%;
+}

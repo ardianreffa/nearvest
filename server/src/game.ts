@@ -10,6 +10,7 @@ import { enqueue, enqueueTreeUpdate } from './chain/worker.ts';
 import { UNITS_PER_MICRO } from './chain/types.ts';
 import { burnDelegateHash, verifySignature } from './wallet.ts';
 import { arenaNewsAt, arenaState } from './arena.ts';
+import { arenaMatchState } from './arena-match.ts';
 import { createReferral, paidToday, pendingReferralOf, recordDevice, referralRows } from './referral.ts';
 import {
   ARENA_PRIZE,
@@ -1654,7 +1655,8 @@ export class Game {
       /** Red dot on the Market tab: fruit added since the owner last opened the Market. */
       market: this.marketNews(p.id),
       /** Arena 1 VS 1 (arena.ts): duels left today, the prize now, duels this garden received. */
-      arena: arenaState(this.db, p.id, now, this.afterSeason(ARENA_PRIZE), this.d.explorerTxUrl),
+      // v2 (arena-match.ts): `v: 2`, the open match to resume and matches received; old webs ignore them.
+      arena: { ...arenaState(this.db, p.id, now, this.afterSeason(ARENA_PRIZE), this.d.explorerTxUrl), ...arenaMatchState(this.db, p.id, this.d.explorerTxUrl) },
     };
   }
 

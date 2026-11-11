@@ -2,7 +2,7 @@
 
 import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { activityLabel, api, ApiError, hasToken, setToken, type Activity, type DuelView, type GameState, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
+import { activityLabel, api, ApiError, hasToken, setToken, type Activity, type DuelView, type GameState, type MatchView, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
 import { DartoHead } from './art/darto';
 import { LOOK_LABEL, lookOf, lookText, withWeather, type WeatherLook } from './weather';
 import { phaseOf } from './art/backdrop';
@@ -16,6 +16,8 @@ import { holdShareCards, ShareHost, shareMomentOnce } from './share';
 import { MomentFxLayer } from './moment-fx';
 import { ArenaPanel, ArenaWindow, DuelScreen } from './arena';
 import { receivedNotice } from './arena-play';
+import { matchNotice } from './arena-turn';
+import { MatchScreen } from './arena-match';
 import { FarmersWindow, VisitGarden } from './friends';
 import { SPECIES_NAME as SPECIES_LABEL } from './ui';
 import { burnAt, coinsToBalance, floatText, FxLayer } from './fx';
@@ -142,6 +144,8 @@ export function App() {
   const [arenaOpen, setArenaOpen] = useState(false);
   const [duel, setDuel] = useState<DuelView | null>(null);
   const [duelBusy, setDuelBusy] = useState<string | null>(null);
+  /** Arena v2: the turn-based match on screen (servers with `state.arena.v === 2`). */
+  const [match, setMatch] = useState<MatchView | null>(null);
   /** While a duel plays, a new title's moment (banner, TaniBot evolving) waits until it closes. */
   const duelOnScreen = useRef(false);
   const afterDuel = useRef<(() => void)[]>([]);
@@ -270,6 +274,16 @@ export function App() {
               }),
             2100,
           );
+        }
+      }
+      // Arena v2: matches against our TaniBot (one notice since we last looked).
+      if (s.arena?.receivedMatches?.length) {
+        const key = `nearvest.matchSeen.${s.player.accountId}`;
+        const { fresh, seen } = freshIds(s.arena.receivedMatches.map((x) => x.id), seenOf(key));
+        if (fresh.length) {
+          setSeen(key, seen);
+          const text = matchNotice(s.arena.receivedMatches.filter((x) => fresh.includes(x.id)));
+          if (text) window.setTimeout(() => toast({ kind: 'success', long: true, text }), 3000);
         }
       }
       // Arena: duels this garden was challenged in (one notice since we last looked).
@@ -830,11 +844,44 @@ export function App() {
       onPlace={(p) => (playSound('click'), p === 'friends' ? setFarmersOpen(true) : p === 'arena' ? setArenaOpen(true) : wide ? openSide(p) : setTab(p))}
     />
   );
-  /** Challenges a garden: the server decides the duel at once; the duel screen plays it back. */
+  /** Arena v2: opens a match (new or resumed) on the turn-based duel screen. */
+  const openMatch = (m: MatchView) => {
+    duelOnScreen.current = true;
+    setArenaOpen(false);
+    setMatch(m);
+  };
+  const resumeMatch = async (id: number) => {
+    try {
+      openMatch((await api<{ match: MatchView }>('GET', `/api/arena/match/${id}`)).match);
+    } catch (e) {
+      toast({ kind: 'error', text: e instanceof Error ? e.message : String(e) });
+    }
+  };
+  /**
+   * Challenges a garden. v2 servers: a turn-based match against its TaniBot (Rock / Paper /
+   * Scissors). Older servers: the v1 duel, decided at once and played back.
+   */
   const startDuel = async (name: string) => {
     if (duelBusy) return;
     playSound('click');
     setDuelBusy(name);
+    if (state?.arena?.v === 2) {
+      try {
+        const r = await api<{ match: MatchView; state: GameState }>('POST', '/api/arena/match', { opponent: name, deviceId: judgeDeviceId() });
+        applyState(r.state);
+        openMatch(r.match);
+      } catch (e) {
+        // A duel is still open (another tab, or left earlier): continue it.
+        if (e instanceof ApiError && e.data.code === 'match_open' && typeof e.data.matchId === 'number') void resumeMatch(e.data.matchId);
+        else {
+          playSound('error');
+          toast({ kind: 'error', text: e instanceof Error ? e.message : String(e) });
+        }
+      } finally {
+        setDuelBusy(null);
+      }
+      return;
+    }
     try {
       const r = await api<{ duel: DuelView; state: GameState }>('POST', '/api/arena/duel', { opponent: name, deviceId: judgeDeviceId() });
       duelOnScreen.current = true;
@@ -855,6 +902,7 @@ export function App() {
   const closeDuel = () => {
     duelOnScreen.current = false;
     setDuel(null);
+    setMatch(null);
     const later = afterDuel.current.splice(0);
     later.forEach((f, i) => window.setTimeout(f, 400 + i * 200));
   };
@@ -1103,8 +1151,19 @@ export function App() {
       {dialogView}
       {infoView}
       {farmersOpen && <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} />}
-      {arenaOpen && state.arena && <ArenaWindow state={state} busy={duelBusy} onClose={() => setArenaOpen(false)} onDuel={startDuel} onReplay={showDuel} />}
+      {arenaOpen && state.arena && <ArenaWindow state={state} busy={duelBusy} onClose={() => setArenaOpen(false)} onDuel={startDuel} onReplay={showDuel} onResume={resumeMatch} />}
       {duel && <DuelScreen key={duel.id} duel={duel} wide={wide} activity={state.activity} season={state.season} onClose={closeDuel} />}
+      {match && (
+        <MatchScreen
+          key={match.id}
+          initial={match}
+          wide={wide}
+          activity={state.activity}
+          season={state.season}
+          onDone={(s) => applyState(s)}
+          onClose={() => (closeDuel(), void refresh())}
+        />
+      )}
       {shopSetup && config && (
         <Modal
           title="Set up Shop"

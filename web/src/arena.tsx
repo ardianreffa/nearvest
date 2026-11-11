@@ -6,20 +6,21 @@
 // Rolling dice, laser and the automatic share popup come later (Thursday).
 
 import { useEffect, useState } from 'preact/hooks';
-import { api, type Activity, type ArenaView, type DuelSide, type DuelView, type GameState } from './api';
+import { api, type Activity, type ArenaPick, type ArenaView, type DuelSide, type DuelView, type GameState, type MatchSummary } from './api';
 import { duelPost, fightAt, fightTimes, flightMs, fmt, headline, hpTone, prizeChip, recentLine, rewardOf, roundView, roundWhat, ROUND_NAME, seasonLine, sides, youWon, type Fruit, type Hit } from './arena-play';
 import { Avatar } from './art/avatars';
 import { TaniBot, tierOf } from './art/tanibot';
 import { playSound, type SoundName } from './audio';
 import { confetti } from './fx';
-import { Sprite } from './sprites';
+import { GoldDurian, Sprite, UiIcon } from './sprites';
 import { Modal } from './help';
 import { PUBLIC_SITE } from './referral';
 import { postUrl } from './share';
 import { Panel } from './ui';
+import { MatchRow } from './arena-match';
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+export const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** "today" / "yesterday" / "3 days ago". */
 function ago(at: number, now = Date.now()): string {
@@ -34,14 +35,19 @@ export function ArenaWindow({
   onClose,
   onDuel,
   onReplay,
+  onResume,
 }: {
   state: GameState;
   busy: string | null;
   onClose: () => void;
   onDuel: (name: string) => void;
   onReplay: (d: DuelView) => void;
+  /** v2: continue the open match. */
+  onResume?: (id: number) => void;
 }) {
   const [data, setData] = useState<ArenaView | null>(null);
+  const v2 = state.arena?.v === 2;
+  const active = state.arena?.active ?? null;
   const [error, setError] = useState<string | null>(null);
   // Reload after each duel: our own (the state's `left` changes) and one we received while the
   // window is open (the newest received duel changes; the 8 s state poll brings it).
@@ -55,16 +61,26 @@ export function ArenaWindow({
     return () => {
       alive = false;
     };
-  }, [left, newestReceived]);
+  }, [left, newestReceived, active?.id]);
 
   const blocked = data?.blocked;
   return (
     <Modal title="Arena 1 VS 1" onClose={onClose} closeLabel="Close" class="farmers-dialog arena-dialog">
       <div class="farmers-top arena-top">
         <p class="farmers-intro">
-          Challenge a farmer: your trees against theirs in 3 rounds (fruit quality, care, ripeness) plus a little luck. The winner of a challenge gets PANEN from the game.{' '}
+          {v2
+            ? 'Challenge a farmer\'s TaniBot to Rock, Paper, Scissors: each turn won throws a fruit, and 3 wins fill your Gold Durian. Better trees hit a little harder. The winner gets PANEN from the game.'
+            : 'Challenge a farmer: your trees against theirs in 3 rounds (fruit quality, care, ripeness) plus a little luck. The winner of a challenge gets PANEN from the game.'}{' '}
           <b>No bets: a loss costs nothing.</b>
         </p>
+        {active && onResume && (
+          <div class="arena-active">
+            <span>Your duel with {active.opponent}'s TaniBot is waiting.</span>
+            <button class="btn btn-small btn-mint" onClick={() => (playSound('click'), onResume(active.id))}>
+              Continue
+            </button>
+          </div>
+        )}
         {data && (
           <div class="arena-chips">
             <span class="arena-chip">
@@ -100,7 +116,7 @@ export function ArenaWindow({
                   </span>
                   <button
                     class="btn btn-small btn-gold arena-duel-btn"
-                    disabled={!!blocked || f.dueledToday || !!busy}
+                    disabled={!!blocked || f.dueledToday || !!busy || !!active}
                     title={f.dueledToday ? 'You already challenged this garden today' : `Challenge ${f.name}`}
                     onClick={() => onDuel(f.name)}
                   >
@@ -110,13 +126,17 @@ export function ArenaWindow({
               ))}
             </ul>
           )}
-          {data.recent.length > 0 && (
+          {(data.recent.length > 0 || (data.matches?.length ?? 0) > 0) && (
             <section class="arena-recent" aria-label="Recent duels">
               <h3 class="arena-h3">Recent duels</h3>
               <ul class="list farmer-list arena-recent-list">
-                {data.recent.map((d) => (
-                  <RecentRow key={d.id} d={d} onReplay={onReplay} onRematch={d.you === 'defender' ? () => onDuel(sides(d).them.name) : undefined} busy={!!busy || data.left === 0} />
-                ))}
+                {recentItems(data.recent, data.matches ?? []).map((x) =>
+                  x.kind === 'duel' ? (
+                    <RecentRow key={`d${x.d.id}`} d={x.d} onReplay={onReplay} onRematch={x.d.you === 'defender' ? () => onDuel(sides(x.d).them.name) : undefined} busy={!!busy || data.left === 0} />
+                  ) : (
+                    <MatchRow key={`m${x.m.id}`} m={x.m} onRematch={x.m.you === 'defender' ? () => onDuel(x.m.challenger.name) : undefined} busy={!!busy || data.left === 0 || !!active} />
+                  ),
+                )}
               </ul>
             </section>
           )}
@@ -124,6 +144,15 @@ export function ArenaWindow({
       )}
     </Modal>
   );
+}
+
+/** v1 duels and v2 matches in one list, newest first (at most 10). */
+function recentItems(duels: DuelView[], matches: MatchSummary[]) {
+  const items = [
+    ...duels.map((d) => ({ kind: 'duel' as const, at: d.at, d })),
+    ...matches.map((m) => ({ kind: 'match' as const, at: m.endedAt ?? m.at, m })),
+  ];
+  return items.sort((a, b) => b.at - a.at).slice(0, 10);
 }
 
 function RecentRow({ d, onReplay, onRematch, busy }: { d: DuelView; onReplay: (d: DuelView) => void; onRematch?: () => void; busy: boolean }) {
@@ -163,7 +192,7 @@ function RecentRow({ d, onReplay, onRematch, busy }: { d: DuelView; onReplay: (d
 
 /** Village tab: the duels this garden was challenged in (the Village red dot points here too). */
 export function ArenaPanel({ state, onOpen, onReplay }: { state: GameState; onOpen: () => void; onReplay: (d: DuelView) => void }) {
-  const received = state.arena?.received ?? [];
+  const received = recentItems(state.arena?.received ?? [], state.arena?.receivedMatches ?? []).slice(0, 5);
   return (
     <Panel
       title="Arena"
@@ -178,9 +207,7 @@ export function ArenaPanel({ state, onOpen, onReplay }: { state: GameState; onOp
         <p class="muted small">No one has challenged your garden yet. Challenges you receive show up here, win or lose.</p>
       ) : (
         <ul class="list arena-recent-list" aria-label="Duels you were challenged in">
-          {received.slice(0, 5).map((d) => (
-            <RecentRow key={d.id} d={d} onReplay={onReplay} busy={false} />
-          ))}
+          {received.map((x) => (x.kind === 'duel' ? <RecentRow key={`d${x.d.id}`} d={x.d} onReplay={onReplay} busy={false} /> : <MatchRow key={`m${x.m.id}`} m={x.m} busy={false} />))}
         </ul>
       )}
     </Panel>
@@ -195,8 +222,8 @@ export function ArenaPanel({ state, onOpen, onReplay }: { state: GameState; onOp
 // (transform / opacity only, light on phones); reduced motion: nothing flies or shakes, the bars
 // jump to each round's value.
 
-/** Name, title and life bar above a fighter (fighting-game style). */
-function FighterHud({ side, hp, right }: { side: DuelSide; hp: number; right: boolean }) {
+/** Name, title and life bar above a fighter (fighting-game style); v2 adds the skill bar under it. */
+export function FighterHud({ side, hp, right, skill }: { side: DuelSide; hp: number; right: boolean; skill?: { n: number; max: number } }) {
   return (
     <div class={`fighter-hud${right ? ' right' : ''}`}>
       <span class="fighter-name">
@@ -206,12 +233,20 @@ function FighterHud({ side, hp, right }: { side: DuelSide; hp: number; right: bo
       <span class="hp-bar" role="meter" aria-label={`${side.name}'s life`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={hp}>
         <i class={`hp-fill hp-${hpTone(hp)}`} style={{ width: `${hp}%` }} />
       </span>
+      {skill && (
+        <span class={`skill-bar${skill.n >= skill.max ? ' full' : ''}`} role="meter" aria-label={`${side.name}'s skill`} aria-valuemin={0} aria-valuemax={skill.max} aria-valuenow={skill.n}>
+          {Array.from({ length: skill.max }, (_, i) => (
+            <i key={i} class={i < skill.n ? 'on' : ''} />
+          ))}
+          <GoldDurian scale={1} class="skill-durian" />
+        </span>
+      )}
     </div>
   );
 }
 
 /** A thrown fruit: flies in an arc from the thrower to the target (trail of gold / purple sparkle). */
-function FlyingFruit({ fruit, from, ms, hitKey, big }: { fruit: Fruit; from: 'me' | 'them'; ms: number; hitKey: string; big: boolean }) {
+export function FlyingFruit({ fruit, from, ms, hitKey, big }: { fruit: Fruit; from: 'me' | 'them'; ms: number; hitKey: string; big: boolean }) {
   const size = (fruit.species === 'durian' ? 5 : fruit.species === 'rambutan' ? 4 : 3) * (big ? 2 : 1);
   const ghosts = fruit.quality === 'common' ? [] : [1, 2, 3];
   const one = (ghost: number) => (
@@ -222,7 +257,7 @@ function FlyingFruit({ fruit, from, ms, hitKey, big }: { fruit: Fruit; from: 'me
     >
       <span class={`fruit-y ${fruit.species}`} style={{ animationDuration: `${ms}ms`, animationDelay: `${ghost * 45}ms` }}>
         <span class={`fruit-spin q-${fruit.quality}`} style={{ animationDuration: `${ms}ms` }}>
-          <Sprite name={fruit.species} scale={size} />
+          {fruit.species === 'durian' && fruit.quality === 'gold' ? <GoldDurian scale={size} /> : <Sprite name={fruit.species} scale={size} />}
         </span>
       </span>
     </span>
@@ -235,11 +270,37 @@ function FlyingFruit({ fruit, from, ms, hitKey, big }: { fruit: Fruit; from: 'me
   );
 }
 
+/** The pick above a TaniBot's head (Arena v2): Rock / Paper / Scissors / the Gold Durian, or "?" while it is still secret. */
+export function PickBubble({ pick, pop }: { pick: ArenaPick | '?'; pop: boolean }) {
+  const label = pick === '?' ? 'Choosing...' : pick === 'gold' ? 'Gold Durian' : pick.charAt(0).toUpperCase() + pick.slice(1);
+  return (
+    <span class={`pick-bubble${pop ? ' pop' : ''}${pick === 'gold' ? ' gold' : ''}${pick === '?' ? ' secret' : ''}`} role="img" aria-label={label}>
+      {pick === '?' ? <b class="pick-q">?</b> : pick === 'gold' ? <GoldDurian scale={3} /> : <UiIcon name={pick} scale={2} />}
+    </span>
+  );
+}
+
 /** One fighter: its TaniBot in its title's look (living idle animation); the left one is mirrored so they face each other. */
-function Fighter({ side, right, scale, state, hard }: { side: DuelSide; right: boolean; scale: number; state: 'idle' | 'windup' | 'hit' | 'ko' | 'win'; hard: boolean }) {
+export function Fighter({
+  side,
+  right,
+  scale,
+  state,
+  hard,
+  pick,
+}: {
+  side: DuelSide;
+  right: boolean;
+  scale: number;
+  state: 'idle' | 'windup' | 'hit' | 'ko' | 'win' | 'dodge';
+  hard: boolean;
+  /** v2: the pick shown above its head (pop = it just appeared). */
+  pick?: { pick: ArenaPick | '?'; pop: boolean } | null;
+}) {
   const tier = tierOf(side.title);
   return (
     <div class={`fighter ${right ? 'them' : 'me'} ${state}${hard ? ' hard' : ''}`}>
+      {pick && <PickBubble pick={pick.pick} pop={pick.pop} />}
       <div class={`fighter-art${state === 'ko' ? ' asleep' : ''}`}>
         <TaniBot tier={tier} scale={scale} effects={state !== 'ko'} />
       </div>
@@ -265,7 +326,7 @@ function Fighter({ side, right, scale, state, hard }: { side: DuelSide; right: b
 }
 
 /** The sound of a fruit hitting (CC0 files already in the game, docs/ASSETS.md). */
-const hitSound = (h: Hit): SoundName => (h.fruit.species === 'durian' ? 'momentDurian' : h.fruit.quality === 'gold' ? 'momentGold' : 'harvest');
+export const hitSound = (h: { fruit: Fruit }): SoundName => (h.fruit.species === 'durian' ? 'momentDurian' : h.fruit.quality === 'gold' ? 'momentGold' : 'harvest');
 
 /**
  * The duel screen: the Fruit Fight (about 12 s, Skip any time), then the result with the PANEN

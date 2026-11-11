@@ -296,6 +296,9 @@ const UI_ICON_PALETTE: Record<string, string> = {
   F: 'var(--paper)',
   H: 'var(--red-500)',
   M: 'var(--mint-700)',
+  S: 'var(--soil-300)',
+  D: 'var(--soil-500)',
+  C: 'var(--cyan-300)',
 };
 
 export const UI_ICONS = {
@@ -337,6 +340,63 @@ export const UI_ICONS = {
     '................',
     '................',
   ],
+  // Arena v2: Rock (Rock / Paper / Scissors buttons and the picks above the TaniBots).
+  rock: [
+    '................',
+    '................',
+    '.....KKKKK......',
+    '....KSSSSSKK....',
+    '...KSSSSSSSSK...',
+    '..KSSSSSSSSSSK..',
+    '..KSSSSDSSSSSK..',
+    '.KSSSSSSSSSDSSK.',
+    '.KSSDSSSSSSSSSK.',
+    '.KSSSSSSSDSSSSK.',
+    '.KDSSSSSSSSSSDK.',
+    '.KDDSSSSSSSSDDK.',
+    '..KDDDDDDDDDDK..',
+    '...KKKKKKKKKK...',
+    '................',
+    '................',
+  ],
+  // Arena v2: Paper (Rock / Paper / Scissors buttons and the picks above the TaniBots).
+  paper: [
+    '................',
+    '..KKKKKKKKK.....',
+    '..KPPPPPPPKK....',
+    '..KPPPPPPPKFK...',
+    '..KPKKKKPPKKKK..',
+    '..KPPPPPPPPPPK..',
+    '..KPKKKKKKKPPK..',
+    '..KPPPPPPPPPPK..',
+    '..KPKKKKKKKPPK..',
+    '..KPPPPPPPPPPK..',
+    '..KPKKKKKKPPPK..',
+    '..KPPPPPPPPPPK..',
+    '..KPPPPPPPPPPK..',
+    '..KKKKKKKKKKKK..',
+    '................',
+    '................',
+  ],
+  // Arena v2: Scissors (Rock / Paper / Scissors buttons and the picks above the TaniBots).
+  scissors: [
+    '................',
+    '.KK..........KK.',
+    '.KCK........KCK.',
+    '..KCK......KCK..',
+    '...KCK....KCK...',
+    '....KCK..KCK....',
+    '.....KCKKCK.....',
+    '......KCCK......',
+    '......KCCK......',
+    '.....KHKKHK.....',
+    '...KKHK..KHKK...',
+    '..KHHHK..KHHHK..',
+    '..KH.HK..KH.HK..',
+    '..KHHHK..KHHHK..',
+    '...KKK....KKK...',
+    '................',
+  ],
 } satisfies Record<string, string[]>;
 
 export function UiIcon({ name, scale = 1, class: className }: { name: keyof typeof UI_ICONS; scale?: number; class?: string }) {
@@ -353,6 +413,12 @@ interface Props {
   scale?: number;
   class?: string;
   title?: string;
+}
+
+/** Arena v2: the Gold Durian (the durian's pixels in the gold tokens). */
+const GOLD_DURIAN_PALETTE: Record<string, string> = { g: 'var(--gold-500)', G: 'var(--gold-300)', d: 'var(--gold-700)' };
+export function GoldDurian({ scale = 2, class: className }: { scale?: number; class?: string }) {
+  return <Pixels rows={SPRITES.durian} palette={GOLD_DURIAN_PALETTE} scale={scale} class={className} />;
 }
 
 export function Sprite({ name, scale = 3, class: className, title }: Props) {

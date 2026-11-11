@@ -276,6 +276,42 @@ CREATE TABLE IF NOT EXISTS arena_duels (
 );
 CREATE INDEX IF NOT EXISTS arena_challenger ON arena_duels (challenger_id, duel_day);
 CREATE INDEX IF NOT EXISTS arena_defender ON arena_duels (defender_id, created_at);
+
+-- Arena v2 (arena-match.ts, docs/PLAN-arena.md section 7, 2026-11-11): Rock / Paper / Scissors
+-- turns against the other garden's TaniBot. New table only: older releases ignore it (they keep
+-- reading arena_duels, whose rows and JSON never change).
+CREATE TABLE IF NOT EXISTS arena_matches (
+  id INTEGER PRIMARY KEY,
+  kind TEXT NOT NULL DEFAULT 'bot', -- 'bot' (v2: against the computer); 'live' later (v3)
+  status TEXT NOT NULL,            -- 'playing' | 'done'
+  challenger_id INTEGER NOT NULL REFERENCES players(id),
+  defender_id INTEGER NOT NULL REFERENCES players(id),
+  duel_day INTEGER NOT NULL,       -- village day (normal 07:00 WIB day), like arena_duels
+  turn INTEGER NOT NULL DEFAULT 0, -- turns decided so far
+  hp_c INTEGER NOT NULL,
+  hp_d INTEGER NOT NULL,
+  skill_c INTEGER NOT NULL DEFAULT 0,
+  skill_d INTEGER NOT NULL DEFAULT 0,
+  bonus_c INTEGER NOT NULL DEFAULT 0, -- garden bonus in percent (0-20)
+  bonus_d INTEGER NOT NULL DEFAULT 0,
+  bot_pick TEXT,                   -- the computer's pick for the open turn: locked, NEVER sent before the player picks
+  winner TEXT,                     -- 'challenger' | 'defender' once done
+  end_reason TEXT,                 -- 'ko' | 'turns' | 'left'
+  practice TEXT,                   -- NULL | 'self' | 'limit' (as arena_duels)
+  prize_micro INTEGER NOT NULL DEFAULT 0,
+  job_id INTEGER,
+  xp_c INTEGER NOT NULL DEFAULT 0,
+  xp_d INTEGER NOT NULL DEFAULT 0,
+  data TEXT NOT NULL,              -- JSON: both sides (public data) + the decided turns
+  ip TEXT,
+  device_id TEXT,
+  seen_at INTEGER NOT NULL,        -- the player's last request for this match (2-minute leave rule)
+  created_at INTEGER NOT NULL,
+  ended_at INTEGER
+);
+CREATE INDEX IF NOT EXISTS arena_match_challenger ON arena_matches (challenger_id, duel_day);
+CREATE INDEX IF NOT EXISTS arena_match_defender ON arena_matches (defender_id, ended_at);
+CREATE INDEX IF NOT EXISTS arena_match_status ON arena_matches (status);
 `;
 
 /** tutorial_step value of a finished (or skipped) tutorial. */

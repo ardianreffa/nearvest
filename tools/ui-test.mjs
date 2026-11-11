@@ -42,6 +42,8 @@
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --dots=<owner>:<visitor> [w] [h]
 // New web on an OLD server without the Arena (e.g. the live release's server code, fake chain): Arena pin "Soon", no
 //   Duel button when visiting, no Village Arena box: UI_URL=http://127.0.0.1:5174 node tools/ui-test.mjs <outDir> --oldserver=<me>:<friend> [w] [h]
+// Arena v2 match (Rock / Paper / Scissors vs a TaniBot; fake-chain server + FAKE_DB=<its sqlite>, sets the locked TaniBot pick):
+//   UI_URL=http://127.0.0.1:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --match=<me>:<foe> [w] [h]
 // Arena 1 VS 1 (fake-chain server; API_URL = that server, default http://127.0.0.1:8788; FAKE_DB=<its sqlite> makes <foe>
 //   strong): makes <me>, <foe> and <me>x through the API, <foe> challenges <me>; the Arena pin, window, a duel, Skip,
 //   the Village Arena box and the visit Duel button:
@@ -637,7 +639,205 @@ try {
       console.log('Duel button:', await evaluate(`document.querySelector('.visit-duel') ? 'SHOWN' : 'none'`), '| visit buttons:', await evaluate(`[...document.querySelectorAll('.visit-head .btn')].map(b => b.innerText.replace(/\\n/g, ' ')).join(' | ')`));
       await screenshot('old-visit');
     });
+    // A v1 Arena server (e.g. nearvest-e8312ea: state.arena without v): the new web plays the v1
+    // duel (3 rounds), never the v2 Rock / Paper / Scissors screen.
+    const tokMe = (await call('POST', '/auth/dev', null, { username: me })).body.token;
+    const arenaNow = (await call('GET', '/api/me', tokMe)).body.arena;
+    if (arenaNow && arenaNow.v === undefined) {
+      await step(`${me}: v1 Arena server: the Duel button opens the v1 duel`, async () => {
+        // A third garden (the friend was already challenged through the API above).
+        const third = `${me}z`;
+        await make(third);
+        await clickText('My garden');
+        await sleep(1200);
+        await evaluate(`document.querySelector('.pin-arena').click()`);
+        await sleep(400);
+        if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+        await waitFor(`!!document.querySelector('.arena-dialog .arena-duel-btn')`, 'Arena window');
+        await sleep(600);
+        await evaluate(`[...document.querySelectorAll('.arena-list .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(third)})?.querySelector('.arena-duel-btn').click()`);
+        await waitFor(`!!document.querySelector('.duel')`, 'duel screen', 15000);
+        await sleep(1500);
+        console.log('duel screen:', await evaluate(`(() => { const d = document.querySelector('.duel'); return 'v2 match screen: ' + d.classList.contains('match') + ' | rounds list (v1): ' + !!d.querySelector('.duel-rounds') + ' | Rock/Paper/Scissors buttons: ' + d.querySelectorAll('.rps-btn').length; })()`));
+        await screenshot('old-v1-duel');
+      });
+    }
     throw Object.assign(new Error('oldserver done'), { done: true });
+  }
+  if (name.startsWith('--match=')) {
+    // Arena v2 (docs/PLAN-arena.md section 7): a whole Rock / Paper / Scissors match against <foe>'s
+    // TaniBot in the browser. Needs a fake-chain server and FAKE_DB (its sqlite): before each turn the
+    // test sets the TaniBot's LOCKED pick (bot_pick) to the one that loses, so the run is the same every
+    // time: 3 wins fill the skill bar, the Gold Durian, then wins until K.O. Screenshots: the buttons,
+    // the picks above both TaniBots, a hit, the full skill bar with the lit Gold Durian button, the Gold
+    // Durian throw, K.O.! and the result. window.__turnT freezes a turn (dev builds).
+    const [me, foe] = name.slice('--match='.length).split(':');
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    if (!process.env.FAKE_DB) throw new Error('--match needs FAKE_DB=<the fake-chain server sqlite>');
+    const { DatabaseSync } = await import('node:sqlite');
+    const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return res.json();
+    };
+    const make = async (user) => {
+      const { token } = await call('POST', '/auth/dev', null, { username: user });
+      let st = await call('GET', '/api/me', token);
+      if (st.error) st = await call('POST', '/api/player', token, { name: user, demo: true });
+      for (let i = 0; i < 40 && st.player.accountStatus !== 'ready'; i++) (await sleep(300), (st = await call('GET', '/api/me', token)));
+      if (!st.plots[0].tree) {
+        await call('POST', '/api/checkin', token);
+        st = await call('GET', '/api/me', token);
+        await call('POST', '/api/plant', token, { plot: 0, seedId: (st.seeds.find((x) => x.species === 'mango') ?? st.seeds[0]).id });
+      }
+      await call('POST', '/api/water', token, { plot: 0 });
+      return token;
+    };
+    const LOSES_TO = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+    const openMatch = () => db.prepare("SELECT m.id, m.turn, m.skill_c FROM arena_matches m JOIN players p ON p.id = m.challenger_id WHERE p.name = ? AND m.status = 'playing' ORDER BY m.id DESC LIMIT 1").get(me);
+    const lock = (pick) => { const m = openMatch(); if (m) db.prepare('UPDATE arena_matches SET bot_pick = ? WHERE id = ?').run(pick, m.id); };
+    const info = `(() => { const d = document.querySelector('.duel.match'); if (!d) return 'no match screen';
+      return JSON.stringify({ hp: [...d.querySelectorAll('.hp-fill')].map(e => e.style.width), skill: [...d.querySelectorAll('.skill-bar')].map(b => b.querySelectorAll('i.on').length + '/' + b.querySelectorAll('i').length + (b.classList.contains('full') ? ' full' : '')),
+        picks: [...d.querySelectorAll('.fighter')].map(f => { const b = f.querySelector('.pick-bubble'); return b ? b.getAttribute('aria-label') + (b.classList.contains('pop') ? ' (pop)' : '') : 'none'; }),
+        banner: d.querySelector('.turn-banner')?.innerText ?? null, ko: d.querySelector('.fight-ko')?.innerText ?? null, fruit: d.querySelector('.fruit-path')?.className ?? null,
+        turn: d.querySelector('.match-turn')?.innerText ?? null, why: d.querySelector('.match-why')?.innerText ?? null,
+        gold: (() => { const g = d.querySelector('.gold-durian-btn'); return g ? g.innerText + (g.classList.contains('lit') ? ' LIT' : '') + (g.disabled ? ' (off)' : ' (on)') : null; })(),
+        rps: [...d.querySelectorAll('.rps-btn')].map(b => b.innerText.trim() + (b.disabled ? ' (off)' : '')), result: d.querySelector('.duel-headline')?.innerText ?? null, gains: d.querySelector('.duel-gains')?.innerText.replace(/\\n/g, ' ') ?? null,
+        reward: [...d.querySelectorAll('.duel-reward')].map(e => e.innerText).join(' / ') || null, scrolls: d.scrollHeight > d.clientHeight + 1, sideways: document.documentElement.scrollWidth > innerWidth }); })()`;
+    const box = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return 'missing'; const r = e.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) + ' at ' + Math.round(r.left) + ',' + Math.round(r.top) + (r.bottom <= innerHeight + 1 && r.top >= 0 ? ' (on screen)' : ' (OFF SCREEN)'); })()`;
+    const ready = `(() => { const b = document.querySelector('.rps-btn'); return !!b && !b.disabled; })()`;
+    const freeze = async (t, wait = 200) => { await evaluate(`(window.__turnT = ${t}, true)`); await sleep(wait); };
+    const unfreeze = () => evaluate(`(delete window.__turnT, true)`);
+    // Turn timing (web/src/arena-turn.ts turnTimes): reveal 700, wind-up 300, then the flight (mango 450 ... durian 850).
+    const play = async (pick, botPick) => {
+      lock(botPick);
+      await evaluate(`[...document.querySelectorAll(${JSON.stringify(pick === 'gold' ? '.gold-durian-btn' : '.rps-btn')})].find(b => ${pick === 'gold' ? 'true' : `b.innerText.trim().toLowerCase() === ${JSON.stringify(pick)}`}).click()`);
+    };
+    await step(`make ${me} and ${foe}; a v2 server?`, async () => {
+      const tok = await make(me);
+      await make(foe);
+      const st = await call('GET', '/api/me', tok);
+      console.log('state.arena.v:', st.arena?.v, '| active:', JSON.stringify(st.arena?.active), '| left:', st.arena?.left);
+    });
+    await step(`${me}: open the Arena and challenge ${foe}'s TaniBot`, async () => {
+      await evaluate(`localStorage.removeItem('nearvest.token')`);
+      await send('Page.navigate', { url: UI_URL });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      await typeInto('#dev-user', me);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await sleep(2500);
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      await clickText('Skip tutorial');
+      await sleep(600);
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      await evaluate(`document.querySelector('.pin-arena').click()`);
+      await sleep(400);
+      if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      await waitFor(`!!document.querySelector('.arena-dialog .arena-duel-btn')`, 'Arena window');
+      await sleep(400);
+      console.log('Arena intro:', await evaluate(`document.querySelector('.farmers-intro').innerText`));
+      await evaluate(`[...document.querySelectorAll('.arena-list .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(foe)}).querySelector('.arena-duel-btn').click()`);
+      await waitFor(`!!document.querySelector('.duel.match')`, 'match screen', 15000);
+      await sleep(600);
+      console.log('start:', await evaluate(info));
+      console.log('buttons:', await evaluate(box('.rps-row')), '| Gold Durian button:', await evaluate(box('.gold-durian-btn')), '| panel:', await evaluate(box('.duel.match')));
+      await screenshot('match-buttons');
+    });
+    await step('leave the duel and continue it from the Arena window', async () => {
+      await evaluate(`document.querySelector('.duel.match .info-close').click()`);
+      await sleep(300);
+      console.log('leave question:', await evaluate(`document.querySelector('.match-leave')?.innerText.replace(/\\n/g, ' ') ?? 'none'`));
+      await screenshot('match-leave');
+      await clickText('Leave', '.match-leave button');
+      await sleep(600);
+      await evaluate(`document.querySelector('.pin-arena').click()`);
+      await sleep(400);
+      if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      await waitFor(`!!document.querySelector('.arena-active')`, 'Continue box', 15000);
+      console.log('Arena window:', await evaluate(`document.querySelector('.arena-active').innerText.replace(/\\n/g, ' ')`), '| Duel buttons off:', await evaluate(`[...document.querySelectorAll('.arena-duel-btn')].every(b => b.disabled)`));
+      await clickText('Continue', '.arena-active button');
+      await waitFor(`!!document.querySelector('.duel.match')`, 'match screen again', 15000);
+      await sleep(500);
+      console.log('continued:', await evaluate(info));
+    });
+    await step('turn 1: Rock vs the locked Scissors (picks above both TaniBots, the hit)', async () => {
+      await freeze(300, 0);
+      await play('rock', 'scissors');
+      await waitFor(`!!document.querySelector('.fighter.them .pick-bubble:not(.secret)')`, 'both picks', 10000);
+      await sleep(300);
+      console.log('picks shown:', await evaluate(info));
+      console.log('bubble over my head:', await evaluate(box('.fighter.me .pick-bubble')), '| over theirs:', await evaluate(box('.fighter.them .pick-bubble')));
+      await screenshot('match-picks-above');
+      await freeze(700 + 300 + 200);
+      console.log('fruit flying:', await evaluate(info));
+      await screenshot('match-fruit-flying');
+      await freeze(700 + 300 + 900);
+      console.log('hit:', await evaluate(info));
+      await screenshot('match-hit');
+      await unfreeze();
+      await waitFor(ready, 'next turn', 10000);
+    });
+    await step('turns 2-3: Paper vs Rock, Scissors vs Paper (the skill bar fills)', async () => {
+      await play('paper', 'rock');
+      await sleep(300);
+      await waitFor(ready, 'turn 3', 10000);
+      await play('scissors', 'paper');
+      await sleep(300);
+      await waitFor(ready, 'turn 4', 10000);
+      await sleep(300);
+      console.log('skill bar full:', await evaluate(info));
+      await screenshot('match-gold-ready');
+    });
+    await step('turn 4: the Gold Durian', async () => {
+      await freeze(700 + 300 + 300, 0);
+      await play('gold', 'rock');
+      await waitFor(`!!document.querySelector('.fighter.me .pick-bubble.gold') && !!document.querySelector('.fighter.them .pick-bubble:not(.secret)')`, 'gold turn', 10000);
+      await sleep(300);
+      console.log('Gold Durian flying:', await evaluate(info));
+      await screenshot('match-gold-durian-flying');
+      await freeze(700 + 300 + 850 + 150);
+      console.log('Gold Durian hit:', await evaluate(info));
+      await screenshot('match-gold-durian-hit');
+      await unfreeze();
+    });
+    await step('win turns until K.O.!, then the result', async () => {
+      for (let i = 0; i < 12; i++) {
+        const done = await evaluate(`!!document.querySelector('.fight-ko, .duel-result')`);
+        if (done) break;
+        await waitFor(`!!document.querySelector('.fight-ko, .duel-result') || (${ready})`, 'next turn or the end', 15000);
+        if (await evaluate(`!!document.querySelector('.fight-ko, .duel-result')`)) break;
+        const m = openMatch();
+        if (m && m.skill_c >= 3) await play('gold', 'paper');
+        else await play('rock', 'scissors');
+        await sleep(400);
+      }
+      await waitFor(`!!document.querySelector('.fight-ko')`, 'K.O.!', 20000);
+      await sleep(250);
+      console.log('K.O.:', await evaluate(info), '| K.O. font:', await evaluate(`getComputedStyle(document.querySelector('.fight-ko')).fontFamily`));
+      await screenshot('match-ko');
+      await waitFor(`!!document.querySelector('.duel-result')`, 'result', 10000);
+      await sleep(600);
+      console.log('result:', await evaluate(info));
+      await screenshot('match-result');
+      console.log('result panel:', await evaluate(box('.duel-actions')));
+    });
+    await step('back: Recent duels in the Arena window', async () => {
+      await clickText('Back', '.duel-actions button');
+      await sleep(1500);
+      const tok = (await call('POST', '/auth/dev', null, { username: me })).token;
+      const st = await call('GET', '/api/me', tok);
+      console.log('after the match: left', st.arena.left, '| active', JSON.stringify(st.arena.active), '| PANEN', st.player.panen, '| XP', st.player.xp);
+      await evaluate(`document.querySelector('.pin-arena').click()`);
+      await sleep(400);
+      if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      await waitFor(`!!document.querySelector('.arena-dialog .arena-duel-btn')`, 'Arena window');
+      await sleep(800);
+      console.log('recent:', await evaluate(`[...document.querySelectorAll('.arena-recent-list .arena-row')].map(r => r.innerText.replace(/\\n/g, ' ')).join(' || ') || 'none'`));
+      await screenshot('match-recent');
+    });
+    db.close();
+    throw Object.assign(new Error('match done'), { done: true });
   }
   if (name.startsWith('--arena=')) {
     // Arena 1 VS 1 (docs/PLAN-arena.md): <me> (a watered Common Mango) and <foe> (FAKE_DB: a Gold Durian

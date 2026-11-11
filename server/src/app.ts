@@ -11,6 +11,7 @@ import type { DB } from './db.ts';
 import { Game, GameError, type JudgeStep, type SignedBurn } from './game.ts';
 import type { JudgeService } from './judge.ts';
 import { Arena } from './arena.ts';
+import { ArenaMatches } from './arena-match.ts';
 import { Social } from './social.ts';
 import {
   BURN_GAS,
@@ -47,6 +48,7 @@ export function createApp(deps: AppDeps) {
   const { db, game, chain, config, now, tanibot, judge } = deps;
   const social = new Social(db, game, now);
   const arena = new Arena(db, game, now, { explorerTxUrl: config.explorerTxUrl });
+  const matches = new ArenaMatches(db, game, arena, now, { explorerTxUrl: config.explorerTxUrl });
   const app = new Hono<Env>();
 
   // maxAge: browsers remember the CORS preflight (Chrome up to 2 h), so each game action is one
@@ -392,7 +394,8 @@ export function createApp(deps: AppDeps) {
   // (visit panel), and a duel (decided and stored on the server; the web sends only the name).
   app.get('/api/arena', (c) => {
     const pid = playerId(c);
-    return c.json(arena.view(pid, social.farmers(pid, c.req.query('q')).farmers));
+    // v2: `v: 2` and finished turn-based matches next to the v1 duels (old webs ignore them).
+    return c.json({ ...arena.view(pid, social.farmers(pid, c.req.query('q')).farmers), v: 2, matches: matches.recent(pid) });
   });
   app.get('/api/arena/can/:name', (c) => c.json(arena.canChallenge(playerId(c), c.req.param('name'))));
   app.post('/api/arena/duel', async (c) => {
@@ -400,6 +403,22 @@ export function createApp(deps: AppDeps) {
     const b = await body(c);
     const result = arena.duel(pid, b.opponent, clientIp(c), b.deviceId);
     return c.json({ ...result, arena: arena.view(pid, social.farmers(pid).farmers), state: game.state(pid) });
+  });
+  // Arena v2 (arena-match.ts): Rock / Paper / Scissors turns against the other garden's TaniBot.
+  // The computer's pick is locked on the server and never sent before the player's pick.
+  app.post('/api/arena/match', async (c) => {
+    const pid = playerId(c);
+    const b = await body(c);
+    const r = matches.start(pid, b.opponent, clientIp(c), b.deviceId);
+    return c.json({ ...r, state: game.state(pid) });
+  });
+  app.get('/api/arena/match/:id', (c) => c.json(matches.get(playerId(c), Number(c.req.param('id')))));
+  app.post('/api/arena/match/:id/pick', async (c) => {
+    const pid = playerId(c);
+    const b = await body(c);
+    const r = matches.pick(pid, Number(c.req.param('id')), b.turn, b.pick);
+    // The game state only when the match is over (prize, XP, duels left).
+    return c.json(r.match.status === 'done' ? { ...r, state: game.state(pid) } : r);
   });
   // Red dot: the owner saw the Village tab's Visitors / Invite boxes (up to the newest event shown).
   app.post('/api/village/seen', async (c) => {
