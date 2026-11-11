@@ -3335,6 +3335,36 @@ input:focus-visible {
   min-height: 48px;
 }
 
+/* Under the actions: the rain note (left, under Water) and "Cut down tree" (right), one row. */
+.plot-bar.bar-tree .bar-side-foot {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+.plot-bar.bar-tree .bar-side-foot .rain-note {
+  margin-right: auto;
+  color: var(--cyan-300); /* the laptop bar is dark wood */
+}
+
+/* Rain note (garden.tsx RainNote): one short line, never taller than its row. */
+.rain-note {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-body);
+  color: var(--cyan-700);
+  line-height: 1.35;
+}
+
+.sheet-status .rain-note {
+  flex: 0 1 auto;
+}
+
 .plot-bar.bar-tree .bar-side .link-btn.danger {
   font-size: var(--fs-xs);
 }

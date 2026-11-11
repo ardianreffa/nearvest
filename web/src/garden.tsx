@@ -56,6 +56,21 @@ interface Props {
 }
 
 /** The Water button's words: rain, a drought (1/2), or the usual. Older servers: the usual. */
+/** Rain waters every tree today (the Water button reads "Watered by rain"); not while ash needs
+ * cleaning (that button replaces Water). Servers without weather send no `waterNeed`: no note. */
+function rainWaters(t: TreeView): boolean {
+  return t.waterNeed === 0 && !t.ash;
+}
+
+/** One short line that says why the Water button is off: rain waters the trees today. */
+function RainNote() {
+  return (
+    <span class="rain-note small" role="status">
+      Rain is watering your trees
+    </span>
+  );
+}
+
 function waterLabel(t: TreeView, short: boolean): string {
   if ((t.waterNeed ?? 1) === 0) return short ? 'Rain' : 'Watered by rain';
   if ((t.waterNeed ?? 1) > 1) return t.wateredToday ? (short ? 'Watered' : 'Watered twice') : `Water ${t.waterCount ?? 0}/${t.waterNeed}`;
@@ -719,6 +734,7 @@ function PlotPanel({
           <div class="progress" aria-label="Growth">
             <div class="progress-bar" style={{ width: `${Math.min(100, t.growthPercent)}%` }} />
           </div>
+          {rainWaters(t) && <RainNote />}
           <span class="small">
             {t.ready ? (t.stage === 'old' ? 'Seed ready' : 'Ripe!') : t.isWatered ? formatDuration(t.msToReady - Math.min(elapsed, t.msToReady)) : 'Thirsty'}
           </span>
@@ -808,7 +824,10 @@ function PlotPanel({
         </div>
         <div class="bar-side">
           {actions}
-          {chop}
+          <div class="bar-side-foot">
+            {rainWaters(t) && <RainNote />}
+            {chop}
+          </div>
         </div>
       </Panel>
     );
