@@ -2021,9 +2021,11 @@ try {
       await evaluate(`document.querySelector('.hotspots .btn-mint')?.click()`);
       await waitFor(bodyHas('Farmers of Tandur'), 'farmer list');
       await waitFor(`!!document.querySelector('.farmer-row')`, 'farmer rows');
-      const ok = await evaluate(`(() => { const row = [...document.querySelectorAll('.farmer-row')].find(r => r.querySelector('.farmer-name')?.innerText.trim().toLowerCase() === ${JSON.stringify(friend.toLowerCase())}); if (!row) return false; row.querySelector('button').click(); return true; })()`);
+      const ok = await evaluate(`(() => { const row = [...document.querySelectorAll('.farmer-row')].find(r => r.querySelector('.farmer-name')?.innerText.trim().toLowerCase() === ${JSON.stringify(friend.toLowerCase())}); if (!row) return false; (row.querySelector('button.btn-mint') ?? row.querySelector('button')).click(); return true; })()`);
       if (!ok) throw new Error('friend not in the list: ' + friend);
       await waitFor(`!!document.querySelector('.visit-panel .visit-sub')`, 'visit loaded');
+      // The pixel-leaf wipe between gardens must be gone (it covers everything while it plays).
+      await waitFor(`!document.querySelector('.visit-wipe')`, 'wipe gone', 15000);
       await sleep(2500);
       await screenshot('visit-' + friend);
       const report = await evaluate(`(() => {
@@ -2034,7 +2036,7 @@ try {
         const covers = [['pin', '.place-pin'], ['Darto', '.village-darto'], ['Back button', '.visit-back'], ['HUD', '.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys, .phone-hud > *'], ['TaniBot', '.bot-spot .tanibot'], ['tree label', '.badge'], ['toast', '.toasts > .toast']]
           .filter(([, q]) => [...document.querySelectorAll(q)].some(e => hit(sr, r(e)))).map(([n]) => n);
         const bot = document.querySelector('.bot-spot');
-        return 'sign "' + (sign ? sign.innerText.replace(/\\n/g, ' / ') : (innerWidth >= 1024 ? 'none (laptop: bottom bar only)' : 'MISSING')) + '" ' + (sr ? Math.round(sr.left) + ',' + Math.round(sr.top) + ' ' + Math.round(sr.width) + 'x' + Math.round(sr.height) : '')
+        return 'sign "' + (sign ? sign.innerText.replace(/\\n/g, ' / ') : 'none (removed 2026-11-10: the visit panel names the garden)') + '" ' + (sr ? Math.round(sr.left) + ',' + Math.round(sr.top) + ' ' + Math.round(sr.width) + 'x' + Math.round(sr.height) : '')
           + ' | covers: ' + (covers.join(', ') || 'nothing')
           + ' | inside screen: ' + (sr ? sr.left >= 0 && sr.right <= innerWidth : '-')
           + ' | TaniBot: ' + (bot ? bot.className.match(/tier-\\S+/)[0] + (bot.querySelector('.bot-click.asleep') ? ' asleep' : ' awake') + ' | ON/OFF chip: ' + !!bot.querySelector('.bot-status') + ' | other bubbles: ' + !!bot.querySelector('.bot-nudge, .bot-bye') : 'none')
@@ -2053,7 +2055,35 @@ try {
         console.log('hello gone after ~4 s:', await evaluate(`!document.querySelector('.bot-hello')`));
       }
       await clickText('Back to my garden');
+      await waitFor(`!document.querySelector('.visit-wipe')`, 'wipe gone', 15000);
       await sleep(800);
+      console.log('back home: my TaniBot', await evaluate(`(() => { const b = document.querySelector('.bot-spot .tanibot'); if (!b) return 'none'; const r = b.getBoundingClientRect(); return 'drawn ' + Math.round(r.width) + 'x' + Math.round(r.height) + ', visible ' + (getComputedStyle(b).visibility !== 'hidden' && r.width > 0) + ', ' + (document.querySelector('.bot-spot .bot-click.asleep') ? 'asleep' : 'awake'); })()`));
+      await screenshot('back-home');
+      // FAKE_DB: the friend's TaniBot OFF -> visit again: asleep with Zzz; then ON again.
+      if (process.env.FAKE_DB) {
+        const { DatabaseSync } = await import('node:sqlite');
+        const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
+        const setOn = (on) => db.prepare('UPDATE bots SET enabled = ? WHERE player_id = (SELECT id FROM players WHERE name = ?)').run(on ? 1 : 0, friend.toLowerCase());
+        setOn(false);
+        try {
+        await evaluate(`document.querySelector('.pin-friends').click()`);
+        await sleep(400);
+        if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+        await waitFor(`!!document.querySelector('.farmer-row')`, 'farmer rows');
+        await evaluate(`[...document.querySelectorAll('.farmer-row')].find(r => r.querySelector('.farmer-name')?.innerText.trim().toLowerCase() === ${JSON.stringify(friend.toLowerCase())})?.querySelector('button.btn-mint').click()`);
+        await waitFor(`!!document.querySelector('.visit-panel .visit-sub')`, 'visit loaded');
+        await waitFor(`!document.querySelector('.visit-wipe')`, 'wipe gone', 15000);
+        await sleep(1500);
+        console.log('their TaniBot OFF:', await evaluate(`(() => { const b = document.querySelector('.bot-spot'); if (!b) return 'none'; return (b.querySelector('.bot-click.asleep') ? 'asleep' : 'awake') + ' | Zzz: ' + !!b.querySelector('.zzz, .bot-zzz, [class*=zzz]') + ' | drawn ' + Math.round(b.querySelector('.tanibot').getBoundingClientRect().width) + 'px'; })()`));
+        await screenshot('visit-' + friend + '-off');
+        await clickText('My garden');
+        await waitFor(`!document.querySelector('.visit-wipe')`, 'wipe gone', 15000);
+        } finally {
+          // Always ON again, also when a step above failed.
+          setOn(true);
+          db.close();
+        }
+      }
       console.log('back home: sign gone', await evaluate(`!document.querySelector('.visit-sign')`), '| my TaniBot chip:', await evaluate(`!!document.querySelector('.bot-status')`));
     });
     throw { done: true };

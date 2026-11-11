@@ -251,8 +251,8 @@ export function playPixelSparkle(notes: { at: number; freq: number; dur: number;
     o.stop(t0 + at + dur + 0.02);
   };
   for (const n of notes) {
-    blip('square', n.freq, n.at, n.dur, 0.32 * n.level);
-    blip('triangle', n.freq * 2, n.at + 0.022, n.dur * 0.8, 0.22 * n.level);
+    blip('square', n.freq, n.at, n.dur, 0.415 * n.level);
+    blip('triangle', n.freq * 2, n.at + 0.022, n.dur * 0.8, 0.285 * n.level);
   }
 }
 
