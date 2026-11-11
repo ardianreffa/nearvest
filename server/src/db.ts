@@ -313,6 +313,28 @@ CREATE TABLE IF NOT EXISTS arena_matches (
 CREATE INDEX IF NOT EXISTS arena_match_challenger ON arena_matches (challenger_id, duel_day);
 CREATE INDEX IF NOT EXISTS arena_match_defender ON arena_matches (defender_id, ended_at);
 CREATE INDEX IF NOT EXISTS arena_match_status ON arena_matches (status);
+
+-- Add friend (social.ts, docs/PLAN-arena.md 7.11, 2026-11-11): one way, no accept needed. New
+-- tables only: older releases ignore them.
+CREATE TABLE IF NOT EXISTS friends (
+  player_id INTEGER NOT NULL REFERENCES players(id),  -- who added
+  friend_id INTEGER NOT NULL REFERENCES players(id),  -- who was added
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (player_id, friend_id)
+);
+CREATE INDEX IF NOT EXISTS friends_friend ON friends (friend_id, created_at);
+-- Every add (also after a remove): the daily add limit, and the notice to the added garden (only
+-- the first add of a pair ever notifies: notify = 1).
+CREATE TABLE IF NOT EXISTS friend_adds (
+  id INTEGER PRIMARY KEY,
+  player_id INTEGER NOT NULL REFERENCES players(id),
+  friend_id INTEGER NOT NULL REFERENCES players(id),
+  add_day INTEGER NOT NULL,        -- village day (normal 07:00 WIB day, also for demo gardens)
+  notify INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS friend_adds_player ON friend_adds (player_id, add_day);
+CREATE INDEX IF NOT EXISTS friend_adds_notice ON friend_adds (friend_id, notify, created_at);
 `;
 
 /** tutorial_step value of a finished (or skipped) tutorial. */
@@ -352,6 +374,8 @@ function migrate(db: DB): void {
     db.exec('UPDATE players SET fruit_at = 1 WHERE id IN (SELECT player_id FROM fruits WHERE qty > 0)');
   }
   if (!has('players', 'market_seen_at')) db.exec('ALTER TABLE players ADD COLUMN market_seen_at INTEGER NOT NULL DEFAULT 0');
+  // Online dot (2026-11-11): the last sign of life from a visible game tab (POST /api/ping; 0 = never).
+  if (!has('players', 'active_at')) db.exec('ALTER TABLE players ADD COLUMN active_at INTEGER NOT NULL DEFAULT 0');
   if (!has('players', 'tutorial_step')) db.exec(`ALTER TABLE players ADD COLUMN tutorial_step INTEGER NOT NULL DEFAULT ${TUTORIAL_DONE}`);
   // Judge gardens: TaniBot waits for the judge's first harvest (at most until this time).
   // TaniBot auto-plant: 'off' | 'common' (only Common or unknown seeds, never Rare or Gold).

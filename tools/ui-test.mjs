@@ -53,6 +53,11 @@
 //   Market: Mr. Darto says "Fresh fruit! ..." (bubble on screen, nothing scrolls), rows glow, "Sell now ↓" when the row is off screen, dot gone (server market.seenAt); opened again without the dot = normal greeting; Seeds section closed / open and the "Seeds (6) ↓" jump (6 kinds of the 17 seeds); a new
 //   harvest (fruit_at) brings the dot back; then no seeds + an empty plot: Shop dot, hint + Mango glow, dot gone:
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --marketdot=<user> [w] [h]
+// Add friend + Online (fake-chain server; API_URL = that server, default http://127.0.0.1:8788): makes <a> and <b>
+//   through the API (b pings = Online). As <a>: Farmers of Tandur (b Online, Add), visit b (Add friend in one row with
+//   Sticker / Duel / My garden), Add friend -> Friends ✓, Friends section, Remove friend? window, Arena list. As <b>:
+//   the notice "<a> added you as a friend" with Add back / Visit, the Village dot and row, Add back; hidden tab = away.
+//   UI_URL=http://127.0.0.1:5174 node tools/ui-test.mjs <outDir> --friends=<a>:<b> [w] [h]
 // How to play pages (login page): node tools/ui-test.mjs <outDir> --howto [w] [h]
 // Try as Judge (one click, then the whole tour; a NEW judge garden each run, so use a fake-chain server or a fresh browser profile): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --judge [width] [height]
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
@@ -633,9 +638,11 @@ try {
       await sleep(300);
       if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
       await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
-      await evaluate(`[...document.querySelectorAll('.farmers-dialog .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(friend)})?.querySelector('button').click()`);
+      console.log('farmer list: sections', await evaluate(`document.querySelectorAll('.farmer-section-title').length`), '| Add buttons', await evaluate(`document.querySelectorAll('.farmer-add').length`), '| Online dots', await evaluate(`document.querySelectorAll('.online-dot').length`));
+      await evaluate(`[...document.querySelectorAll('.farmers-dialog .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(friend)})?.querySelector('button.btn-mint').click()`);
       await waitFor(`!!document.querySelector('.visit-head')`, 'visit panel', 15000);
       await sleep(1500);
+      console.log('Add friend button:', await evaluate(`document.querySelector('.visit-friend') ? 'SHOWN' : 'none'`), '| Online dots:', await evaluate(`document.querySelectorAll('.online-dot').length`), '| pings sent:', await evaluate(`performance.getEntriesByType('resource').filter(e => e.name.includes('/api/ping')).length`));
       console.log('Duel button:', await evaluate(`document.querySelector('.visit-duel') ? 'SHOWN' : 'none'`), '| visit buttons:', await evaluate(`[...document.querySelectorAll('.visit-head .btn')].map(b => b.innerText.replace(/\\n/g, ' ')).join(' | ')`));
       await screenshot('old-visit');
     });
@@ -1431,6 +1438,148 @@ try {
       console.log('end:', await evaluate(stickerBtn));
     });
     throw { done: true };
+  }
+  if (name.startsWith('--friends=')) {
+    const [a, b] = name.slice('--friends='.length).split(':');
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return { status: res.status, body: await res.json().catch(() => null) };
+    };
+    const make = async (user) => {
+      const token = (await call('POST', '/auth/dev', null, { username: user })).body.token;
+      let st = (await call('GET', '/api/me', token)).body;
+      if (st.error) st = (await call('POST', '/api/player', token, { name: user, demo: true })).body;
+      for (let i = 0; i < 40 && st.player.accountStatus !== 'ready'; i++) (await sleep(300), (st = (await call('GET', '/api/me', token)).body));
+      if (!st.plots[0].tree) {
+        await call('POST', '/api/checkin', token);
+        st = (await call('GET', '/api/me', token)).body;
+        await call('POST', '/api/plant', token, { plot: 0, seedId: (st.seeds.find((x) => x.species === 'mango') ?? st.seeds[0]).id });
+      }
+      return token;
+    };
+    const signIn = async (user) => {
+      await evaluate(`localStorage.removeItem('nearvest.token')`);
+      await send('Page.navigate', { url: UI_URL });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await sleep(2500);
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+    };
+    const openFarmers = async () => {
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-garden')?.click()`);
+      await sleep(300);
+      await evaluate(`document.querySelector('.pin-friends').click()`);
+      await sleep(300);
+      if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
+      await sleep(600);
+    };
+    const rows = `[...document.querySelectorAll('.farmers-dialog .farmer-row')].map(r => r.querySelector('.farmer-name').innerText + (r.classList.contains('friend-row') ? ' [FRIEND]' : '') + (r.querySelector('.online-dot') ? ' [ONLINE DOT]' : '') + ' {' + [...r.querySelectorAll('button')].map(x => x.innerText.replace(/\\n/g, ' ').trim()).join(' / ') + '}').join(' | ')`;
+    let tokA, tokB;
+    await step(`make ${a} and ${b}; ${b} is online (ping); start clean (no friends)`, async () => {
+      tokA = await make(a);
+      tokB = await make(b);
+      await call('POST', `/api/friends/${a}/remove`, tokB);
+      await call('POST', `/api/friends/${b}/remove`, tokA);
+      const p = await call('POST', '/api/ping', tokB, {});
+      console.log('ping:', p.status, JSON.stringify(p.body), '| state.friends:', JSON.stringify((await call('GET', '/api/me', tokA)).body.friends));
+    });
+    await step(`${a}: Farmers of Tandur (${b} Online, Add button)`, async () => {
+      await signIn(a);
+      await openFarmers();
+      console.log('rows:', await evaluate(rows));
+      console.log('sections:', await evaluate(`[...document.querySelectorAll('.farmer-section-title')].map(h => h.innerText).join(' / ') || 'none'`));
+      await screenshot('farmers-before');
+    });
+    await step(`${a}: visit ${b}: Add friend in one row with Sticker / Duel / My garden`, async () => {
+      await evaluate(`[...document.querySelectorAll('.farmers-dialog .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(b)})?.querySelector('.btn-mint').click()`);
+      await waitFor(`!!document.querySelector('.visit-friend')`, 'Add friend button', 15000);
+      await sleep(1500);
+      const geo = `(() => { const bs = [...document.querySelectorAll('.visit-head .btn')]; const r = bs.map(x => x.getBoundingClientRect());
+        const cut = bs.filter(x => x.scrollWidth > x.clientWidth + 1).map(x => x.innerText);
+        return bs.map((x, i) => '"' + x.innerText.replace(/\\n/g, ' ') + '" ' + Math.round(r[i].width) + 'x' + Math.round(r[i].height) + ' @y' + Math.round(r[i].top)).join(' | ')
+          + ' || one row: ' + (new Set(r.map(q => Math.round(q.top))).size === 1) + ' | same height: ' + (new Set(r.map(q => Math.round(q.height))).size === 1) + ' | text cut: ' + (cut.join(', ') || 'none')
+          + ' | inside the screen: ' + r.every(q => q.left >= 0 && q.right <= innerWidth) + ' | kicker: "' + document.querySelector('.visit-kicker').innerText.replace(/\\n/g, ' ') + '"'; })()`;
+      console.log('visit buttons:', await evaluate(geo));
+      await screenshot('visit-add-friend');
+      await evaluate(`document.querySelector('.visit-friend').click()`);
+      await waitFor(`document.querySelector('.visit-friend')?.classList.contains('is-friend')`, 'Friends ✓');
+      await sleep(600);
+      console.log('after Add friend:', await evaluate(geo));
+      console.log('notice:', await evaluate(TOAST_CHECK));
+      await screenshot('visit-friends');
+      await evaluate(`document.querySelector('.visit-friend').click()`);
+      await waitFor(`!!document.querySelector('.remove-friend-dialog')`, 'Remove friend window');
+      await sleep(300);
+      console.log('remove window:', await evaluate(`document.querySelector('.remove-friend-dialog').innerText.replace(/\\n/g, ' ')`));
+      await screenshot('visit-remove-window');
+      await clickText('Keep', '.remove-friend-dialog button');
+      await sleep(300);
+      console.log('still friends:', await evaluate(`document.querySelector('.visit-friend').classList.contains('is-friend')`));
+      await clickText('My garden');
+      await sleep(1200);
+    });
+    await step(`${a}: Friends section on top with the Online dot, Visit and Duel`, async () => {
+      await call('POST', '/api/ping', tokB, {});
+      await openFarmers();
+      console.log('rows:', await evaluate(rows));
+      console.log('sections:', await evaluate(`[...document.querySelectorAll('.farmer-section-title')].map(h => h.innerText).join(' / ')`));
+      console.log('online dot size:', await evaluate(`(() => { const d = document.querySelector('.farmers-dialog .online-avatar .online-dot'); if (!d) return 'none'; const r = d.getBoundingClientRect(); const cs = getComputedStyle(d); return Math.round(r.width) + 'x' + Math.round(r.height) + ' ' + cs.backgroundColor + ' border ' + cs.borderTopColor; })()`));
+      await screenshot('farmers-friends-online');
+      await evaluate(`document.querySelector('.farmers-dialog .info-close').click()`);
+      await sleep(400);
+    });
+    await step(`${a}: Arena list (friend first, Online)`, async () => {
+      await evaluate(`document.querySelector('.pin-arena').click()`);
+      await sleep(300);
+      if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      await waitFor(`!!document.querySelector('.arena-dialog .arena-list .farmer-row')`, 'Arena window');
+      await sleep(500);
+      console.log('arena rows:', await evaluate(`[...document.querySelectorAll('.arena-list .farmer-row')].slice(0, 4).map(r => r.querySelector('.farmer-name').innerText + ' [' + [...r.querySelectorAll('.tag')].map(t => t.innerText.trim()).join(', ') + ']' + (r.querySelector('.online-dot') ? ' dot' : '')).join(' | ')`));
+      await screenshot('arena-online');
+      await evaluate(`document.querySelector('.arena-dialog .info-close')?.click()`);
+      await sleep(300);
+      console.log(`${a}'s pings so far:`, await evaluate(`performance.getEntriesByType('resource').filter(e => e.name.includes('/api/ping')).length`));
+    });
+    await step(`${b}: notice "${a} added you as a friend" with Add back / Visit, Village dot`, async () => {
+      await signIn(b);
+      await waitFor(bodyHas('added you as a friend'), 'friend notice', 15000);
+      await sleep(400);
+      console.log('notice:', await evaluate(TOAST_CHECK), '| buttons:', await evaluate(`[...document.querySelectorAll('.toast-action')].map(x => x.innerText).join(' / ')`));
+      console.log('Village dot:', await evaluate(`[...document.querySelectorAll('.tab-village .tab-dot, .rail-village .rail-dot')].length > 0`));
+      await screenshot('notice-added-you');
+    });
+    await step(`${b}: Village Visitors row, then Add back`, async () => {
+      await evaluate(`document.querySelector('.toast-action') && document.querySelector('.toasts > .toast').click()`);
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-village').click()`);
+      else await evaluate(`(document.querySelector('.rail-village') ?? document.querySelector('.side-tabs .tab-village'))?.click()`);
+      await clickText('Skip tutorial');
+      await waitFor(`!!document.querySelector('.friend-add-row')`, 'friend row in Visitors');
+      await sleep(1000);
+      await evaluate(`document.querySelector('.friend-add-row').scrollIntoView({ block: 'center' })`);
+      await sleep(600);
+      console.log('row:', await evaluate(`document.querySelector('.friend-add-row').innerText.replace(/\\n/g, ' ')`));
+      await screenshot('village-friend-row');
+      await clickText('Add back', '.friend-add-row button');
+      await waitFor(`!!document.querySelector('.friend-add-row .friend-done')`, 'Friends ✓ in the row');
+      await sleep(400);
+      console.log('after Add back:', await evaluate(`document.querySelector('.friend-add-row').innerText.replace(/\\n/g, ' ')`));
+      await screenshot('village-friend-mutual');
+    });
+    await step(`${b} hides the tab: away (offline at once for ${a})`, async () => {
+      const before = (await call('GET', '/api/farmers', tokA)).body.friends.find((f) => f.name === b)?.online;
+      await evaluate(`Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange'))`);
+      await sleep(800);
+      const after = (await call('GET', '/api/farmers', tokA)).body.friends.find((f) => f.name === b)?.online;
+      const n0 = await evaluate(`performance.getEntriesByType('resource').filter(e => e.name.includes('/api/ping')).length`);
+      await sleep(1500);
+      const n1 = await evaluate(`performance.getEntriesByType('resource').filter(e => e.name.includes('/api/ping')).length`);
+      console.log(`${b} online for ${a}: before hide ${before}, after hide ${after} | pings while hidden: ${n1 - n0}`);
+    });
+    throw Object.assign(new Error('friends done'), { done: true });
   }
   if (name.startsWith('--visits2=')) {
     const [owner, prefix] = name.slice('--visits2='.length).split(':');

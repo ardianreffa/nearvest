@@ -18,6 +18,7 @@ import { PUBLIC_SITE } from './referral';
 import { postUrl } from './share';
 import { Panel } from './ui';
 import { MatchRow } from './arena-match';
+import { OnlineAvatar, OnlineTag } from './online';
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -102,15 +103,17 @@ export function ArenaWindow({
             <ul class="list farmer-list arena-list" aria-label="Farmers to challenge">
               {data.opponents.map((f) => (
                 <li key={f.name} class="farmer-row">
-                  <Avatar id={f.avatar} size={32} />
+                  <OnlineAvatar id={f.avatar} size={32} online={!!f.online} />
                   <span class="grow farmer-main">
                     <b class="farmer-name">{f.name}</b>
                     <span class="farmer-meta">
                       {f.title} · {f.trees} tree{f.trees === 1 ? '' : 's'}
                     </span>
-                    {f.judge && (
+                    {(f.judge || f.online || f.friend) && (
                       <span class="farmer-tags">
-                        <span class="tag tag-judge">Judge garden</span>
+                        {f.online && <OnlineTag />}
+                        {f.friend && <span class="tag tag-friend static">Friend</span>}
+                        {f.judge && <span class="tag tag-judge">Judge garden</span>}
                       </span>
                     )}
                   </span>

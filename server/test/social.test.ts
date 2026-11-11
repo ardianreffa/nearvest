@@ -84,7 +84,7 @@ describe('farmer list', () => {
     await garden(w, 'tono', { plant: false }); // no tree: not listed
     const list = social.farmers(me.id);
     assert.deepEqual(list.farmers.map((f) => f.name), ['budi']);
-    assert.deepEqual(Object.keys(list.farmers[0]).sort(), ['avatar', 'helpedYou', 'judge', 'name', 'thirsty', 'title', 'trees']);
+    assert.deepEqual(Object.keys(list.farmers[0]).sort(), ['avatar', 'friend', 'helpedYou', 'judge', 'name', 'online', 'thirsty', 'title', 'trees']);
     assert.equal(list.farmers[0].trees, 1);
     assert.equal(list.farmers[0].thirsty, 1);
     assertPublic(list.farmers);
@@ -643,6 +643,6 @@ describe('privacy of search, Visitors and wave back', () => {
     }
     assert.deepEqual(Object.keys(rows[0]).sort(), ['at', 'avatar', 'canWave', 'from', 'id', 'stickers', 'today', 'watered', 'wave']);
     assert.deepEqual(Object.keys(waves[0]).sort(), ['at', 'avatar', 'from', 'id', 'sticker', 'text']);
-    assert.deepEqual(Object.keys(search.farmers[0]).sort(), ['avatar', 'helpedYou', 'judge', 'name', 'thirsty', 'title', 'trees']);
+    assert.deepEqual(Object.keys(search.farmers[0]).sort(), ['avatar', 'friend', 'helpedYou', 'judge', 'name', 'online', 'thirsty', 'title', 'trees']);
   });
 });

@@ -13169,3 +13169,252 @@ html.duel-open .duel-bg .backdrop * {
     transition: none !important;
   }
 }
+
+/* ---------- Add friend + Online (friends.tsx, online.tsx; docs/PLAN-arena.md 7.11) ---------- */
+
+/* The Online dot: an 8 px mint square with an ink outline on the avatar's bottom-right corner. */
+.online-avatar {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.online-dot {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 8px;
+  height: 8px;
+  box-sizing: content-box;
+  background: var(--mint-500);
+  border: 2px solid var(--ink);
+}
+
+.online-dot.inline {
+  position: static;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-width: 1px;
+}
+
+.farmer-tags .tag.tag-online,
+.visitor-did .tag.tag-online,
+.visit-kicker .tag.tag-online {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  color: var(--mint-700);
+  background: var(--mint-300);
+  border: 2px solid currentColor;
+}
+
+.visit-kicker .tag.tag-online {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.visit-panel.bar .visit-kicker .tag.tag-online {
+  color: var(--ink);
+  background: var(--mint-500);
+}
+
+/* "Friends ✓" chip on a friend's row (tap = Remove friend?); "Friend" in the Arena list. */
+.farmer-tags .tag.tag-friend {
+  color: var(--gold-700);
+  background: var(--gold-300);
+  cursor: pointer;
+  min-height: 0;
+  line-height: 1.2;
+}
+
+.farmer-tags .tag.tag-friend.static {
+  cursor: default;
+}
+
+.farmer-tags .tag.tag-friend svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* Farmers of Tandur: Friends on top, then the other farmers, in one scroll area. */
+.farmer-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.farmer-section-title {
+  flex: none;
+  margin: 4px 0 0;
+  font-family: var(--font-title);
+  font-size: var(--fs-body);
+  text-transform: uppercase;
+  color: var(--leaf-700);
+}
+
+.farmer-section-max {
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+.info-body ul.farmer-sublist {
+  flex: none;
+}
+
+.info-body ul.farmer-sublist > li {
+  flex-shrink: 0;
+  padding-left: 8px;
+  clip-path: none;
+}
+
+.info-body ul.farmer-sublist > li::before {
+  content: none;
+}
+
+.list li.friend-row {
+  border-color: var(--mint-500);
+}
+
+.farmer-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.farmer-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.farmer-duel {
+  background: var(--purple-300);
+}
+
+/* The visit panel's Add friend button: next to Sticker and Duel, the same height. */
+.visit-friend {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  white-space: nowrap;
+  background: var(--cyan-300);
+}
+
+.visit-friend.is-friend {
+  background: var(--mint-300);
+}
+
+.visit-friend:disabled {
+  opacity: 0.8;
+  cursor: default;
+}
+
+@media (max-width: 1023px) {
+  /* Phones: name on its own row, then Sticker / Duel / Add friend / ← My garden in ONE row, equally
+     wide (4 x ~84 px at 390 px); small Tiny5 labels so nothing is cut. */
+  .visit-panel:not(.bar) .visit-friend {
+    flex: 1 1 0;
+    gap: 3px;
+    padding-left: 4px;
+    padding-right: 4px;
+    font-size: var(--fs-sm);
+  }
+
+  .visit-panel:not(.bar) .visit-head:has(.visit-friend) > .btn {
+    min-width: 0;
+    padding-left: 4px;
+    padding-right: 4px;
+    gap: 3px;
+    font-size: var(--fs-xs);
+  }
+}
+
+/* "Friends" in the Visitors box (already mutual). */
+.friend-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* A notice with buttons ("<name> added you as a friend" + Add back / Visit): two rows. */
+.toasts > .toast.toast-with-actions {
+  height: auto;
+  min-height: 30px;
+  flex-wrap: wrap;
+  padding: 7px 10px;
+  white-space: normal;
+  line-height: 1.3 !important;
+}
+
+.toasts > .toast.toast-with-actions .toast-text {
+  flex: 1 1 calc(100% - 32px);
+  overflow-wrap: anywhere;
+}
+
+.toast-actions {
+  flex: 1 1 100%;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.toasts > .toast .toast-action {
+  min-height: 32px;
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: var(--paper-light);
+}
+
+.toasts > .toast .toast-action:first-child {
+  background: var(--mint-500);
+}
+
+.btn.btn-red {
+  color: var(--paper-light);
+  background: var(--red-500);
+}
+
+/* Icons never shrink inside the narrow phone buttons. */
+.visit-friend svg,
+.farmer-add svg {
+  flex: none;
+}
+
+/* A notice with buttons is read and tapped: a solid box (nothing of the village shows through). */
+.toasts > .toast.toast-with-actions {
+  background: var(--ink);
+}
+
+.toasts > .toast.toast-with-actions {
+  align-content: flex-start;
+  row-gap: 6px;
+}
+
+/* Notice buttons: one fixed height on every screen (no empty strip under them). */
+.toasts > .toast .toast-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  min-height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 1;
+}
+
+.toast-actions {
+  align-items: center;
+}
+

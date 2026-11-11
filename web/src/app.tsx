@@ -22,7 +22,9 @@ import { receivedNotice } from './arena-play';
 import { matchNotice } from './arena-turn';
 import { MatchScreen } from './arena-match';
 import { overlayKey } from './overlay-key';
-import { FarmersWindow, VisitGarden } from './friends';
+import { FarmersWindow, friendCall, VisitGarden } from './friends';
+import { friendAddNotice } from './friends-logic';
+import { usePresence } from './presence';
 import { SPECIES_NAME as SPECIES_LABEL } from './ui';
 import { burnAt, coinsToBalance, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
@@ -153,6 +155,9 @@ export function App() {
   /** While a duel plays, a new title's moment (banner, TaniBot evolving) waits until it closes. */
   const duelOnScreen = useRef(false);
   const afterDuel = useRef<(() => void)[]>([]);
+  /** Notice buttons ("Add back" / "Visit") run later, after a re-render: they call through these. */
+  const visitRef = useRef<(name: string) => void>(() => undefined);
+  const addBackRef = useRef<(name: string) => void>(() => undefined);
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
@@ -277,6 +282,31 @@ export function App() {
                 text: fresh.length === 1 ? `${first.from} waved back: "${first.text}"` : `${fresh.length} farmers waved back. See them in the Village tab.`,
               }),
             2100,
+          );
+        }
+      }
+      // Add friend: gardens that added us (one notice since we last looked, with Add back / Visit).
+      if (s.friendAdds?.length) {
+        const key = `nearvest.friendAddsSeen.${s.player.accountId}`;
+        const { fresh, seen } = freshIds(s.friendAdds.map((x) => x.id), seenOf(key));
+        if (fresh.length) {
+          setSeen(key, seen);
+          const rows = s.friendAdds.filter((x) => fresh.includes(x.id));
+          const one = rows.length === 1 ? rows[0] : null;
+          window.setTimeout(
+            () =>
+              toast({
+                kind: 'success',
+                long: true,
+                text: friendAddNotice(rows) + (one ? '' : '. See them in the Village tab.'),
+                actions: one
+                  ? [
+                      ...(one.mutual ? [] : [{ label: 'Add back', run: () => addBackRef.current(one.from) }]),
+                      { label: 'Visit', run: () => visitRef.current(one.from) },
+                    ]
+                  : undefined,
+              }),
+            2200,
           );
         }
       }
@@ -457,6 +487,9 @@ export function App() {
       })
       .catch((e: Error) => setFatal(e.message));
   }, [applyState]);
+
+  // Online dot: a tiny ping every 30 s while this tab is visible (servers with `state.friends` only).
+  usePresence(phase === 'play' ? state?.friends?.pingMs : null);
 
   // Poll faster while transactions are on their way.
   const pending = state?.activity.some((a) => a.status === 'pending') ?? false;
@@ -915,6 +948,20 @@ export function App() {
     setVisiting(name);
     if (!wide) setTab('garden');
   };
+  visitRef.current = startVisit;
+  /** "Add back" (notice and Village tab): add a garden that added us. */
+  const addBack = async (name: string) => {
+    try {
+      const r = await friendCall(name, true);
+      applyState(r.state);
+      playSound('click');
+      toast({ kind: 'success', text: `${name} is now your friend.` });
+    } catch (e) {
+      playSound('error');
+      toast({ kind: 'error', text: e instanceof Error ? e.message : String(e) });
+    }
+  };
+  addBackRef.current = (name) => void addBack(name);
   const view = visiting ? (
     <VisitGarden
       key={visiting}
@@ -950,7 +997,7 @@ export function App() {
             {state.referral && <InvitePanel state={state} notify={toast} onVisit={Array.isArray(state.helps) ? startVisit : undefined} />}
             {state.arena && <ArenaPanel state={state} onOpen={() => setArenaOpen(true)} onReplay={showDuel} />}
             {(state.visitors || state.stickers) && (
-              <VisitorsPanel state={state} onState={applyState} notify={toast} onVisit={Array.isArray(state.helps) ? startVisit : undefined} />
+              <VisitorsPanel state={state} onState={applyState} notify={toast} onVisit={Array.isArray(state.helps) ? startVisit : undefined} onAddBack={addBack} />
             )}
           </>
         }
@@ -1154,7 +1201,9 @@ export function App() {
       <ToastStrip shown={toastShown} dismiss={dismissToast} setHidden={setToastHidden} />
       {dialogView}
       {infoView}
-      {farmersOpen && <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} />}
+      {farmersOpen && (
+        <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} onDuel={state.arena ? startDuel : undefined} onState={applyState} notify={toast} />
+      )}
       {arenaOpen && state.arena && <ArenaWindow state={state} busy={duelBusy} onClose={() => setArenaOpen(false)} onDuel={startDuel} onReplay={showDuel} onResume={resumeMatch} />}
       {duel && <DuelScreen key={overlayKey('duel', duel.id)} duel={duel} wide={wide} activity={state.activity} season={state.season} onClose={closeDuel} />}
       {match && (

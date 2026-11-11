@@ -101,6 +101,22 @@ export const STICKER_COOLDOWN_MS = 5000;
 export const VISITORS_SHOWN = 10;
 /** Farmer search: names starting with this many characters at most (longer queries are cut). */
 export const FARMER_SEARCH_MAX = 32;
+
+// ---------- Friends and Online (docs/PLAN-arena.md 7.11, Ardian 2026-11-11) ----------
+/** Add friend is one way (no accept): at most this many friends per garden... */
+export const FRIENDS_MAX = 50;
+/** ...and at most this many adds per village day (removing does not give one back), so nobody spams notices. */
+export const FRIENDS_ADDS_PER_DAY = 20;
+/** A garden is "Online" when its web sent a sign of life (POST /api/ping) this recently. */
+export const ONLINE_MS = 60_000;
+/** The web pings this often while its tab is visible (sent to the web in `state.friends.pingMs`). */
+export const PING_MS = 30_000;
+/** The ping writes `players.active_at` at most this often (the web pings every 30 s while visible). */
+export const ACTIVE_WRITE_MS = 20_000;
+/** Is a garden online now? (its visible game tab pinged in the last minute) */
+export const isOnline = (activeAt: number | null | undefined, now: number) => !!activeAt && now - activeAt < ONLINE_MS;
+/** Village tab: this many "added you as a friend" rows (newest first). */
+export const FRIEND_ADDS_SHOWN = 10;
 /** Referral: the inviter gets this (mint_reward, the Season rule applies) after the friend's first harvest... */
 export const REF_REWARD_REFERRER = 20;
 /** ...and the friend gets this (exact mint, like the welcome pack). */

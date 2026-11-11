@@ -47,6 +47,12 @@ import {
   STICKERS,
   STICKERS_SHOWN,
   VISITORS_SHOWN,
+  FRIEND_ADDS_SHOWN,
+  FRIENDS_ADDS_PER_DAY,
+  FRIENDS_MAX,
+  isOnline,
+  ONLINE_MS,
+  PING_MS,
   WATER_DAYS,
   WELCOME_PACKS_PER_IP_PER_DAY,
   WELCOME_PANEN,
@@ -126,6 +132,10 @@ export interface PlayerRow {
   streak: number;
   first_tree_planted: number;
   created_at: number;
+  /** Last time in the game (at most every 10 minutes; the farmer list). */
+  last_seen_at?: number | null;
+  /** Last sign of life from a visible game tab (POST /api/ping; the Online dot). 0 = never. */
+  active_at?: number;
 }
 
 export interface SeedView {
@@ -679,7 +689,12 @@ export class Game {
     const paidAt = at("SELECT max(paid_at) AS at FROM referrals WHERE (referrer_id = ? OR friend_id = ?) AND status = 'paid'", playerId, playerId);
     const seen = this.db.prepare('SELECT village_seen_at AS at FROM players WHERE id = ?').get(playerId) as { at: number };
     const duelAt = arenaNewsAt(this.db, playerId);
-    return { latestAt: Math.max(visitAt, stickerAt, helpAt, waveAt, paidAt, duelAt), waveAt, seenAt: seen.at };
+    // Add friend (2026-11-11): the first add of a pair notifies (only while that friendship stands).
+    const friendAt = at(
+      'SELECT max(a.created_at) AS at FROM friend_adds a JOIN friends f ON f.player_id = a.player_id AND f.friend_id = a.friend_id WHERE a.friend_id = ? AND a.notify = 1',
+      playerId,
+    );
+    return { latestAt: Math.max(visitAt, stickerAt, helpAt, waveAt, paidAt, duelAt, friendAt), waveAt, seenAt: seen.at };
   }
 
   /** The owner saw the Visitors / Invite boxes up to `upTo` (the newest event their screen showed). */
@@ -705,6 +720,34 @@ export class Game {
   marketSeen(playerId: number, upTo: unknown): void {
     const t = Math.min(Number(upTo) || 0, this.d.now());
     if (t > 0) this.db.prepare('UPDATE players SET market_seen_at = ? WHERE id = ? AND market_seen_at < ?').run(t, playerId, t);
+  }
+
+  /**
+   * "<name> added you as a friend" (Village tab + notice; newest first, last 10): only the first
+   * add of a pair notifies, and only while that garden still has you as a friend. `mutual` = you
+   * added them too (no "Add back"); `online` = their game tab is open now. Public data only.
+   */
+  friendAddsReceived(playerId: number) {
+    const now = this.d.now();
+    return (
+      this.db
+        .prepare(
+          `SELECT a.id, a.created_at AS at, p.name AS "from", p.avatar, p.xp, p.active_at,
+             EXISTS (SELECT 1 FROM friends m WHERE m.player_id = a.friend_id AND m.friend_id = a.player_id) AS mutual
+           FROM friend_adds a JOIN friends f ON f.player_id = a.player_id AND f.friend_id = a.friend_id
+             JOIN players p ON p.id = a.player_id
+           WHERE a.friend_id = ? AND a.notify = 1 ORDER BY a.created_at DESC, a.id DESC LIMIT ?`,
+        )
+        .all(playerId, FRIEND_ADDS_SHOWN) as unknown as { id: number; at: number; from: string; avatar: string; xp: number; active_at: number; mutual: number }[]
+    ).map((r) => ({ id: r.id, from: r.from, avatar: r.avatar, title: titleFor(r.xp), at: r.at, mutual: r.mutual === 1, online: isOnline(r.active_at, now) }));
+  }
+
+  /** Add friend on this server: how many friends, adds left today, the limits (the web shows Add friend only when present). */
+  friendSummary(playerId: number) {
+    const day = dayIndex(this.d.now(), false);
+    const count = (this.db.prepare('SELECT count(*) AS n FROM friends WHERE player_id = ?').get(playerId) as { n: number }).n;
+    const adds = (this.db.prepare('SELECT count(*) AS n FROM friend_adds WHERE player_id = ? AND add_day = ?').get(playerId, day) as { n: number }).n;
+    return { count, max: FRIENDS_MAX, addsLeft: Math.max(0, FRIENDS_ADDS_PER_DAY - adds), addsPerDay: FRIENDS_ADDS_PER_DAY, onlineMs: ONLINE_MS, pingMs: PING_MS };
   }
 
   /** Waves back the visitor got from gardens they visited (newest first, last 10). */
@@ -1650,6 +1693,9 @@ export class Game {
       waves: this.wavesReceived(p.id),
       /** Invite a friend: rewards, friends invited and their status, who invited this garden. */
       referral: this.referralView(p, signIn === 'judge'),
+      /** Add friend + Online (2026-11-11): the limits, and who added this garden (Village tab + notice). */
+      friends: this.friendSummary(p.id),
+      friendAdds: this.friendAddsReceived(p.id),
       /** Red dots: the newest Village events and what the owner has seen (all devices). */
       news: this.villageNews(p.id),
       /** Red dot on the Market tab: fruit added since the owner last opened the Market. */

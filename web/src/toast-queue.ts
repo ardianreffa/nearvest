@@ -15,6 +15,8 @@ export interface Toast {
   link?: string;
   /** Stays as long as an alert and is never lost (news the player should not miss). */
   long?: boolean;
+  /** Buttons on the notice (e.g. "Add back" / "Visit"); a tap runs one and closes the notice. */
+  actions?: { label: string; run: () => void }[];
 }
 
 export interface Shown {

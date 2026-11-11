@@ -265,7 +265,7 @@ export class Arena {
   }
 
   /** The Arena window: duels left, prize, opponents (the Farmers of Tandur rows with a tree) and recent duels. */
-  view(viewerId: number, farmers: { name: string; avatar: string; title: string; trees: number; judge: boolean }[]) {
+  view(viewerId: number, farmers: { name: string; avatar: string; title: string; trees: number; judge: boolean; friend?: boolean; online?: boolean }[]) {
     const me = this.game.getPlayer(viewerId);
     const mine = this.side(me);
     const left = Math.max(0, ARENA_DUELS_PER_DAY - duelsToday(this.db, viewerId, this.now()));
@@ -286,7 +286,17 @@ export class Arena {
       you: mine,
       opponents: farmers
         .filter((f) => f.trees > 0)
-        .map((f) => ({ name: f.name, avatar: f.avatar, title: f.title, trees: f.trees, judge: f.judge, dueledToday: dueled.has(ids.get(f.name) ?? -1) })),
+        .map((f) => ({
+          name: f.name,
+          avatar: f.avatar,
+          title: f.title,
+          trees: f.trees,
+          judge: f.judge,
+          dueledToday: dueled.has(ids.get(f.name) ?? -1),
+          // Add friend + Online (2026-11-11; older webs ignore them).
+          friend: !!f.friend,
+          online: !!f.online,
+        })),
       recent: this.recent(viewerId),
     };
   }

@@ -12,15 +12,21 @@ import { dayIndex } from './clock.ts';
 import { tx, type DB } from './db.ts';
 import { GameError, type Game, type PlayerRow } from './game.ts';
 import {
+  ACTIVE_WRITE_MS,
   DEMO_XP_MULTIPLIER,
   FARMER_ACTIVE_DAYS,
   FARMER_LIST_MAX,
   FARMER_LIST_MIN,
   FARMER_SEARCH_MAX,
+  FRIEND_ADDS_SHOWN,
+  FRIENDS_ADDS_PER_DAY,
+  FRIENDS_MAX,
   HELP_MIN_GARDEN_AGE_MS,
   HELP_OWNER_XP_PER_DAY,
   HELP_XP_HELPER,
   HELP_XP_OWNER,
+  isOnline,
+  ONLINE_MS,
   STICKER_COOLDOWN_MS,
   STICKERS,
   STICKERS_PER_DAY,
@@ -44,6 +50,10 @@ export interface FarmerRow {
   helpedYou: boolean;
   /** A Try as Judge garden (only shown while there are fewer than 5 other farmers). */
   judge: boolean;
+  /** The viewer added this garden as a friend (servers from 2026-11-11 on). */
+  friend: boolean;
+  /** Its game tab sent a sign of life in the last minute (POST /api/ping). */
+  online: boolean;
 }
 
 interface Candidate {
@@ -89,7 +99,10 @@ export class Social {
    */
   farmers(viewerId: number, query?: unknown) {
     const q = typeof query === 'string' ? query.trim().toLowerCase().slice(0, FARMER_SEARCH_MAX) : '';
-    if (q) return { ...this.search(viewerId, q), helpedToday: this.helpedToday(viewerId), help: this.helpRules(viewerId) };
+    const friendIds = this.friendIds(viewerId);
+    const friends = this.friendRows(viewerId);
+    const limits = this.myFriends(viewerId, friends.length);
+    if (q) return { ...this.search(viewerId, q, friendIds), friends, myFriends: limits, helpedToday: this.helpedToday(viewerId), help: this.helpRules(viewerId) };
     const now = this.now();
     const rows = (judge: boolean, limit: number, activeSince: number | null) =>
       (
@@ -118,11 +131,19 @@ export class Social {
     );
     const farmers = list
       .map((c) => ({ c, thirsty: this.game.thirstyTrees(c.row), helpedAt: helpers.get(c.row.id) ?? 0 }))
-      // Judge gardens only fill the list: after the real farmers.
-      .sort((a, b) => b.helpedAt - a.helpedAt || Number(a.c.judge) - Number(b.c.judge) || Number(b.thirsty > 0) - Number(a.thirsty > 0) || b.c.seen - a.c.seen)
+      .map((x) => ({ ...x, online: isOnline(x.c.row.active_at, now) }))
+      // Judge gardens only fill the list: after the real farmers. Online farmers first among the rest.
+      .sort(
+        (a, b) =>
+          b.helpedAt - a.helpedAt ||
+          Number(a.c.judge) - Number(b.c.judge) ||
+          Number(b.online) - Number(a.online) ||
+          Number(b.thirsty > 0) - Number(a.thirsty > 0) ||
+          b.c.seen - a.c.seen,
+      )
       .slice(0, FARMER_LIST_MAX)
       .map(
-        ({ c, thirsty, helpedAt }): FarmerRow => ({
+        ({ c, thirsty, helpedAt, online }): FarmerRow => ({
           name: c.row.name,
           avatar: c.row.avatar,
           title: titleFor(c.row.xp),
@@ -130,9 +151,13 @@ export class Social {
           thirsty,
           helpedYou: helpedAt > 0,
           judge: c.judge,
+          friend: friendIds.has(c.row.id),
+          online,
         }),
       );
-    return { farmers, query: null as string | null, helpedToday: this.helpedToday(viewerId), help: this.helpRules(viewerId) };
+    // `farmers` keeps friends too (older webs know only this list); new webs show `friends` on top
+    // and leave them out below.
+    return { farmers, friends, myFriends: limits, query: null as string | null, helpedToday: this.helpedToday(viewerId), help: this.helpRules(viewerId) };
   }
 
   /**
@@ -140,7 +165,7 @@ export class Social {
    * gardens without trees or not active lately), never judge gardens, never the viewer. Exact
    * name first, then the most recently active. Public data only (the same rows as the list).
    */
-  private search(viewerId: number, q: string): { farmers: FarmerRow[]; query: string | null } {
+  private search(viewerId: number, q: string, friendIds: Set<number>): { farmers: FarmerRow[]; query: string | null } {
     const rows = this.db
       .prepare(
         `SELECT p.*, COALESCE(p.last_seen_at, p.created_at) AS seen,
@@ -165,6 +190,8 @@ export class Social {
         thirsty: this.game.thirstyTrees(r),
         helpedYou: helped.has(r.id),
         judge: false,
+        friend: friendIds.has(r.id),
+        online: isOnline(r.active_at, this.now()),
       })),
     };
   }
@@ -200,6 +227,10 @@ export class Social {
     return {
       garden: this.game.publicGarden(owner),
       own,
+      /** Add friend (servers from 2026-11-11 on): the viewer added this garden; it is online now. */
+      friend: !own && this.isFriend(viewerId, owner.id),
+      online: isOnline(owner.active_at, this.now()),
+      myFriends: this.myFriends(viewerId),
       helpedToday: this.helpedToday(viewerId),
       help: this.helpRules(viewerId),
       /** Template stickers a visitor can leave. */
@@ -313,5 +344,108 @@ export class Social {
         titleUp: titleAfter !== titleBefore ? titleAfter : null,
       };
     });
+  }
+
+  // ---------- Friends and Online (docs/PLAN-arena.md 7.11) ----------
+
+  /**
+   * A sign of life from a visible game tab (the web pings every 30 s while the tab is visible).
+   * Writes `active_at` at most every 20 s, so pings cost almost no disk writes. `away` = the tab
+   * was hidden or closed: the garden shows offline at once.
+   */
+  ping(playerId: number, away = false): { online: boolean; onlineMs: number } {
+    const now = this.now();
+    if (away) this.db.prepare('UPDATE players SET active_at = 0 WHERE id = ?').run(playerId);
+    else this.db.prepare('UPDATE players SET active_at = ? WHERE id = ? AND active_at < ?').run(now, playerId, now - ACTIVE_WRITE_MS);
+    return { online: !away, onlineMs: ONLINE_MS };
+  }
+
+  private friendIds(viewerId: number): Set<number> {
+    return new Set((this.db.prepare('SELECT friend_id AS id FROM friends WHERE player_id = ?').all(viewerId) as { id: number }[]).map((r) => r.id));
+  }
+
+  private isFriend(viewerId: number, otherId: number): boolean {
+    return !!this.db.prepare('SELECT 1 FROM friends WHERE player_id = ? AND friend_id = ?').get(viewerId, otherId);
+  }
+
+  private addsToday(viewerId: number): number {
+    return (this.db.prepare('SELECT count(*) AS n FROM friend_adds WHERE player_id = ? AND add_day = ?').get(viewerId, this.helpDay()) as { n: number }).n;
+  }
+
+  /** How many friends the viewer has, adds left today and the limits (shown by the web). */
+  myFriends(viewerId: number, count?: number) {
+    const n = count ?? (this.db.prepare('SELECT count(*) AS n FROM friends WHERE player_id = ?').get(viewerId) as { n: number }).n;
+    return { count: n, max: FRIENDS_MAX, addsLeft: Math.max(0, FRIENDS_ADDS_PER_DAY - this.addsToday(viewerId)), addsPerDay: FRIENDS_ADDS_PER_DAY };
+  }
+
+  /**
+   * The viewer's friends (public data only, the same fields as a farmer row): online first, then
+   * the most recently active. Every friend shows, also without a tree or not active lately.
+   */
+  friendRows(viewerId: number): FarmerRow[] {
+    const now = this.now();
+    const rows = this.db
+      .prepare(
+        `SELECT p.*, u.provider = 'judge' AS is_judge,
+           (SELECT count(*) FROM trees t WHERE t.player_id = p.id AND t.status = 'alive' AND t.plot IS NOT NULL) AS tree_count
+         FROM friends f JOIN players p ON p.id = f.friend_id JOIN users u ON u.id = p.user_id
+         WHERE f.player_id = ? AND p.account_status = 'ready'`,
+      )
+      .all(viewerId) as unknown as (PlayerRow & { is_judge: number; tree_count: number })[];
+    const helped = new Set(
+      (this.db.prepare('SELECT DISTINCT helper_id FROM garden_help WHERE owner_id = ? AND created_at > ?').all(viewerId, now - HELPED_YOU_MS) as { helper_id: number }[]).map(
+        (h) => h.helper_id,
+      ),
+    );
+    return rows
+      .map((r) => ({ r, online: isOnline(r.active_at, now), seen: Math.max(r.active_at ?? 0, r.last_seen_at ?? r.created_at) }))
+      .sort((a, b) => Number(b.online) - Number(a.online) || b.seen - a.seen || a.r.name.localeCompare(b.r.name))
+      .map(({ r, online }) => ({
+        name: r.name,
+        avatar: r.avatar,
+        title: titleFor(r.xp),
+        trees: r.tree_count,
+        thirsty: this.game.thirstyTrees(r),
+        helpedYou: helped.has(r.id),
+        judge: r.is_judge === 1,
+        friend: true,
+        online,
+      }));
+  }
+
+  /**
+   * Add friend: one way, no accept needed. At most 50 friends and 20 adds per village day (a
+   * remove does not give an add back), never yourself. Judge gardens can add and be added. The
+   * added garden gets one notice per pair ever (add, remove, add again does not notify twice).
+   * Adding a friend you already have changes nothing.
+   */
+  addFriend(viewerId: number, name: string) {
+    return tx(this.db, () => {
+      const me = this.game.getPlayer(viewerId);
+      const them = this.game.getPlayerByName(String(name).toLowerCase());
+      if (!them || them.account_status !== 'ready') throw new GameError('Garden not found', 404);
+      if (them.id === me.id) throw new GameError('You cannot add your own garden as a friend.', 400, { code: 'own_garden' });
+      if (this.isFriend(me.id, them.id)) return { friend: them.name, added: false, myFriends: this.myFriends(me.id) };
+      const limits = this.myFriends(me.id);
+      if (limits.count >= FRIENDS_MAX)
+        throw new GameError(`You have ${FRIENDS_MAX} friends, the most a garden can have. Remove one to add ${them.name}.`, 409, { code: 'friends_full' });
+      if (limits.addsLeft <= 0)
+        throw new GameError(`You added ${FRIENDS_ADDS_PER_DAY} friends today. Add more tomorrow!`, 429, { code: 'friend_adds_today' });
+      const now = this.now();
+      const before = this.db.prepare('SELECT 1 FROM friend_adds WHERE player_id = ? AND friend_id = ? AND notify = 1').get(me.id, them.id);
+      this.db.prepare('INSERT INTO friends (player_id, friend_id, created_at) VALUES (?, ?, ?)').run(me.id, them.id, now);
+      this.db
+        .prepare('INSERT INTO friend_adds (player_id, friend_id, add_day, notify, created_at) VALUES (?, ?, ?, ?, ?)')
+        .run(me.id, them.id, this.helpDay(), before ? 0 : 1, now);
+      return { friend: them.name, added: true, myFriends: this.myFriends(me.id) };
+    });
+  }
+
+  /** Remove friend: no notice to the other garden. Removing a garden that is not a friend changes nothing. */
+  removeFriend(viewerId: number, name: string) {
+    const them = this.game.getPlayerByName(String(name).toLowerCase());
+    if (!them) throw new GameError('Garden not found', 404);
+    const r = this.db.prepare('DELETE FROM friends WHERE player_id = ? AND friend_id = ?').run(viewerId, them.id);
+    return { friend: them.name, removed: Number(r.changes) > 0, myFriends: this.myFriends(viewerId) };
   }
 }

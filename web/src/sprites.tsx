@@ -326,6 +326,25 @@ export const UI_ICONS = {
     '.KKKKKKKKKK.....',
     '................',
   ],
+  // Add friend: a farmer's head and shoulders (paper face, ink outline) and a mint "+" at the top right.
+  friendAdd: [
+    '................',
+    '...........MM...',
+    '....KKKK...MM...',
+    '...KPPPPK.MMMMM.',
+    '..KPPPPPPKMMMMM.',
+    '..KPKPPKPK.MM...',
+    '..KPPPPPPK.MM...',
+    '..KPPKKPPK......',
+    '...KPPPPK.......',
+    '....KKKK........',
+    '..KKCCCCKK......',
+    '.KCCCCCCCCK.....',
+    '.KCCCCCCCCK.....',
+    '.KCCCCCCCCK.....',
+    '.KKKKKKKKKK.....',
+    '................',
+  ],
   // A check mark ("Sent").
   check: [
     '................',

@@ -77,7 +77,7 @@ export function ToastStrip({ shown, dismiss, setHidden }: { shown: Shown | null;
   useLayoutEffect(() => {
     if (!shown) return;
     const update = () => setPos((p) => {
-      const next = placeStrip(el.current?.offsetHeight || 30, !!shown && isAlert(shown.toast.kind));
+      const next = placeStrip(el.current?.offsetHeight || 30, !!shown && (isAlert(shown.toast.kind) || !!shown.toast.actions?.length));
       return p && next && p.top === next.top && p.left === next.left && p.width === next.width ? p : next;
     });
     update();
@@ -114,6 +114,23 @@ export function ToastStrip({ shown, dismiss, setHidden }: { shown: Shown | null;
           ×
         </span>
       )}
+      {t.actions?.length ? (
+        <span class="toast-actions">
+          {t.actions.map((a) => (
+            <button
+              key={a.label}
+              class="btn btn-small toast-action"
+              onClick={(e) => {
+                e.stopPropagation();
+                dismiss();
+                a.run();
+              }}
+            >
+              {a.label}
+            </button>
+          ))}
+        </span>
+      ) : null}
     </>
   );
   const style = pos ? { top: `${pos.top}px`, left: `${pos.left}px`, width: `${pos.width}px` } : { visibility: 'hidden' as const, top: '0px', left: '0px' };
@@ -127,7 +144,7 @@ export function ToastStrip({ shown, dismiss, setHidden }: { shown: Shown | null;
         <div
           ref={el}
           key={t.id}
-          class={`toast toast-${t.kind}${isAlert(t.kind) ? ' toast-alert' : ''}`}
+          class={`toast toast-${t.kind}${isAlert(t.kind) ? ' toast-alert' : ''}${t.actions?.length ? ' toast-with-actions' : ''}`}
           style={style}
           onClick={dismiss}
           role={isAlert(t.kind) ? 'alert' : undefined}

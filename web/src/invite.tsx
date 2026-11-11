@@ -8,13 +8,14 @@
 
 import { createPortal } from 'preact/compat';
 import { useEffect, useState } from 'preact/hooks';
-import { api, type GameState, type ReferralView, type Species, type StickerKind, type StickerView, type VisitorView, type VisitResponse, type WaveView } from './api';
+import { api, type FriendAddView, type GameState, type ReferralView, type Species, type StickerKind, type StickerView, type VisitorView, type VisitResponse, type WaveView } from './api';
 import { Avatar } from './art/avatars';
 import { playSound } from './audio';
 import { Modal } from './help';
+import { OnlineAvatar, OnlineTag } from './online';
 import { inviteLink, inviteOrigin, invitePost, stickerWaitS } from './referral';
 import { postUrl } from './share';
-import { Sprite, type SpriteName } from './sprites';
+import { Sprite, UiIcon, type SpriteName } from './sprites';
 import type { Toast } from './toast';
 import { formatPanen, Panel } from './ui';
 
@@ -176,19 +177,33 @@ export function VisitorsPanel({
   onState,
   notify,
   onVisit,
+  onAddBack,
 }: {
   state: GameState;
   onState: (s: GameState) => void;
   notify: Notify;
   onVisit?: (name: string) => void;
+  /** Add friend (servers from 2026-11-11 on): add back a garden that added you. */
+  onAddBack?: (name: string) => Promise<void>;
 }) {
   const [waving, setWaving] = useState<VisitorView | null>(null);
+  const [adding, setAdding] = useState<string | null>(null);
   if (!state.visitors) return <StickerList stickers={state.stickers ?? []} />;
-  type Row = { kind: 'visit'; at: number; v: VisitorView } | { kind: 'wave'; at: number; w: WaveView };
+  type Row = { kind: 'visit'; at: number; v: VisitorView } | { kind: 'wave'; at: number; w: WaveView } | { kind: 'friend'; at: number; f: FriendAddView };
   const rows: Row[] = [
     ...state.visitors.map((v): Row => ({ kind: 'visit', at: v.at, v })),
     ...(state.waves ?? []).map((w): Row => ({ kind: 'wave', at: w.at, w })),
+    ...(state.friendAdds ?? []).map((f): Row => ({ kind: 'friend', at: f.at, f })),
   ].sort((a, b) => b.at - a.at);
+  const addBack = async (name: string) => {
+    if (!onAddBack || adding) return;
+    setAdding(name);
+    try {
+      await onAddBack(name);
+    } finally {
+      setAdding(null);
+    }
+  };
   return (
     <Panel title="Visitors" class="visitors-panel">
       {rows.length === 0 ? (
@@ -196,7 +211,38 @@ export function VisitorsPanel({
       ) : (
         <ul class="list visitor-list" aria-label="Visitors and waves back">
           {rows.map((r) =>
-            r.kind === 'visit' ? (
+            r.kind === 'friend' ? (
+              <li key={`f${r.f.id}`} class="visitor-row friend-add-row">
+                <OnlineAvatar id={r.f.avatar} size={32} online={r.f.online} />
+                <span class="grow visitor-main">
+                  <span class="visitor-line">
+                    <b>{r.f.from}</b> added you as a friend · {whenText(r.f.at)}
+                  </span>
+                  <span class="visitor-did">
+                    <span class="visitor-sticker">{r.f.title}</span>
+                    {r.f.online && <OnlineTag />}
+                  </span>
+                </span>
+                <span class="visitor-actions">
+                  {r.f.mutual ? (
+                    <button class="btn btn-small visitor-wave waved friend-done" disabled aria-label={`${r.f.from} is your friend`}>
+                      Friends <UiIcon name="check" />
+                    </button>
+                  ) : (
+                    onAddBack && (
+                      <button class="btn btn-small btn-gold visitor-wave" disabled={!!adding} onClick={() => void addBack(r.f.from)}>
+                        {adding === r.f.from ? 'Adding...' : 'Add back'}
+                      </button>
+                    )
+                  )}
+                  {onVisit && (
+                    <button class="btn btn-small btn-mint visitor-visit" onClick={() => (playSound('click'), onVisit(r.f.from))} aria-label={`Visit ${r.f.from}'s garden`}>
+                      Visit
+                    </button>
+                  )}
+                </span>
+              </li>
+            ) : r.kind === 'visit' ? (
               <li key={`v${r.v.id}`} class="visitor-row">
                 <Avatar id={r.v.avatar} size={32} />
                 <span class="grow visitor-main">

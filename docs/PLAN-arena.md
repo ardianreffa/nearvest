@@ -1,6 +1,6 @@
 # Plan: Arena 1 VS 1 (simple, not real-time)
 
-Status: **Arena v1 live 2026-11-11 (`nearvest-e8312ea`). Arena v2 lite BUILT 2026-11-11 (local commit, not released; section 7.7). v3 (online, Add friend) = plan only (section 7).** v1 was built 2026-11-11. Server `server/src/arena.ts`
+Status: **Arena v1 live 2026-11-11 (`nearvest-e8312ea`). Arena v2 lite live 2026-11-11 (`nearvest-edfb355`; section 7.7). v3 part 1 = Add friend + Online dot BUILT 2026-11-11 (local, not released; section 7.11). The online duel (v3 part 2) is NOT built.** v1 was built 2026-11-11. Server `server/src/arena.ts`
 (table `arena_duels`, `GET /api/arena`, `GET /api/arena/can/:name`, `POST /api/arena/duel`, `state.arena`, Village news,
 log note 'arena'), tests `server/test/arena.test.ts` (13); web `web/src/arena.tsx` + `arena-play.ts` (Arena window from
 the pin, duel screen, Village "Arena" box, Duel button in the visit panel, notice for received duels), tests
@@ -686,3 +686,66 @@ Gunung Tandur behind; one picture per light (day / dusk / night) for laptops (48
 - Checks: Gold Durian 59 fps in headless Chrome at 390x844; `--match` at both sizes day / dusk /
   night (ui-test logs `covers`, the ring row, the feet and the visible picture); `--oldserver` on
   `nearvest-e8312ea`: the v1 duel. No server or database change.
+
+
+### 7.11 Built: Add friend + Online dot (v3 part 1; Ardian 2026-11-11, local, NOT released; VPS untouched)
+
+Ardian's brief: Add friend and the Online dot now; **the online duel is NOT built** (sections 7.2 "Challenge
+an online player", live turns, invites and the waiting screen stay plan only).
+
+**Rules** (`server/src/rules.ts`): one-way friends, no accept. `FRIENDS_MAX` 50 friends per garden,
+`FRIENDS_ADDS_PER_DAY` 20 adds per normal village day (a remove gives none back; adding a friend you
+already have uses none), never yourself (400 `own_garden`), full = 409 `friends_full`, too many today =
+429 `friend_adds_today`. Judge gardens can add and be added. The added garden gets **one notice per pair
+ever** (add, remove, add again does not notify twice); a remove sends no notice and hides the old
+"added you" row. Online = a ping in the last `ONLINE_MS` 60 s.
+
+**Light sign of life (VPS ~1 GB free, Entropy safe):** the web sends `POST /api/ping` every **30 s**
+(`PING_MS`, sent to the web as `state.friends.pingMs`) **only while the game tab is visible**; when the
+tab is hidden or closed it sends `{ away: true }` once (fetch keepalive) and stops, so the dot goes out
+at once. No WebSocket, no Server-Sent Events, no open connection. The server writes `players.active_at`
+at most every 20 s (`ACTIVE_WRITE_MS`): one indexed UPDATE, no read of the game state. (Section 7.2's 4 s
+ping was for the online duel's invites; 30 s is enough for a dot.)
+
+**Server** (`server/src/social.ts`, `game.ts`, `app.ts`, `db.ts`):
+- New tables only + one column with DEFAULT: `friends (player_id, friend_id, created_at)` (who added
+  whom), `friend_adds (id, player_id, friend_id, add_day, notify, created_at)` (every add: the daily
+  limit and the notice), `players.active_at INTEGER NOT NULL DEFAULT 0`.
+- Endpoints: `POST /api/ping { away? }`, `POST /api/friends/:name` (add), `POST /api/friends/:name/remove`
+  (POST, not DELETE: CORS allows GET / POST only). Both return `{ result, state }`.
+- `GET /api/farmers`: rows gain `friend` and `online`; online farmers come first after "helped you" and
+  real farmers; new `friends` (every friend, also without a tree or inactive; online first) and
+  `myFriends` (count, max, adds left). `farmers` still holds friends (older webs know only that list).
+- `GET /api/farmers/:name` (visit): `friend`, `online`, `myFriends`. `GET /api/arena`: friends first in
+  `opponents`, each with `friend` / `online`.
+- `state.friends` (count, max, addsLeft, addsPerDay, onlineMs, pingMs) = "this server knows Add
+  friend"; `state.friendAdds` (last 10 "added you": from, avatar, title, at, `mutual`, `online`);
+  `news.latestAt` includes the newest notifying add (Village red dot).
+- Privacy: only name, avatar, title, trees, thirsty, online, friend (and `mutual` for your own notices).
+  Never `active_at` itself, XP, balance, sign-in, wallet, IP.
+
+**Web:** `web/src/friends.tsx` (Farmers of Tandur: "FRIENDS (n) / 50" on top with Visit + Duel and a
+"Friends ✓" chip (tap = "Remove friend?"), "Other farmers" with a small Add; visit panel: Add friend /
+"Friends ✓" in one row with Sticker, Duel and "← My garden" (phones: 4 equal buttons, measured 77x44 at
+390 px, no text cut), "Remove friend?" window with Keep / Remove friend), `online.tsx` (8 px mint square
+with ink outline on the avatar corner + "ONLINE" tag; also in the visit panel's "Visiting" line and the
+Arena list), `presence.ts` (the ping), `friends-logic.ts` (pure rules), `invite.tsx` (Visitors row
+"<name> added you as a friend · today" with Add back / Visit, "Friends ✓" when mutual), notice with
+buttons (`Toast.actions` in `toast-queue.ts` / `toast.tsx`: "<name> added you as a friend" + Add back /
+Visit; several at once = one line pointing to the Village tab), pixel icon `friendAdd` in `sprites.tsx`.
+Tokens only. **Old servers** (no `state.friends`): no Add friend, no Online dots, no Friends section and
+no ping (checked with `--oldserver` on `nearvest-edfb355`: 0 pings, 0 dots, no button, no errors).
+
+**Rollback:** `nearvest-edfb355` ran on a copy of the upgraded database (fake chain): `/api/me`,
+`/api/farmers`, a visit and `/api/arena` answer 200 for old gardens and new gardens can be made; it
+ignores the new tables and column (`/api/ping` = 404, which the new web never calls there). No database
+restore needed.
+
+**Tests:** `server/test/friends.test.ts` (13: one way, repeat add, mutual, remove without notice, one
+notice per pair, Village dot, never yourself / 404, 20 a day, 50 max, judge gardens, Online 60 s + away,
+ping writes at most every 20 s, online first, HTTP + privacy incl. exact keys, ping needs a session);
+`server/test/social.test.ts` key lists updated; `web/test/friends.test.ts` (8). Browser:
+`UI_URL=http://127.0.0.1:5174 node tools/ui-test.mjs <outDir> --friends=<a>:<b> [w] [h]` (fake-chain
+server) at 390x844 and 1280x800: Online dot + Add, Add friend -> Friends ✓, Remove window (Keep),
+Friends section, Arena list, b's notice with Add back / Visit + Village dot, Visitors row + Add back ->
+mutual, hidden tab -> offline at once and no pings while hidden.

@@ -384,6 +384,19 @@ export function createApp(deps: AppDeps) {
     return c.json({ result, visit: social.visit(pid, name) });
   });
   // Wave back to a visitor (a row of the Village tab "Visitors" list).
+  // Add friend + Online (social.ts, docs/PLAN-arena.md 7.11). The ping is tiny on purpose: one
+  // indexed UPDATE at most every 20 s, no open connection (the VPS has about 1 GB free).
+  app.post('/api/ping', async (c) => c.json(social.ping(playerId(c), (await body(c)).away === true)));
+  app.post('/api/friends/:name', (c) => {
+    const pid = playerId(c);
+    const result = social.addFriend(pid, c.req.param('name'));
+    return c.json({ result, state: game.state(pid) });
+  });
+  app.post('/api/friends/:name/remove', (c) => {
+    const pid = playerId(c);
+    const result = social.removeFriend(pid, c.req.param('name'));
+    return c.json({ result, state: game.state(pid) });
+  });
   app.post('/api/visitors/:id/wave', async (c) => {
     const pid = playerId(c);
     const result = social.waveBack(pid, Number(c.req.param('id')), (await body(c)).sticker);
@@ -395,7 +408,10 @@ export function createApp(deps: AppDeps) {
   app.get('/api/arena', (c) => {
     const pid = playerId(c);
     // v2: `v: 2` and finished turn-based matches next to the v1 duels (old webs ignore them).
-    return c.json({ ...arena.view(pid, social.farmers(pid, c.req.query('q')).farmers), v: 2, matches: matches.recent(pid) });
+    const f = social.farmers(pid, c.req.query('q'));
+    // Friends first (also those the farmer list leaves out), then the other farmers.
+    const names = new Set(f.friends.map((x) => x.name));
+    return c.json({ ...arena.view(pid, [...f.friends, ...f.farmers.filter((x) => !names.has(x.name))]), v: 2, matches: matches.recent(pid) });
   });
   app.get('/api/arena/can/:name', (c) => c.json(arena.canChallenge(playerId(c), c.req.param('name'))));
   app.post('/api/arena/duel', async (c) => {

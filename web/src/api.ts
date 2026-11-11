@@ -175,6 +175,29 @@ export interface FarmerRow {
   helpedYou: boolean;
   /** A Try as Judge garden (only while there are fewer than 5 farmers). */
   judge: boolean;
+  /** Servers from 2026-11-11 on (missing = no Add friend / Online on this server). */
+  friend?: boolean;
+  online?: boolean;
+}
+
+/** Add friend on this server: how many friends, adds left today and the limits. */
+export interface MyFriends {
+  count: number;
+  max: number;
+  addsLeft: number;
+  addsPerDay: number;
+}
+
+/** "<name> added you as a friend" (Village tab + notice). */
+export interface FriendAddView {
+  id: number;
+  from: string;
+  avatar: string;
+  title: string;
+  at: number;
+  /** You added them too (no "Add back"). */
+  mutual: boolean;
+  online: boolean;
 }
 
 export interface HelpRules {
@@ -191,6 +214,9 @@ export interface FarmersResponse {
   help: HelpRules;
   /** The search the list answers (null / missing = the normal list). */
   query?: string | null;
+  /** Servers from 2026-11-11 on: your friends (on top of the list) and your friend limits. */
+  friends?: FarmerRow[];
+  myFriends?: MyFriends;
 }
 
 /** A friend's garden as visitors see it (read only). */
@@ -242,6 +268,10 @@ export interface VisitResponse {
   stickersToday?: string[];
   stickerMax?: number;
   stickerWaitMs?: number;
+  /** Servers from 2026-11-11 on: you added this garden as a friend; it is online now. */
+  friend?: boolean;
+  online?: boolean;
+  myFriends?: MyFriends;
 }
 
 export interface HelpResult {
@@ -313,6 +343,10 @@ export interface GameState {
    * saw, dots.ts): when fruit was last added and the newest one the owner saw by opening the Market.
    */
   market?: { fruitAt: number; seenAt: number };
+  /** Add friend + Online (missing on older servers: no Add friend, no Online dots, no ping). */
+  friends?: MyFriends & { onlineMs: number; pingMs: number };
+  /** Who added this garden as a friend, newest first (Village tab + notice). */
+  friendAdds?: FriendAddView[];
   /** Invite a friend (missing on servers without referral: no invite box). */
   referral?: ReferralView;
   /** Arena 1 VS 1 (missing on servers without the Arena: the Arena pin says "Soon"). */
@@ -474,6 +508,24 @@ export async function api<T>(method: 'GET' | 'POST', path: string, body?: unknow
   return json as T;
 }
 
+/**
+ * A small POST that may outlive the page (the tab is being hidden or closed): fetch with
+ * keepalive and the session header. Errors are ignored (it is only a hint for the Online dot).
+ */
+export function apiKeepalive(path: string, body: unknown): void {
+  if (!token) return;
+  try {
+    void fetch(API_URL + path, {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }).catch(() => undefined);
+  } catch {
+    // Not sent: the dot goes out by itself a minute later.
+  }
+}
+
 export const ACTIVITY_LABELS: Record<string, string> = {
   create_account: 'NEAR account created',
   mint: 'PANEN minted',
@@ -630,6 +682,9 @@ export interface ArenaOpponent {
   trees: number;
   judge: boolean;
   dueledToday: boolean;
+  /** Servers from 2026-11-11 on. */
+  friend?: boolean;
+  online?: boolean;
 }
 
 export interface ArenaView {

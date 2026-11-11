@@ -6,9 +6,12 @@
 // "Sticker" leaves one of 6 template stickers (invite.tsx StickerWindow, 3 per garden per day, 5 s
 // apart: only the button counts down, from the server's time). Search finds any ready garden by the start of its name.
 
+import { createPortal } from 'preact/compat';
 import { useEffect, useState } from 'preact/hooks';
 import { duelButton } from './arena-play';
-import { api, type ArenaCan, type FarmersResponse, type GameState, type HelpResult, type PublicGarden, type VisitResponse } from './api';
+import { api, type ArenaCan, type FarmerRow, type FarmersResponse, type GameState, type HelpResult, type MyFriends, type PublicGarden, type VisitResponse } from './api';
+import { addFriendBlocked, friendButtonLabel, othersAfterFriends } from './friends-logic';
+import { OnlineAvatar, OnlineTag } from './online';
 import { Avatar } from './art/avatars';
 import { playSound } from './audio';
 import { floatText } from './fx';
@@ -31,8 +34,23 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * a search by name (any ready garden whose name starts with it, judge gardens never). Only the
  * list scrolls (one scroll area: iPhone Safari drew rows over each other with two).
  */
-export function FarmersWindow({ onClose, onVisit }: { onClose: () => void; onVisit: (name: string) => void }) {
+export function FarmersWindow({
+  onClose,
+  onVisit,
+  onDuel,
+  onState,
+  notify,
+}: {
+  onClose: () => void;
+  onVisit: (name: string) => void;
+  /** Arena (servers with `state.arena`): challenge a friend from the Friends section. */
+  onDuel?: (name: string) => void;
+  onState?: (s: GameState) => void;
+  notify?: Notify;
+}) {
   const [data, setData] = useState<FarmersResponse | null>(null);
+  const [friendBusy, setFriendBusy] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
@@ -60,7 +78,86 @@ export function FarmersWindow({ onClose, onVisit }: { onClose: () => void; onVis
     };
   }, [q]);
 
-  const farmers = data?.farmers ?? [];
+  // Servers from 2026-11-11 on send `friends` (+ `online` per row); older ones: the list as before.
+  const hasFriends = !!data?.friends;
+  const friends = q ? [] : (data?.friends ?? []);
+  const farmers = othersAfterFriends(data?.farmers ?? [], friends);
+  const blocked = addFriendBlocked(data?.myFriends);
+
+  /** Add or remove a friend, then show the list as the server has it now. */
+  const setFriend = async (name: string, add: boolean) => {
+    if (friendBusy) return;
+    setFriendBusy(name);
+    try {
+      const r = await friendCall(name, add);
+      onState?.(r.state);
+      playSound('click');
+      notify?.({ kind: 'success', text: add ? `${name} is now your friend.` : `${name} was removed from your friends.` });
+      const d = await api<FarmersResponse>('GET', q ? `/api/farmers?q=${encodeURIComponent(q)}` : '/api/farmers');
+      setData(d);
+    } catch (e) {
+      playSound('error');
+      notify?.({ kind: 'error', text: errorText(e) });
+    } finally {
+      setFriendBusy(null);
+    }
+  };
+
+  const row = (f: FarmerRow, isFriendRow: boolean) => (
+    <li key={f.name} class={`farmer-row${isFriendRow ? ' friend-row' : ''}`}>
+      <OnlineAvatar id={f.avatar} size={32} online={!!f.online} />
+      <span class="grow farmer-main">
+        <b class="farmer-name">{f.name}</b>
+        <span class="farmer-meta">
+          {f.title} · {f.trees} tree{f.trees === 1 ? '' : 's'}
+        </span>
+        <span class="farmer-tags">
+          {f.online && <OnlineTag />}
+          {f.thirsty > 0 && (
+            <span class="tag tag-thirsty">
+              <Sprite name="droplet" scale={1} /> {f.thirsty} thirsty
+            </span>
+          )}
+          {f.helpedYou && <span class="tag tag-helped">Helped you</span>}
+          {f.judge && <span class="tag tag-judge">Judge garden</span>}
+          {hasFriends && f.friend && (
+            <button
+              class="tag tag-friend"
+              onClick={() => (playSound('click'), setRemoving(f.name))}
+              aria-label={`${f.name} is your friend. Remove friend?`}
+              title="Remove friend"
+            >
+              {friendButtonLabel(true, friendBusy === f.name)}
+              {friendBusy !== f.name && <UiIcon name="check" />}
+            </button>
+          )}
+        </span>
+      </span>
+      <span class="farmer-actions">
+        {hasFriends && !f.friend && (
+          <button
+            class="btn btn-small farmer-add"
+            disabled={!!friendBusy || !!blocked}
+            title={blocked ?? `Add ${f.name} as a friend`}
+            aria-label={`Add ${f.name} as a friend`}
+            onClick={() => setFriend(f.name, true)}
+          >
+            <UiIcon name="friendAdd" />
+            <span>{friendBusy === f.name ? '...' : 'Add'}</span>
+          </button>
+        )}
+        <button class="btn btn-small btn-mint" onClick={() => (playSound('click'), onVisit(f.name))} aria-label={`Visit ${f.name}'s garden`}>
+          Visit
+        </button>
+        {isFriendRow && onDuel && (
+          <button class="btn btn-small farmer-duel" disabled={f.trees === 0} title={f.trees === 0 ? 'No tree to duel yet' : `Challenge ${f.name}`} onClick={() => (onClose(), onDuel(f.name))}>
+            Duel
+          </button>
+        )}
+      </span>
+    </li>
+  );
+
   return (
     <Modal title="Farmers of Tandur" onClose={onClose} closeLabel="Close" class="farmers-dialog">
       <div class="farmers-top">
@@ -96,38 +193,73 @@ export function FarmersWindow({ onClose, onVisit }: { onClose: () => void; onVis
       </div>
       {error && <p class="error-text">Could not load the farmers: {error}</p>}
       {!data && !error && <p class="muted">Looking for farmers...</p>}
-      {data && farmers.length === 0 && !searching && (
+      {data && farmers.length === 0 && friends.length === 0 && !searching && (
         <p class="muted farmers-empty">
           {q ? `No garden name starts with "${q}".` : 'No other farmers yet. Share your profile card to invite a friend!'}
         </p>
       )}
-      {farmers.length > 0 && (
-        <ul class={`list farmer-list${searching ? ' loading' : ''}`} aria-label={q ? `Farmers whose name starts with ${q}` : 'Farmers to visit'}>
-          {farmers.map((f) => (
-            <li key={f.name} class="farmer-row">
-              <Avatar id={f.avatar} size={32} />
-              <span class="grow farmer-main">
-                <b class="farmer-name">{f.name}</b>
-                <span class="farmer-meta">
-                  {f.title} · {f.trees} tree{f.trees === 1 ? '' : 's'}
-                </span>
-                <span class="farmer-tags">
-                  {f.thirsty > 0 && (
-                    <span class="tag tag-thirsty">
-                      <Sprite name="droplet" scale={1} /> {f.thirsty} thirsty
-                    </span>
-                  )}
-                  {f.helpedYou && <span class="tag tag-helped">Helped you</span>}
-                  {f.judge && <span class="tag tag-judge">Judge garden</span>}
-                </span>
-              </span>
-              <button class="btn btn-small btn-mint" onClick={() => (playSound('click'), onVisit(f.name))}>
-                Visit
-              </button>
-            </li>
-          ))}
-        </ul>
+      {(farmers.length > 0 || friends.length > 0) && (
+        // One scroll area for both sections (iPhone Safari drew rows over each other with two).
+        <div class={`farmer-list farmer-sections${searching ? ' loading' : ''}`}>
+          {friends.length > 0 && (
+            <>
+              <h3 class="farmer-section-title">
+                Friends ({friends.length}){data?.myFriends ? <span class="farmer-section-max"> / {data.myFriends.max}</span> : null}
+              </h3>
+              <ul class="list farmer-sublist" aria-label="Your friends">
+                {friends.map((f) => row(f, true))}
+              </ul>
+            </>
+          )}
+          {friends.length > 0 && farmers.length > 0 && <h3 class="farmer-section-title">Other farmers</h3>}
+          {farmers.length > 0 && (
+            <ul class="list farmer-sublist" aria-label={q ? `Farmers whose name starts with ${q}` : 'Farmers to visit'}>
+              {farmers.map((f) => row(f, false))}
+            </ul>
+          )}
+        </div>
       )}
+      {removing &&
+        createPortal(
+          <RemoveFriendWindow
+            name={removing}
+            onKeep={() => setRemoving(null)}
+            onRemove={() => {
+              const n = removing;
+              setRemoving(null);
+              void setFriend(n, false);
+            }}
+          />,
+          document.body,
+        )}
+    </Modal>
+  );
+}
+
+/** POST /api/friends/:name (add) or /remove: the result and my new state. */
+export function friendCall(name: string, add: boolean) {
+  return api<{ result: { friend: string; myFriends: MyFriends }; state: GameState }>('POST', `/api/friends/${encodeURIComponent(name)}${add ? '' : '/remove'}`);
+}
+
+/** "Remove budi from your friends?" (Remove / Keep). No notice goes to budi. */
+export function RemoveFriendWindow({ name, onKeep, onRemove }: { name: string; onKeep: () => void; onRemove: () => void }) {
+  return (
+    <Modal
+      title="Remove friend"
+      onClose={onKeep}
+      class="remove-friend-dialog"
+      actions={
+        <>
+          <button class="btn" onClick={onKeep}>
+            Keep
+          </button>
+          <button class="btn btn-red" onClick={onRemove}>
+            Remove friend
+          </button>
+        </>
+      }
+    >
+      <p>Remove {name} from your friends? They will not be told.</p>
     </Modal>
   );
 }
@@ -202,6 +334,25 @@ export function VisitGarden({
     setReadyAt(stickerReadyAt(v.stickerWaitMs, Date.now()));
   };
   const stickerStatus = useStickerStatus(visit, readyAt);
+  // Add friend (servers from 2026-11-11 on send `friend` with the visit).
+  const [friendBusy, setFriendBusy] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const setFriend = async (add: boolean) => {
+    if (friendBusy || !visit) return;
+    setFriendBusy(true);
+    try {
+      const r = await friendCall(name, add);
+      setVisit((v) => v && { ...v, friend: add, myFriends: r.result.myFriends });
+      onState(r.state);
+      playSound('click');
+      notify({ kind: 'success', text: add ? `${visit.garden.name} is now your friend.` : `${visit.garden.name} was removed from your friends.` });
+    } catch (e) {
+      playSound('error');
+      notify({ kind: 'error', text: errorText(e) });
+    } finally {
+      setFriendBusy(false);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -292,10 +443,36 @@ export function VisitGarden({
       sticker={stickerStatus}
       bar={!!immersive}
       duel={onDuel && arenaLeft !== undefined && !visit?.own ? { ...duelButton(can), busy: duelBusy, onClick: () => onDuel(name) } : null}
+      friend={
+        visit && visit.friend !== undefined && !visit.own
+          ? {
+              isFriend: visit.friend,
+              busy: friendBusy,
+              blocked: visit.friend ? null : addFriendBlocked(visit.myFriends),
+              onClick: () => (visit.friend ? (playSound('click'), setRemoveOpen(true)) : void setFriend(true)),
+            }
+          : null
+      }
     />
   );
-  const stickers = stickerOpen && visit && (
-    <StickerWindow name={visit.garden.name} visit={visit} status={stickerStatus} onClose={() => setStickerOpen(false)} onSent={takeVisit} notify={notify} />
+  const stickers = (
+    <>
+      {stickerOpen && visit && (
+        <StickerWindow name={visit.garden.name} visit={visit} status={stickerStatus} onClose={() => setStickerOpen(false)} onSent={takeVisit} notify={notify} />
+      )}
+      {removeOpen &&
+        createPortal(
+          <RemoveFriendWindow
+            name={visit?.garden.name ?? name}
+            onKeep={() => setRemoveOpen(false)}
+            onRemove={() => {
+              setRemoveOpen(false);
+              void setFriend(false);
+            }}
+          />,
+          document.body,
+        )}
+    </>
   );
 
   if (immersive) {
@@ -331,6 +508,7 @@ function VisitPanel({
   sticker: st,
   bar,
   duel,
+  friend,
 }: {
   name: string;
   visit: VisitResponse | null;
@@ -344,6 +522,8 @@ function VisitPanel({
   bar: boolean;
   /** Arena: the Duel button (null = no Arena on this server, or your own garden). */
   duel: { label: string; enabled: boolean; title: string; busy: boolean; onClick: () => void } | null;
+  /** Add friend (null = not on this server, or your own garden). Friends: tap = Remove friend? */
+  friend: { isFriend: boolean; busy: boolean; blocked: string | null; onClick: () => void } | null;
 }) {
   const g = visit?.garden;
   const p = g?.plots[selected];
@@ -392,7 +572,9 @@ function VisitPanel({
       <header class="visit-head">
         {g && <Avatar id={g.avatar} size={bar ? 32 : 28} />}
         <span class="visit-title">
-          <span class="visit-kicker">Visiting</span>
+          <span class="visit-kicker">
+            Visiting{visit?.online ? <OnlineTag /> : null}
+          </span>
           <b>{name}'s garden</b>
           {g && <span class="visit-sub">{g.title}</span>}
         </span>
@@ -413,6 +595,19 @@ function VisitPanel({
           <button class="btn visit-duel" onClick={duel.onClick} disabled={!duel.enabled || duel.busy} title={duel.title} aria-label={duel.enabled ? `Challenge ${name} in the Arena` : duel.title}>
             {duel.label === 'Dueled' ? <UiIcon name="check" /> : <Sprite name="sparkle" scale={2} />}
             <span>{duel.busy ? 'Dueling...' : duel.label}</span>
+          </button>
+        )}
+        {friend && (
+          <button
+            class={`btn visit-friend${friend.isFriend ? ' is-friend' : ''}`}
+            onClick={friend.onClick}
+            disabled={friend.busy || !!friend.blocked}
+            title={friend.blocked ?? (friend.isFriend ? 'Remove friend' : `Add ${name} as a friend`)}
+            aria-label={friend.isFriend ? `${name} is your friend. Remove friend?` : friend.blocked ?? `Add ${name} as a friend`}
+          >
+            {!friend.isFriend && <UiIcon name="friendAdd" />}
+            <span>{friendButtonLabel(friend.isFriend, friend.busy)}</span>
+            {friend.isFriend && !friend.busy && <UiIcon name="check" />}
           </button>
         )}
         <button class="btn btn-mint visit-back" onClick={onBack} aria-label="Back to my garden">
