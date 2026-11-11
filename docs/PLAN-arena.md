@@ -643,3 +643,27 @@ Ardian played v2 on the laptop (everything worked) and asked for five changes be
 
 **Database for the release:** still only the new table `arena_matches` (now with `turn_started_at`);
 `nearvest-e8312ea` ignores it, so a rollback needs no restore.
+
+### 7.9 "Time’s up!" and the village behind the duel (Ardian 2026-11-11, local commit, NOT released)
+
+- **One wording for a missed turn: "Time’s up!"** (typographic apostrophe) on the banner, the
+  bubble's label and the line under the stage ("Time’s up! No move in 10 s, so X’s TaniBot wins the
+  turn."); `TIMES_UP` in `web/src/arena-turn.ts`. Cause of "Times up": the banner used the title font
+  in capitals, where the apostrophe is a 1-pixel tick (all three game fonts have both ' and ’,
+  checked in Chrome). The small turn banner now uses the label font as written. No server, log or
+  notice text names a missed turn.
+- **The duel's background is the village around the Arena** (`web/src/art/duel-backdrop.tsx`): the
+  garden's own `Backdrop` with village v3 (laptop image on laptops, phone image on phones), so the
+  code sky (sun / moon, clouds, stars), smoke, waterfalls, lamps, train, weather and day / dusk /
+  night follow the same village clock as the garden (`?time=` in dev builds too). It is cut out and
+  enlarged on the Arena building with Gunung Tandur behind it; the scale comes from the stage size
+  (`duelCut`) so the building and the mountain's peak always stay in view (phones: the Arena centred,
+  about 1.5x; laptops: about 1.4x). The TaniBots stand on a front floor made of the image's own grass
+  rows (laptop rows 106-121, phone rows 130-148), with a soft edge; a soft dark layer (--ink) behind
+  the names and bars. Fighters, fruit, bubbles, the Gold Durian and K.O. are drawn above it. While a
+  duel is open the garden's village behind it pauses (`html.duel-open`), so phones animate one
+  village. Reduced motion: the duel's village stands still. Laptop stage 20 px taller and never
+  shrunk (a squeezed stage cut the feet off). Headless Chrome 390x844: 57 fps during the Gold Durian.
+- Checks: web tests 129, server 245, build; ui-test `--match` (new `FIRST_ONLY=1`; logs the cut, the
+  floor and the feet) at 390x844 and 1280x800, by day / dusk / night; `--oldserver` on
+  `nearvest-e8312ea`: the v1 duel. No server or database change in this step.

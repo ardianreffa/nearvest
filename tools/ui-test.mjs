@@ -748,7 +748,14 @@ try {
         return 'me: ' + t('.duel.match .fighter.me .tanibot') + ' || them: ' + t('.duel.match .fighter.them .tanibot') + ' || HUD titles: ' + [...document.querySelectorAll('.duel.match .fighter-name span')].map(e => e.innerText).join(' / '); })()`));
       console.log('buttons:', await evaluate(box('.rps-row')), '| Gold Durian button:', await evaluate(box('.gold-durian-btn')), '| panel:', await evaluate(box('.duel.match')));
       await screenshot('match-buttons');
+      console.log('village behind the duel:', await evaluate(`(() => { const b = document.querySelector('.duel-bg'); if (!b) return 'none'; const art = b.querySelector('.duel-bg-art'); const lawn = b.querySelector('.duel-floor-lawn'); const feet = [...document.querySelectorAll('.duel.match .fighter')].map(f => Math.round(f.getBoundingClientRect().bottom)); const lr = lawn?.getBoundingClientRect();
+        return JSON.stringify({ art: art ? [art.style.left, art.style.top, art.style.width] : null, light: getComputedStyle(b.querySelector('.backdrop')).getPropertyValue('--night') + ' night / ' + getComputedStyle(b.querySelector('.backdrop')).getPropertyValue('--dusk') + ' dusk', floor: lr ? [Math.round(lr.top), Math.round(lr.bottom)] : null, feet, gardenPaused: getComputedStyle(document.querySelector('.stage .backdrop .puff, .scene .backdrop .puff') ?? document.body).animationPlayState }); })()`));
     });
+    // FIRST_ONLY=1: only the opening screen (e.g. the village at dusk / night).
+    if (process.env.FIRST_ONLY) {
+      db.close();
+      throw Object.assign(new Error('match done'), { done: true });
+    }
     await step('leave the duel and continue it from the Arena window', async () => {
       await evaluate(`document.querySelector('.duel.match .info-close').click()`);
       await sleep(300);

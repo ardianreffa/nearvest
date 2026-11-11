@@ -12294,8 +12294,11 @@ html.page-locked body {
   left: 35%;
   right: 35%;
   padding: 4px 6px;
-  font-size: var(--fs-sm);
-  line-height: 1.25;
+  /* The label font, as written ("Time’s up!"): the title font's capitals hid the apostrophe. */
+  font-family: var(--font-ui);
+  text-transform: none;
+  font-size: var(--fs-body);
+  line-height: 1.2;
   background: color-mix(in srgb, var(--hud) 88%, transparent);
   border: 2px solid var(--gold-500);
 }
@@ -12546,7 +12549,7 @@ html.page-locked body {
   }
 }
 
-/* "Too slow": the player did not pick within the 10 s. */
+/* "Time’s up!": the player did not pick within the 10 s. */
 .pick-bubble.late {
   background: var(--red-500);
   border-color: var(--ink);
@@ -12977,5 +12980,115 @@ html.page-locked body {
   .turn-timer.urgent .turn-secs,
   .meteor-tail {
     animation: none;
+  }
+}
+
+/* ---------- Arena v2: the duel's background = the village around the Arena (art/duel-backdrop.tsx) ----------
+   The garden's own village v3 (images, code sky, smoke, lamps, weather, day / dusk / night), cut out
+   and enlarged on the Arena building and Gunung Tandur; a front floor of the image's grass rows; a
+   soft dark layer at the top for the names and bars. Tokens for the UI layers; the art keeps its colours. */
+.duel-bg {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.duel-bg-art {
+  position: absolute;
+}
+
+/* The garden's backdrop fills the enlarged box exactly (no 104% / centring of the garden layout). */
+.duel-bg .bg-art {
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  transform: none;
+}
+
+.duel-floor-lawn {
+  position: absolute;
+  left: 0;
+  right: 0;
+  overflow: hidden;
+}
+
+/* A soft edge where the arena floor meets the village behind it. */
+.duel-floor-lawn::before {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 8px;
+  background: linear-gradient(color-mix(in srgb, var(--ink) 35%, transparent), transparent);
+}
+
+.duel-lawn {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
+}
+
+.duel-lawn-dusk {
+  opacity: var(--dusk);
+}
+
+.duel-lawn-night {
+  opacity: var(--night);
+}
+
+.duel-lawn-shade {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
+  opacity: var(--night);
+}
+
+/* The soft dark layer behind the names, titles, life and skill bars (readable by day and by night). */
+.duel-bg-top {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 34%;
+  background: linear-gradient(color-mix(in srgb, var(--ink) 72%, transparent), color-mix(in srgb, var(--ink) 45%, transparent) 55%, transparent);
+}
+
+/* The fighters, fruit, bubbles and banners stay above the village. */
+.fight-stage.with-village .fight-floor {
+  z-index: 1;
+}
+
+/* Laptops: a little taller stage (the Arena building AND the mountain's peak above the floor); it
+   never shrinks in the panel (a squeezed stage cut the TaniBots' feet off). */
+.duel.match.wide .fight-floor {
+  height: calc(var(--bot-h) + 16px + 58px + 20px);
+}
+
+.duel.match .fight-stage {
+  flex-shrink: 0;
+}
+
+/* While a duel is open, the garden's village behind it stands still (one moving village). */
+html.duel-open .backdrop * {
+  animation-play-state: paused;
+}
+
+html.duel-open .duel-bg .backdrop * {
+  animation-play-state: running;
+}
+
+/* Reduced motion: the duel's village stands still. */
+@media (prefers-reduced-motion: reduce) {
+  .duel-bg *,
+  .duel-bg *::before,
+  .duel-bg *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }

@@ -275,10 +275,10 @@ export type BubblePick = ArenaPick | '?' | 'timeout';
 
 /**
  * The pick above a TaniBot's head (Arena v2): Rock / Paper / Scissors / the Gold Durian, "?" while it
- * is still secret, or "Too slow" (a red clock) when the player did not pick within the 10 s.
+ * is still secret, or "Time’s up!" (a red "0s") when the player did not pick within the 10 s.
  */
 export function PickBubble({ pick, pop }: { pick: BubblePick; pop: boolean }) {
-  const label = pick === '?' ? 'Choosing...' : pick === 'gold' ? 'Gold Durian' : pick === 'timeout' ? 'Too slow' : pick.charAt(0).toUpperCase() + pick.slice(1);
+  const label = pick === '?' ? 'Choosing...' : pick === 'gold' ? 'Gold Durian' : pick === 'timeout' ? 'Time’s up!' : pick.charAt(0).toUpperCase() + pick.slice(1);
   return (
     <span class={`pick-bubble${pop ? ' pop' : ''}${pick === 'gold' ? ' gold' : ''}${pick === '?' ? ' secret' : ''}${pick === 'timeout' ? ' late' : ''}`} role="img" aria-label={label}>
       {pick === '?' ? (

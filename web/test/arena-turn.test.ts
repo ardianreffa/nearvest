@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { DuelSide, MatchView, TurnLog } from '../src/api.ts';
 import { flightMs } from '../src/arena-play.ts';
-import { clockOf, controls, countdown, endBanner, fruitName, hpBefore, matchLine, matchNotice, matchReward, turnAt, turnBanner, turnLength, turnLine, turnReason, turnTimes } from '../src/arena-turn.ts';
+import { PICK_LABEL, clockOf, controls, countdown, endBanner, fruitName, hpBefore, matchLine, matchNotice, matchReward, turnAt, turnBanner, turnLength, turnLine, turnReason, turnTimes } from '../src/arena-turn.ts';
 import { droneCount, tierOf } from '../src/art/tiers.ts';
 
 const side = (name: string): DuelSide => ({ name, avatar: 'farmer-1', title: 'Seedling', scores: { quality: 1, care: 3, ripeness: 3 }, best: null, ripest: null, trees: 1 });
@@ -126,10 +126,12 @@ describe('arena v2 turn playback', () => {
 });
 
 describe('arena v2 missed turns and the Gold Durian', () => {
-  it('a missed turn: "Too slow" for the player, the TaniBot wins and throws', () => {
+  it('a missed turn says "Time’s up!" everywhere (typographic apostrophe); the TaniBot wins and throws', () => {
     const t = log({ pick: { c: 'timeout', d: 'paper' }, winner: 'defender', hits: [{ to: 'challenger', fruit: mango, damage: 14, gold: false }], hp: { c: 86, d: 100 }, skill: { c: 0, d: 1 } });
-    assert.equal(turnBanner(t, 'budi'), "TIME'S UP!");
-    assert.equal(turnReason(t, 'budi'), "Time's up! No move in 10 s, so budi's TaniBot wins the turn.");
+    assert.equal(turnBanner(t, 'budi'), 'Time’s up!');
+    assert.equal(turnReason(t, 'budi'), 'Time’s up! No move in 10 s, so budi’s TaniBot wins the turn.');
+    assert.equal(PICK_LABEL.timeout, 'Time’s up!');
+    for (const text of [turnBanner(t, 'budi'), turnReason(t, 'budi'), PICK_LABEL.timeout]) assert.doesNotMatch(text, /Too slow|Times up|'/);
     const m = match({ turns: [t], turn: 1, hp: { c: 86, d: 100 } });
     const T = turnTimes(false);
     assert.equal(turnAt(m, 0, T.reveal, false).hit?.from, 'them');

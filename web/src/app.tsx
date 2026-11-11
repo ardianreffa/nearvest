@@ -5,7 +5,10 @@ import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { activityLabel, api, ApiError, hasToken, setToken, type Activity, type DuelView, type GameState, type MatchView, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
 import { DartoHead } from './art/darto';
 import { LOOK_LABEL, lookOf, lookText, withWeather, type WeatherLook } from './weather';
-import { phaseOf } from './art/backdrop';
+import { lockedFraction, phaseOf } from './art/backdrop';
+
+/** Dev builds: ?time=day / dusk / night also locks the duel's village (screenshots), like the garden. */
+const DUEL_TIME_LOCK = import.meta.env.DEV && typeof location !== 'undefined' ? lockedFraction(location.search) : null;
 import { TaniBot, TaniBotHead, tierOf, tierRank } from './art/tanibot';
 import { getAudioPrefs, initAudio, onAudioPrefsChange, playRumble, playSound, setAmbient, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
@@ -1161,6 +1164,8 @@ export function App() {
           wide={wide}
           activity={state.activity}
           season={state.season}
+          fraction={DUEL_TIME_LOCK ?? 1 - Math.max(0, state.clock.msUntilNextDay - elapsed) / state.clock.dayLengthMs}
+          weather={lookOf(state.weather)}
           onDone={(s) => applyState(s)}
           onClose={() => (closeDuel(), void refresh())}
         />

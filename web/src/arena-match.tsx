@@ -12,6 +12,8 @@ import { Fighter, FighterHud, FlyingFruit, hitSound, reducedMotion } from './are
 import { flightMs, fmt, seasonLine } from './arena-play';
 import { bonusLine, clockOf, controls, countdown, endBanner, fruitName, matchLine, matchPost, matchReward, matchWon, PICK_LABEL, turnAt, turnBanner, turnLength, turnLine, turnReason, type TurnClock, type TurnFrame } from './arena-turn';
 import { Avatar } from './art/avatars';
+import { DuelBackdrop } from './art/duel-backdrop';
+import type { WeatherLook } from './weather';
 import { playGoldDurian, playSound } from './audio';
 import { confetti } from './fx';
 import { PUBLIC_SITE } from './referral';
@@ -144,6 +146,8 @@ export function MatchScreen({
   wide,
   activity,
   season,
+  fraction,
+  weather,
   onDone,
   onClose,
 }: {
@@ -151,10 +155,18 @@ export function MatchScreen({
   wide: boolean;
   activity: Activity[];
   season?: { number: number; divisor: number; rewardPercent: number };
+  /** The village clock (0 = 07:00 WIB) and weather, as in the garden: the duel's background follows them. */
+  fraction: number;
+  weather: WeatherLook;
   onDone: (state: GameState, titleUp: string | null) => void;
   onClose: () => void;
 }) {
   const reduced = reducedMotion();
+  // While the duel is open the garden's village behind it stands still (one moving village, light on phones).
+  useEffect(() => {
+    document.documentElement.classList.add('duel-open');
+    return () => document.documentElement.classList.remove('duel-open');
+  }, []);
   const [m, setMatch] = useState<MatchView>(initial);
   /** The turn clock on this device, set from every answer (the server decides; this only shows it). */
   const [clock, setClock] = useState<TurnClock | null>(() => clockOf(initial, Date.now()));
@@ -336,7 +348,8 @@ export function MatchScreen({
           </button>
         </header>
 
-        <div class={`fight-stage${shake}${reduced ? ' still' : ''}${gold ? ' gold-on' : ''}`}>
+        <div class={`fight-stage with-village${shake}${reduced ? ' still' : ''}${gold ? ' gold-on' : ''}`}>
+          <DuelBackdrop fraction={fraction} weather={weather} wide={wide} />
           {gold && frame && <GoldStageFx frame={frame} reduced={reduced} />}
           <div class="fight-hud">
             <FighterHud side={me} hp={hp[0]} right={false} skill={{ n: skill[0], max: m.skillMax }} />

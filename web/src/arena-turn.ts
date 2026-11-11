@@ -7,7 +7,10 @@
 import type { ArenaPick, MatchSummary, MatchView, TurnHit, TurnLog } from './api';
 import { flightMs, fmt, type Fruit } from './arena-play.ts';
 
-export const PICK_LABEL: Record<ArenaPick | 'timeout', string> = { rock: 'Rock', paper: 'Paper', scissors: 'Scissors', gold: 'Gold Durian', timeout: 'Too slow' };
+export const PICK_LABEL: Record<ArenaPick | 'timeout', string> = { rock: 'Rock', paper: 'Paper', scissors: 'Scissors', gold: 'Gold Durian', timeout: 'Time’s up!' };
+
+/** What a missed turn is called everywhere (banner, bubble, the line under the stage). */
+export const TIMES_UP = 'Time’s up!';
 
 /** The player's side ("me", left) and the computer's ("them", right). */
 export const sideOf = (to: TurnHit['to']): 'me' | 'them' => (to === 'challenger' ? 'me' : 'them');
@@ -118,7 +121,8 @@ export function turnAt(m: MatchView, i: number, t: number, reduced: boolean): Tu
 export function turnBanner(log: TurnLog, them: string): string {
   if (log.winner === 'both') return 'GOLD DURIAN x2!';
   if (log.hits.some((h) => h.gold)) return 'GOLD DURIAN!';
-  if (log.pick.c === 'timeout') return "TIME'S UP!";
+  // One wording everywhere for a missed turn (Ardian 2026-11-11), with the typographic apostrophe.
+  if (log.pick.c === 'timeout') return TIMES_UP;
   if (log.winner === 'tie') return 'Dodge!';
   return log.winner === 'challenger' ? 'You win the turn!' : `${them}'s TaniBot wins the turn`;
 }
@@ -126,7 +130,7 @@ export function turnBanner(log: TurnLog, them: string): string {
 /** Why the turn went that way, in words ("Rock beats Scissors"). */
 export function turnReason(log: TurnLog, them = 'the'): string {
   const { c, d } = log.pick;
-  if (c === 'timeout') return `Time's up! No move in 10 s, so ${them === 'the' ? 'the' : `${them}'s`} TaniBot wins the turn.`;
+  if (c === 'timeout') return `${TIMES_UP} No move in 10 s, so ${them === 'the' ? 'the' : `${them}’s`} TaniBot wins the turn.`;
   if (c === 'gold' || d === 'gold') return 'The Gold Durian always hits.';
   if (c === d) return `${PICK_LABEL[c]} and ${PICK_LABEL[d]}: both dodge.`;
   const [w, l] = log.winner === 'challenger' ? [c, d] : [d, c];
