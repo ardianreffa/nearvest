@@ -13,6 +13,8 @@
 // Water drone (EXISTING dev garden with a tree; fake-chain server): node tools/ui-test.mjs <outDir> --water=<devUser> [w] [h] (REDUCED_MOTION=1 too)
 // Info (i) bubbles in every panel of an EXISTING dev garden (fake-chain server): node tools/ui-test.mjs <outDir> --info=<devUser> [w] [h]
 // Garden scene of an EXISTING dev garden (no changes): UI_URL='http://localhost:5173/?time=dusk' node tools/ui-test.mjs <outDir> --scene=<devUser> [w] [h]
+//   HOVER="x,y;x,y" moves the mouse to each screen point and screenshots (hotspot outlines on laptops).
+//   WATERFRAMES=1 (or a list of ms) presses Water on the selected thirsty tree and screenshots frozen frames of the watering drone.
 //   PLOTSHOTS=1 selects plots 1-3 (empty / tree / Memorial), screenshots each and reports what the plot panel covers.
 //   FISHING=1 reports the fishing corner (rod, basket, hologram, what moves, rain layers) and opens / closes the Fishing window.
 //   PINS=1 checks the pins and (phones) the sheet; it always reports the garden (mounds, plots and village in view, TaniBot clear of other plots and labels).
@@ -2103,6 +2105,43 @@ try {
         await sleep(300);
         console.log('birds:', await evaluate(`[...document.querySelectorAll('.bird')].filter(b => getComputedStyle(b.closest('.sky-day, .sky-dusk')).opacity > 0).slice(0, 2).map(b => { const r = b.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); }).join(' | ') || 'none visible'`));
         await screenshot('birds');
+      }
+      if (process.env.HOVER) {
+        // Mouse hover at screen points "x,y;x,y" (laptop hotspot outlines), a screenshot each.
+        for (const pt of process.env.HOVER.split(';')) {
+          const [x, y] = pt.split(',').map(Number);
+          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+          await sleep(500);
+          console.log(`hover ${x},${y}:`, await evaluate(`[...document.querySelectorAll('.hotspot.active, .hotspot:hover')].map(e => e.className + ' ' + (() => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round).join(','); })()).join(' | ') || 'no hotspot lit'`));
+          await screenshot(`hover-${x}-${y}`);
+        }
+      }
+      if (process.env.WATERFRAMES) {
+        // Watering drone frames: press Water on the selected (thirsty) tree, freeze every running
+        // animation of the watering effect and of TaniBot's orbit drones, then step them to fixed
+        // times (ms, WATERFRAMES=1 uses the default list) and screenshot each frame (laptop: the
+        // HUD bar's Water button; phones: the sheet's).
+        const times = process.env.WATERFRAMES === '1' ? [100, 300, 600, 900, 1300, 1700, 2000, 2250] : process.env.WATERFRAMES.split(',').map(Number);
+        await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+        const pressed = await evaluate(`(() => { const b = document.querySelector('.hud-bar .act-water, .plot-sheet .act-water, .panel .act-water'); if (!b || b.disabled) return 'Water button ' + (b ? 'disabled' : 'missing'); b.click(); return 'pressed'; })()`);
+        console.log('water:', pressed);
+        if (pressed === 'pressed') {
+          await sleep(30);
+          for (const t of times) {
+            const info = await evaluate(`(() => {
+              // The watering effect steps to t; the orbit drones only stop where they are.
+              [...document.querySelectorAll('.act-water, .act-water *')].flatMap(e => e.getAnimations()).forEach(a => { a.pause(); a.currentTime = ${t}; });
+              [...document.querySelectorAll('.bot-drones, .bot-drones *')].flatMap(e => e.getAnimations()).forEach(a => a.pause());
+              const d = document.querySelector('.act-water .fly-drone .drone');
+              const box = (e) => { const r = e.getBoundingClientRect(); return Math.round(r.left) + ',' + Math.round(r.top) + ' ' + Math.round(r.width) + 'w'; };
+              const o = [...document.querySelectorAll('.bot-spot .orbit')].map(e => e.className.replace('orbit ', '') + ' ' + getComputedStyle(e).visibility + ' at ' + box(e.querySelector('.drone')));
+              const bot = document.querySelector('.bot-spot .tanibot');
+              return 't=${t} ms: flying drone ' + (d ? box(d) + ' op ' + Number(getComputedStyle(d.parentElement).opacity).toFixed(2) : 'none') + ' | ' + (o.join(' / ') || 'no orbit drones') + ' | TaniBot ' + (bot ? box(bot) : '-');
+            })()`);
+            console.log('  ' + info);
+            await screenshot(`water-${t}ms`);
+          }
+        }
       }
       if (process.env.PLOTSHOTS) {
         // Laptop plot panel: select each plot (empty / tree / Memorial), screenshot, and report

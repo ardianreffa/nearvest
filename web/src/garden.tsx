@@ -8,7 +8,7 @@ import { phoneFill, phoneLayout } from './layout';
 import { bgVersion, villageFor } from './art/village';
 import { seasonPayout } from './qty';
 import { Info } from './info';
-import { GardenScene, type ActionKind, type Immersive, type SceneFx } from './scene';
+import { GardenScene, WATER_FX_MS, type ActionKind, type Immersive, type SceneFx } from './scene';
 import { Sprite } from './sprites';
 import {
   formatDuration,
@@ -81,7 +81,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
     if (plot < 0) return;
     window.clearTimeout(fxTimer.current);
     setFx({ id: Date.now(), kind: 'water', plot, tree: state.plots[plot].tree });
-    fxTimer.current = window.setTimeout(() => setFx(null), 1700);
+    fxTimer.current = window.setTimeout(() => setFx(null), WATER_FX_MS);
   }, [state]);
 
   /** Runs an action and plays TaniBot's animation for it when it succeeds. */
@@ -97,7 +97,7 @@ export function Garden({ state, config, act, ask, choose, elapsed, busy, goShop,
     if (animated) {
       window.clearTimeout(fxTimer.current);
       setFx({ id, kind, plot: plotIndex, tree: before });
-      fxTimer.current = window.setTimeout(() => setFx(null), 1700);
+      fxTimer.current = window.setTimeout(() => setFx(null), kind === 'water' ? WATER_FX_MS : 1700);
     }
     // A ripe (not old) tree: the XP is known already, so it floats up right away too.
     const knownXp = kind === 'harvest' && before?.ready && before.stage !== 'old' ? (config.species?.[before.species]?.xpPerHarvest ?? 0) * state.player.xpMultiplier : 0;

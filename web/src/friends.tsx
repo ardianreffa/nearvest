@@ -20,7 +20,7 @@ import { Modal } from './help';
 import type { Immersive } from './layout';
 import { StickerWindow, useStickerStatus, type StickerStatus } from './invite';
 import { matchesPrefix, stickerButtonLabel, stickerReadyAt } from './referral';
-import { GardenScene, type SceneFx } from './scene';
+import { GardenScene, WATER_FX_MS, type SceneFx } from './scene';
 import { Sprite, UiIcon } from './sprites';
 import type { Toast } from './toast';
 import { QUALITY_NAME, SPECIES_NAME } from './ui';
@@ -427,7 +427,7 @@ export function VisitGarden({
     playSound('water');
     const tree = visitState(mine, visit.garden).plots[plot].tree;
     setFx({ id: Date.now(), kind: 'water', plot, tree });
-    window.setTimeout(() => setFx(null), 1700);
+    window.setTimeout(() => setFx(null), WATER_FX_MS);
     try {
       const r = await api<{ result: HelpResult; state: GameState; visit: VisitResponse }>('POST', `/api/farmers/${encodeURIComponent(name)}/water`, { plot });
       takeVisit(r.visit);

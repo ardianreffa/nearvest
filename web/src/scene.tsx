@@ -16,6 +16,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
 export type ActionKind = 'plant' | 'water' | 'harvest' | 'fertilize' | 'chop';
 
+/**
+ * How long a watering effect stays on screen (ms): the drone's whole trip (take-off, flight,
+ * spraying, flight back, landing) is 2.3 s (styles.css `water-drone`).
+ */
+export const WATER_FX_MS = 2400;
+
 export interface SceneFx {
   id: number;
   kind: ActionKind;
@@ -290,6 +296,8 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
           </span>
         )}
         {/* Drones orbit TaniBot's shoulders; their shadows run along the ground. Asleep: parked and dim. */}
+        {/* While watering, the first orbit drone is the one that flies to the tree (WaterDrone
+            lends it: hidden at the start of its orbit until it lands there again). */}
         <BotDrones tier={tier} scale={droneScale} shadow={Math.round(TANIBOT_H * botScale * 0.36)} parked={!on} />
         {visit ? (
           hello.id > 0 && (
@@ -350,7 +358,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
       </div>
       )}
 
-      {fx && <ActionEffect fx={fx} from={botX(fx.plot, lane)} to={plotCenter(fx.plot, lane)} tier={tier} px={px} droneScale={droneScale} key={fx.id} />}
+      {fx && <ActionEffect fx={fx} from={botX(fx.plot, lane)} to={plotCenter(fx.plot, lane)} tier={tier} px={px} droneScale={droneScale} lend={!visit && on && droneCount(tier) > 0} key={fx.id} />}
       </Stage>
     </div>
   );
@@ -367,60 +375,123 @@ function Stage({ immersive, children }: { immersive?: Immersive; children: preac
 }
 
 /**
- * Watering (the player or TaniBot): a drone takes off next to TaniBot, flies to the chosen tree,
- * hovers just above its crown spraying water over it, then flies back. The tree's real top and
- * centre are read from the screen, so it works for a sprout and a big tree, on phones and laptops.
+ * Watering (the player or TaniBot): a drone flies from TaniBot to the chosen tree, hovers just
+ * above its crown spraying water over it, then flies back. Where it starts and lands:
+ *   - TaniBot with orbit drones (Farmer and up, `lend`): the first orbit drone itself leaves its
+ *     orbit, so no new drone appears. In front of TaniBot it takes off right where it is; behind
+ *     TaniBot's body it comes out at the side of its orbit (fading in). While it is away the real
+ *     orbit drone is hidden and set to the start of its orbit (`.bot-drones.lend`, left of
+ *     TaniBot); the flight ends exactly there, and the orbit starts again from that spot
+ *     (Legend: the second drone keeps orbiting the whole time);
+ *   - otherwise (Seedling, Farmhand, a visit): it lifts off from TaniBot's hat (fading in, rising
+ *     slowly) and lands there again (fading out), never from its feet.
+ * The tree's real top and centre, the hat and the orbit drone are read from the screen, so it
+ * works for a sprout and a big tree, on phones and laptops.
  * prefers-reduced-motion: the drone simply shows above the tree with a few still drops (CSS).
  */
-function WaterDrone({ fx, from, to, droneScale }: { fx: SceneFx; from: number; to: number; droneScale: number }) {
+function WaterDrone({ fx, from, to, droneScale, lend }: { fx: SceneFx; from: number; to: number; droneScale: number; lend: boolean }) {
   const box = useRef<HTMLDivElement>(null);
-  const [place, setPlace] = useState<{ x: number; hover: number; fall: number; spread: number } | null>(null);
+  const [place, setPlace] = useState<{ x: number; hover: number; fall: number; spread: number; sx: number; sb: number; ex: number; eb: number; s0: number; o0: number; e0: number } | null>(null);
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
     const area = el.getBoundingClientRect();
-    const plot = el.closest('.stage, .scene')?.querySelectorAll('.plot')[fx.plot];
+    const scope = el.closest('.stage, .scene');
+    const plot = scope?.querySelectorAll('.plot')[fx.plot];
     const target = plot?.querySelector('.plot-art .tree') ?? plot?.querySelector('.plot-art');
     if (!area.width || !target) return;
     const t = target.getBoundingClientRect();
     // The crown's top: the first filled row of the tree picture (its canvas has empty rows on top).
     const svg = target.querySelector('svg');
     const top = svg ? svg.getBoundingClientRect().top + (svg.getBoundingClientRect().height * Number(target.getAttribute('data-top') ?? 0)) : t.top;
+    const droneW = 21 * droneScale;
     const droneH = 11 * droneScale;
+    // Start / landing spot: the lent orbit drone, else the top of TaniBot's hat, else the old spot.
+    const drones = lend ? scope?.querySelector<HTMLElement>('.bot-spot .bot-drones') : null;
+    const o1 = drones?.querySelector<HTMLElement>('.orbit.o1');
+    const bot = scope?.querySelector('.bot-spot .tanibot');
+    const xOf = (r: DOMRect) => ((r.left + r.width / 2 - area.left) / area.width) * 100;
+    let sx = from;
+    let sb = 30;
+    let s0 = 0.6;
+    let o0 = 0;
+    let ex: number | null = null;
+    let eb: number | null = null;
+    if (drones && o1) {
+      // Where it is now (before it is lent), and whether it is in front of TaniBot.
+      const now = o1.querySelector('.drone')!.getBoundingClientRect();
+      const inFront = getComputedStyle(o1).zIndex !== '-1' && now.width >= droneW * 0.95;
+      drones.classList.add('lend');
+      const home = o1.querySelector('.drone')!.getBoundingClientRect();
+      ex = xOf(home);
+      eb = area.bottom - home.bottom;
+      sx = inFront ? xOf(now) : ex;
+      sb = inFront ? area.bottom - now.bottom : eb;
+      s0 = 1;
+      o0 = inFront ? 1 : 0;
+    } else if (bot) {
+      const r = bot.getBoundingClientRect();
+      sx = ((r.left + r.width / 2 - area.left) / area.width) * 100;
+      // Sitting on the hat: the drone's bottom a little below the hat's top.
+      sb = area.bottom - (r.top + r.height * 0.08);
+    }
     setPlace({
       x: ((t.left + t.width / 2 - area.left) / area.width) * 100,
       hover: Math.max(droneH, area.bottom - top + 6),
       fall: Math.max(10, (area.bottom - top) * 0.6),
       spread: Math.max(8, Math.min(28, t.width * 0.3)),
+      sx,
+      sb,
+      ex: ex ?? sx,
+      eb: eb ?? sb,
+      s0,
+      o0,
+      e0: drones ? 1 : 0,
     });
+    // Back in its orbit when the effect ends (unmount): the orbit starts again at that spot.
+    return () => drones?.classList.remove('lend');
   }, [fx.id]);
   const x = place?.x ?? to;
-  const vars = { '--from': `${from}%`, '--to': `${x}%`, '--hover': `${place?.hover ?? 60}px`, '--fall': `${place?.fall ?? 40}px` };
+  const vars = {
+    '--from': `${place?.sx ?? from}%`,
+    '--from-b': `${Math.round(place?.sb ?? 30)}px`,
+    '--home': `${place?.ex ?? place?.sx ?? from}%`,
+    '--home-b': `${Math.round(place?.eb ?? place?.sb ?? 30)}px`,
+    '--s0': String(place?.s0 ?? 0.6),
+    '--o0': String(place?.o0 ?? 0),
+    '--e0': String(place?.e0 ?? 0),
+    '--to': `${x}%`,
+    '--hover': `${place?.hover ?? 60}px`,
+    '--fall': `${place?.fall ?? 40}px`,
+  };
   return (
     <div class="act act-water" style={vars} ref={box}>
-      <span class="fly-drone">
-        <Drone scale={droneScale} />
-      </span>
+      {/* Drawn only once its start is measured, so it never flashes at a wrong spot. */}
+      {place && (
+        <span class="fly-drone">
+          <Drone scale={droneScale} />
+        </span>
+      )}
       {place &&
         Array.from({ length: 12 }, (_, i) => (
           <i
             key={i}
             class="drop"
-            style={{ left: `calc(${x}% + ${Math.round(((i % 4) / 3 - 0.5) * 2 * place.spread)}px)`, animationDelay: `${520 + i * 75}ms` }}
+            style={{ left: `calc(${x}% + ${Math.round(((i % 4) / 3 - 0.5) * 2 * place.spread)}px)`, animationDelay: `${780 + i * 60}ms` }}
           />
         ))}
     </div>
   );
 }
 
-function ActionEffect({ fx, from, to, tier, px, droneScale }: { fx: SceneFx; from: number; to: number; tier: Tier; px: number; droneScale: number }) {
+function ActionEffect({ fx, from, to, tier, px, droneScale, lend }: { fx: SceneFx; from: number; to: number; tier: Tier; px: number; droneScale: number; lend: boolean }) {
   const vars = { '--from': `${from}%`, '--to': `${to}%` };
   const left = Math.min(from, to);
   const width = Math.abs(from - to);
 
   switch (fx.kind) {
     case 'water':
-      return <WaterDrone fx={fx} from={from} to={to} droneScale={droneScale} />;
+      return <WaterDrone fx={fx} from={from} to={to} droneScale={droneScale} lend={lend} />;
     case 'plant':
       return (
         <div class="act act-plant" style={vars}>

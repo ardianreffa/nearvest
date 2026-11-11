@@ -281,6 +281,10 @@ const DRONE_PAL = { k: '#1B1B2F', m: '#9CA3AF', n: '#E5E7EB', D: '#4B5563', c: '
  * The drones that fly with TaniBot (1 from Farmer, 2 for the Legend), orbiting its shoulders; asleep
  * (`parked`) they rest and dim. The garden and the Arena duel use the same ones (one look everywhere).
  */
+/**
+ * TaniBot's orbit drones. While watering, scene.tsx WaterDrone adds `lend` to this box: the first
+ * drone is out at the tree (hidden at the start of its orbit until it comes back).
+ */
 export function BotDrones({ tier, scale, shadow, parked = false }: { tier: Tier; scale: number; shadow: number; parked?: boolean }) {
   const n = droneCount(tier);
   if (n === 0) return null;

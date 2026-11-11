@@ -200,12 +200,6 @@ export function Backdrop({
       {/* v1 phones: above the art, the top band of the sky. */}
       {!v2 && <div class="bg-sky-fill" style={{ background: skyBands(hour)[0] }} />}
 
-      {/* The weather's colour also over the sky bands, the blurred sides and the lawn (behind the art). */}
-      {weather !== 'clear' && (
-        <div class={`wx wx-back wx-${weather}`} aria-hidden="true">
-          <div class="wx-tint" />
-        </div>
-      )}
       <div class="bg-art" style={{ aspectRatio: `${v.w} / ${v.h}`, '--art-w': String(v.w) }}>
         <div class="sky-box" style={skyBox}>
           <SkyBack hour={hour} bands={!v2} />
@@ -256,7 +250,8 @@ export function Backdrop({
           <SkyFront />
         </div>
         <div class="bg-night-shade" />
-        {/* The weather: over the village, under the place pins (and the plots, TaniBot and HUD). */}
+        {/* The weather: over the village AND past it on every side (the sky above the art on a
+            laptop window, the lawn below), under the place pins (and the plots, TaniBot and HUD). */}
         <WeatherFx look={weather} v={v} phone={phone} />
         {onPlace && <Hotspots onPlace={onPlace} account={account} village={v} friends={friends} friendsDot={friendsDot} arena={arena} />}
       </div>

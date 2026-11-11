@@ -1013,9 +1013,11 @@ button {
 .act-water .fly-drone {
   position: absolute;
   left: var(--from);
-  bottom: 30px;
-  transform: translateX(-50%);
-  animation: water-drone 1.6s ease-in-out forwards;
+  bottom: var(--from-b);
+  opacity: var(--o0);
+  transform: translateX(-50%) scale(var(--s0));
+  transform-origin: 50% 100%;
+  animation: water-drone 2.3s ease-in-out forwards;
 }
 
 .act-water .drop {
@@ -1031,26 +1033,46 @@ button {
   animation: water-drop 0.55s ease-in forwards;
 }
 
+/* Take-off from the hat (fade in, rise slowly) or out of the orbit (where it was; from behind
+   TaniBot: at the orbit's side, fading in), fly to the tree, spray (the drops fall 780-1440 ms),
+   fly back, land (hat: fade out; orbit: at the start of the orbit, where the orbit drone shows
+   again). --from = take-off, --home = landing. */
 @keyframes water-drone {
   0% {
     left: var(--from);
-    bottom: 30px;
+    bottom: var(--from-b);
+    opacity: var(--o0);
+    transform: translateX(-50%) scale(var(--s0));
   }
-  24% {
+  12% {
+    left: var(--from);
+    bottom: calc(var(--from-b) + 14px);
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  32% {
     left: var(--to);
     bottom: calc(var(--hover) + 4px);
   }
-  50% {
+  46% {
     left: var(--to);
     bottom: var(--hover);
   }
-  76% {
+  62% {
     left: var(--to);
     bottom: calc(var(--hover) + 4px);
   }
+  84% {
+    left: var(--home);
+    bottom: calc(var(--home-b) + 14px);
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
   100% {
-    left: var(--from);
-    bottom: 30px;
+    left: var(--home);
+    bottom: var(--home-b);
+    opacity: var(--e0);
+    transform: translateX(-50%) scale(var(--s0));
   }
 }
 
@@ -1070,6 +1092,8 @@ button {
   .act-water .fly-drone {
     left: var(--to);
     bottom: var(--hover);
+    opacity: 1;
+    transform: translateX(-50%);
     animation: none;
   }
 
@@ -6489,6 +6513,15 @@ button.chip:focus-visible {
   }
 }
 
+/* The first orbit drone is out watering (scene.tsx WaterDrone flies in its place): hidden at the
+   start of its orbit (the 0% spot of drone-orbit, left of TaniBot), where the flight ends; when the
+   class goes the orbit starts again from that very spot. */
+.bot-drones.lend .orbit.o1 {
+  visibility: hidden;
+  animation: none;
+  transform: translate(calc(var(--bot-w) * -0.74), 0) scale(1);
+}
+
 /* Dim each drone, not the container (opacity on .bot-drones would stack every drone in front). */
 .bot-drones.parked .drone {
   opacity: 0.25;
@@ -7522,18 +7555,12 @@ button.chip:focus-visible {
   pointer-events: auto;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .hotspot:hover,
-  .hotspot:focus-visible {
-    outline: 1px solid color-mix(in srgb, var(--mint-300) 95%, transparent);
-    box-shadow: 0 0 6px 1px color-mix(in srgb, var(--mint-500) 75%, transparent), inset 0 0 8px color-mix(in srgb, var(--mint-500) 35%, transparent);
-  }
-
-}
-
-.hotspot.active {
-  outline: 1px solid color-mix(in srgb, var(--mint-300) 95%, transparent);
-  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--mint-500) 75%, transparent);
+/* No box on hover: a hotspot is a plain rectangle around a building, and its thin outline looked
+   like a frame left behind (it reached next to TaniBot). The pin shows the hover instead (it grows
+   and shows the full label). Keyboard focus keeps a visible outline. */
+.hotspot:focus-visible {
+  outline: 2px solid var(--mint-300);
+  outline-offset: 2px;
 }
 
 /* Phones: a bubble with the name and an Open button. */
@@ -10079,14 +10106,64 @@ html.page-locked body {
   overflow: hidden;
 }
 
+/* The garden's weather layer reaches past the art on every side: on a laptop window the art does
+   not reach the top of the screen (the code sky shows above it) nor the bottom (the lawn). The
+   backdrop clips it at the screen's edges. */
+.bg-art > .wx {
+  inset: -100vh -100vw -60vh;
+}
+
+/* Exactly over the art again (inside the extended layer). */
+.wx-art {
+  position: absolute;
+  top: 100vh;
+  right: 100vw;
+  bottom: 60vh;
+  left: 100vw;
+}
+
+/* Each look: --wx-top (the art's top row and everything above it), --wx-mid (at --wx-at of the
+   art's height) and --wx-bottom (the art's bottom row and everything below it). The tint also runs
+   sideways past the art, so the colour never stops at a line. */
 .wx-tint {
   position: absolute;
-  inset: 0;
+  top: 0;
+  bottom: 0;
+  left: -100vw;
+  right: -100vw;
+  --wx-top: transparent;
+  --wx-mid: transparent;
+  --wx-at: 50%;
+  --wx-bottom: transparent;
+  background: linear-gradient(var(--wx-top), var(--wx-mid) var(--wx-at), var(--wx-bottom));
+}
+
+.wx-tint::before,
+.wx-tint::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.wx-tint::before {
+  bottom: 100%;
+  height: 100vh;
+  background: var(--wx-top);
+}
+
+.wx-tint::after {
+  top: 100%;
+  height: 60vh;
+  background: var(--wx-bottom);
 }
 
 /* Rain: a grey sky, darker at the top; the sun almost hidden. */
 .wx-rain .wx-tint {
-  background: linear-gradient(color-mix(in srgb, var(--ink) 55%, transparent), color-mix(in srgb, var(--ink) 32%, transparent) 55%, color-mix(in srgb, var(--ink) 16%, transparent));
+  --wx-top: color-mix(in srgb, var(--ink) 55%, transparent);
+  --wx-mid: color-mix(in srgb, var(--ink) 32%, transparent);
+  --wx-at: 55%;
+  --wx-bottom: color-mix(in srgb, var(--ink) 16%, transparent);
 }
 
 /* Rain hides the sky's lights behind the clouds: sun, moon, stars, meteor and UFO dimmed. */
@@ -10124,16 +10201,21 @@ html.page-locked body {
 
 /* Drought: a warm gold haze over the sky. */
 .wx-drought .wx-tint {
-  background: linear-gradient(color-mix(in srgb, var(--gold-500) 30%, transparent), color-mix(in srgb, var(--gold-300) 12%, transparent) 55%, transparent);
+  --wx-top: color-mix(in srgb, var(--gold-500) 30%, transparent);
+  --wx-mid: color-mix(in srgb, var(--gold-300) 12%, transparent);
+  --wx-at: 55%;
 }
 
 /* Eruption: a red sky, darkest at the top. Warning: a slight smoky dimming. */
 .wx-eruption .wx-tint {
-  background: linear-gradient(color-mix(in srgb, var(--red-500) 48%, transparent), color-mix(in srgb, var(--red-500) 24%, transparent) 45%, color-mix(in srgb, var(--ink) 12%, transparent));
+  --wx-top: color-mix(in srgb, var(--red-500) 48%, transparent);
+  --wx-mid: color-mix(in srgb, var(--red-500) 24%, transparent);
+  --wx-at: 45%;
+  --wx-bottom: color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 .wx-warning .wx-tint {
-  background: linear-gradient(color-mix(in srgb, var(--ink-soft) 28%, transparent), transparent 50%);
+  --wx-top: color-mix(in srgb, var(--ink-soft) 28%, transparent);
 }
 
 .wx-look-eruption .sky-sun,
@@ -10143,7 +10225,8 @@ html.page-locked body {
 
 /* Volcanic soil: a faint warm glow over the fields. */
 .wx-volcanic .wx-tint {
-  background: linear-gradient(transparent 60%, color-mix(in srgb, var(--purple-500) 14%, transparent));
+  --wx-at: 60%;
+  --wx-bottom: color-mix(in srgb, var(--purple-500) 14%, transparent);
 }
 
 /* Thick crater smoke (warning and eruption): big pixel puffs. */
@@ -10175,16 +10258,6 @@ html.page-locked body {
 @keyframes wx-lava {
   from { opacity: 0.75; }
   to { opacity: 1; }
-}
-
-/* Particles: rain streaks and ash, a fixed small number (art/weather.tsx). */
-.wx-particles i {
-  position: absolute;
-  top: -12%;
-  display: block;
-  animation-name: wx-fall;
-  animation-timing-function: steps(10);
-  animation-iteration-count: infinite;
 }
 
 /* Rain: two layers of thin pixel drops (art/weather.tsx). Each layer is one tiled mask (the drop
@@ -10238,20 +10311,31 @@ html.page-locked body {
   }
 }
 
-.wx-particles.ash i {
-  width: 4px;
-  height: 4px;
+/* Eruption ash: one tiled mask of grey pixel flakes (128 px tile, flakes at scattered fixed spots)
+   drifting down slowly, like the rain layers. */
+.wx-ash-layer {
+  position: absolute;
+  top: -256px;
+  left: 0;
+  right: -128px;
+  bottom: 0;
   background: color-mix(in srgb, var(--ink-soft) 85%, var(--paper));
-  animation-name: wx-ash;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' shape-rendering='crispEdges'%3E%3Cpath d='M43 123h2v2h-2zM52 85h2v2h-2zM11 107h4v4h-4zM14 48h4v4h-4zM29 6h2v2h-2zM57 55h2v2h-2zM56 9h4v4h-4zM17 123h2v2h-2zM82 82h4v4h-4zM123 9h4v4h-4zM76 52h2v2h-2zM17 75h3v3h-3zM73 106h2v2h-2zM83 26h3v3h-3z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' shape-rendering='crispEdges'%3E%3Cpath d='M43 123h2v2h-2zM52 85h2v2h-2zM11 107h4v4h-4zM14 48h4v4h-4zM29 6h2v2h-2zM57 55h2v2h-2zM56 9h4v4h-4zM17 123h2v2h-2zM82 82h4v4h-4zM123 9h4v4h-4zM76 52h2v2h-2zM17 75h3v3h-3zM73 106h2v2h-2zM83 26h3v3h-3z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 128px 128px;
+  mask-size: 128px 128px;
+  opacity: 0.85;
+  will-change: transform;
+  animation: wx-ash-fall 14s linear infinite;
 }
 
-@keyframes wx-fall {
-  to { transform: translate(-12px, 125vh); }
-}
-
-@keyframes wx-ash {
-  50% { transform: translate(10px, 60vh); }
-  to { transform: translate(-6px, 125vh); }
+@keyframes wx-ash-fall {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-128px, 256px, 0);
+  }
 }
 
 /* A small shake now and then (warning: rare; eruption: more often). The pins shake with the art. */
@@ -10337,9 +10421,12 @@ html.page-locked body {
 
 /* Nothing moves or shakes with reduced motion: only the still tints stay. */
 @media (prefers-reduced-motion: reduce) {
-  .wx-particles,
   .wx-smoke {
     display: none;
+  }
+
+  .wx-ash-layer {
+    animation: none;
   }
 
   /* Rain stays visible, still. */
