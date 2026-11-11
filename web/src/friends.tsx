@@ -42,9 +42,12 @@ export function FarmersWindow({
   liveDuel = false,
   onState,
   notify,
+  onInvite,
 }: {
   onClose: () => void;
   onVisit: (name: string) => void;
+  /** Opens the "Invite a friend" window (servers with referral, own garden; not while visiting). */
+  onInvite?: () => void;
   /** Arena (servers with `state.arena`): challenge a friend from the Friends section. */
   onDuel?: (name: string) => void;
   /** The online duel is switched on: Duel on an online farmer sends a live invite (a mint dot on the button). */
@@ -199,6 +202,11 @@ export function FarmersWindow({
             enterKeyHint="search"
             onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
           />
+          {onInvite && (
+            <button class="btn btn-small btn-mint farmer-invite" onClick={() => (playSound('click'), onInvite())}>
+              Invite a friend
+            </button>
+          )}
         </div>
       </div>
       {error && <p class="error-text">Could not load the farmers: {error}</p>}

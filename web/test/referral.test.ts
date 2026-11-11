@@ -87,7 +87,8 @@ function runLandingScript(url: string, store: ReturnType<typeof memory>) {
   const u = new URL(url);
   let replacedWith: string | null = null;
   const location = { search: u.search, hash: u.hash, replace: (to: string) => void (replacedWith = to) };
-  runInNewContext(code, { location, localStorage: store, URLSearchParams, Date, JSON });
+  // The chunk-reload guard in the same page only adds an error listener.
+  runInNewContext(code, { location, localStorage: store, URLSearchParams, Date, JSON, window: { addEventListener: () => undefined } });
   return replacedWith;
 }
 

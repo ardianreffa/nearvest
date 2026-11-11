@@ -3644,6 +3644,28 @@ button.balance:focus-visible {
   font-size: var(--fs-sm);
 }
 
+/* Profile: one row "Invite a friend" (text left, button right; phones wrap the button under it). */
+.profile-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--mint-300) 35%, var(--paper-light));
+  border: 2px solid var(--mint-700);
+}
+
+.profile-invite span {
+  flex: 1 1 180px;
+  color: var(--ink);
+}
+
+.profile-invite .btn {
+  flex: none;
+}
+
 .profile-signout {
   display: block;
   margin: 12px auto 0;
@@ -10616,11 +10638,27 @@ html.page-locked body {
   flex: none;
 }
 
+/* The search box and "Invite a friend" in one row (the button keeps its text on one line). */
+.farmer-search {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.farmer-search .farmer-invite {
+  flex: none;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
 .farmer-search input {
   box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
   width: 100%;
   min-height: 44px;
-  margin: 0 0 8px;
+  margin: 0;
   padding: 6px 10px;
   font-family: var(--font-ui);
   /* 16 px: iPhone Safari zooms into smaller inputs. */

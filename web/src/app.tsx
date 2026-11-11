@@ -42,7 +42,7 @@ import { GoogleButton, pendingGoogleRedirect, takeGoogleRedirect } from './googl
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
 import { Coach } from './tutorial';
 import { dotsFor, fruitSnap, LOCAL_NONE, markMarketSeen, markSeen, marketNew, readLocalSeen, saveLocalSeen, settleLocal, shopNeed, useSeenWhenVisible, villageNews, type LocalSeen } from './dots';
-import { InvitePanel, VisitorsPanel } from './invite';
+import { InvitePanel, InviteWindow, VisitorsPanel } from './invite';
 import { clearRef, freshIds, keepRefFromUrl, readRef, withoutRef } from './referral';
 import { predict } from './optimistic';
 import { Info } from './info';
@@ -149,6 +149,8 @@ export function App() {
   /** Garden visits (friends.tsx): the farmer list window, and the friend's garden being visited. */
   const [farmersOpen, setFarmersOpen] = useState(false);
   const [visiting, setVisiting] = useState<string | null>(null);
+  /** "Invite a friend" window (Farmers of Tandur, Profile). */
+  const [inviteOpen, setInviteOpen] = useState(false);
   // The pixel-leaf wipe between gardens; a visit waits under it until the friend's garden loaded.
   const wipe = useVisitWipe();
   const visitWait = useRef<{ name: string; done: (ok: boolean, error?: string) => void } | null>(null);
@@ -844,7 +846,14 @@ export function App() {
     ) : info === 'judge' && state && config ? (
       <JudgeTour state={state} config={config} onGo={judgeGo} onClose={() => setInfo(null)} />
     ) : info === 'profile' && state ? (
-      <Profile state={state} config={config} onState={applyState} onSignOut={() => (setInfo(null), void logout())} onClose={() => setInfo(null)} />
+      <Profile
+        state={state}
+        config={config}
+        onState={applyState}
+        onSignOut={() => (setInfo(null), void logout())}
+        onClose={() => setInfo(null)}
+        onInvite={state.referral && !visiting ? () => (playSound('click'), setInfo(null), setInviteOpen(true)) : undefined}
+      />
     ) : null;
   if (phase === 'login') {
     return (
@@ -1311,8 +1320,17 @@ export function App() {
       {dialogView}
       {infoView}
       {farmersOpen && (
-        <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} onDuel={state.arena ? startDuel : undefined} liveDuel={!!state.arena?.online} onState={applyState} notify={toast} />
+        <FarmersWindow
+          onClose={() => setFarmersOpen(false)}
+          onVisit={startVisit}
+          onDuel={state.arena ? startDuel : undefined}
+          liveDuel={!!state.arena?.online}
+          onState={applyState}
+          notify={toast}
+          onInvite={state.referral && !visiting ? () => setInviteOpen(true) : undefined}
+        />
       )}
+      {inviteOpen && state.referral && !visiting && <InviteWindow state={state} notify={toast} onClose={() => setInviteOpen(false)} />}
       {arenaOpen && state.arena && <ArenaWindow state={state} busy={duelBusy} onClose={() => setArenaOpen(false)} onDuel={startDuel} onReplay={showDuel} onResume={resumeMatch} />}
       {invite && !match && (
         <InvitePopup

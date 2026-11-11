@@ -38,6 +38,20 @@
         } catch (e) {}
       })();
     </script>
+    <script>
+      // A page opened before a new deploy may ask for JS files that are gone: reload once
+      // (same key and 60 s guard as src/chunk-reload.ts), never show the error.
+      window.addEventListener('error', function (e) {
+        var t = e.target;
+        if (!t || t.tagName !== 'SCRIPT' || t.type !== 'module') return;
+        try {
+          var last = Number(sessionStorage.getItem('nearvest.chunkReload') || 0);
+          if (last && Date.now() - last < 60000) return;
+          sessionStorage.setItem('nearvest.chunkReload', String(Date.now()));
+          location.reload();
+        } catch (err) {}
+      }, true);
+    </script>
   </head>
   <body class="lp-body">
     <div id="app"></div>

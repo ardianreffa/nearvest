@@ -21,12 +21,15 @@ export function Profile({
   onState,
   onSignOut,
   onClose,
+  onInvite,
 }: {
   state: GameState;
   config: ServerConfig;
   onState: (s: GameState) => void;
   onSignOut: () => void;
   onClose: () => void;
+  /** Opens the "Invite a friend" window (servers with referral; not while visiting). */
+  onInvite?: () => void;
 }) {
   const p = state.player;
   const [picking, setPicking] = useState(false);
@@ -105,6 +108,16 @@ export function Profile({
           <dd>{methods.join(' + ')}</dd>
         </dl>
       </div>
+      {onInvite && (
+        <div class="profile-invite">
+          <span class="small">
+            Invite a friend: you both get <b>PANEN</b> after their first harvest.
+          </span>
+          <button class="btn btn-small btn-mint" onClick={onInvite}>
+            Invite a friend
+          </button>
+        </div>
+      )}
       <WalletPanel state={state} config={config} onState={onState} />
       {p.custody === 'wallet' && <GooglePanel state={state} config={config} onState={onState} />}
       <Panel title="Farmer Card">

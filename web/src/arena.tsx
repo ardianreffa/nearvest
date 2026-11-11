@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'preact/hooks';
 import { api, type Activity, type ArenaPick, type ArenaView, type DuelSide, type DuelView, type GameState, type MatchSummary } from './api';
-import { duelPost, fightAt, hitFlash, HIT_FLASH_MS, fightTimes, flightMs, fmt, headline, hpTone, prizeChip, recentLine, rewardOf, roundView, roundWhat, ROUND_NAME, seasonLine, sides, youWon, type Fruit, type Hit } from './arena-play';
+import { duelPost, fightAt, fighterArtKey, hitFlash, HIT_FLASH_MS, fightTimes, flightMs, fmt, headline, hpTone, prizeChip, recentLine, rewardOf, roundView, roundWhat, ROUND_NAME, seasonLine, sides, youWon, type Fruit, type Hit } from './arena-play';
 import { Avatar } from './art/avatars';
 import { BotDrones, TaniBot, TANIBOT_H, tierOf } from './art/tanibot';
 import { playSound, type SoundName } from './audio';
@@ -339,7 +339,10 @@ export function Fighter({
           ))}
         </span>
       )}
-      <div class={`fighter-art${state === 'ko' ? ' asleep' : ''}${flash && state === 'hit' ? ' flash' : ''}`}>
+      {/* A new element (key) when the flash goes on and off and at K.O. / win: iPhone Safari could keep
+          the removed white filter painted on the animated TaniBot (the winner stayed white on "YOU WIN!"),
+          a fresh element never carries it. */}
+      <div key={fighterArtKey(state, flash)} class={`fighter-art${state === 'ko' ? ' asleep' : ''}${flash && state === 'hit' ? ' flash' : ''}`}>
         <TaniBot tier={tier} scale={scale} effects={state !== 'ko'} />
       </div>
       {state === 'hit' && (

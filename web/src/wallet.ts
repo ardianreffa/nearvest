@@ -12,6 +12,7 @@ import { outcomeHash } from './outcome';
 import { installPopupRescue } from './popup-rescue';
 import type { NearConnector } from '@hot-labs/near-connect';
 import { api, ApiError, type ServerConfig } from './api';
+import { loadChunk } from './chunk-reload';
 
 export interface WalletProof {
   accountId: string;
@@ -26,11 +27,13 @@ function connector(network: string): Promise<NearConnector> {
   // Safari on iPhone blocks wallet windows / app links that near-connect opens outside the tap:
   // offer a "Continue" button instead (popup-rescue.ts).
   installPopupRescue();
-  connectorPromise ??= import('@hot-labs/near-connect').then(
+  connectorPromise ??= loadChunk(() => import('@hot-labs/near-connect')).then(
     ({ NearConnector }) =>
       // No manual wallet list: near-connect shows every wallet that supports this network.
       new NearConnector({ network: network === 'mainnet' ? 'mainnet' : 'testnet', autoConnect: false }),
   );
+  // A failed load is tried again next time (not kept as a rejected promise).
+  connectorPromise.catch(() => (connectorPromise = null));
   return connectorPromise;
 }
 
@@ -103,7 +106,7 @@ function saveGameKey(accountId: string, secret: string | null): void {
 
 /** Asks the wallet to add the limited game key to the player's account (one wallet confirmation). */
 async function addGameKey(config: ServerConfig, accountId: string): Promise<string> {
-  const { KeyPair } = await import('near-api-js');
+  const { KeyPair } = await loadChunk(() => import('near-api-js'));
   const key = KeyPair.fromRandom('ed25519');
   const c = await connector(config.network);
   let signedInAs: string | undefined;
@@ -155,7 +158,7 @@ export async function signShopBurn(
   /** Shows the "Set up Shop" window (shop-setup.ts) before the wallet opens; true = Continue. */
   confirmSetup: () => Promise<boolean>,
 ): Promise<{ publicKey: string; nonce: string; maxBlockHeight: string; signature: string } | null> {
-  const nearApi = await import('near-api-js');
+  const nearApi = await loadChunk(() => import('near-api-js'));
   let secret = loadGameKey(accountId);
   let justAdded = false;
   if (!secret) {
@@ -195,7 +198,7 @@ export async function signShopBurn(
  * rebuilds it in server/src/wallet.ts (burnDelegateHash). Exported for the browser check.
  */
 export async function signBurnRequest(req: BurnRequest, secret: string): Promise<{ hashHex: string; signature: string }> {
-  const nearApi = await import('near-api-js');
+  const nearApi = await loadChunk(() => import('near-api-js'));
   const key = nearApi.KeyPair.fromString(secret as Parameters<typeof nearApi.KeyPair.fromString>[0]);
   const delegate = nearApi.buildDelegateAction({
     senderId: req.senderId,

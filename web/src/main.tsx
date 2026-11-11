@@ -2,8 +2,12 @@ import { render } from 'preact';
 import { App } from './app';
 import { mountRotateScreen } from './rotate';
 import { API_URL } from './api';
+import { installChunkReload } from './chunk-reload';
 import './fonts.css';
 import './styles.css';
+
+// A page opened before a new deploy reloads once instead of showing "Importing a module script failed."
+installChunkReload();
 
 // Look up and open the connection to the game server while the page loads, so the first action
 // does not wait for DNS (sslip.io) and the TLS handshake.

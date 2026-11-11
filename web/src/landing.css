@@ -9,7 +9,10 @@
 
 .lp-hero {
   position: relative;
-  height: 100dvh;
+  /* A little shorter than the screen: the next section's top edge peeks out below, so visitors see
+     the page goes on ("See how it works" sits on that strip). */
+  --peek: 64px;
+  height: calc(100dvh - var(--peek));
   min-height: 520px;
   overflow: hidden;
   background: var(--cyan-300);
@@ -34,7 +37,7 @@
 }
 
 .lp-hero.wide .bg-art .sky-box {
-  translate: 0 calc(-1 * max(0px, 100svh - max(100vw, 100svh * 240 / 135 * 0.82) * 135 / 240));
+  translate: 0 calc(-1 * max(0px, 100svh - var(--peek) - max(100vw, 100svh * 240 / 135 * 0.82) * 135 / 240));
 }
 
 /* Phones: the upright village across the full width; its sky (sun, clouds, birds, drones) sits
@@ -52,7 +55,7 @@
    bottom). Above the text the code sky's bands run from deep blue at the top to light blue. */
 @media (max-width: 1023px) {
   .lp-hero.narrow .lp-hero-top {
-    top: max(16px, calc(100svh - 118.3vw - 8px - 236px));
+    top: max(16px, calc(100svh - var(--peek) - 118.3vw - 8px - 236px));
   }
 }
 
@@ -130,20 +133,35 @@
   text-shadow: 0 1px 0 var(--ink), 0 0 8px color-mix(in srgb, var(--ink) 60%, transparent);
 }
 
-.lp-more {
-  position: absolute;
-  right: 18px;
-  bottom: calc(14px + var(--dither));
-  font-size: var(--fs-h3);
-  color: var(--paper-light);
+/* "See how it works ↓" (HowItWorks in landing.tsx): fixed at the bottom middle, on the strip of the
+   next section that peeks under the hero; fades out once the visitor scrolls. */
+.lp-how {
+  position: fixed;
+  left: 50%;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  z-index: 4;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
   text-decoration: none;
-  text-shadow: 0 1px 0 var(--ink);
-  animation: lp-bob 1.8s ease-in-out infinite;
+  transition: opacity 0.25s ease-out;
+}
+
+.lp-how.gone {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lp-how-arrow {
+  display: inline-block;
+  animation: lp-bob 1.6s ease-in-out infinite;
 }
 
 @keyframes lp-bob {
   50% {
-    transform: translateY(-6px);
+    transform: translateY(4px);
   }
 }
 
@@ -175,8 +193,8 @@
     background: var(--cyan-300);
   }
 
-  .lp-more {
-    display: none;
+  .lp-hero {
+    --peek: 56px;
   }
 }
 
@@ -499,8 +517,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lp-more {
+  .lp-how-arrow {
     animation: none;
+  }
+
+  .lp-how {
+    transition: none;
   }
 
   .lp-screen .lp-screen-art,

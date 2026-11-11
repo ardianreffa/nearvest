@@ -7,7 +7,7 @@
 // Shown only when the server sends `referral` / `stickers` (older servers: nothing new appears).
 
 import { createPortal } from 'preact/compat';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, type FriendAddView, type GameState, type ReferralView, type Species, type StickerKind, type StickerView, type VisitorView, type VisitResponse, type WaveView } from './api';
 import { Avatar } from './art/avatars';
 import { playSound } from './audio';
@@ -58,12 +58,16 @@ const startOfDay = (t: number) => {
   return d.getTime();
 };
 
-/** Village tab: invite link + Share on X, rewards, friends invited and their status. */
-export function InvitePanel({ state, notify, onVisit }: { state: GameState; notify: Notify; onVisit?: (name: string) => void }) {
+/**
+ * The invite link (Copy, Share on X) and the rewards: the Village "Invite a friend" box and the
+ * "Invite a friend" window (Farmers of Tandur, Profile) show the same thing.
+ */
+export function InviteLink({ state, notify }: { state: GameState; notify: Notify }) {
   const r = state.referral as ReferralView;
   const name = state.player.name;
   const link = inviteLink(inviteOrigin(import.meta.env.DEV, location.origin), name);
   const [copied, setCopied] = useState(false);
+  const input = useRef<HTMLInputElement>(null);
   const copy = async () => {
     playSound('click');
     try {
@@ -72,37 +76,58 @@ export function InvitePanel({ state, notify, onVisit }: { state: GameState; noti
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard blocked: select the link so the player can copy it by hand.
-      const input = document.querySelector<HTMLInputElement>('.invite-link input');
-      input?.select();
+      input.current?.select();
       notify({ kind: 'info', text: 'Select the link and copy it by hand.' });
     }
   };
   const cut = r.rewards.referrerNow < r.rewards.referrer;
   return (
+    <>
+      <p class="small">
+        Send your link. When your friend makes their <b>first harvest</b>, you get <b>{formatPanen(r.rewards.referrerNow)} PANEN</b> and they get{' '}
+        <b>{formatPanen(r.rewards.friend)} PANEN</b>.
+      </p>
+      {cut && (
+        <p class="muted small">
+          Your reward follows the Season rule ({formatPanen(r.rewards.referrer)} {'->'} {formatPanen(r.rewards.referrerNow)} PANEN now).
+        </p>
+      )}
+      <div class="invite-link">
+        <input ref={input} readOnly value={link} aria-label="Your invite link" onFocus={(e) => (e.target as HTMLInputElement).select()} />
+        <button class="btn btn-small btn-mint invite-copy" onClick={() => void copy()}>
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+      <div class="share-buttons">
+        <a class="btn btn-small invite-x" href={postUrl(invitePost(name), link)} target="_blank" rel="noreferrer" onClick={() => playSound('click')}>
+          Share on X
+        </a>
+      </div>
+      <p class="muted small">Max 3 new friends a day per phone or network. Your own second garden does not count.</p>
+    </>
+  );
+}
+
+export const JUDGE_NO_INVITE = 'Judge gardens cannot invite friends. Make your own garden to get an invite link.';
+
+/** "Invite a friend" window (Farmers of Tandur, Profile): the same link and rewards as the Village box. */
+export function InviteWindow({ state, notify, onClose }: { state: GameState; notify: Notify; onClose: () => void }) {
+  const r = state.referral as ReferralView;
+  return (
+    <Modal title="Invite a friend" onClose={onClose} closeLabel="Close" class="invite-dialog">
+      {r.canInvite ? <InviteLink state={state} notify={notify} /> : <p class="muted small">{JUDGE_NO_INVITE}</p>}
+    </Modal>
+  );
+}
+
+/** Village tab: invite link + Share on X, rewards, friends invited and their status. */
+export function InvitePanel({ state, notify, onVisit }: { state: GameState; notify: Notify; onVisit?: (name: string) => void }) {
+  const r = state.referral as ReferralView;
+  return (
     <Panel title="Invite a friend" class="invite-panel">
       {r.canInvite ? (
         <>
-          <p class="small">
-            Send your link. When your friend makes their <b>first harvest</b>, you get <b>{formatPanen(r.rewards.referrerNow)} PANEN</b> and they get{' '}
-            <b>{formatPanen(r.rewards.friend)} PANEN</b>.
-          </p>
-          {cut && (
-            <p class="muted small">
-              Your reward follows the Season rule ({formatPanen(r.rewards.referrer)} {'->'} {formatPanen(r.rewards.referrerNow)} PANEN now).
-            </p>
-          )}
-          <div class="invite-link">
-            <input readOnly value={link} aria-label="Your invite link" onFocus={(e) => (e.target as HTMLInputElement).select()} />
-            <button class="btn btn-small btn-mint invite-copy" onClick={() => void copy()}>
-              {copied ? 'Copied!' : 'Copy'}
-            </button>
-          </div>
-          <div class="share-buttons">
-            <a class="btn btn-small invite-x" href={postUrl(invitePost(name), link)} target="_blank" rel="noreferrer" onClick={() => playSound('click')}>
-              Share on X
-            </a>
-          </div>
-          <p class="muted small">Max 3 new friends a day per phone or network. Your own second garden does not count.</p>
+          <InviteLink state={state} notify={notify} />
           {r.invited.length > 0 && (
             <ul class="list invite-list" aria-label="Friends you invited">
               {r.invited.map((f) => (
@@ -132,7 +157,7 @@ export function InvitePanel({ state, notify, onVisit }: { state: GameState; noti
           )}
         </>
       ) : (
-        <p class="muted small">Judge gardens cannot invite friends. Make your own garden to get an invite link.</p>
+        <p class="muted small">{JUDGE_NO_INVITE}</p>
       )}
       {r.invitedBy && (
         <p class="invite-by small">

@@ -2,7 +2,7 @@
 // only, no promises of profit.
 
 import type { ComponentChildren } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, nearblocksAccount, type GameState, type ServerConfig, type VillageStats } from './api';
 import { DartoFace } from './art/darto';
 import { TaniBot, TaniBotHead } from './art/tanibot';
@@ -26,13 +26,20 @@ export function Modal({
   /** Replaces the single close button (e.g. Back / Next). */
   actions?: ComponentChildren;
 }) {
+  const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    // Escape closes only the window on top (Invite a friend opens over Farmers of Tandur).
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const all = document.querySelectorAll('.dialog-backdrop');
+      if (all.length && all[all.length - 1] !== root.current) return;
+      onClose();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
   return (
-    <div class="dialog-backdrop" role="presentation" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div ref={root} class="dialog-backdrop" role="presentation" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div class={`dialog panel info-dialog${cls ? ` ${cls}` : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <header class="panel-head">
           <h2>{title}</h2>

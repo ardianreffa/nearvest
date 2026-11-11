@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { DuelSide, DuelView } from '../src/api.ts';
-import { duelButton, duelPost, fightAt, fightHits, fightTimes, headline, hitFlash, HIT_FLASH_MS, hpTone, prizeChip, receivedNotice, recentLine, rewardLine, rewardOf, roundFruit, roundView, roundWhat, scoreAfter, seasonLine, sides } from '../src/arena-play.ts';
+import { duelButton, duelPost, fightAt, fightHits, fightTimes, headline, fighterArtKey, hitFlash, HIT_FLASH_MS, hpTone, prizeChip, receivedNotice, recentLine, rewardLine, rewardOf, roundFruit, roundView, roundWhat, scoreAfter, seasonLine, sides } from '../src/arena-play.ts';
 import type { DuelRound, Quality, Species } from '../src/api.ts';
 
 const side = (name: string, o: Partial<DuelSide> = {}): DuelSide => ({
@@ -223,5 +223,13 @@ describe('the white hit flash always ends (iPhone Safari: TaniBots stayed white)
     assert.equal(hitFlash(1000), false);
     assert.equal(hitFlash(-1), false);
     assert.ok(HIT_FLASH_MS <= 300, 'a flash, not a long white');
+  });
+
+  it('the TaniBot gets a fresh element after the flash and at K.O. / win (the winner stayed white)', () => {
+    assert.notEqual(fighterArtKey('hit', true), fighterArtKey('hit', false));
+    assert.notEqual(fighterArtKey('idle', false), fighterArtKey('win', false));
+    assert.notEqual(fighterArtKey('idle', false), fighterArtKey('ko', false));
+    assert.notEqual(fighterArtKey('hit', true), fighterArtKey('win', false));
+    assert.equal(fighterArtKey('idle', true), fighterArtKey('idle', false), 'flash only on the TaniBot that is hit');
   });
 });

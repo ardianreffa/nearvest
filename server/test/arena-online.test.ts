@@ -417,4 +417,25 @@ describe('arena online duel', () => {
     const dec = await tani('POST', `/api/arena/match/999/decline`, {});
     assert.equal(dec.status, 404);
   });
+  it('trees: an online duel needs a living tree on both sides; a Memorial Tree does not count', async () => {
+    const { w, matches, a, b } = await duo();
+    const memorial = (p: PlayerRow) => w.db.prepare("UPDATE trees SET status = 'dead', died_at = ? WHERE player_id = ? AND status = 'alive'").run(w.now(), p.id);
+    const code = (f: () => unknown) => {
+      try {
+        f();
+      } catch (e) {
+        return (e as { details?: { code?: string } }).details?.code;
+      }
+      return 'ok';
+    };
+    memorial(b);
+    assert.ok(w.game.memorialOnPlot(b.id, 0), 'budi keeps a Memorial Tree on plot 1');
+    assert.equal(code(() => matches.start(a.id, 'budi', '1.1.1.1', 'dev-a', true)), 'no_trees');
+    assert.equal(matches.invite(b.id), null);
+    memorial(a);
+    assert.equal(code(() => matches.start(a.id, 'budi', '1.1.1.1', 'dev-a', true)), 'no_tree_you');
+    // budi (no living tree) cannot challenge sari either, online or not.
+    assert.equal(code(() => matches.start(b.id, 'sari', '2.2.2.2', 'dev-b', true)), 'no_tree_you');
+    assert.equal(duelsToday(w.db, a.id, w.now()), 0);
+  });
 });

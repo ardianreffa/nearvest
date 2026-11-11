@@ -168,6 +168,15 @@ export function fruitPower(f: Fruit): number {
 export const HIT_FLASH_MS = 180;
 export const hitFlash = (sinceImpact: number) => sinceImpact >= 0 && sinceImpact < HIT_FLASH_MS;
 
+/**
+ * The key of a fighter's art: changes when the white flash goes on and off and when the fighter
+ * reaches K.O. / win, so the TaniBot is drawn on a fresh element (no stale white filter on iPhone).
+ */
+export function fighterArtKey(state: string, flash: boolean): string {
+  if (flash && state === 'hit') return 'flash';
+  return state === 'win' || state === 'ko' ? `art-${state}` : 'art';
+}
+
 export const hardHit = (f: Fruit) => f.species === 'durian' || f.quality === 'gold';
 
 export interface Hit {

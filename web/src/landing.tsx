@@ -13,6 +13,7 @@ import './fonts.css';
 import './styles.css';
 import './landing.css';
 import { API_URL } from './api';
+import { installChunkReload } from './chunk-reload';
 import { DARTO_IDLE, DARTO_PALETTE } from './art/darto-sprite';
 import { Backdrop } from './art/backdrop';
 import { V3_PHONE, V3_WEB } from './art/village';
@@ -85,9 +86,6 @@ function Hero() {
         <span class="lp-cta-note lp-device-note">Plays on phones and laptops. For the best view, use Chrome on a laptop.</span>
       </div>
       <Dither to="--leaf-500" id="d0" />
-      <a class="lp-more" href="#trees" aria-label="See how it works">
-        ▼
-      </a>
     </header>
   );
 }
@@ -193,6 +191,32 @@ function useReveal() {
     els.forEach((e) => io.observe(e));
     return () => io.disconnect();
   }, []);
+}
+
+/**
+ * "See how it works ↓": a small button on the strip of the next section that peeks under the hero
+ * (the hero is a little shorter than the screen). Tap = smooth scroll to the first section. Gone
+ * for good once the visitor starts scrolling; the arrow bobs slowly (still with reduced motion).
+ */
+function HowItWorks() {
+  const [gone, setGone] = useState(() => typeof window !== 'undefined' && window.scrollY > 8);
+  useEffect(() => {
+    if (gone) return;
+    const on = () => window.scrollY > 8 && setGone(true);
+    window.addEventListener('scroll', on, { passive: true });
+    return () => window.removeEventListener('scroll', on);
+  }, [gone]);
+  const go = (e: Event) => {
+    e.preventDefault();
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById('trees')?.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+    setGone(true);
+  };
+  return (
+    <a class={`btn btn-small lp-how${gone ? ' gone' : ''}`} href="#trees" onClick={go} aria-hidden={gone} tabIndex={gone ? -1 : 0}>
+      See how it works <span class="lp-how-arrow" aria-hidden="true">↓</span>
+    </a>
+  );
 }
 
 /** The floating "Play for free": shown once the hero's own buttons are out of view. */
@@ -364,9 +388,11 @@ function Landing() {
           </div>
         </section>
       </main>
+      <HowItWorks />
       <FloatingPlay />
     </>
   );
 }
 
+installChunkReload();
 render(<Landing />, document.getElementById('app')!);
