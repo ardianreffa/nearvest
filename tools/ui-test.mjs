@@ -779,8 +779,13 @@ try {
       await waitFor(ready, 'next turn', 10000);
     });
     await step('turns 2-3: Paper vs Rock, Scissors vs Paper (the skill bar fills)', async () => {
+      await freeze(300, 0);
       await play('paper', 'rock');
+      await waitFor(`!!document.querySelector('.fighter.them .pick-bubble:not(.secret)')`, 'both picks of turn 2', 10000);
       await sleep(300);
+      console.log('turn 2 picks:', await evaluate(info));
+      await screenshot('match-picks-paper');
+      await unfreeze();
       await waitFor(ready, 'turn 3', 10000);
       await play('scissors', 'paper');
       await sleep(300);

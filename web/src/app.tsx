@@ -18,6 +18,7 @@ import { ArenaPanel, ArenaWindow, DuelScreen } from './arena';
 import { receivedNotice } from './arena-play';
 import { matchNotice } from './arena-turn';
 import { MatchScreen } from './arena-match';
+import { overlayKey } from './overlay-key';
 import { FarmersWindow, VisitGarden } from './friends';
 import { SPECIES_NAME as SPECIES_LABEL } from './ui';
 import { burnAt, coinsToBalance, floatText, FxLayer } from './fx';
@@ -1146,16 +1147,16 @@ export function App() {
         </>
       )}
 
-      {flash > 0 && <div class="chain-flash" key={flash} aria-hidden="true" />}
+      {flash > 0 && <div class="chain-flash" key={overlayKey('flash', flash)} aria-hidden="true" />}
       <ToastStrip shown={toastShown} dismiss={dismissToast} setHidden={setToastHidden} />
       {dialogView}
       {infoView}
       {farmersOpen && <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} />}
       {arenaOpen && state.arena && <ArenaWindow state={state} busy={duelBusy} onClose={() => setArenaOpen(false)} onDuel={startDuel} onReplay={showDuel} onResume={resumeMatch} />}
-      {duel && <DuelScreen key={duel.id} duel={duel} wide={wide} activity={state.activity} season={state.season} onClose={closeDuel} />}
+      {duel && <DuelScreen key={overlayKey('duel', duel.id)} duel={duel} wide={wide} activity={state.activity} season={state.season} onClose={closeDuel} />}
       {match && (
         <MatchScreen
-          key={match.id}
+          key={overlayKey('match', match.id)}
           initial={match}
           wide={wide}
           activity={state.activity}

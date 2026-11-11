@@ -301,6 +301,8 @@ const UI_ICON_PALETTE: Record<string, string> = {
   '1': '#C3C8CE',
   '2': '#8A9098',
   '3': '#555B63',
+  // Paper (pixel art, own colour): the soft shadow along the sheet's bottom edge.
+  '4': '#D9CCA8',
 };
 
 export const UI_ICONS = {
@@ -362,22 +364,25 @@ export const UI_ICONS = {
     '................',
     '................',
   ],
-  // Arena v2: Paper (Rock / Paper / Scissors buttons and the picks above the TaniBots).
+  // Arena v2: Paper (Rock / Paper / Scissors buttons and the picks above the TaniBots): one blank
+  // upright sheet (no lines, no text) with a gentle wave in its top and bottom edges like paper in the
+  // wind, the top-right corner folded, a light shade where it bends and a thin darker cream shadow
+  // following the wavy bottom edge.
   paper: [
     '................',
-    '..KKKKKKKKK.....',
-    '..KPPPPPPPKK....',
-    '..KPPPPPPPKFK...',
-    '..KPKKKKPPKKKK..',
-    '..KPPPPPPPPPPK..',
-    '..KPKKKKKKKPPK..',
-    '..KPPPPPPPPPPK..',
-    '..KPKKKKKKKPPK..',
-    '..KPPPPPPPPPPK..',
-    '..KPKKKKKKPPPK..',
+    '......KKKK......',
+    '..KKKKPPPPKK....',
+    '..KFFPPPPPKFK...',
+    '..KPPPPPPPKKKK..',
     '..KPPPPPPPPPPK..',
     '..KPPPPPPPPPPK..',
-    '..KKKKKKKKKKKK..',
+    '..KPPPPPPPPPPK..',
+    '..KPPPPPPPPPPK..',
+    '..KPPPPPPPPPPK..',
+    '..KPPPPPPPPPPK..',
+    '..KPPP4444PPPK..',
+    '..K444KKKK444K..',
+    '..KKKK....KKKK..',
     '................',
     '................',
   ],
