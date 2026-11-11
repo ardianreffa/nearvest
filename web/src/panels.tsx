@@ -652,7 +652,7 @@ function ShareToX({ accountId }: { accountId: string }) {
         <summary class="btn btn-small">Preview share cards ▾</summary>
         <p class="muted small">Plays the moment (animation, sound, then its card) without changing your garden.</p>
         <div class="share-buttons">
-          {(['first_harvest', 'first_gold', 'big_durian', 'evolved', 'streak7', 'title', 'legend', 'eruption'] as MomentKind[]).map((k) => (
+          {(['first_harvest', 'first_gold', 'big_durian', 'golden_arowana', 'evolved', 'streak7', 'title', 'legend', 'eruption'] as MomentKind[]).map((k) => (
             <button
               key={k}
               class="btn btn-small"

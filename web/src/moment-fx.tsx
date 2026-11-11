@@ -4,6 +4,7 @@
 //   first harvest   basket pops up, fruits bounce in                     cheerful 8-bit jingle
 //   first Gold tree the Gold tree (its species) gilded, a golden shine + sparkles   steel-drum chime
 //   Rare durian     a durian drops with a heavy bounce, dust puff         heavy punch
+//   Golden Arowana  the fish leaps in an arc, golden shine + sparkles      steel-drum chime
 //   new title       banner rises with the title + confetti               level-up
 //   TaniBot evolved scan-line glow sweeps down + banner                  robot beeps
 //   7-day streak    calendar page flips to 7 + coin rain                 coins
@@ -17,12 +18,14 @@ import { confetti } from './fx';
 import type { Moment, MomentKind } from './moments';
 import { Sprite } from './sprites';
 import { TreePixels } from './art/trees';
+import { CatchIcon } from './art/catch-icons';
 
 /** How long each moment's animation runs (ms); the popup waits for it. */
 export const MOMENT_FX_MS: Record<MomentKind, number> = {
   first_harvest: 1600,
   first_gold: 1600,
   big_durian: 1400,
+  golden_arowana: 1800,
   title: 1800,
   evolved: 1800,
   streak7: 1800,
@@ -35,6 +38,7 @@ const SOUND: Record<MomentKind, SoundName | null> = {
   first_harvest: 'momentHarvest',
   first_gold: 'momentGold',
   big_durian: 'momentDurian',
+  golden_arowana: 'momentGold',
   title: 'levelup',
   evolved: 'momentEvolve',
   streak7: 'coins',
@@ -54,6 +58,8 @@ function banner(m: Moment): { top: string; main: string } | null {
       return { top: 'You are a', main: 'Legend' };
     case 'eruption':
       return { top: 'You survived', main: 'the eruption' };
+    case 'golden_arowana':
+      return { top: 'You caught the', main: 'Golden Arowana' };
     case 'streak7':
       return { top: 'Check-in', main: '7 days in a row' };
     default:
@@ -125,9 +131,9 @@ export function MomentFxLayer() {
   const b = banner(m);
   return (
     <div key={p.id} class={`mfx mfx-${m.kind}${still ? ' still' : ''}`} aria-hidden="true">
-      {m.kind === 'first_gold' && !still && <i class="mfx-shine" />}
+      {(m.kind === 'first_gold' || m.kind === 'golden_arowana') && !still && <i class="mfx-shine" />}
       {m.kind === 'evolved' && !still && <i class="mfx-scan" />}
-      {(m.kind === 'first_gold' || m.kind === 'evolved') &&
+      {(m.kind === 'first_gold' || m.kind === 'evolved' || m.kind === 'golden_arowana') &&
         !still &&
         SPARKLES.map(([x, y], i) => (
           <span key={i} class="mfx-sparkle" style={{ left: `${x}%`, top: `${y}%`, animationDelay: `${300 + i * 110}ms` }}>
@@ -152,6 +158,13 @@ export function MomentFxLayer() {
           {/* The player's Gold tree itself (its species, with fruit), gilded. */}
           <span class="mfx-gilded">
             <TreePixels species={m.species ?? 'mango'} stage="fruiting" quality="gold" scale={4} seed={1} />
+          </span>
+        </div>
+      )}
+      {m.kind === 'golden_arowana' && (
+        <div class="mfx-center mfx-arowana">
+          <span class="mfx-leap">
+            <CatchIcon id="golden_arowana" scale={8} />
           </span>
         </div>
       )}

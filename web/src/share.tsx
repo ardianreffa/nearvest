@@ -9,6 +9,7 @@ import type { GameState, Quality, Species } from './api';
 import { botSprite, TIER_TITLE, tierOf, type Tier } from './art/tanibot';
 import { AVATARS, type AvatarId } from './art/avatars';
 import { PALETTE } from './sprites';
+import { CATCH_GRIDS, FISH_PALETTE } from './art/catch-grids';
 import { treePalette, treeRows } from './art/trees';
 import { hourOf, lockedFraction, phaseOf } from './art/backdrop';
 import { celestial, skyBands, SKY_BAND } from './art/sky-colors';
@@ -24,6 +25,7 @@ export const MOMENT_LABELS: Record<MomentKind, string> = {
   first_harvest: 'First harvest',
   first_gold: 'First Gold tree',
   big_durian: 'Rare durian',
+  golden_arowana: 'Golden Arowana',
   evolved: 'TaniBot evolved',
   streak7: '7-day streak',
   title: 'New title',
@@ -243,6 +245,12 @@ function texts(m: Moment, s: GameState): { headline: string; sub: string; post: 
         post: `I harvested ${withArticle(`${q} durian`)} in NEARvest, a pixel farming game where every tree is a living NFT. ${TAGS}`,
       };
     }
+    case 'golden_arowana':
+      return {
+        headline: 'Golden Arowana!',
+        sub: `${p.name} caught the legendary fish of Tandur (1 cast in 100)`,
+        post: `I caught a Golden Arowana at the fishing pond in NEARvest, a pixel farming game on NEAR. 1 in 100 casts! ${TAGS}`,
+      };
     case 'evolved':
       return {
         headline: 'TaniBot evolved!',
@@ -598,6 +606,25 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
     }
   } else if (m.kind === 'streak7') {
     drawCalendar(ctx, M, GROUND - 250);
+  } else if (m.kind === 'golden_arowana') {
+    // The fish leaping beside TaniBot, in a gold glow with a few sparkles (pixel art, its own palette).
+    const rows = CATCH_GRIDS.golden_arowana!;
+    const F = 12;
+    const fx = M + 6;
+    const fy = GROUND - 300;
+    const cx = fx + (rows[0].length * F) / 2;
+    const cy = fy + (rows.length * F) / 2;
+    const glow = ctx.createRadialGradient(cx, cy, 10, cx, cy, 190);
+    glow.addColorStop(0, tokenAlpha('--gold-300', 0.8));
+    glow.addColorStop(1, tokenAlpha('--gold-300', 0));
+    ctx.fillStyle = glow;
+    ctx.fillRect(cx - 200, cy - 200, 400, 400);
+    drawRows(ctx, rows, { ...PALETTE, ...FISH_PALETTE }, fx, fy, F);
+    ctx.fillStyle = token('--gold-300');
+    for (const [x, y] of [[fx - 20, fy - 10], [fx + 190, fy - 30], [fx + 120, fy + 120], [fx + 220, fy + 70]]) {
+      ctx.fillRect(x, y + 6, 18, 6);
+      ctx.fillRect(x + 6, y, 6, 18);
+    }
   }
 
   // Tier aura behind TaniBot. Legend: a circle of light big enough to hold the whole robot.

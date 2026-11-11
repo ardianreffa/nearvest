@@ -1,8 +1,9 @@
 # Plan: Fishing mini-game (v1, simple)
 
 Status: **APPROVED by Ardian 2026-11-11 with the decisions below. Server part BUILT 2026-11-11 (committed
-locally, not pushed, not released; `server/src/fishing.ts`, tests `server/test/fishing.test.ts`); web part
-waits for the pond image.** Replaces "Fishing · Soon"
+locally, not pushed, not released; `server/src/fishing.ts`, tests `server/test/fishing.test.ts`); web part BUILT
+2026-11-11 with a temporary code-drawn pond (`web/src/art/pond.tsx` `PondBackdrop`; swap in the ChatGPT image when
+it arrives).** Replaces "Fishing · Soon"
 (docs/BACKLOG.md roadmap item). Draft numbers go to `server/src/rules.ts` once built and are tuned in
 testing. Everything stays on NEAR testnet.
 

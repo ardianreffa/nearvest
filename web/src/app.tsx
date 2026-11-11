@@ -1395,7 +1395,14 @@ export function App() {
         </Modal>
       )}
       {fishingOpen && state.fishing && !visiting && (
-        <FishingWindow state={state} onState={applyState} notify={toast} onClose={() => setFishingOpen(false)} />
+        <FishingWindow
+          state={state}
+          onState={applyState}
+          notify={toast}
+          onClose={() => setFishingOpen(false)}
+          // Golden Arowana: its moment (animation + sound now, the share card once the window closes).
+          onCatch={(c) => c.moment === 'golden_arowana' && shareMomentOnce(state.player.accountId, { kind: 'golden_arowana' }, { popup: !RECORD_MODE })}
+        />
       )}
       {/* Servers without fishing (or FISHING=off): the small "coming soon" window, as before. */}
       {fishingOpen && !state.fishing && (

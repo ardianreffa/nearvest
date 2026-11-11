@@ -14,7 +14,18 @@ import { playFishing, playSound } from './audio';
 import { Modal } from './help';
 import { judgeDeviceId } from './judge';
 import { castsLeftText, catchNote, rewardChips, startPhase, untilText, type FishPhase } from './fishing-logic';
+import { Sprite } from './sprites';
 import { Coin } from './ui';
+
+/** Gold sparkles around the leaping Golden Arowana (pond grid points). */
+const SPARKS = [
+  [88, 30],
+  [120, 26],
+  [100, 16],
+  [130, 44],
+  [80, 46],
+  [112, 52],
+];
 import type { Toast } from './toast';
 
 export function FishingWindow({
@@ -147,6 +158,12 @@ export function FishingWindow({
             !
           </span>
         )}
+        {c?.moment === 'golden_arowana' &&
+          SPARKS.map(([x, y], i) => (
+            <span key={i} class="pond-spark" style={{ ...pondAt(x, y), animationDelay: `${200 + i * 120}ms` }} aria-hidden="true">
+              <Sprite name="sparkle" scale={2} />
+            </span>
+          ))}
         {c && (
           <span class={`pond-catch${c.released ? ' released' : ''}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
             <CatchIcon id={c.catch} scale={3} />

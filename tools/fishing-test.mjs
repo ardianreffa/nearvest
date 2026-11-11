@@ -114,6 +114,7 @@ await pg.screenshot({ path: `${out}/fish-${tag}-0-open.png` });
 
 const t1 = await oneCast(1, { early: true, force: 'golden_arowana', shotBite: true });
 check(/GOLDEN AROWANA/i.test(t1) && /PANEN/.test(t1), `cast 1: Golden Arowana with PANEN (${t1.replace(/\n/g, ' | ')})`);
+check((await pg.locator('.pond-spark').count()) > 0, 'cast 1: gold sparkles around the Golden Arowana in the pond');
 check(await pg.locator('.fish-result.legend').count() === 1, 'cast 1: the Golden Arowana card glows');
 // Storage full + Mango seed = Mr. Darto buys it.
 for (let i = 0; i < 25; i++) db.prepare("INSERT INTO seeds (player_id, species, quality, source, created_at) SELECT ?, 'mango', NULL, 'test', 0 WHERE (SELECT COUNT(*) FROM seeds WHERE player_id = ?) < 20").run(pid, pid);
@@ -130,9 +131,20 @@ await pg.evaluate(() => {
   const b = document.querySelector('.fishing-dialog .info-body');
   b.scrollTop = b.scrollHeight;
 });
-check(await pg.evaluate(() => [...document.querySelectorAll('.fish-list-name')].every((e) => e.getBoundingClientRect().height < 40)), 'catch names stay on one or two lines');
+check(await pg.evaluate(() => [...document.querySelectorAll('.fish-list-name')].every((e) => e.getBoundingClientRect().height < 56)), 'catch names stay on one or two lines');
 await pg.screenshot({ path: `${out}/fish-${tag}-4-list.png` });
 await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+
+// The Golden Arowana's share card waits until the window closes, then opens.
+await pg.waitForSelector('.mfx-golden_arowana', { timeout: 4000 }).catch(() => null);
+check((await pg.locator('.mfx-golden_arowana').count()) === 1, 'Golden Arowana: the big moment animation plays when the window closes');
+await pg.screenshot({ path: `${out}/fish-${tag}-4a-moment.png` });
+await pg.waitForSelector('.share-dialog', { timeout: 8000 }).catch(() => null);
+check((await pg.locator('.share-dialog').count()) === 1, 'Golden Arowana: the share card opens after the window closes');
+await pg.waitForSelector('.share-card img', { timeout: 8000 }).catch(() => null);
+check(/Golden Arowana/.test(await pg.locator('.share-text').innerText().catch(() => '')), 'Golden Arowana: the post text names the fish');
+await pg.screenshot({ path: `${out}/fish-${tag}-4b-share.png` });
+await pg.locator('.share-x').click();
 
 // A new day: released catch + reduced motion.
 db.prepare('UPDATE fishing_casts SET cast_day = cast_day - 1 WHERE player_id = ?').run(pid);

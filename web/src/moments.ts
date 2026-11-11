@@ -10,7 +10,7 @@
 
 import type { Quality, Species } from './api';
 
-export type MomentKind = 'first_harvest' | 'first_gold' | 'big_durian' | 'evolved' | 'streak7' | 'title' | 'legend' | 'profile' | 'eruption';
+export type MomentKind = 'first_harvest' | 'first_gold' | 'big_durian' | 'golden_arowana' | 'evolved' | 'streak7' | 'title' | 'legend' | 'profile' | 'eruption';
 
 export interface Moment {
   kind: MomentKind;
@@ -30,6 +30,7 @@ const RANK: Record<MomentKind, number> = {
   first_harvest: 0,
   first_gold: 1,
   big_durian: 1,
+  golden_arowana: 1,
   streak7: 2,
   eruption: 2,
   title: 3,
