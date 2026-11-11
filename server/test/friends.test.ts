@@ -319,3 +319,53 @@ describe('friends: privacy and HTTP', () => {
     assert.equal(r.status, 401);
   });
 });
+
+describe('judge gardens linked by a friendship', () => {
+  it('show in the search and the list when either side added the other; other judge gardens never do', async () => {
+    const w = makeWorld();
+    const s = social(w);
+    const me = await garden(w, 'ardian65');
+    for (const n of ['ani', 'budi', 'citra', 'dewi', 'eko']) await garden(w, n); // 5 real farmers: no judge filler
+    const s5dv = await garden(w, 'judge-s5dv', { judge: true });
+    await garden(w, 'judge-aaaa', { judge: true });
+    await garden(w, 'judge-zzzz', { judge: true });
+    s.addFriend(s5dv.id, 'ardian65'); // the judge added me
+    s.addFriend(me.id, 'judge-aaaa'); // I added a judge
+
+    const search = s.farmers(me.id, 'judge');
+    assert.deepEqual(search.farmers.map((f) => f.name).sort(), ['judge-aaaa', 'judge-s5dv']);
+    assert.ok(search.farmers.every((f) => f.judge), 'still marked as judge gardens');
+    assert.equal(search.farmers.find((f) => f.name === 'judge-aaaa')!.friend, true);
+    assert.equal(search.farmers.find((f) => f.name === 'judge-s5dv')!.friend, false);
+    assert.equal(s.farmers(me.id, 'judge-s5dv').farmers[0].name, 'judge-s5dv', 'exact name');
+
+    const list = s.farmers(me.id).farmers.map((f) => f.name);
+    assert.ok(list.includes('judge-s5dv') && list.includes('judge-aaaa'), list.join());
+    assert.ok(!list.includes('judge-zzzz'), 'an unlinked judge garden stays hidden');
+    assert.equal(new Set(list).size, list.length, 'no row twice');
+
+    // Never yourself: the judge finds me, not itself, and not the judge it has no link with.
+    assert.deepEqual(s.farmers(s5dv.id, 'judge').farmers, []);
+    assert.deepEqual(s.farmers(s5dv.id, 'ardian').farmers.map((f) => f.name), ['ardian65']);
+    assert.ok(!s.farmers(me.id, 'ardian').farmers.some((f) => f.name === 'ardian65'));
+
+    // The link ends when the judge removes me.
+    s.removeFriend(s5dv.id, 'ardian65');
+    assert.deepEqual(s.farmers(me.id, 'judge').farmers.map((f) => f.name), ['judge-aaaa']);
+    assert.ok(!s.farmers(me.id).farmers.some((f) => f.name === 'judge-s5dv'));
+  });
+
+  it('with few real farmers a linked judge garden is not listed twice and sorts with the real farmers', async () => {
+    const w = makeWorld();
+    const s = social(w);
+    const me = await garden(w, 'ardian65');
+    await garden(w, 'ani');
+    const s5dv = await garden(w, 'judge-s5dv', { judge: true });
+    for (const n of ['judge-bbbb', 'judge-cccc', 'judge-dddd', 'judge-eeee']) await garden(w, n, { judge: true });
+    s.addFriend(s5dv.id, 'ardian65');
+    const list = s.farmers(me.id).farmers.map((f) => f.name);
+    assert.equal(new Set(list).size, list.length, 'no row twice');
+    assert.equal(list.length, 5, 'still filled up to 5');
+    assert.deepEqual(list.slice(0, 2).sort(), ['ani', 'judge-s5dv'], 'the linked judge sorts with the real farmers');
+  });
+});

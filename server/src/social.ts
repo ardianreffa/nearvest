@@ -60,8 +60,17 @@ interface Candidate {
   row: PlayerRow;
   seen: number;
   judge: boolean;
+  /** A judge garden linked to the viewer by a friendship (either way): listed like a real farmer. */
+  linked?: boolean;
   trees: number;
 }
+
+/**
+ * SQL: garden `p` and the viewer are friends either way (the viewer added it, or it added the
+ * viewer). Two `?` = the viewer's id. Lets a judge garden show in the list and the search.
+ */
+const LINKED_TO_VIEWER =
+  'p.id IN (SELECT friend_id FROM friends WHERE player_id = ?) OR p.id IN (SELECT player_id FROM friends WHERE friend_id = ?)';
 
 export class Social {
   private db: DB;
@@ -94,7 +103,8 @@ export class Social {
   /**
    * Farmers of Tandur: ready gardens with a living tree, active in the last 7 days, not the viewer.
    * Judge gardens are left out, except to fill the list up to 5 rows (the newest first), so it is
-   * never empty. Order: helped you, real farmers before judge gardens, a thirsty tree, the most
+   * never empty, and except a judge garden linked to the viewer by a friendship (either way: the
+   * viewer added it, or it added the viewer), which is listed like a real farmer. Order: helped you, real farmers before judge gardens, a thirsty tree, the most
    * recently active.
    */
   farmers(viewerId: number, query?: unknown) {
@@ -104,20 +114,27 @@ export class Social {
     const limits = this.myFriends(viewerId, friends.length);
     if (q) return { ...this.search(viewerId, q, friendIds), friends, myFriends: limits, helpedToday: this.helpedToday(viewerId), help: this.helpRules(viewerId) };
     const now = this.now();
+    // judge = false: real farmers plus judge gardens linked by a friendship (sorted like real
+    // farmers, still marked `judge`); judge = true: the other judge gardens that fill the list.
     const rows = (judge: boolean, limit: number, activeSince: number | null) =>
       (
         this.db
           .prepare(
-            `SELECT p.*, COALESCE(p.last_seen_at, p.created_at) AS seen,
+            `SELECT p.*, COALESCE(p.last_seen_at, p.created_at) AS seen, u.provider = 'judge' AS is_judge,
                (SELECT count(*) FROM trees t WHERE t.player_id = p.id AND t.status = 'alive' AND t.plot IS NOT NULL) AS tree_count
              FROM players p JOIN users u ON u.id = p.user_id
-             WHERE p.id != ? AND p.account_status = 'ready' AND (u.provider = 'judge') = ?
+             WHERE p.id != ? AND p.account_status = 'ready'
+               AND ${judge ? `u.provider = 'judge' AND NOT (${LINKED_TO_VIEWER})` : `(u.provider != 'judge' OR ${LINKED_TO_VIEWER})`}
                AND (? IS NULL OR COALESCE(p.last_seen_at, p.created_at) >= ?)
                AND EXISTS (SELECT 1 FROM trees t WHERE t.player_id = p.id AND t.status = 'alive' AND t.plot IS NOT NULL)
              ORDER BY ${judge ? 'p.created_at' : 'seen'} DESC LIMIT ?`,
           )
-          .all(viewerId, judge ? 1 : 0, activeSince, activeSince, limit) as unknown as (PlayerRow & { seen: number; tree_count: number })[]
-      ).map((r): Candidate => ({ row: r, seen: r.seen, judge, trees: r.tree_count }));
+          .all(viewerId, viewerId, viewerId, activeSince, activeSince, limit) as unknown as (PlayerRow & {
+          seen: number;
+          is_judge: number;
+          tree_count: number;
+        })[]
+      ).map((r): Candidate => ({ row: r, seen: r.seen, judge: r.is_judge === 1, linked: !judge && r.is_judge === 1, trees: r.tree_count }));
 
     let list = rows(false, 200, now - FARMER_ACTIVE_DAYS * DAY);
     if (list.length < FARMER_LIST_MIN) list = [...list, ...rows(true, FARMER_LIST_MIN - list.length, null)];
@@ -136,7 +153,7 @@ export class Social {
       .sort(
         (a, b) =>
           b.helpedAt - a.helpedAt ||
-          Number(a.c.judge) - Number(b.c.judge) ||
+          Number(a.c.judge && !a.c.linked) - Number(b.c.judge && !b.c.linked) ||
           Number(b.online) - Number(a.online) ||
           Number(b.thirsty > 0) - Number(a.thirsty > 0) ||
           b.c.seen - a.c.seen,
@@ -162,19 +179,20 @@ export class Social {
 
   /**
    * Farmer search: every ready garden whose name starts with `q` (names are lower case; also
-   * gardens without trees or not active lately), never judge gardens, never the viewer. Exact
+   * gardens without trees or not active lately), never the viewer, never judge gardens except one
+   * linked to the viewer by a friendship (either way). Exact
    * name first, then the most recently active. Public data only (the same rows as the list).
    */
   private search(viewerId: number, q: string, friendIds: Set<number>): { farmers: FarmerRow[]; query: string | null } {
     const rows = this.db
       .prepare(
-        `SELECT p.*, COALESCE(p.last_seen_at, p.created_at) AS seen,
+        `SELECT p.*, COALESCE(p.last_seen_at, p.created_at) AS seen, u.provider = 'judge' AS is_judge,
            (SELECT count(*) FROM trees t WHERE t.player_id = p.id AND t.status = 'alive' AND t.plot IS NOT NULL) AS tree_count
          FROM players p JOIN users u ON u.id = p.user_id
-         WHERE p.id != ? AND p.account_status = 'ready' AND u.provider != 'judge' AND substr(p.name, 1, ?) = ?
+         WHERE p.id != ? AND p.account_status = 'ready' AND (u.provider != 'judge' OR ${LINKED_TO_VIEWER}) AND substr(p.name, 1, ?) = ?
          ORDER BY p.name = ? DESC, seen DESC LIMIT ?`,
       )
-      .all(viewerId, q.length, q, q, FARMER_LIST_MAX) as unknown as (PlayerRow & { seen: number; tree_count: number })[];
+      .all(viewerId, viewerId, viewerId, q.length, q, q, FARMER_LIST_MAX) as unknown as (PlayerRow & { seen: number; is_judge: number; tree_count: number })[];
     const helped = new Set(
       (this.db.prepare('SELECT DISTINCT helper_id FROM garden_help WHERE owner_id = ? AND created_at > ?').all(viewerId, this.now() - HELPED_YOU_MS) as { helper_id: number }[]).map(
         (h) => h.helper_id,
@@ -189,7 +207,7 @@ export class Social {
         trees: r.tree_count,
         thirsty: this.game.thirstyTrees(r),
         helpedYou: helped.has(r.id),
-        judge: false,
+        judge: r.is_judge === 1,
         friend: friendIds.has(r.id),
         online: isOnline(r.active_at, this.now()),
       })),

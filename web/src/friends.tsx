@@ -31,7 +31,8 @@ const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
  * "Farmers of Tandur": who to visit (helped you / thirsty first), one Visit button per farmer, and
- * a search by name (any ready garden whose name starts with it, judge gardens never). Only the
+ * a search by name (any ready garden whose name starts with it; judge gardens only when linked
+ * to you by a friendship, either way). Only the
  * list scrolls (one scroll area: iPhone Safari drew rows over each other with two).
  */
 export function FarmersWindow({
