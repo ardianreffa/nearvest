@@ -667,3 +667,22 @@ Ardian played v2 on the laptop (everything worked) and asked for five changes be
 - Checks: web tests 129, server 245, build; ui-test `--match` (new `FIRST_ONLY=1`; logs the cut, the
   floor and the feet) at 390x844 and 1280x800, by day / dusk / night; `--oldserver` on
   `nearvest-e8312ea`: the v1 duel. No server or database change in this step.
+
+### 7.10 The Tandur Arena backdrop (Ardian 2026-11-11, web only, local commit, NOT released)
+
+The village cut-out behind the duel (7.9) is replaced by Ardian's own ChatGPT arena pictures
+(`docs/art-source/arena-*.png`; conversion and alignment in docs/ASSETS.md): a stone arena floor
+with a glowing green ring, a bamboo gate with lanterns, banners and neon, the Arena building and
+Gunung Tandur behind; one picture per light (day / dusk / night) for laptops (480x270) and phones
+(480x720). `web/src/art/duel-backdrop.tsx`:
+- Day / dusk / night cross-fade from the same village clock as the garden (`skyMix`; `?time=` in dev).
+- `arenaFit`: the picture is scaled so the ring's middle row lies exactly on the TaniBots' feet line
+  (measured from `.fight-floor`) and always covers the stage, centred; the TaniBots stand on the
+  ring's left and right ends (measured: feet = ring row at 390x844 and 1280x800, day / dusk / night).
+- Code animations on top (12, all CSS): smoke puffs drifting from the crater, lanterns flickering
+  softly, the pillar neon pulsing, the ring pulsing slowly, the lava glowing at night (a hint at
+  dusk). Reduced motion: 0 running (checked). The soft dark layer at the top stays for the names.
+- The village weather no longer shows behind the duel (the pictures have their own sky).
+- Checks: Gold Durian 59 fps in headless Chrome at 390x844; `--match` at both sizes day / dusk /
+  night (ui-test logs `covers`, the ring row, the feet and the visible picture); `--oldserver` on
+  `nearvest-e8312ea`: the v1 duel. No server or database change.

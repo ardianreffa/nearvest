@@ -12983,10 +12983,10 @@ html.page-locked body {
   }
 }
 
-/* ---------- Arena v2: the duel's background = the village around the Arena (art/duel-backdrop.tsx) ----------
-   The garden's own village v3 (images, code sky, smoke, lamps, weather, day / dusk / night), cut out
-   and enlarged on the Arena building and Gunung Tandur; a front floor of the image's grass rows; a
-   soft dark layer at the top for the names and bars. Tokens for the UI layers; the art keeps its colours. */
+/* ---------- Arena v2: the duel's background = the Tandur Arena (art/duel-backdrop.tsx) ----------
+   Ardian's ChatGPT arena (day / dusk / night cross-faded from the village clock), the ring's middle on
+   the TaniBots' feet line; soft code animations: smoke, lanterns, neon, the ring's pulse, the lava at
+   night. A soft dark layer at the top for the names and bars. The pictures keep their colours. */
 .duel-bg {
   position: absolute;
   z-index: 0;
@@ -12995,57 +12995,138 @@ html.page-locked body {
   pointer-events: none;
 }
 
-.duel-bg-art {
+.arena-art {
   position: absolute;
 }
 
-/* The garden's backdrop fills the enlarged box exactly (no 104% / centring of the garden layout). */
-.duel-bg .bg-art {
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  transform: none;
-}
-
-.duel-floor-lawn {
-  position: absolute;
-  left: 0;
-  right: 0;
-  overflow: hidden;
-}
-
-/* A soft edge where the arena floor meets the village behind it. */
-.duel-floor-lawn::before {
-  content: '';
-  position: absolute;
-  z-index: 2;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 8px;
-  background: linear-gradient(color-mix(in srgb, var(--ink) 35%, transparent), transparent);
-}
-
-.duel-lawn {
+.arena-img {
   position: absolute;
   inset: 0;
-  background-repeat: repeat-x;
+  width: 100%;
+  height: 100%;
   image-rendering: pixelated;
+  user-select: none;
 }
 
-.duel-lawn-dusk {
+.arena-dusk {
   opacity: var(--dusk);
 }
 
-.duel-lawn-night {
+.arena-night {
   opacity: var(--night);
 }
 
-.duel-lawn-shade {
+.arena-art > i {
   position: absolute;
-  inset: 0;
-  background: color-mix(in srgb, var(--ink) 45%, transparent);
-  opacity: var(--night);
+  display: block;
+}
+
+/* The lava glows a little at night (dusk: a hint), breathing slowly. */
+.arena-lava {
+  background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--red-500) 70%, transparent), color-mix(in srgb, var(--gold-500) 30%, transparent) 45%, transparent 70%);
+  mix-blend-mode: screen;
+  opacity: calc(var(--night) * 0.85 + var(--dusk) * 0.35);
+  animation: arena-lava 3.2s ease-in-out infinite;
+}
+
+@keyframes arena-lava {
+  50% {
+    filter: brightness(1.5);
+  }
+}
+
+/* Smoke from the crater: soft puffs drifting up and to the right. */
+.arena-puff {
+  width: 3%;
+  aspect-ratio: 1;
+  margin: -1.5% 0 0 -1.5%;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--paper-light) 55%, transparent);
+  opacity: 0;
+  animation: arena-puff 6.4s linear infinite;
+}
+
+.arena-phone .arena-puff {
+  width: 6%;
+  margin: -3% 0 0 -3%;
+}
+
+@keyframes arena-puff {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(220%, -420%) scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* Lanterns: a warm green glow that flickers softly; stronger at night. */
+.arena-lamp {
+  border-radius: 40%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold-300) 60%, transparent), color-mix(in srgb, var(--mint-500) 25%, transparent) 50%, transparent 72%);
+  mix-blend-mode: screen;
+  transform: scale(1.6);
+  opacity: calc(0.35 + var(--night) * 0.45 + var(--dusk) * 0.25);
+  animation: arena-flicker 2.6s steps(1, end) infinite;
+}
+
+/* Neon boxes on the pillars: a mint glow that pulses softly. */
+.arena-neon {
+  background: radial-gradient(circle, color-mix(in srgb, var(--mint-300) 70%, transparent), transparent 70%);
+  mix-blend-mode: screen;
+  transform: scale(2);
+  opacity: calc(0.3 + var(--night) * 0.5 + var(--dusk) * 0.2);
+  animation: arena-neon 2.2s ease-in-out infinite;
+}
+
+@keyframes arena-flicker {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  37% {
+    filter: brightness(0.75);
+  }
+  41% {
+    filter: brightness(1.15);
+  }
+  72% {
+    filter: brightness(0.9);
+  }
+}
+
+@keyframes arena-neon {
+  50% {
+    filter: brightness(0.6);
+  }
+}
+
+/* The ring in the middle of the floor pulses slowly (a soft mint glow over the painted ring). */
+.arena-ring {
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--mint-300) 70%, transparent);
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--mint-500) 60%, transparent),
+    inset 0 0 10px color-mix(in srgb, var(--mint-500) 45%, transparent);
+  mix-blend-mode: screen;
+  animation: arena-ring 2.8s ease-in-out infinite;
+}
+
+@keyframes arena-ring {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
 }
 
 /* The soft dark layer behind the names, titles, life and skill bars (readable by day and by night). */
@@ -13059,7 +13140,7 @@ html.page-locked body {
   background: linear-gradient(color-mix(in srgb, var(--ink) 72%, transparent), color-mix(in srgb, var(--ink) 45%, transparent) 55%, transparent);
 }
 
-/* The fighters, fruit, bubbles and banners stay above the village. */
+/* The fighters, fruit, bubbles and banners stay above the arena picture. */
 .fight-stage.with-village .fight-floor {
   z-index: 1;
 }
@@ -13083,7 +13164,7 @@ html.duel-open .duel-bg .backdrop * {
   animation-play-state: running;
 }
 
-/* Reduced motion: the duel's village stands still. */
+/* Reduced motion: the arena stands still. */
 @media (prefers-reduced-motion: reduce) {
   .duel-bg *,
   .duel-bg *::before,

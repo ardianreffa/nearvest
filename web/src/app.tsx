@@ -1165,7 +1165,6 @@ export function App() {
           activity={state.activity}
           season={state.season}
           fraction={DUEL_TIME_LOCK ?? 1 - Math.max(0, state.clock.msUntilNextDay - elapsed) / state.clock.dayLengthMs}
-          weather={lookOf(state.weather)}
           onDone={(s) => applyState(s)}
           onClose={() => (closeDuel(), void refresh())}
         />
