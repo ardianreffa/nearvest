@@ -9977,6 +9977,18 @@ html.page-locked body {
   visibility: hidden;
 }
 
+/* The passing delivery drones (and their shadows on the fields) fade out over 2 s while it rains
+   and fade back in after the rain; their flight keeps going meanwhile. TaniBot's own drones
+   (.bot-drones) are not touched. */
+.backdrop .flyby {
+  opacity: 1;
+  transition: opacity 2s linear;
+}
+
+.backdrop.wx-look-rain .flyby {
+  opacity: 0;
+}
+
 /* Darker, fuller rain clouds (keeps the dusk / night colouring of .cloud). */
 .wx-look-rain .cloud {
   opacity: 1;
