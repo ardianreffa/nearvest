@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { DuelSide, MatchView, TurnLog } from '../src/api.ts';
-import { asMine, controls, foeLabel, inviteNote, matchLine, matchPost, matchReward, turnBanner, turnLine, turnReason } from '../src/arena-turn.ts';
+import { asMine, controls, pickBubbles, foeLabel, inviteNote, matchLine, matchPost, matchReward, turnBanner, turnLine, turnReason } from '../src/arena-turn.ts';
 
 const side = (name: string): DuelSide => ({ name, avatar: 'farmer-1', title: 'Seedling', scores: { quality: 1, care: 3, ripeness: 3 }, best: null, ripest: null, trees: 1 });
 const log = (o: Partial<TurnLog>): TurnLog => ({ turn: 0, pick: { c: 'rock', d: 'scissors' }, winner: 'challenger', hits: [], hp: { c: 100, d: 100 }, skill: { c: 0, d: 0 }, ...o });
@@ -97,5 +97,32 @@ describe('arena online duel (web)', () => {
     assert.equal(matchLine({ ...m, you: 'defender' }), 'sari beat you online (40-0 life)');
     assert.equal(matchLine({ ...m, endReason: 'left' }), 'budi left the online duel: you win');
     assert.match(matchPost(match()), /live Fruit Fight/);
+  });
+
+  it('pick bubbles: "?" over both heads at every new turn, your own pick at once, both opened together when decided (also vs a TaniBot)', () => {
+    const q = { pick: '?', pop: false };
+    const t1 = log({ pick: { c: 'paper', d: 'rock' } });
+    for (const kind of ['live', 'bot'] as const) {
+      // Turn 2 starts after turn 1 was played back: last turn's picks are gone.
+      const m = match({ kind, turn: 1, turns: [t1] });
+      assert.deepEqual(pickBubbles(m, { sending: null, anim: null, gold: false, result: false }), { me: q, them: q });
+      // Tapping: mine at once, theirs secret.
+      assert.deepEqual(pickBubbles(m, { sending: 'scissors', anim: null, gold: false, result: false }), { me: { pick: 'scissors', pop: true }, them: q });
+      // Turn 1 playing back: both picks together.
+      assert.deepEqual(pickBubbles(m, { sending: null, anim: { i: 0, reveal: true }, gold: false, result: false }), { me: { pick: 'paper', pop: true }, them: { pick: 'rock', pop: true } });
+    }
+    // Online: my pick is in, waiting for the other player: mine shown, theirs "?" (even when they picked).
+    const waiting = match({ turn: 1, turns: [t1], myPick: 'rock', theyPicked: true });
+    assert.deepEqual(pickBubbles(waiting, { sending: null, anim: null, gold: false, result: false }), { me: { pick: 'rock', pop: false }, them: q });
+    // The other player's screen while I wait: both "?".
+    assert.deepEqual(pickBubbles(match({ turn: 1, turns: [t1], theyPicked: true }), { sending: null, anim: null, gold: false, result: false }), { me: q, them: q });
+    // Paused: still "?".
+    assert.deepEqual(pickBubbles(match({ status: 'paused', turn: 1, turns: [t1] }), { sending: null, anim: null, gold: false, result: false }), { me: q, them: q });
+    // Gold Durian playing, result shown, invite: no bubbles.
+    assert.deepEqual(pickBubbles(match({ turns: [t1] }), { sending: null, anim: { i: 0, reveal: false }, gold: true, result: false }), { me: null, them: null });
+    assert.deepEqual(pickBubbles(match({ status: 'done', turns: [t1] }), { sending: null, anim: null, gold: false, result: true }), { me: null, them: null });
+    assert.deepEqual(pickBubbles(match({ status: 'invite' }), { sending: null, anim: null, gold: false, result: false }), { me: null, them: null });
+    // K.O. (before the result): the final picks stay.
+    assert.deepEqual(pickBubbles(match({ status: 'done', turns: [t1] }), { sending: null, anim: null, gold: false, result: false }).them, { pick: 'rock', pop: false });
   });
 });

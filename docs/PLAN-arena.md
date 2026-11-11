@@ -811,3 +811,12 @@ prize either side, same IP / same browser = practice, limits, HTTP + privacy); `
 (6). Two browsers: `FAKE_DB=... PLAYWRIGHT=... node tools/duel-online.mjs <outDir> <prefix> [w] [h]
 [ko,decline,gone,cancel]` (two separate browser contexts = a normal window + an Incognito window) at 390x844
 and 1280x800: all checks pass.
+
+**Pick bubbles fix (Ardian's two-browser test, 2026-11-11):** the last turn's picks stayed over the TaniBots'
+heads when the next turn opened (budi's screen showed ardian's Rock of turn 2 while the line said "ardian has
+picked" in turn 3), which looked like a new pick. Now (`pickBubbles` in `web/src/arena-turn.ts`, online and
+TaniBot duels): every new turn starts with **"?" over both heads on both screens**; your own pick shows on your
+screen as soon as you tap it; the other side stays "?" until the turn is decided, then both open together (the
+reveal). The explanation line of the previous turn now starts with "Last turn:". Tests: `web/test/arena-online.test.ts`
+(pick bubbles), `tools/duel-online.mjs` checks "?" at the start of every turn on both screens, own pick + "?"
+while waiting, both picks open together after the turn, and the TaniBot duel (390x844 and 1280x800).

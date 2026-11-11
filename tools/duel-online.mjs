@@ -138,6 +138,7 @@ const state = (page) =>
       pageScroll: document.documentElement.scrollHeight > innerHeight + 1 || document.documentElement.scrollWidth > innerWidth + 1,
     };
   });
+const QQ = 'Choosing... | Choosing...';
 const log = async (label, page) => console.log(`   ${label}:`, JSON.stringify(await state(page)));
 
 /** Invite -> popup on B -> Accept. Returns when both are on the duel screen. */
@@ -187,10 +188,24 @@ async function koScenario(n) {
     await waitReady(A);
     await waitReady(B);
     if ((await ended(A)) || (await ended(B))) break;
+    // Every new turn starts with "?" over BOTH heads on BOTH screens (last turn's picks are gone).
+    const startA = (await state(A)).picks;
+    const startB = (await state(B)).picks;
+    check(startA === QQ && startB === QQ, `turn ${t + 1} starts with "?" over both heads: A ${startA} / B ${startB}`);
+    if (t === 1) {
+      await shot(A, 'ko-a-turn2-start');
+      await shot(B, 'ko-b-turn2-start');
+    }
     const pa = (await goldLit(A)) ? 'gold' : 'paper';
     await pickOn(A, pa);
     // B's web asks every second: give it time to hear that A picked.
-    await sleep(t === 0 ? 1600 : 300);
+    await sleep(t <= 1 ? 1600 : 300);
+    if (t <= 1) {
+      const pA = (await state(A)).picks;
+      const pB = (await state(B)).picks;
+      check(pA === `${pa === 'gold' ? 'Gold Durian' : 'Paper'} | Choosing...` && pB === QQ, `turn ${t + 1}: A sees its own pick + "?", B sees "?" + "?" while A's pick is secret: A ${pA} / B ${pB}`);
+      if (t === 1) await shot(B, 'ko-b-turn2-a-picked');
+    }
     if (t === 0) {
       const sb = await state(B);
       const html = await B.evaluate(() => document.querySelector('.duel.match').innerHTML);
@@ -202,8 +217,19 @@ async function koScenario(n) {
       await shot(A, 'ko-a-waiting-for-b');
     }
     await pickOn(B, 'rock');
-    await sleep(900);
+    if (pa !== 'gold') {
+      // Decided: both picks open together on both screens.
+      let rA = '', rB = '';
+      for (let i = 0; i < 25; i++) {
+        rA = (await state(A)).picks;
+        rB = (await state(B)).picks;
+        if (rA === 'Paper | Rock' && rB === 'Rock | Paper') break;
+        await sleep(80);
+      }
+      check(rA === 'Paper | Rock' && rB === 'Rock | Paper', `turn ${t + 1} decided: both picks open on both screens: A ${rA} / B ${rB}`);
+    }
     if (t === 0) {
+      await sleep(300);
       await log('A turn 1 reveal', A);
       await shot(A, 'ko-a-reveal');
     }
@@ -245,6 +271,19 @@ async function declineScenario(n) {
   check(new RegExp(`${b} said no: you fight ${b}'s TaniBot!`).test(s.note ?? ''), 'A: "said no: you fight <b>\'s TaniBot!"');
   check(/TaniBot/.test(s.head), 'A now fights the TaniBot');
   await shot(A, 'decline-a-taniBot');
+  // Against the TaniBot too: after a turn, the next one starts with "?" over both heads.
+  check(s.picks === QQ, `TaniBot duel turn 1 starts with "?" over both: ${s.picks}`);
+  for (let t = 0; t < 2; t++) {
+    await pickOn(A, 'paper');
+    await sleep(200);
+    const mid = (await state(A)).picks;
+    check(/^Paper \| /.test(mid), `TaniBot duel turn ${t + 1}: my pick shows at once: ${mid}`);
+    await sleep(900);
+    await waitReady(A);
+    const next = (await state(A)).picks;
+    check(next === QQ || (await ended(A)), `TaniBot duel turn ${t + 2} starts with "?" over both: ${next}`);
+  }
+  await shot(A, 'decline-a-taniBot-turn3');
   check(!(await B.$('.arena-invite')), 'B: popup gone');
   console.log('   row:', JSON.stringify(row(a)));
   await ca.close();

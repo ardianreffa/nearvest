@@ -299,3 +299,32 @@ export function countdown(c: TurnClock, now: number): { secs: number; urgent: bo
   const secs = Math.max(0, Math.ceil(left / 1000));
   return { secs, urgent: started && secs <= 3, started, over: now >= c.endsAt };
 }
+
+/** A pick bubble above a TaniBot: a pick (or "?" = still secret / not chosen yet), popping in or not. */
+export type PickBubbleState = { pick: ArenaPick | 'timeout' | '?'; pop: boolean } | null;
+
+/**
+ * The pick bubbles above both TaniBots (Ardian 2026-11-11): every new turn starts with "?" over BOTH
+ * heads on both screens, so last turn's picks never look like new ones. Your own pick shows on your
+ * screen as soon as you tap it; the other side stays "?" until the turn is decided, then both picks
+ * open together (the playback's reveal). After the last turn the final picks stay until the result.
+ * The same for duels against a TaniBot.
+ */
+export function pickBubbles(
+  m: MatchView,
+  o: { sending: ArenaPick | null; anim: { i: number; reveal: boolean } | null; gold: boolean; result: boolean },
+): { me: PickBubbleState; them: PickBubbleState } {
+  const secret = { pick: '?' as const, pop: false };
+  if (o.result) return { me: null, them: null };
+  if (o.anim) {
+    // During the Gold Durian the big title needs the room (the picks were shown just before).
+    if (o.gold) return { me: null, them: null };
+    const t = m.turns[o.anim.i];
+    return { me: { pick: t.pick.c, pop: o.anim.reveal }, them: { pick: t.pick.d, pop: o.anim.reveal } };
+  }
+  if (o.sending) return { me: { pick: o.sending, pop: true }, them: secret };
+  if (m.status === 'playing' || m.status === 'paused') return { me: m.myPick ? { pick: m.myPick, pop: false } : secret, them: secret };
+  const last = m.turns[m.turns.length - 1];
+  if ((m.status === 'done' || m.status === 'cancelled') && last) return { me: { pick: last.pick.c, pop: false }, them: { pick: last.pick.d, pop: false } };
+  return { me: null, them: null };
+}

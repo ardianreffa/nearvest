@@ -25,6 +25,7 @@ import {
   matchReward,
   matchWon,
   PICK_LABEL,
+  pickBubbles,
   turnAt,
   turnBanner,
   turnLength,
@@ -369,16 +370,10 @@ export function MatchScreen({
     if (hitShown && frame.hit.from !== who) return 'hit';
     return 'idle';
   };
-  // The picks above the heads: while sending, mine at once and theirs "?" (still secret on the
-  // server); then both picks of the decided turn, kept until the next pick.
-  const bubble = (who: 'me' | 'them') => {
-    if (sending) return who === 'me' ? { pick: sending, pop: true } : { pick: '?' as const, pop: false };
-    // Online duel: your pick is in, theirs stays secret until the turn is decided.
-    if (m.myPick && !anim && m.status !== 'done') return who === 'me' ? { pick: m.myPick, pop: false } : { pick: '?' as const, pop: false };
-    // During the Gold Durian the big title needs the room (the picks were shown just before).
-    if (!last || done || gold) return null;
-    return { pick: who === 'me' ? last.pick.c : last.pick.d, pop: !!frame && frame.phase === 'reveal' };
-  };
+  // The picks above the heads (arena-turn.ts pickBubbles): "?" over both at the start of every turn,
+  // your own pick as soon as you tap it, both opened together when the turn is decided.
+  const bubbles = pickBubbles(m, { sending, anim: anim ? { i: anim.i, reveal: !!frame && frame.phase === 'reveal' } : null, gold, result: done });
+  const bubble = (who: 'me' | 'them') => (who === 'me' ? bubbles.me : bubbles.them);
   const shake =
     reduced || frame?.phase !== 'impact'
       ? ''
@@ -485,6 +480,8 @@ export function MatchScreen({
             <p class="match-turn">{turnLine(m, !!sending, anim?.i)}</p>
             {last && (
               <p class="match-why">
+                {/* A new turn is open: the line is about the turn before (its picks are hidden again). */}
+                {!anim && (m.status === 'playing' || m.status === 'paused') ? 'Last turn: ' : ''}
                 {turnReason(last, them.name, isLive)}
                 {/* The damage only once the fruit has landed. */}
                 {(!frame || frame.phase === 'impact' || frame.phase === 'done') &&
