@@ -33,6 +33,8 @@ export interface Config {
   tanibotAiBudgetUsd: number;
   /** Arena: the online duel against a real player (ARENA_ONLINE=on). Off (default) = the Duel button only fights TaniBots. */
   arenaOnline: boolean;
+  /** Fishing mini-game (FISHING=on). Off (default) = the pin says "Soon", the endpoints refuse. */
+  fishing: boolean;
 }
 
 function env(name: string, fallback?: string): string {
@@ -91,6 +93,7 @@ export function loadConfig(): Config {
     tanibotAiMaxCallsPerDay: Number(env('TANIBOT_AI_MAX_CALLS_PER_DAY', '30')),
     tanibotAiBudgetUsd: Number(env('TANIBOT_AI_BUDGET_USD', '8')),
     arenaOnline: bool('ARENA_ONLINE', false),
+    fishing: bool('FISHING', false),
   };
   const wanted = bool('DEV_LOGIN', false);
   config.devLogin = devLoginAllowed(wanted, config.webOrigins);

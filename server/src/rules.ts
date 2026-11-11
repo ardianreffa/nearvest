@@ -196,6 +196,94 @@ export const ARENA_GONE_MS = 5_000;
 /** The other side waits this long ("Waiting for <name>... 20"); back in time = the duel goes on. */
 export const ARENA_PAUSE_MS = 20_000;
 
+// ---------- Fishing (fishing.ts, docs/PLAN-fishing.md, Ardian 2026-11-11) ----------
+
+/** Casts per garden per village day (the normal 07:00 WIB day, also for demo gardens, like the Arena). */
+export const FISHING_CASTS_PER_DAY = 3;
+/** Paid catches (PANEN, a seed or Fertilizer) per village day from one browser / one IP; more = "released" (1 XP). */
+export const FISHING_PAID_PER_DEVICE_PER_DAY = 3;
+export const FISHING_PAID_PER_IP_PER_DAY = 10;
+/** The bite comes this long after the cast (server clock). */
+export const FISHING_BITE_MIN_MS = 2_000;
+export const FISHING_BITE_MAX_MS = 6_000;
+/** A reel may arrive this much before the bite time (network / clock jitter). */
+export const FISHING_REEL_GRACE_MS = 300;
+/** A line nobody reels in is pulled in by the server this long after the bite (paid all the same). */
+export const FISHING_AUTO_REEL_MS = 60_000;
+/** XP for junk and for a "released" catch (over the paid limit); a message in a bottle gives more. */
+export const FISHING_JUNK_XP = 1;
+export const FISHING_BOTTLE_XP = 5;
+/** Small chest: PANEN between these (inclusive), rolled at the cast. */
+export const FISHING_CHEST_MIN = 10;
+export const FISHING_CHEST_MAX = 15;
+
+export type FishingCatchId =
+  | 'tilapia'
+  | 'catfish'
+  | 'carp'
+  | 'gourami'
+  | 'golden_arowana'
+  | 'stone'
+  | 'driftwood'
+  | 'fish_bone'
+  | 'old_boot'
+  | 'mango_seed'
+  | 'fertilizer'
+  | 'bottle'
+  | 'chest';
+export type FishingKind = 'fish' | 'junk' | 'item';
+
+/**
+ * The catch table: `chance` in 1/1000 (sums to 1000). `panen` = base PANEN before the Season rule
+ * (mint_reward). `paid` = counts toward the paid-catch limits per browser / IP.
+ */
+export const FISHING_CATCHES: { id: FishingCatchId; name: string; kind: FishingKind; chance: number; panen: number; paid: boolean }[] = [
+  { id: 'tilapia', name: 'Tilapia', kind: 'fish', chance: 250, panen: 3, paid: true },
+  { id: 'catfish', name: 'Catfish', kind: 'fish', chance: 150, panen: 5, paid: true },
+  { id: 'carp', name: 'Carp', kind: 'fish', chance: 100, panen: 5, paid: true },
+  { id: 'gourami', name: 'Gourami', kind: 'fish', chance: 70, panen: 10, paid: true },
+  { id: 'golden_arowana', name: 'Golden Arowana', kind: 'fish', chance: 10, panen: 30, paid: true },
+  { id: 'stone', name: 'Stone', kind: 'junk', chance: 75, panen: 0, paid: false },
+  { id: 'driftwood', name: 'Driftwood', kind: 'junk', chance: 75, panen: 0, paid: false },
+  { id: 'fish_bone', name: 'Fish bone', kind: 'junk', chance: 75, panen: 0, paid: false },
+  { id: 'old_boot', name: 'Old boot', kind: 'junk', chance: 75, panen: 0, paid: false },
+  { id: 'mango_seed', name: 'Mango seed', kind: 'item', chance: 50, panen: 0, paid: true },
+  { id: 'fertilizer', name: 'Fertilizer', kind: 'item', chance: 30, panen: 0, paid: true },
+  { id: 'bottle', name: 'Message in a bottle', kind: 'item', chance: 30, panen: 0, paid: false },
+  { id: 'chest', name: 'Small chest', kind: 'item', chance: 10, panen: 0, paid: true },
+];
+
+/** Picks a catch from a roll in [0, 1). */
+export function rollCatch(roll: number): FishingCatchId {
+  let n = Math.floor(Math.min(Math.max(roll, 0), 0.999999) * 1000);
+  for (const c of FISHING_CATCHES) {
+    if (n < c.chance) return c.id;
+    n -= c.chance;
+  }
+  return FISHING_CATCHES[0].id;
+}
+
+/** A judge garden's first cast: always Tilapia or Catfish (their normal 25:15 weights), never Golden Arowana. */
+export function rollJudgeFirstCatch(roll: number): FishingCatchId {
+  return roll < 250 / 400 ? 'tilapia' : 'catfish';
+}
+
+/** Messages in a bottle (one per bottle, picked at the cast). */
+export const FISHING_BOTTLE_LINES = [
+  'Dear finder: the train is late again because the conductor stopped to buy durian.',
+  'Mount Tandur says hi. Please sweep the ash off your porch. - The Volcano',
+  'If you find this, tell Mr. Darto his mango price is too low. - Every farmer',
+  'Day 12 on the raft. Still no fish. TaniBot keeps watering the ocean.',
+  'Lost: one bamboo hat, LED model. Last seen flying over the rice fields.',
+  'The fish in this pond have formed a union. Their demand: more lily pads.',
+  'Roses are red, durians are spiky, I tried to hug one and it went badly.',
+  'Note to self: do not let TaniBot taste the fertilizer again.',
+  'Whoever planted a mango on the train roof: it is now taller than the train.',
+  'The Arena champion owes me 3 rambutans. You know who you are.',
+  'Secret of Tandur: the holograms are shy. Wave at them at night.',
+  'This bottle was sent by a very patient catfish. Please write back.',
+];
+
 /** Fertilizer adds +50% growth speed for one game day. */
 export const FERTILIZER_DAYS = 1;
 export const FERTILIZER_BOOST = 0.5;

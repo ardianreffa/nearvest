@@ -12,6 +12,7 @@ import { Game, GameError, type JudgeStep, type SignedBurn } from './game.ts';
 import type { JudgeService } from './judge.ts';
 import { Arena } from './arena.ts';
 import { ArenaMatches } from './arena-match.ts';
+import { Fishing } from './fishing.ts';
 import { Social } from './social.ts';
 import {
   BURN_GAS,
@@ -36,6 +37,8 @@ export interface AppDeps {
   judge: JudgeService;
   /** Google's signing keys; tests pass a fake key set. Default: Google's live keys. */
   googleKeys?: JWTVerifyGetKey;
+  /** Fishing service; tests pass one with a fixed random. Default: a new one. */
+  fishing?: Fishing;
 }
 
 type Env = { Variables: { userId: number } };
@@ -49,6 +52,7 @@ export function createApp(deps: AppDeps) {
   const social = new Social(db, game, now);
   const arena = new Arena(db, game, now, { explorerTxUrl: config.explorerTxUrl });
   const matches = new ArenaMatches(db, game, arena, now, { explorerTxUrl: config.explorerTxUrl });
+  const fishing = deps.fishing ?? new Fishing(db, game, now);
   const app = new Hono<Env>();
 
   // maxAge: browsers remember the CORS preflight (Chrome up to 2 h), so each game action is one
@@ -84,6 +88,8 @@ export function createApp(deps: AppDeps) {
       devLogin: config.devLogin,
       // The online Arena duel (ARENA_ONLINE in server/.env, default off): off = no live invites at all.
       arenaOnline: game.arenaOnline,
+      // Fishing (FISHING in server/.env, default off): off = the pin says "Soon".
+      fishing: game.fishing,
       contracts: { panen: config.panenContractId, pohon: config.pohonContractId },
       wallet: {
         loginRecipient: config.factoryAccountId,
@@ -460,6 +466,26 @@ export function createApp(deps: AppDeps) {
     const r = matches.pick(pid, Number(c.req.param('id')), b.turn, b.pick);
     // The game state only when the match is over (prize, XP, duels left).
     return c.json(r.match.status === 'done' ? { ...r, state: game.state(pid) } : r);
+  });
+  // Fishing (fishing.ts, docs/PLAN-fishing.md): only with FISHING=on. The catch is decided at the
+  // cast and only sent with the reel.
+  const fishingOn = () => {
+    if (!game.fishing) throw new GameError('Fishing is coming soon.', 404, { code: 'fishing_off' });
+  };
+  app.get('/api/fishing', (c) => {
+    fishingOn();
+    return c.json(fishing.view(playerId(c)));
+  });
+  app.post('/api/fishing/cast', async (c) => {
+    fishingOn();
+    const pid = playerId(c);
+    return c.json(fishing.cast(pid, clientIp(c), (await body(c)).deviceId));
+  });
+  app.post('/api/fishing/:id/reel', (c) => {
+    fishingOn();
+    const pid = playerId(c);
+    const r = fishing.reel(pid, Number(c.req.param('id')));
+    return c.json({ ...r, fishing: fishing.view(pid), state: game.state(pid) });
   });
   // Red dot: the owner saw the Village tab's Visitors / Invite boxes (up to the newest event shown).
   app.post('/api/village/seen', async (c) => {

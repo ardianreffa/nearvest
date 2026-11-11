@@ -325,6 +325,34 @@ CREATE INDEX IF NOT EXISTS arena_match_challenger ON arena_matches (challenger_i
 CREATE INDEX IF NOT EXISTS arena_match_defender ON arena_matches (defender_id, ended_at);
 CREATE INDEX IF NOT EXISTS arena_match_status ON arena_matches (status);
 
+-- Fishing (fishing.ts, docs/PLAN-fishing.md, 2026-11-11): one row per cast. The catch is rolled and
+-- stored at the cast and NEVER sent before the reel. New table only: older releases ignore it.
+CREATE TABLE IF NOT EXISTS fishing_casts (
+  id INTEGER PRIMARY KEY,
+  player_id INTEGER NOT NULL REFERENCES players(id),
+  cast_day INTEGER NOT NULL,       -- village day (normal 07:00 WIB day, also for demo gardens)
+  catch TEXT NOT NULL,             -- rules.ts FishingCatchId
+  base_panen INTEGER NOT NULL DEFAULT 0, -- chest amount (rolled at the cast); else from the table
+  line INTEGER,                    -- message in a bottle: index into FISHING_BOTTLE_LINES
+  paid INTEGER NOT NULL DEFAULT 0, -- 1 = a paid catch (counts toward the browser / IP limits)
+  released INTEGER NOT NULL DEFAULT 0, -- 1 = over the paid limit: let go, 1 XP only
+  status TEXT NOT NULL,            -- 'open' (line in the water) | 'done'
+  result TEXT,                     -- JSON once reeled: what was given
+  panen_micro INTEGER NOT NULL DEFAULT 0, -- PANEN paid (after the Season rule)
+  xp INTEGER NOT NULL DEFAULT 0,
+  job_id INTEGER,                  -- the mint_reward chain job, if any
+  auto INTEGER NOT NULL DEFAULT 0, -- 1 = pulled in by the server (nobody reeled)
+  device_id TEXT,
+  ip TEXT,
+  bite_at INTEGER NOT NULL,
+  reeled_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS fishing_player ON fishing_casts (player_id, cast_day);
+CREATE INDEX IF NOT EXISTS fishing_open ON fishing_casts (status, bite_at);
+CREATE INDEX IF NOT EXISTS fishing_device ON fishing_casts (device_id, cast_day);
+CREATE INDEX IF NOT EXISTS fishing_ip ON fishing_casts (ip, cast_day);
+
 -- Add friend (social.ts, docs/PLAN-arena.md 7.11, 2026-11-11): one way, no accept needed. New
 -- tables only: older releases ignore them.
 CREATE TABLE IF NOT EXISTS friends (

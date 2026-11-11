@@ -12,6 +12,7 @@ import { openDb } from './db.ts';
 import { Game } from './game.ts';
 import { Arena } from './arena.ts';
 import { ArenaMatches } from './arena-match.ts';
+import { Fishing } from './fishing.ts';
 import { TaniBotService } from './tanibot.ts';
 import { JudgeService } from './judge.ts';
 import { AiMeter, NearAiBrain } from './brain.ts';
@@ -56,6 +57,8 @@ const worker = new ChainWorker({
 
 game.arenaOnline = config.arenaOnline;
 console.log(`[arena] online duel: ${config.arenaOnline ? 'on' : 'off'} (ARENA_ONLINE)`);
+game.fishing = config.fishing;
+console.log(`[fishing] ${config.fishing ? 'on' : 'off'} (FISHING)`);
 
 try {
   game.seasonDivisor = (await chain.villageStats()).rewardDivisor;
@@ -106,6 +109,16 @@ setInterval(() => {
     arenaMatches.sweep();
   } catch (err) {
     console.warn('Arena sweep failed:', err instanceof Error ? err.message : err);
+  }
+}, 10_000);
+// Fishing: pull in lines nobody reeled within a minute of the bite (paid all the same), every 10 seconds.
+const fishing = new Fishing(db, game, systemNow);
+setInterval(() => {
+  if (!game.fishing) return;
+  try {
+    fishing.sweep();
+  } catch (err) {
+    console.warn('Fishing sweep failed:', err instanceof Error ? err.message : err);
   }
 }, 10_000);
 // Sync tree stages to the NFTs every 20 seconds.

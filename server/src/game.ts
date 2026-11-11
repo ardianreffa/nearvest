@@ -11,6 +11,7 @@ import { UNITS_PER_MICRO } from './chain/types.ts';
 import { burnDelegateHash, verifySignature } from './wallet.ts';
 import { arenaNewsAt, arenaState } from './arena.ts';
 import { arenaMatchState } from './arena-match.ts';
+import { fishingState } from './fishing.ts';
 import { createReferral, paidToday, pendingReferralOf, recordDevice, referralRows } from './referral.ts';
 import {
   ARENA_PRIZE,
@@ -266,6 +267,8 @@ export class Game {
   seasonDivisor = 1;
   /** The online Arena duel (ARENA_ONLINE in .env, default off; set by main.ts). Off = Arena v2 only. */
   arenaOnline = false;
+  /** Fishing (FISHING in .env, default off; set by main.ts). Off = no `state.fishing`, endpoints refuse. */
+  fishing = false;
 
   constructor(deps: GameDeps) {
     this.d = deps;
@@ -791,6 +794,24 @@ export class Game {
       .prepare('INSERT INTO seeds (player_id, species, quality, parent_tree_id, source, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(playerId, species, quality, parentTreeId, source, this.d.now());
     return Number(res.lastInsertRowid);
+  }
+
+  /** Fishing (fishing.ts): a seed if Storage has room (its id), else null (the caller pays Mr. Darto's price). */
+  grantSeedIfRoom(playerId: number, species: Species, source: string): number | null {
+    return this.storageFree(playerId) > 0 ? this.addSeed(playerId, species, null, null, source) : null;
+  }
+
+  /** Fishing (fishing.ts): adds a game-server item such as Fertilizer. */
+  grantItem(playerId: number, item: string, qty: number): void {
+    this.addItem(playerId, item, qty);
+  }
+
+  /** Adds XP (already multiplied by the caller); returns the new title when it changed. */
+  grantXp(playerId: number, xp: number): string | null {
+    if (xp <= 0) return null;
+    const before = this.getPlayer(playerId).xp;
+    this.db.prepare('UPDATE players SET xp = xp + ? WHERE id = ?').run(xp, playerId);
+    return titleFor(before + xp) !== titleFor(before) ? titleFor(before + xp) : null;
   }
 
   private addFruit(playerId: number, species: Species, quality: Quality, qty: number): void {
@@ -1728,6 +1749,8 @@ export class Game {
       /** Arena 1 VS 1 (arena.ts): duels left today, the prize now, duels this garden received. */
       // v2 (arena-match.ts): `v: 2`, the open match to resume and matches received; old webs ignore them.
       arena: { ...arenaState(this.db, p.id, now, this.afterSeason(ARENA_PRIZE), this.d.explorerTxUrl), ...arenaMatchState(this.db, p.id, this.d.explorerTxUrl, this.arenaOnline) },
+      /** Fishing (fishing.ts): only when FISHING=on; a web without it keeps "Fishing · Soon". */
+      fishing: this.fishing ? fishingState(this.db, p.id, now) : undefined,
     };
   }
 
@@ -1745,7 +1768,9 @@ export class Game {
           ? ('referral' as const)
           : r.kind === 'mint_reward' && r.payload.includes('"memo":"Arena prize')
             ? ('arena' as const)
-            : null,
+            : r.kind === 'mint_reward' && r.payload.includes('"memo":"Fishing')
+              ? ('fishing' as const)
+              : null,
       status: r.status,
       txHash: r.tx_hash,
       explorerUrl: r.tx_hash && !r.tx_hash.startsWith('fake') ? this.d.explorerTxUrl + r.tx_hash : null,
