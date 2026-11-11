@@ -619,6 +619,8 @@ try {
         db.prepare("UPDATE trees SET quality = 'gold', species = 'durian', growth = target WHERE player_id = ? AND status = 'alive'").run(id);
         db.prepare('UPDATE players SET xp = 1600 WHERE id = ?').run(id);
         // STRONG_ME=1: <me> gets a ripe Rare Durian too (a likely win against <me>x, to see the prize line and the log).
+        // ME_XP=<xp>: <me> gets that XP (its title's look in the duel: Farmer 200, Durian King 1500, Legend 4000).
+        if (process.env.ME_XP) db.prepare('UPDATE players SET xp = ? WHERE name = ?').run(Number(process.env.ME_XP), me);
         if (process.env.STRONG_ME) {
           const mine = db.prepare('SELECT id FROM players WHERE name = ?').get(me).id;
           db.prepare("UPDATE trees SET quality = 'rare', species = 'durian', growth = target WHERE player_id = ? AND status = 'alive'").run(mine);

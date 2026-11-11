@@ -233,7 +233,7 @@ function FlyingFruit({ fruit, from, ms, hitKey, big }: { fruit: Fruit; from: 'me
   );
 }
 
-/** One fighter: its TaniBot in its title's look (living idle animation), mirrored on the right. */
+/** One fighter: its TaniBot in its title's look (living idle animation); the left one is mirrored so they face each other. */
 function Fighter({ side, right, scale, state, hard }: { side: DuelSide; right: boolean; scale: number; state: 'idle' | 'windup' | 'hit' | 'ko' | 'win'; hard: boolean }) {
   const tier = tierOf(side.title);
   return (

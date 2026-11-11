@@ -11210,7 +11210,7 @@ html.page-locked body {
 
 /* ---------- Arena 1 VS 1 (arena.tsx, docs/PLAN-arena.md, 2026-11-11) ----------
    The Arena window reuses the Farmers of Tandur window (only the inner area scrolls, plain rows
-   for iOS). The duel screen is a dark HUD panel: your TaniBot left, theirs right (mirrored),
+   for iOS). The duel screen is a dark HUD panel: your TaniBot left (mirrored), theirs right, facing each other,
    the rounds in the middle (phones: under the two bots), then the result. Tokens only. */
 .arena-chips {
   display: flex;
@@ -11679,7 +11679,9 @@ html.page-locked body {
   z-index: 1;
 }
 
-.fighter.them .fighter-art {
+/* They face each other. TaniBot's art looks to the left, so the left one (yours) is mirrored to
+   look right; its title effects (aura, halo, cape, sweeps) are inside the art and turn with it. */
+.fighter.me .fighter-art {
   transform: scaleX(-1);
 }
 
@@ -12063,9 +12065,18 @@ html.page-locked body {
   animation: none;
 }
 
+/* Zzz rises behind the sleeper's head (the side away from the other TaniBot). */
 .fighter-zzz {
   z-index: 3;
   top: 14%;
+}
+
+.fighter.me .fighter-zzz {
+  right: auto;
+  left: 14%;
+}
+
+.fighter.them .fighter-zzz {
   right: 14%;
 }
 
