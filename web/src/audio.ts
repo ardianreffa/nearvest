@@ -223,6 +223,39 @@ export function playWhoosh(soft = false): void {
   src.stop(t + dur + 0.05);
 }
 
+/**
+ * The 8-bit "pixel sparkle" of the wipe between gardens (visit-wipe.tsx): quick square-wave blips on
+ * a pentatonic scale (the notes come from visit-wipe-plan.ts `sparkleNotes`), with a quieter
+ * triangle voice an octave up for the glitter. Rising for a visit, falling for "Back to my garden".
+ * Made right here with Web Audio: no sound file, nothing copied (docs/ASSETS.md). Follows the Sound
+ * switch and plays only after the first tap, like every effect.
+ */
+export function playPixelSparkle(notes: { at: number; freq: number; dur: number; level: number }[]): void {
+  if (!prefs.sfx || !ctx || !sfxGain) return;
+  if (ctx.state === 'suspended') void ctx.resume();
+  const c = ctx;
+  const t0 = c.currentTime + 0.01;
+  const blip = (type: OscillatorType, freq: number, at: number, dur: number, vol: number) => {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0 + at);
+    // A tiny upward chirp at the start of each blip: the classic 8-bit "pling".
+    o.frequency.setValueAtTime(freq * 1.5, t0 + at);
+    o.frequency.exponentialRampToValueAtTime(freq, t0 + at + 0.018);
+    g.gain.setValueAtTime(0.0001, t0 + at);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + at + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur);
+    o.connect(g).connect(sfxGain!);
+    o.start(t0 + at);
+    o.stop(t0 + at + dur + 0.02);
+  };
+  for (const n of notes) {
+    blip('square', n.freq, n.at, n.dur, 0.32 * n.level);
+    blip('triangle', n.freq * 2, n.at + 0.022, n.dur * 0.8, 0.22 * n.level);
+  }
+}
+
 export function getAudioPrefs(): AudioPrefs {
   return prefs;
 }

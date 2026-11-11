@@ -2,16 +2,17 @@
 // One <canvas> over the whole screen: green pixel squares (leaf / mint tokens) sweep in until the
 // screen is covered, "VISITING BUDI’S GARDEN" (or "BACK TO MY GARDEN") shows in the middle, the swap
 // happens under the cover (and waits for the friend's garden to load), then the squares leave in
-// the same order. Squares sit on whole device pixels (sharp, never blurred); each frame only paints
+// the same order, with an 8-bit pixel sparkle (rising to visit, falling back). Squares sit on whole device pixels (sharp, never blurred); each frame only paints
 // the squares that changed, so it stays light on phones. Reduced motion: a short fade, no squares.
 
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
-import { playWhoosh } from './audio';
+import { playPixelSparkle, playWhoosh } from './audio';
 import { token } from './tokens';
 import {
   cellsBy,
   easeOut,
   seededRandom,
+  sparkleNotes,
   WIPE_COLORS,
   WIPE_COVER_MS,
   WIPE_FADE_MS,
@@ -25,6 +26,8 @@ import {
 interface Job {
   id: number;
   label: string;
+  /** The pixel sparkle rises for a visit ('up') and falls on the way back ('down'). */
+  sound: 'up' | 'down';
   /** Runs under the cover; the wipe opens when it settles (at most WIPE_WAIT_MAX_MS). */
   swap: () => unknown;
 }
@@ -35,13 +38,13 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 export function useVisitWipe() {
   const [job, setJob] = useState<Job | null>(null);
   const busy = useRef(false);
-  const run = useCallback((label: string, swap: () => unknown) => {
+  const run = useCallback((label: string, swap: () => unknown, sound: 'up' | 'down' = 'up') => {
     if (busy.current) {
       void swap();
       return;
     }
     busy.current = true;
-    setJob({ id: Date.now(), label, swap });
+    setJob({ id: Date.now(), label, swap, sound });
   }, []);
   const done = useCallback(() => {
     busy.current = false;
@@ -88,7 +91,11 @@ function PixelWipe({ job, onDone }: { job: Job; onDone: () => void }) {
       g.fillStyle = colors[0];
       g.fillRect(0, 0, cv.width, cv.height);
       box.style.opacity = '0';
-    } else playWhoosh();
+    } else {
+      // The 8-bit sparkle follows the squares; the soft leaf whoosh stays under it.
+      playPixelSparkle(sparkleNotes(job.sound));
+      playWhoosh();
+    }
 
     const startSwap = () => {
       let r: unknown;

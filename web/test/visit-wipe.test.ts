@@ -2,7 +2,7 @@
 // pixel grid, every square covered by the end of the cover phase, a ragged sweep, mostly leaf colours.
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { BACK_TEXT, cellsBy, seededRandom, visitingText, WIPE_COLORS, WIPE_COVER_MS, WIPE_HOLD_MS, WIPE_REVEAL_MS, wipeCellPx, wipeCells } from '../src/visit-wipe-plan.ts';
+import { BACK_TEXT, cellsBy, sparkleLength, sparkleNotes, seededRandom, visitingText, WIPE_COLORS, WIPE_COVER_MS, WIPE_HOLD_MS, WIPE_REVEAL_MS, wipeCellPx, wipeCells } from '../src/visit-wipe-plan.ts';
 
 describe('visit wipe', () => {
   it('takes about 0.8 s', () => {
@@ -38,5 +38,20 @@ describe('visit wipe', () => {
   it('the words', () => {
     assert.equal(visitingText('budi'), 'Visiting budi’s garden');
     assert.equal(BACK_TEXT, 'Back to my garden');
+  });
+});
+
+describe('pixel sparkle sound', () => {
+  it('rises for a visit, falls on the way back, about 0.6-0.8 s', () => {
+    const up = sparkleNotes('up');
+    const down = sparkleNotes('down');
+    for (const notes of [up, down]) {
+      const len = sparkleLength(notes);
+      assert.ok(len >= 0.6 && len <= 0.8, `length ${len}`);
+      assert.ok(notes.every((n) => n.level > 0 && n.level <= 1));
+    }
+    assert.ok(up.every((n, i) => i === 0 || n.freq > up[i - 1].freq), 'rising');
+    assert.ok(down.every((n, i) => i === 0 || n.freq < down[i - 1].freq), 'falling');
+    assert.notDeepEqual(up.map((n) => n.freq), [...down].reverse().map((n) => n.freq), 'back is not just the visit reversed');
   });
 });

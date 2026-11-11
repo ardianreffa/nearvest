@@ -89,3 +89,34 @@ export const easeOut = (p: number) => 1 - (1 - Math.min(1, Math.max(0, p))) ** 2
 /** The words in the middle. */
 export const visitingText = (name: string) => `Visiting ${name}’s garden`;
 export const BACK_TEXT = 'Back to my garden';
+
+/**
+ * The 8-bit "pixel sparkle" over the wipe (Ardian 2026-11-11: the whoosh alone was too soft): quick
+ * chiptune blips on a pentatonic scale that follow the squares, rising when you visit a garden and
+ * falling when you go back. `at` and `dur` in seconds from the start; about 0.7 s in all.
+ */
+export interface SparkleNote {
+  at: number;
+  freq: number;
+  dur: number;
+  /** 0..1 of the voice's loudness (a soft fade-in, a soft end). */
+  level: number;
+}
+
+/** C major pentatonic from C5 up two octaves (Hz). */
+const PENTA = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.51, 1567.98, 1760.0, 2093.0, 2349.32];
+export const SPARKLE_STEP_S = 0.05;
+export const SPARKLE_NOTE_S = 0.09;
+
+export function sparkleNotes(direction: 'up' | 'down'): SparkleNote[] {
+  const scale = direction === 'up' ? PENTA : [...PENTA].reverse().map((f) => f / 2 + f / 4);
+  return scale.map((freq, i) => ({
+    at: i * SPARKLE_STEP_S,
+    freq,
+    dur: SPARKLE_NOTE_S,
+    level: Math.min(1, 0.55 + i * 0.12) * (i >= scale.length - 2 ? 0.8 : 1),
+  }));
+}
+
+/** The whole sparkle's length in seconds. */
+export const sparkleLength = (notes: SparkleNote[]) => Math.max(...notes.map((n) => n.at + n.dur));

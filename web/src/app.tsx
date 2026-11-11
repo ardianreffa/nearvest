@@ -980,10 +980,14 @@ export function App() {
   };
   /** Back to my garden (the visit panel's button, or another tab): the same wipe, then `then`. */
   const backHome = (then?: () => void) =>
-    wipe.run(BACK_TEXT, () => {
-      setVisiting(null);
-      then?.();
-    });
+    wipe.run(
+      BACK_TEXT,
+      () => {
+        setVisiting(null);
+        then?.();
+      },
+      'down',
+    );
   visitRef.current = startVisit;
   /** "Add back" (notice and Village tab): add a garden that added us. */
   const addBack = async (name: string) => {
