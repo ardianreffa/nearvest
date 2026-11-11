@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { DuelSide, DuelView } from '../src/api.ts';
-import { duelButton, duelPost, fightAt, fightHits, fightTimes, headline, hpTone, prizeChip, receivedNotice, recentLine, rewardLine, rewardOf, roundFruit, roundView, roundWhat, scoreAfter, seasonLine, sides } from '../src/arena-play.ts';
+import { duelButton, duelPost, fightAt, fightHits, fightTimes, headline, hitFlash, HIT_FLASH_MS, hpTone, prizeChip, receivedNotice, recentLine, rewardLine, rewardOf, roundFruit, roundView, roundWhat, scoreAfter, seasonLine, sides } from '../src/arena-play.ts';
 import type { DuelRound, Quality, Species } from '../src/api.ts';
 
 const side = (name: string, o: Partial<DuelSide> = {}): DuelSide => ({
@@ -212,5 +212,16 @@ describe('Fruit Fight life bars', () => {
     const rr = fightAt(d, R.intro + R.banner, true);
     assert.equal(rr.phase, 'impact');
     assert.ok(rr.hp[1] < 100);
+  });
+});
+
+describe('the white hit flash always ends (iPhone Safari: TaniBots stayed white)', () => {
+  it('is on only for the first moment after the impact', () => {
+    assert.equal(hitFlash(0), true);
+    assert.equal(hitFlash(HIT_FLASH_MS - 1), true);
+    assert.equal(hitFlash(HIT_FLASH_MS), false);
+    assert.equal(hitFlash(1000), false);
+    assert.equal(hitFlash(-1), false);
+    assert.ok(HIT_FLASH_MS <= 300, 'a flash, not a long white');
   });
 });

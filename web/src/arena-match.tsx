@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { api, ApiError, type Activity, type ArenaPick, type GameState, type MatchSummary, type MatchView, type Rps } from './api';
 import { Fighter, FighterHud, FlyingFruit, hitSound, reducedMotion } from './arena';
-import { flightMs, fmt, seasonLine } from './arena-play';
+import { flightMs, fmt, hitFlash, HIT_FLASH_MS, seasonLine } from './arena-play';
 import { bonusLine, clockOf, controls, countdown, endBanner, fruitName, matchLine, matchPost, matchReward, matchWon, PICK_LABEL, turnAt, turnBanner, turnLength, turnLine, turnReason, type TurnClock, type TurnFrame } from './arena-turn';
 import { Avatar } from './art/avatars';
 import { DuelBackdrop } from './art/duel-backdrop';
@@ -222,7 +222,7 @@ export function MatchScreen({
   const now = () => Date.now();
   const tTurn = () => (anim ? (devT() ?? now() - anim.t0) : 0);
   const frame = anim ? turnAt(m, anim.i, tTurn(), reduced) : null;
-  const frameKey = (f: TurnFrame | null) => (f ? `${f.phase}|${f.hit?.index}|${f.hp}|${f.sinceImpact < 350}|${f.sinceImpact < 1000}` : '');
+  const frameKey = (f: TurnFrame | null) => (f ? `${f.phase}|${f.hit?.index}|${f.hp}|${f.phase === 'impact' && f.sinceImpact < HIT_FLASH_MS}|${f.sinceImpact < 350}|${f.sinceImpact < 1000}` : '');
   const endT = end === null ? null : end === -Infinity ? Infinity : now() - end;
   const endPhase = endT === null ? null : endT < KO_MS ? 'ko' : endT < KO_MS + CELEBRATE_MS ? 'celebrate' : 'result';
   useEffect(() => {
@@ -283,6 +283,7 @@ export function MatchScreen({
   const gold = !!frame?.hit?.gold && (frame.phase === 'charge' || frame.phase === 'meteor' || frame.phase === 'impact');
   const heavy = (f: TurnFrame | null) => !!f?.hit && (f.hit.gold || f.hit.fruit.species === 'durian');
   const hitShown = frame?.phase === 'impact' && frame.sinceImpact < 1000;
+  const flash = !!hitShown && hitFlash(frame!.sinceImpact);
   const pose = (who: 'me' | 'them') => {
     if (over && endPhase !== null) {
       const loser = won ? 'them' : 'me';
@@ -357,7 +358,7 @@ export function MatchScreen({
             <FighterHud side={{ ...them, name: `${them.name}'s TaniBot` }} hp={hp[1]} right skill={{ n: skill[1], max: m.skillMax }} />
           </div>
           <div class="fight-floor" style={`--bot-w:${58 * scale}px;--bot-h:${64 * scale}px`}>
-            <Fighter side={me} right={false} scale={scale} state={pose('me')} hard={heavy(frame)} pick={bubble('me')} />
+            <Fighter side={me} right={false} scale={scale} state={pose('me')} hard={heavy(frame)} pick={bubble('me')} flash={flash} />
             {!reduced && frame?.hit && !frame.hit.gold && frame.phase === 'flight' && (
               <FlyingFruit fruit={frame.hit.fruit} from={frame.hit.from} ms={flightMs(frame.hit.fruit)} hitKey={`${anim!.i}-${frame.hit.index}`} big={wide} />
             )}
@@ -369,7 +370,7 @@ export function MatchScreen({
               />
             )}
             {gold && frame && (frame.phase === 'meteor' || frame.phase === 'impact') && <GoldFloorFx key={`gold-${anim!.i}-${frame.hit!.index}-${frame.phase}`} frame={frame} wide={wide} reduced={reduced} />}
-            <Fighter side={them} right scale={scale} state={pose('them')} hard={heavy(frame)} pick={bubble('them')} />
+            <Fighter side={them} right scale={scale} state={pose('them')} hard={heavy(frame)} pick={bubble('them')} flash={flash} />
           </div>
           {banner && (
             <div class="fight-banner turn-banner" key={`banner-${anim?.i}`}>

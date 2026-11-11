@@ -11709,8 +11709,10 @@ html.page-locked body {
   animation-name: fight-knock-hard;
 }
 
-.fighter.hit .fighter-art .tanibot {
-  animation: fight-flash 240ms steps(2);
+/* The white flash: a plain class for the first moment of the hit (hitFlash in arena-play.ts), never a
+   filter animation: iPhone Safari could keep an animated filter on its white frame for good. */
+.fighter-art.flash .tanibot {
+  filter: brightness(3) saturate(0);
 }
 
 @keyframes fight-knock {
@@ -11725,12 +11727,6 @@ html.page-locked body {
   }
   60% {
     transform: translateX(calc(var(--dir) * 10px));
-  }
-}
-
-@keyframes fight-flash {
-  50% {
-    filter: brightness(3) saturate(0);
   }
 }
 

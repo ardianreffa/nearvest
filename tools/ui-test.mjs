@@ -660,6 +660,18 @@ try {
         await sleep(1500);
         console.log('duel screen:', await evaluate(`(() => { const d = document.querySelector('.duel'); return 'v2 match screen: ' + d.classList.contains('match') + ' | rounds list (v1): ' + !!d.querySelector('.duel-rounds') + ' | Rock/Paper/Scissors buttons: ' + d.querySelectorAll('.rps-btn').length; })()`));
         await screenshot('old-v1-duel');
+        // The v1 Fruit Fight uses the same hit flash: seen briefly during the hits, never left on.
+        let flashSamples = 0;
+        for (let i = 0; i < 300 && !(await evaluate(`!!document.querySelector('.duel .duel-actions')`)); i++) {
+          if (await evaluate(`!!document.querySelector('.duel .fighter-art.flash')`)) flashSamples++;
+          await sleep(50);
+        }
+        const v1White = await evaluate(`[...document.querySelectorAll('.duel .fighter')].map(f => { const b = f.querySelector('.tanibot'); const fl = b ? getComputedStyle(b).filter : 'none';
+          const bad = /brightness\\((?:[2-9]|1\\.[5-9])/.test(fl) || /saturate\\(0\\)/.test(fl) || !!f.querySelector('.fighter-art.flash') || (b ? b.getAnimations().some(a => /flash/.test(a.animationName || '')) : false);
+          return (f.classList.contains('me') ? 'me' : 'them') + ' ' + (bad ? 'WHITE (' + fl + ')' : 'ok'); }).join(' | ')`);
+        console.log(`v1 duel: white flash seen in ${flashSamples} samples; at the result: ${v1White}`);
+        await screenshot('old-v1-result');
+        if (/WHITE/.test(v1White)) throw new Error('TaniBot still white after the v1 duel: ' + v1White);
       });
     }
     throw Object.assign(new Error('oldserver done'), { done: true });
@@ -707,6 +719,18 @@ try {
     const box = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return 'missing'; const r = e.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) + ' at ' + Math.round(r.left) + ',' + Math.round(r.top) + (r.bottom <= innerHeight + 1 && r.top >= 0 ? ' (on screen)' : ' (OFF SCREEN)'); })()`;
     const ready = `(() => { const b = document.querySelector('.rps-btn'); return !!b && !b.disabled; })()`;
     const freeze = async (t, wait = 200) => { await evaluate(`(window.__turnT = ${t}, true)`); await sleep(wait); };
+    // After every hit, Gold Durian and K.O. the TaniBots must be back to their own colours: no white
+    // flash class, no white filter (brightness >= 1.5 or saturate(0)) and no flash animation left
+    // (iPhone Safari kept the old CSS flash animation on white). The same check runs in WebKit:
+    // tools/duel-webkit.mjs.
+    const notWhite = async (label) => {
+      const r = await evaluate(`[...document.querySelectorAll('.duel.match .fighter')].map(f => { const b = f.querySelector('.tanibot'); const fl = b ? getComputedStyle(b).filter : 'none';
+        const anim = b ? b.getAnimations().filter(a => /flash/.test(a.animationName || '')).length : 0;
+        const bad = /brightness\\((?:[2-9]|1\\.[5-9])/.test(fl) || /saturate\\(0\\)/.test(fl) || !!f.querySelector('.fighter-art.flash') || anim > 0;
+        return (f.classList.contains('me') ? 'me' : 'them') + ' ' + (bad ? 'WHITE (' + fl + ')' : 'ok'); }).join(' | ')`);
+      console.log(`white check ${label}:`, r);
+      if (/WHITE/.test(r)) throw new Error(`TaniBot still white ${label}: ${r}`);
+    };
     const unfreeze = () => evaluate(`(delete window.__turnT, true)`);
     // Turn timing (web/src/arena-turn.ts turnTimes): reveal 700, wind-up 300, then the flight (mango 450 ... durian 850).
     const play = async (pick, botPick) => {
@@ -789,8 +813,18 @@ try {
       await freeze(700 + 300 + 900);
       console.log('hit:', await evaluate(info));
       await screenshot('match-hit');
+      console.log('flash during the hit (frozen 900 ms after the throw):', await evaluate(`[...document.querySelectorAll('.duel.match .fighter-art.flash')].length`));
+      // The flight takes 450-850 ms (the fruit): step through the impact and note when the flash is on.
+      const flashOn = [];
+      for (let t = 700 + 300 + 400; t <= 700 + 300 + 1100; t += 50) {
+        await freeze(t, 120);
+        if (await evaluate(`!!document.querySelector('.duel.match .fighter-art.flash')`)) flashOn.push(t);
+      }
+      console.log('white flash on at turn ms:', flashOn.join(', ') || 'never', `(${flashOn.length * 50} ms, short)`);
+      if (!flashOn.length || flashOn.length * 50 > 300) throw new Error('the hit flash should show briefly');
       await unfreeze();
       await waitFor(ready, 'next turn', 10000);
+      await notWhite('after the turn 1 hit');
     });
     await step('the 10 s turn clock (frozen at 7 s and at 2 s: red)', async () => {
       await evaluate(`(window.__clockNow = 2500, true)`);
@@ -813,6 +847,7 @@ try {
       await screenshot('match-too-slow');
       await unfreeze();
       await waitFor(ready, 'turn 3', 15000);
+      await notWhite('after the missed turn');
     });
     await step('turns 3-4: Paper vs Rock, Scissors vs Paper (the skill bar fills)', async () => {
       await freeze(300, 0);
@@ -823,9 +858,11 @@ try {
       await screenshot('match-picks-paper');
       await unfreeze();
       await waitFor(ready, 'turn 4', 10000);
+      await notWhite('after turn 3');
       await play('scissors', 'paper');
       await sleep(300);
       await waitFor(ready, 'turn 5', 10000);
+      await notWhite('after turn 4');
       await sleep(300);
       console.log('skill bar full:', await evaluate(info));
       await screenshot('match-gold-ready');
@@ -848,6 +885,8 @@ try {
       console.log(`${who} Gold Durian, damage:`, await evaluate(`document.querySelector('.gold-damage')?.innerText ?? 'none'`));
       await screenshot(`match-${who}-gold-damage`);
       await unfreeze();
+      await waitFor(`!!document.querySelector('.fight-ko, .duel-result') || (${ready})`, 'after the Gold Durian', 15000);
+      await notWhite(`after ${who === 'me' ? 'my' : 'their'} Gold Durian`);
     };
     await step('turn 5: my Gold Durian (charge, meteor, impact, damage)', async () => {
       if (process.env.PERF) {
@@ -881,15 +920,19 @@ try {
         if (m && m.skill_c >= 3) await play('gold', 'paper');
         else await play('rock', 'scissors');
         await sleep(400);
+        await waitFor(`!!document.querySelector('.fight-ko, .duel-result') || (${ready})`, 'the turn played', 15000);
+        if (await evaluate(ready)) await notWhite(`after K.O. loop turn ${i + 1}`);
       }
       await waitFor(`!!document.querySelector('.fight-ko')`, 'K.O.!', 20000);
       await sleep(250);
       console.log('K.O.:', await evaluate(info), '| K.O. font:', await evaluate(`getComputedStyle(document.querySelector('.fight-ko')).fontFamily`));
       await screenshot('match-ko');
+      await notWhite('at K.O.!');
       await waitFor(`!!document.querySelector('.duel-result')`, 'result', 10000);
       await sleep(600);
       console.log('result:', await evaluate(info));
       await screenshot('match-result');
+      await notWhite('at the result');
       console.log('result panel:', await evaluate(box('.duel-actions')));
     });
     await step('back: Recent duels in the Arena window', async () => {

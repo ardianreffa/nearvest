@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'preact/hooks';
 import { api, type Activity, type ArenaPick, type ArenaView, type DuelSide, type DuelView, type GameState, type MatchSummary } from './api';
-import { duelPost, fightAt, fightTimes, flightMs, fmt, headline, hpTone, prizeChip, recentLine, rewardOf, roundView, roundWhat, ROUND_NAME, seasonLine, sides, youWon, type Fruit, type Hit } from './arena-play';
+import { duelPost, fightAt, hitFlash, HIT_FLASH_MS, fightTimes, flightMs, fmt, headline, hpTone, prizeChip, recentLine, rewardOf, roundView, roundWhat, ROUND_NAME, seasonLine, sides, youWon, type Fruit, type Hit } from './arena-play';
 import { Avatar } from './art/avatars';
 import { BotDrones, TaniBot, TANIBOT_H, tierOf } from './art/tanibot';
 import { playSound, type SoundName } from './audio';
@@ -302,6 +302,7 @@ export function Fighter({
   state,
   hard,
   pick,
+  flash = false,
 }: {
   side: DuelSide;
   right: boolean;
@@ -310,6 +311,8 @@ export function Fighter({
   hard: boolean;
   /** v2: the pick shown above its head (pop = it just appeared). */
   pick?: { pick: BubblePick; pop: boolean } | null;
+  /** The hit's short white flash (only while it is hit; see hitFlash in arena-play.ts). */
+  flash?: boolean;
 }) {
   // The same look as in the garden: the title's TaniBot with its effects AND its drones (Ardian
   // 2026-11-11: the duel had no drones, so a Farmer / Durian King / Legend did not look like itself).
@@ -330,7 +333,7 @@ export function Fighter({
           ))}
         </span>
       )}
-      <div class={`fighter-art${state === 'ko' ? ' asleep' : ''}`}>
+      <div class={`fighter-art${state === 'ko' ? ' asleep' : ''}${flash && state === 'hit' ? ' flash' : ''}`}>
         <TaniBot tier={tier} scale={scale} effects={state !== 'ko'} />
       </div>
       {state === 'hit' && (
@@ -385,7 +388,7 @@ export function DuelScreen({
   // bars), not every frame; the motion itself is CSS.
   const look = (t: number) => {
     const x = fightAt(d, t, reduced);
-    return `${x.phase}|${x.round}|${x.rounds}|${x.hp}|${x.phase === 'impact' && t - x.hitAt < 350}|${x.phase === 'impact' && t - x.hitAt < 1000}`;
+    return `${x.phase}|${x.round}|${x.rounds}|${x.hp}|${x.phase === 'impact' && t - x.hitAt < HIT_FLASH_MS}|${x.phase === 'impact' && t - x.hitAt < 350}|${x.phase === 'impact' && t - x.hitAt < 1000}`;
   };
   const [, setLook] = useState('');
   useEffect(() => {
@@ -469,10 +472,10 @@ export function DuelScreen({
             <FighterHud side={them} hp={f.hp[1]} right />
           </div>
           <div class="fight-floor" style={`--bot-w:${58 * scale}px;--bot-h:${64 * scale}px`}>
-            <Fighter side={me} right={false} scale={scale} state={pose('me')} hard={!!f.hit?.hard} />
+            <Fighter side={me} right={false} scale={scale} state={pose('me')} hard={!!f.hit?.hard} flash={!!hitShown && hitFlash(elapsed - f.hitAt)} />
             {!reduced && f.hit && f.phase === 'flight' && <FlyingFruit fruit={f.hit.fruit} from={f.hit.from} ms={flightMs(f.hit.fruit)} hitKey={hitKey} big={wide} />}
             {hitShown && <span key={`burst-${hitKey}`} class={`hit-burst at-${f.hit!.from === 'me' ? 'them' : 'me'}${f.hit!.hard ? ' hard' : ''} q-${f.hit!.fruit.quality}`} aria-hidden="true" />}
-            <Fighter side={them} right scale={scale} state={pose('them')} hard={!!f.hit?.hard} />
+            <Fighter side={them} right scale={scale} state={pose('them')} hard={!!f.hit?.hard} flash={!!hitShown && hitFlash(elapsed - f.hitAt)} />
           </div>
           {(f.phase === 'intro' || f.phase === 'banner') && (
             <div class="fight-banner" key={`banner-${f.round}`}>

@@ -160,6 +160,14 @@ export function fruitPower(f: Fruit): number {
 }
 
 /** A heavy hit: bigger knock-back and screen shake. */
+/**
+ * The short white flash on the TaniBot that is hit: on for the first HIT_FLASH_MS after the impact.
+ * It is a plain class switched by the turn's clock (never a CSS filter animation): on iPhone Safari a
+ * filter animation on the TaniBot could stay stuck on its white frame (both TaniBots white for good).
+ */
+export const HIT_FLASH_MS = 180;
+export const hitFlash = (sinceImpact: number) => sinceImpact >= 0 && sinceImpact < HIT_FLASH_MS;
+
 export const hardHit = (f: Fruit) => f.species === 'durian' || f.quality === 'gold';
 
 export interface Hit {
