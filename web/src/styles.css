@@ -11296,17 +11296,29 @@ html.page-locked body {
   padding-left: 8px;
 }
 
-/* The visit panel's Duel button: next to Sticker, the same height. */
+/* The visit panel's Duel button: next to Sticker, the same height, the Arena's sparkle icon.
+   Already dueled today / no duels left: still readable (not faded away), with a check mark. */
 .visit-duel {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 44px;
   white-space: nowrap;
   background: var(--purple-300);
 }
 
+.visit-duel:disabled {
+  opacity: 0.8;
+  cursor: default;
+  background: var(--paper);
+}
+
 @media (max-width: 1023px) {
   .visit-panel:not(.bar) .visit-duel {
     flex: 1 1 0;
+    gap: 4px;
     padding-left: 8px;
     padding-right: 8px;
     font-size: var(--fs-sm);
@@ -11314,7 +11326,8 @@ html.page-locked body {
 }
 
 .duel-backdrop {
-  z-index: 40;
+  /* Under the fx layer (40), so the winner's confetti shows on top. */
+  z-index: 35;
   padding: 8px;
 }
 
@@ -11340,103 +11353,6 @@ html.page-locked body {
 .duel-head h2 {
   font-family: var(--font-title);
   text-transform: uppercase;
-}
-
-.duel-stage {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-areas:
-    'me them'
-    'mid mid';
-  gap: 8px;
-  align-items: end;
-}
-
-.duel.wide .duel-stage {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: 'me mid them';
-  align-items: center;
-  gap: 16px;
-}
-
-.duel-bot {
-  grid-area: me;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.duel-bot.right {
-  grid-area: them;
-}
-
-.duel-mid {
-  grid-area: mid;
-  min-width: 0;
-}
-
-.duel-bot-art {
-  padding: 4px 8px;
-  transition: filter 300ms, opacity 300ms;
-}
-
-/* Theirs faces yours. */
-.duel-bot.right .duel-bot-art {
-  transform: scaleX(-1);
-}
-
-.duel-bot.lead .duel-bot-art {
-  filter: drop-shadow(0 0 8px var(--mint-500));
-}
-
-.duel-bot.down .duel-bot-art {
-  opacity: 0.55;
-  filter: grayscale(0.6);
-}
-
-.duel-bot figcaption {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.duel-bot figcaption b {
-  font-family: var(--font-ui);
-  font-size: var(--fs-body);
-  color: var(--paper-light);
-  overflow-wrap: anywhere;
-}
-
-.duel-bot figcaption span {
-  font-family: var(--font-ui);
-  font-size: var(--fs-xs);
-  color: var(--cyan-300);
-}
-
-.duel-score {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 16px;
-  margin: 0 0 8px;
-  font-family: var(--font-title);
-  font-size: var(--fs-h2);
-  line-height: 1;
-  color: var(--paper-light);
-}
-
-.duel.wide .duel-score {
-  font-size: var(--fs-h1);
-}
-
-.duel-score .ahead {
-  color: var(--mint-500);
 }
 
 .duel-vs {
@@ -11569,12 +11485,7 @@ html.page-locked body {
   color: var(--mint-500);
 }
 
-.duel .duel-tx.muted,
-.duel .duel-wait {
-  color: var(--paper);
-}
-
-.duel-wait {
+.duel .duel-tx.muted {
   margin: 0;
   min-height: 44px;
   text-align: center;
@@ -11605,14 +11516,11 @@ html.page-locked body {
   .duel-round {
     animation: none;
   }
-  .duel-bot-art {
-    transition: none;
-  }
 }
 
 /* Duel text over the generic panel / paragraph type rules: titles in Silkscreen, numbers in Tiny5,
    every total readable on the dark panel (the round's winner in mint). */
-.duel.panel .duel-score,
+.duel.panel .fight-score,
 .duel.panel .duel-headline {
   font-family: var(--font-title);
   text-transform: uppercase;
@@ -11630,4 +11538,631 @@ html.page-locked body {
 
 .duel.panel .duel-side.win .duel-sum b {
   color: var(--mint-500);
+}
+
+/* ---------- Fruit Fight (arena.tsx, Ardian 2026-11-11) ----------
+   Fighting-game duel: names, titles and life bars on top, the two TaniBots on the floor, the round
+   winner's fruit flying in an arc, hits (flash, knock-back, stars, shake), K.O.!, sleep / jump.
+   Motion uses transform / opacity / short filters only. Reduced motion: no motion (.still). */
+.fight-stage {
+  position: relative;
+  overflow: hidden;
+  padding: 8px;
+  border: 2px solid var(--soil-700);
+  background:
+    linear-gradient(to top, color-mix(in srgb, var(--leaf-700) 80%, transparent) 0 18%, transparent 18%),
+    radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--mint-500) 18%, transparent), transparent 70%),
+    linear-gradient(color-mix(in srgb, var(--cyan-700) 40%, transparent), transparent 70%);
+}
+
+.fight-hud {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+
+.fighter-hud {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fighter-hud.right {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.fighter-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.fighter-hud.right .fighter-name {
+  align-items: flex-end;
+}
+
+.fighter-name b {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: 1.1;
+  color: var(--paper-light);
+  overflow-wrap: anywhere;
+}
+
+.fighter-name span {
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  color: var(--cyan-300);
+}
+
+.hp-bar {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  background: var(--ink);
+  border: 2px solid var(--paper-light);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+/* The right bar drains toward the outside too (mirrored). */
+.fighter-hud.right .hp-bar {
+  transform: scaleX(-1);
+}
+
+.hp-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  transition:
+    width 450ms ease-out,
+    background-color 300ms;
+}
+
+.hp-high {
+  background: var(--mint-500);
+}
+
+.hp-mid {
+  background: var(--gold-500);
+}
+
+.hp-low {
+  background: var(--red-500);
+}
+
+.fight-score {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-h3);
+  line-height: 1;
+  color: var(--paper-light);
+}
+
+.duel.wide .fight-score {
+  font-size: var(--fs-h2);
+}
+
+.fight-score .ahead {
+  color: var(--mint-500);
+}
+
+.fight-floor {
+  position: relative;
+  height: calc(var(--bot-h) + 16px);
+  margin-top: 6px;
+}
+
+.fighter {
+  --dir: -1;
+  position: absolute;
+  bottom: 6px;
+  left: 4%;
+  transition: transform 250ms ease-out;
+}
+
+.fighter.them {
+  --dir: 1;
+  left: auto;
+  right: 4%;
+}
+
+.fighter-art {
+  position: relative;
+  z-index: 1;
+}
+
+.fighter.them .fighter-art {
+  transform: scaleX(-1);
+}
+
+.fighter-shadow {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: -3px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
+}
+
+/* The thrower steps forward. */
+.fighter.windup {
+  transform: translateX(calc(var(--dir) * -14px));
+}
+
+/* Hit: knocked back and back again, a short white flash. */
+.fighter.hit {
+  animation: fight-knock 600ms ease-out;
+}
+
+.fighter.hit.hard {
+  animation-name: fight-knock-hard;
+}
+
+.fighter.hit .fighter-art .tanibot {
+  animation: fight-flash 240ms steps(2);
+}
+
+@keyframes fight-knock {
+  25% {
+    transform: translateX(calc(var(--dir) * 18px));
+  }
+}
+
+@keyframes fight-knock-hard {
+  20% {
+    transform: translateX(calc(var(--dir) * 32px)) rotate(calc(var(--dir) * 6deg));
+  }
+  60% {
+    transform: translateX(calc(var(--dir) * 10px));
+  }
+}
+
+@keyframes fight-flash {
+  50% {
+    filter: brightness(3) saturate(0);
+  }
+}
+
+/* Stars turning above the head after a hit (pixel plus shapes). */
+.ko-stars {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 2%;
+  width: 0;
+  height: 0;
+  transform: scaleY(0.4);
+}
+
+.ko-stars-ring {
+  position: absolute;
+  inset: 0;
+  animation: fight-stars 900ms linear infinite;
+}
+
+.ko-stars-ring i {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--gold-300);
+  box-shadow:
+    4px 0 var(--gold-300),
+    -4px 0 var(--gold-300),
+    0 4px var(--gold-300),
+    0 -4px var(--gold-300);
+}
+
+.ko-stars-ring i:nth-child(1) {
+  transform: rotate(0deg) translateX(calc(var(--bot-w) * 0.22));
+}
+
+.ko-stars-ring i:nth-child(2) {
+  transform: rotate(120deg) translateX(calc(var(--bot-w) * 0.22));
+}
+
+.ko-stars-ring i:nth-child(3) {
+  transform: rotate(240deg) translateX(calc(var(--bot-w) * 0.22));
+}
+
+@keyframes fight-stars {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The flying fruit: the path runs between the two fighters at chest height; x moves straight,
+   y goes up then down (an arc), the fruit spins. Thrown from the right: the path is mirrored. */
+.fruit-path {
+  position: absolute;
+  z-index: 4;
+  bottom: calc(var(--bot-h) * 0.5);
+  left: calc(4% + var(--bot-w) * 0.6);
+  right: calc(4% + var(--bot-w) * 0.6);
+  height: 0;
+  --arc: calc(var(--bot-h) * 0.45);
+  pointer-events: none;
+}
+
+.fruit-path.from-them {
+  transform: scaleX(-1);
+}
+
+.fruit-x {
+  position: absolute;
+  inset: 0;
+  animation: fruit-x linear both;
+}
+
+.fruit-path.durian .fruit-x {
+  animation-name: fruit-x-durian;
+}
+
+.fruit-y {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  translate: -50% 50%;
+  animation: fruit-y linear both;
+}
+
+.fruit-y.durian {
+  animation-name: fruit-y-durian;
+}
+
+.fruit-spin {
+  display: block;
+  animation: fruit-spin linear both;
+}
+
+.fruit-spin.q-gold {
+  filter: drop-shadow(0 0 3px var(--gold-300)) drop-shadow(0 0 2px var(--gold-500));
+}
+
+.fruit-spin.q-rare {
+  filter: drop-shadow(0 0 3px var(--purple-300)) drop-shadow(0 0 2px var(--purple-500));
+}
+
+@keyframes fruit-x {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fruit-x-durian {
+  0% {
+    transform: translateX(0);
+  }
+  80%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fruit-y {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: ease-out;
+  }
+  50% {
+    transform: translateY(calc(var(--arc) * -1));
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* A durian flies higher, lands heavily and bounces once. */
+@keyframes fruit-y-durian {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: ease-out;
+  }
+  40% {
+    transform: translateY(calc(var(--arc) * -1.2));
+    animation-timing-function: ease-in;
+  }
+  80% {
+    transform: translateY(0);
+    animation-timing-function: ease-out;
+  }
+  90% {
+    transform: translateY(calc(var(--arc) * -0.25));
+    animation-timing-function: ease-in;
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes fruit-spin {
+  to {
+    transform: rotate(540deg);
+  }
+}
+
+/* The flash where the fruit lands (gold / purple for Gold / Rare fruit). */
+.hit-burst {
+  position: absolute;
+  z-index: 3;
+  bottom: calc(var(--bot-h) * 0.5);
+  width: 16px;
+  height: 16px;
+  margin: 0 -8px -8px;
+  background: var(--paper-light);
+  opacity: 0;
+  animation: fight-burst 320ms ease-out;
+}
+
+.hit-burst.at-them {
+  right: calc(4% + var(--bot-w) * 0.5);
+}
+
+.hit-burst.at-me {
+  left: calc(4% + var(--bot-w) * 0.5);
+}
+
+.hit-burst.q-gold {
+  background: var(--gold-300);
+}
+
+.hit-burst.q-rare {
+  background: var(--purple-300);
+}
+
+.hit-burst.hard {
+  animation-name: fight-burst-hard;
+}
+
+@keyframes fight-burst {
+  0% {
+    opacity: 1;
+    transform: scale(0.5) rotate(45deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3) rotate(45deg);
+  }
+}
+
+@keyframes fight-burst-hard {
+  0% {
+    opacity: 1;
+    transform: scale(0.6) rotate(45deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(5) rotate(45deg);
+  }
+}
+
+/* A small screen shake on every hit, stronger for a durian or a Gold fruit. */
+.fight-stage.shake {
+  animation: fight-shake 300ms steps(6);
+}
+
+.fight-stage.shake.hard {
+  animation-name: fight-shake-hard;
+}
+
+@keyframes fight-shake {
+  20% {
+    transform: translate(3px, -2px);
+  }
+  40% {
+    transform: translate(-3px, 2px);
+  }
+  60% {
+    transform: translate(2px, 1px);
+  }
+  80% {
+    transform: translate(-2px, -1px);
+  }
+}
+
+@keyframes fight-shake-hard {
+  20% {
+    transform: translate(6px, -3px);
+  }
+  40% {
+    transform: translate(-6px, 3px);
+  }
+  60% {
+    transform: translate(4px, 2px);
+  }
+  80% {
+    transform: translate(-4px, -2px);
+  }
+}
+
+/* "FIGHT!" / "ROUND 2 · CARE" and the big "K.O.!" (title font). */
+.fight-banner,
+.fight-ko {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: var(--font-title);
+  text-transform: uppercase;
+  pointer-events: none;
+  text-shadow:
+    2px 2px 0 var(--ink),
+    -2px 2px 0 var(--ink),
+    2px -2px 0 var(--ink),
+    -2px -2px 0 var(--ink);
+}
+
+.fight-banner {
+  top: 46%;
+  font-size: var(--fs-body);
+  color: var(--gold-500);
+  animation: fight-banner 600ms ease-out both;
+}
+
+.duel.wide .fight-banner {
+  font-size: var(--fs-h2);
+}
+
+.fight-ko {
+  top: 34%;
+  font-size: var(--fs-h1);
+  color: var(--red-500);
+  animation: fight-ko 500ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.duel.wide .fight-ko {
+  font-size: var(--fs-hero);
+}
+
+@keyframes fight-banner {
+  from {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+@keyframes fight-ko {
+  from {
+    opacity: 0;
+    transform: scale(3);
+  }
+}
+
+/* K.O.: the loser sleeps (TaniBot's OFF look with Zzz), the winner jumps. */
+.fighter.ko .fighter-art {
+  translate: calc(var(--dir) * 6px) 4px;
+  rotate: calc(var(--dir) * 8deg);
+}
+
+.fighter-art.asleep .tanibot {
+  animation: none;
+  filter: saturate(0.55) brightness(0.8);
+}
+
+.fighter-art.asleep .bot-eyes {
+  opacity: 0.25;
+  animation: none;
+}
+
+.fighter-art.asleep .bot-leds,
+.fighter-art.asleep .bot-screen {
+  opacity: 0.35;
+  animation: none;
+}
+
+.fighter-zzz {
+  z-index: 3;
+  top: 14%;
+  right: 14%;
+}
+
+/* Bigger Zzz than in the garden, so the K.O. sleep reads at a glance. */
+.fighter-zzz i:nth-child(1) {
+  font-size: var(--fs-sm);
+}
+
+.fighter-zzz i:nth-child(2) {
+  font-size: var(--fs-h3);
+}
+
+.fighter-zzz i:nth-child(3) {
+  font-size: var(--fs-h2);
+}
+
+.duel.wide .fighter-zzz i:nth-child(2) {
+  font-size: var(--fs-h2);
+}
+
+.duel.wide .fighter-zzz i:nth-child(3) {
+  font-size: var(--fs-h1);
+}
+
+.fighter.win {
+  animation: fight-jump 650ms ease-out 2;
+}
+
+@keyframes fight-jump {
+  40% {
+    transform: translateY(calc(var(--bot-h) * -0.18));
+  }
+}
+
+/* Under the stage: the three rounds (laptops: side by side), then the result. */
+.duel .duel-rounds {
+  margin-top: 4px;
+}
+
+.duel.wide .duel-rounds {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.duel-gains {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.gain {
+  padding: 2px 10px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-h3);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 0 2px 0 var(--ink);
+}
+
+.gain-panen {
+  background: var(--gold-500);
+}
+
+.gain-xp {
+  background: var(--mint-500);
+}
+
+.duel.panel .duel-season {
+  margin: 0 0 6px;
+  font-size: var(--fs-sm);
+  color: var(--cyan-300);
+}
+
+.fight-stage.still .hp-fill {
+  transition: none;
+}
+
+.fight-stage.still .fighter,
+.fight-stage.still .fighter-art,
+.fight-stage.still .fight-banner,
+.fight-stage.still .fight-ko,
+.fight-stage.still .ko-stars-ring,
+.fight-stage.still .hit-burst {
+  animation: none;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fight-stage,
+  .fighter,
+  .ko-stars-ring,
+  .hit-burst {
+    animation: none !important;
+  }
+  .hp-fill {
+    transition: none;
+  }
 }

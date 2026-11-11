@@ -15,6 +15,7 @@
 // and stored here before the answer. Own garden refused; a second garden of the same person (a
 // browser both used, or the same Google / wallet identity) = practice duel (no prize, no XP);
 // paid wins per day at most 3 per browser and 10 per IP (more = practice 'limit', XP still counts).
+// XP: a challenger's win 15 (x demo), at most 3 wins with XP per day; a loss 1; a defender's win 3.
 //
 // Privacy: a duel holds only names, avatars, titles, round scores, dice and the trees' species /
 // quality / stage (the same public data as a garden visit).
@@ -35,6 +36,7 @@ import {
   ARENA_XP_DEFEND,
   ARENA_XP_LOSS,
   ARENA_XP_WIN,
+  ARENA_XP_WINS_PER_DAY,
   DEMO_XP_MULTIPLIER,
   type Quality,
   type Species,
@@ -331,7 +333,13 @@ export class Arena {
       const defendedToday = (
         this.db.prepare('SELECT count(*) AS n FROM arena_duels WHERE defender_id = ? AND duel_day = ? AND xp_d > 0').get(them.id, day) as { n: number }
       ).n;
-      const xpC = practice === 'self' ? 0 : (challengerWon ? ARENA_XP_WIN : ARENA_XP_LOSS) * mult(me);
+      const winXpToday = (
+        this.db
+          .prepare("SELECT count(*) AS n FROM arena_duels WHERE challenger_id = ? AND duel_day = ? AND winner = 'challenger' AND xp_c > 0")
+          .get(me.id, day) as { n: number }
+      ).n;
+      const xpC =
+        practice === 'self' ? 0 : challengerWon ? (winXpToday < ARENA_XP_WINS_PER_DAY ? ARENA_XP_WIN * mult(me) : 0) : ARENA_XP_LOSS * mult(me);
       const xpD = practice === 'self' || challengerWon || defendedToday >= ARENA_DEFEND_XP_PER_DAY ? 0 : ARENA_XP_DEFEND * mult(them);
       if (xpC) this.db.prepare('UPDATE players SET xp = xp + ? WHERE id = ?').run(xpC, me.id);
       if (xpD) this.db.prepare('UPDATE players SET xp = xp + ? WHERE id = ?').run(xpD, them.id);

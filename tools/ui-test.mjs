@@ -576,6 +576,7 @@ try {
     // panel's Duel button.
     const [me, foe] = name.slice('--arena='.length).split(':');
     const third = `${me}x`;
+    const fourth = `${me}y`;
     const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
     const call = async (method, path, token, body) => {
       const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -595,16 +596,22 @@ try {
       return token;
     };
     const inside = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return 'missing'; const r = e.getBoundingClientRect(); return (r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1 ? 'inside the screen' : 'OUTSIDE ' + JSON.stringify([Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)])) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height); })()`;
-    const duelInfo = `(() => { const d = document.querySelector('.duel'); if (!d) return 'no duel'; const bots = [...d.querySelectorAll('.duel-bot .tanibot')];
-      return JSON.stringify({ score: d.querySelector('.duel-score')?.innerText.replace(/\\n/g, ' '), rounds: [...d.querySelectorAll('.duel-round')].map(r => r.classList.contains('hidden') ? 'hidden' : r.classList.contains('won') ? 'won' : 'lost'),
-        bots: bots.map(b => b.className + ' ' + Math.round(b.getBoundingClientRect().width) + 'px, running animations: ' + b.getAnimations({ subtree: true }).filter(a => a.playState === 'running').length),
-        result: d.querySelector('.duel-headline')?.innerText ?? null, reward: d.querySelector('.duel-reward')?.innerText ?? null, tx: d.querySelector('.duel-tx')?.innerText ?? null,
+    const duelInfo = `(() => { const d = document.querySelector('.duel'); if (!d) return 'no duel'; const bots = [...d.querySelectorAll('.fighter')];
+      return JSON.stringify({ score: d.querySelector('.fight-score')?.innerText.replace(/\\n/g, ' '), hp: [...d.querySelectorAll('.hp-fill')].map(e => e.style.width + ' ' + e.className.replace('hp-fill ', '')),
+        fighters: bots.map(b => b.className + ' ' + Math.round(b.getBoundingClientRect().width) + 'px, animations: ' + b.getAnimations({ subtree: true }).filter(a => a.playState === 'running').length),
+        fruit: d.querySelector('.fruit-path')?.className ?? null, banner: d.querySelector('.fight-banner')?.innerText ?? null, ko: d.querySelector('.fight-ko')?.innerText ?? null, zzz: !!d.querySelector('.fighter-zzz'), stars: !!d.querySelector('.ko-stars'),
+        rounds: [...d.querySelectorAll('.duel-round')].map(r => r.classList.contains('hidden') ? 'hidden' : r.classList.contains('won') ? 'won' : 'lost'),
+        result: d.querySelector('.duel-headline')?.innerText ?? null, gains: d.querySelector('.duel-gains')?.innerText.replace(/\\n/g, ' ') ?? null, season: d.querySelector('.duel-season')?.innerText ?? null, reward: d.querySelector('.duel-reward')?.innerText ?? null, tx: d.querySelector('.duel-tx')?.innerText ?? null,
         scrolls: d.scrollHeight > d.clientHeight + 1, pageScrollsSideways: document.documentElement.scrollWidth > innerWidth }); })()`;
+    // The fight's timing (web/src/arena-play.ts fightTimes): intro 1200, round 2700 (banner 600, wind-up 300, then the flight).
+    const FT = { intro: 1200, round: 2700, banner: 600, windup: 300, ko: 1300, celebrate: 1400 };
+    const freeze = async (t, wait = 150) => { await evaluate(`(window.__duelT = ${t}, true)`); await sleep(wait); };
     let tokMe, tokFoe;
     await step(`make ${me}, ${foe} (strong) and ${third}; ${foe} challenges ${me}`, async () => {
       tokMe = await make(me);
       tokFoe = await make(foe);
       await make(third);
+      await make(fourth);
       if (process.env.FAKE_DB) {
         const { DatabaseSync } = await import('node:sqlite');
         const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
@@ -653,33 +660,48 @@ try {
       console.log('window:', await evaluate(inside('.arena-dialog')));
       await screenshot('arena-window');
     });
-    await step(`${me} challenges ${foe}: rounds one by one`, async () => {
+    await step(`${me} challenges ${foe}: the Fruit Fight (frozen at key moments, window.__duelT)`, async () => {
       await evaluate(`[...document.querySelectorAll('.arena-list .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(foe)}).querySelector('.arena-duel-btn').click()`);
       await waitFor(`!!document.querySelector('.duel')`, 'duel screen', 15000);
-      await sleep(300);
-      console.log('t=0.3 s:', await evaluate(duelInfo));
-      await screenshot('duel-start');
-      await sleep(1500);
-      console.log('t=1.8 s:', await evaluate(duelInfo));
-      await screenshot('duel-round1');
-      await sleep(2900);
-      console.log('t=4.7 s:', await evaluate(duelInfo));
-      await screenshot('duel-rounds');
-      await waitFor(`!!document.querySelector('.duel-headline')`, 'result', 8000);
-      await sleep(1500);
+      await freeze(300);
+      console.log('intro:', await evaluate(duelInfo));
+      await screenshot('fight-intro');
+      await freeze(FT.intro + 200);
+      console.log('round 1 banner:', await evaluate(duelInfo));
+      await freeze(FT.intro + FT.banner + FT.windup + 20, 200);
+      console.log('fruit flying:', await evaluate(duelInfo));
+      await screenshot('fight-fruit-flying');
+      await freeze(FT.intro + FT.banner + FT.windup + 900, 120);
+      console.log('hit:', await evaluate(duelInfo));
+      await screenshot('fight-hit');
+      await freeze(FT.intro + FT.round + FT.banner + FT.windup + 20, 250);
+      await screenshot('fight-fruit-flying-2');
+      await freeze(FT.intro + 2 * FT.round + FT.banner + FT.windup + 900, 120);
+      console.log('round 3 hit:', await evaluate(duelInfo));
+      await screenshot('fight-hit-3');
+      await freeze(FT.intro + 3 * FT.round + 450, 300);
+      console.log('K.O.:', await evaluate(duelInfo), '| K.O. font:', await evaluate(`getComputedStyle(document.querySelector('.fight-ko')).fontFamily`));
+      await screenshot('fight-ko');
+      await freeze(FT.intro + 3 * FT.round + FT.ko + 300, 300);
+      console.log('sleep / jump:', await evaluate(duelInfo));
+      await screenshot('fight-sleep-jump');
+      await freeze(FT.intro + 3 * FT.round + FT.ko + FT.celebrate + 100, 600);
       console.log('result:', await evaluate(duelInfo));
       console.log('duel panel:', await evaluate(inside('.duel')), '| buttons:', await evaluate(inside('.duel-actions')));
-      console.log('fonts: score', await evaluate(`getComputedStyle(document.querySelector('.duel-score')).fontFamily`), '| reward', await evaluate(`getComputedStyle(document.querySelector('.duel-reward')).fontFamily`));
-      await screenshot('duel-result');
+      console.log('fonts: score', await evaluate(`getComputedStyle(document.querySelector('.fight-score')).fontFamily`), '| reward', await evaluate(`getComputedStyle(document.querySelector('.duel-reward')).fontFamily`));
+      await screenshot('fight-result');
+      await evaluate(`(delete window.__duelT, true)`);
       await clickText('Back', '.duel-actions button');
       await sleep(400);
     });
-    await step(`${me}: Skip on a duel with ${third}`, async () => {
+    await step(`${me}: a real-time fight with ${third} (frame rate), then Skip`, async () => {
       await evaluate(`[...document.querySelectorAll('.arena-list .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(third)})?.querySelector('.arena-duel-btn').click()`);
       await waitFor(`!!document.querySelector('.duel')`, 'duel screen', 15000);
-      await sleep(200);
+      const fps = await evaluate(`new Promise(res => { const t0 = performance.now(); let n = 0, worst = 0, last = t0; const f = (t) => { n++; worst = Math.max(worst, t - last); last = t; if (t - t0 < 4000) requestAnimationFrame(f); else res(Math.round(n / ((t - t0) / 1000)) + ' fps, longest frame ' + Math.round(worst) + ' ms'); }; requestAnimationFrame(f); })`);
+      console.log('first 4 s of a real fight:', fps, '|', await evaluate(duelInfo));
+      await screenshot('fight-realtime');
       await clickText('Skip', '.duel button');
-      await sleep(200);
+      await sleep(300);
       console.log('after Skip:', await evaluate(duelInfo));
       await screenshot('duel-skip');
       await clickText('Back', '.duel-actions button');
@@ -700,6 +722,24 @@ try {
       console.log('news after seeing it:', JSON.stringify((await call('GET', '/api/me', tokMe)).news));
       await screenshot('village-arena');
     });
+    const visitButtons = `[...document.querySelectorAll('.visit-head .btn')].map(b => { const r = b.getBoundingClientRect(); return b.innerText.replace(/\\n/g, ' ') + ' ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' @' + Math.round(r.left) + ',' + Math.round(r.top) + (b.disabled ? ' (off: ' + b.title + ')' : ' (on)'); }).join(' | ')`;
+    await step(`${me}: visit ${fourth} (not challenged yet): the Duel button is on`, async () => {
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-garden').click()`);
+      await sleep(300);
+      await evaluate(`document.querySelector('.pin-friends').click()`);
+      await sleep(300);
+      if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
+      await typeInto('.farmer-search input', fourth);
+      await waitFor(`[...document.querySelectorAll('.farmers-dialog .farmer-row .farmer-name')].some(e => e.innerText === ${JSON.stringify(fourth)})`, 'search result', 10000);
+      await evaluate(`[...document.querySelectorAll('.farmers-dialog .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(fourth)})?.querySelector('button').click()`);
+      await waitFor(`!!document.querySelector('.visit-duel:not(:disabled)')`, 'Duel button on', 15000);
+      await sleep(1000);
+      console.log('visit buttons:', await evaluate(visitButtons));
+      await screenshot('visit-duel-on');
+      await clickText('My garden');
+      await sleep(600);
+    });
     await step(`${me}: visit ${foe}: Duel button (already dueled today)`, async () => {
       if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-garden').click()`);
       await sleep(300);
@@ -710,8 +750,7 @@ try {
       await evaluate(`[...document.querySelectorAll('.farmers-dialog .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(foe)})?.querySelector('button').click()`);
       await waitFor(`!!document.querySelector('.visit-duel')`, 'visit Duel button', 15000);
       await sleep(1200);
-      const btns = await evaluate(`[...document.querySelectorAll('.visit-head .btn')].map(b => { const r = b.getBoundingClientRect(); return b.innerText.replace(/\\n/g, ' ') + ' ' + Math.round(r.width) + 'x' + Math.round(r.height) + ' @' + Math.round(r.top) + (b.disabled ? ' (off: ' + b.title + ')' : ''); }).join(' | ')`);
-      console.log('visit buttons:', btns);
+      console.log('visit buttons:', await evaluate(visitButtons));
       await screenshot('visit-duel');
     });
     throw Object.assign(new Error('arena done'), { done: true });

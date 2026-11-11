@@ -120,8 +120,13 @@ export const ARENA_PRIZE = 8;
 export const ARENA_PAID_PER_DEVICE_PER_DAY = 3;
 /** 10, not 3: many Indonesian mobile players share one IP, also friends on one WiFi (Ardian 2026-11-11). */
 export const ARENA_PAID_PER_IP_PER_DAY = 10;
-/** XP (the demo multiplier applies): challenger win / loss, defender win (at most 3 times a day). */
-export const ARENA_XP_WIN = 5;
+/**
+ * XP (the demo multiplier applies): a challenger's win gives 15 XP at most 3 times per village day
+ * (the same as the prize limit; Ardian 2026-11-11), a loss 1 XP, a defender's win 3 XP (at most 3
+ * times a day). Practice duels (one person's gardens) give none.
+ */
+export const ARENA_XP_WIN = 15;
+export const ARENA_XP_WINS_PER_DAY = 3;
 export const ARENA_XP_LOSS = 1;
 export const ARENA_XP_DEFEND = 3;
 export const ARENA_DEFEND_XP_PER_DAY = 3;

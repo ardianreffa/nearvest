@@ -5,25 +5,6 @@
 import type { ArenaCan, ArenaRound, ArenaScores, DuelSide, DuelView, Quality, Species, Stage } from './api';
 
 export const ROUND_NAME: Record<ArenaRound, string> = { quality: 'Fruit quality', care: 'Care', ripeness: 'Ripeness' };
-export const ROUND_HINT: Record<ArenaRound, string> = {
-  quality: 'Best tree: Common 1, Rare 2, Gold 3',
-  care: 'Trees watered, not wilting, no ash',
-  ripeness: 'Most grown tree: fruit = 3',
-};
-
-/** Milliseconds: when the rounds appear and when the result shows (reduced motion: still cards, a little faster). */
-export function duelTimeline(reduced: boolean): { intro: number; round: number; result: number } {
-  const intro = reduced ? 400 : 900;
-  const round = reduced ? 1000 : 1400;
-  return { intro, round, result: intro + 3 * round + (reduced ? 200 : 600) };
-}
-
-/** How many rounds are visible `t` ms after the duel screen opened (0-3), and whether the result shows. */
-export function duelStep(t: number, reduced: boolean): { rounds: number; result: boolean } {
-  const tl = duelTimeline(reduced);
-  const rounds = t < tl.intro ? 0 : Math.min(3, 1 + Math.floor((t - tl.intro) / tl.round));
-  return { rounds, result: t >= tl.result };
-}
 
 /** The viewer's side and the other side ("you" are always on the left). */
 export function sides(d: DuelView): { me: DuelSide; them: DuelSide } {
@@ -77,17 +58,27 @@ export function headline(d: DuelView): string {
   return youWon(d) ? 'YOU WIN!' : 'THEY WIN';
 }
 
-/** What the result gave the viewer (prize, XP, or why there was no prize). */
-export function rewardLine(d: DuelView, seasonNote = ''): string {
-  const xp = d.gainedXp ? ` · +${d.gainedXp} XP` : '';
-  if (d.practice === 'self') return 'Practice duel: these gardens share a browser or sign-in, so there is no prize or XP.';
-  if (d.you === 'defender') return youWon(d) ? `You defended your garden${xp}.` : 'No PANEN lost: the Arena never takes your tokens.';
-  if (!youWon(d)) return `No PANEN lost: the Arena never takes your tokens${xp}.`;
-  if (d.practice === 'limit') return `Today's prizes from this device or network are used up${xp}.`;
-  return `+${fmt(d.prize)} PANEN from the game${seasonNote}${xp}`;
+/**
+ * What the result gave the viewer: the PANEN really received (after the Season rule, from the
+ * server) and the XP, shown as chips, plus one line that explains it.
+ */
+export function rewardOf(d: DuelView): { panen: number | null; xp: number; line: string } {
+  const xp = d.gainedXp;
+  if (d.practice === 'self') return { panen: null, xp: 0, line: 'Practice duel: these gardens share a browser or sign-in, so there is no prize or XP.' };
+  if (d.you === 'defender') return { panen: null, xp, line: youWon(d) ? 'You defended your garden!' : 'No PANEN lost: the Arena never takes your tokens.' };
+  if (!youWon(d)) return { panen: null, xp, line: 'No PANEN lost: the Arena never takes your tokens.' };
+  if (d.practice === 'limit') return { panen: null, xp, line: "Today's prizes from this device or network are used up." };
+  return { panen: d.prize, xp, line: 'Paid by the game: nobody loses a token in the Arena.' };
 }
 
-const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, ''));
+/** One line version (Recent duels, tests). */
+export function rewardLine(d: DuelView): string {
+  const r = rewardOf(d);
+  const bits = [r.panen ? `+${fmt(r.panen)} PANEN` : '', r.xp ? `+${r.xp} XP` : ''].filter(Boolean).join(' · ');
+  return bits ? `${bits}. ${r.line}` : r.line;
+}
+
+export const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/0$/, ''));
 
 /** The prize line in the Arena window ("Win: +2 PANEN (Season 3)"). */
 export function prizeChip(prizeNow: number, prize: number, season?: { number: number }): string {
@@ -140,4 +131,146 @@ export function duelPost(d: DuelView): string {
   const { them } = sides(d);
   const [a, b] = scoreAfter(d, 3);
   return `My TaniBot beat ${them.name} ${a}-${b} in the Tandur Arena! 🌳⚔️ Grow. Harvest. Own. on @NEARProtocol #NEARHackathon`;
+}
+
+// ---------- "Fruit Fight" (Ardian 2026-11-11): the duel played as a fighting game ----------
+// Each round's winner throws a fruit at the other TaniBot and its life bar drops. The server's
+// result is the script: the duel's loser always ends at 0 (K.O.), the winner always keeps some life.
+
+export interface Fruit {
+  species: Species;
+  quality: Quality;
+}
+
+/**
+ * The fruit a garden throws in a round, from the trees the server sent: Fruit quality and Care =
+ * its best tree, Ripeness = its most grown tree.
+ */
+export function roundFruit(side: DuelSide, round: ArenaRound): Fruit {
+  const t = round === 'ripeness' ? (side.ripest ?? side.best) : (side.best ?? side.ripest);
+  return t ? { species: t.species, quality: t.quality } : { species: 'mango', quality: 'common' };
+}
+
+const SPECIES_POWER: Record<Species, number> = { mango: 1, rambutan: 1.3, durian: 1.8 };
+const QUALITY_POWER: Record<Quality, number> = { common: 1, rare: 1.25, gold: 1.6 };
+
+/** How hard a fruit hits (durian and Gold hit harder). */
+export function fruitPower(f: Fruit): number {
+  return SPECIES_POWER[f.species] * QUALITY_POWER[f.quality];
+}
+
+/** A heavy hit: bigger knock-back and screen shake. */
+export const hardHit = (f: Fruit) => f.species === 'durian' || f.quality === 'gold';
+
+export interface Hit {
+  round: number;
+  /** Who throws (from the viewer's side: "me" is always on the left). */
+  from: 'me' | 'them';
+  fruit: Fruit;
+  damage: number;
+  /** Life after this hit: [mine, theirs] (0-100). */
+  hpAfter: [number, number];
+  hard: boolean;
+}
+
+/**
+ * The three hits of a duel, in round order. The duel's loser receives the duel winner's hits, split
+ * by fruit power so they add up to exactly 100 (K.O. on the last one). The winner receives at most
+ * one hit (it lost one round at most) of 20-60, so it always keeps at least 40.
+ */
+export function fightHits(d: DuelView): Hit[] {
+  const iWon = d.winner === d.you;
+  const { me, them } = sides(d);
+  const raw = d.rounds.map((r, i) => {
+    const from = r.winner === d.you ? ('me' as const) : ('them' as const);
+    const fruit = roundFruit(from === 'me' ? me : them, r.round);
+    return { round: i, from, fruit, power: fruitPower(fruit), toLoser: (from === 'me') === iWon };
+  });
+  const loserHits = raw.filter((h) => h.toLoser);
+  const total = loserHits.reduce((n, h) => n + h.power, 0);
+  let dealt = 0;
+  let left = loserHits.length;
+  const hp: [number, number] = [100, 100];
+  return raw.map((h) => {
+    let damage: number;
+    if (h.toLoser) {
+      left--;
+      damage = left === 0 ? 100 - dealt : Math.max(1, Math.round((100 * h.power) / total));
+      dealt += damage;
+    } else {
+      damage = Math.min(60, Math.max(20, Math.round(28 * h.power)));
+    }
+    const target = h.from === 'me' ? 1 : 0;
+    hp[target] = Math.max(0, hp[target] - damage);
+    return { round: h.round, from: h.from, fruit: h.fruit, damage, hpAfter: [hp[0], hp[1]] as [number, number], hard: hardHit(h.fruit) };
+  });
+}
+
+/** Life bar colour: full = mint, half = gold, nearly gone = red. */
+export function hpTone(hp: number): 'high' | 'mid' | 'low' {
+  return hp > 50 ? 'high' : hp > 20 ? 'mid' : 'low';
+}
+
+/** Flight time of a thrown fruit: a mango is small and fast, a durian big and slow. */
+export function flightMs(f: Fruit): number {
+  return f.species === 'mango' ? 450 : f.species === 'rambutan' ? 600 : 850;
+}
+
+export interface FightTimes {
+  intro: number;
+  round: number;
+  banner: number;
+  windup: number;
+  ko: number;
+  celebrate: number;
+  /** When the result screen shows. */
+  result: number;
+}
+
+/** The fight's timing (about 12 s; reduced motion: shorter, the bars jump, nothing flies or shakes). */
+export function fightTimes(reduced: boolean): FightTimes {
+  const t = reduced
+    ? { intro: 500, round: 1500, banner: 700, windup: 0, ko: 1000, celebrate: 900 }
+    : { intro: 1200, round: 2700, banner: 600, windup: 300, ko: 1300, celebrate: 1400 };
+  return { ...t, result: t.intro + 3 * t.round + t.ko + t.celebrate };
+}
+
+export type FightPhase = 'intro' | 'banner' | 'windup' | 'flight' | 'impact' | 'ko' | 'celebrate' | 'result';
+
+/** What the fight shows `t` ms after it started. */
+export function fightAt(
+  d: DuelView,
+  t: number,
+  reduced: boolean,
+): { phase: FightPhase; round: number; hit: Hit | null; hitAt: number; hp: [number, number]; rounds: number } {
+  const T = fightTimes(reduced);
+  const hits = fightHits(d);
+  const impactAt = (i: number) => T.intro + i * T.round + T.banner + (reduced ? 0 : T.windup + flightMs(hits[i].fruit));
+  const hp: [number, number] = [100, 100];
+  let landed = 0;
+  for (let i = 0; i < hits.length; i++)
+    if (t >= impactAt(i)) {
+      hp[0] = hits[i].hpAfter[0];
+      hp[1] = hits[i].hpAfter[1];
+      landed = i + 1;
+    }
+  const end = T.intro + 3 * T.round;
+  if (t >= T.result) return { phase: 'result', round: 2, hit: null, hitAt: 0, hp, rounds: 3 };
+  if (t >= end + T.ko) return { phase: 'celebrate', round: 2, hit: null, hitAt: 0, hp, rounds: 3 };
+  if (t >= end) return { phase: 'ko', round: 2, hit: null, hitAt: 0, hp, rounds: 3 };
+  if (t < T.intro) return { phase: 'intro', round: -1, hit: null, hitAt: 0, hp, rounds: 0 };
+  const round = Math.min(2, Math.floor((t - T.intro) / T.round));
+  const start = T.intro + round * T.round;
+  const hit = hits[round];
+  const into = t - start;
+  const phase: FightPhase =
+    into < T.banner ? 'banner' : t >= impactAt(round) ? 'impact' : reduced ? 'impact' : into < T.banner + T.windup ? 'windup' : 'flight';
+  // A round's result shows in the list when its fruit lands (not before).
+  return { phase, round, hit, hitAt: impactAt(round), hp, rounds: landed };
+}
+
+/** Small note under the prize: the running Season, from the game state (never written in by hand). */
+export function seasonLine(season?: { number: number; divisor: number; rewardPercent: number }): string {
+  if (!season) return '';
+  return season.divisor > 1 ? `Season ${season.number}: rewards are ${fmt(season.rewardPercent)}% now` : `Season ${season.number}: full rewards`;
 }

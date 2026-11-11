@@ -30,6 +30,48 @@ database change = new table only (rollback-safe).
 
 ---
 
+## 0. Before release: Fruit Fight, winner XP, Duel button (Ardian 2026-11-11, built the same day)
+
+**Fruit Fight (web only, no server change):** the duel screen plays the server's result like a
+fighting game (`web/src/arena.tsx DuelScreen`, pure logic `web/src/arena-play.ts` `fightHits` /
+`fightAt` / `fightTimes`, unit tests `web/test/arena.test.ts`).
+- Above each TaniBot: garden name, title, life bar (mint above 50%, gold above 20%, red below).
+- Each round its winner steps forward and throws its fruit in an arc at the other TaniBot. The fruit
+  comes from the trees the server already sends in every duel: rounds 1 and 2 = the garden's best
+  tree (`best`: species + quality), round 3 = its most grown tree (`ripest`). Mango small and fast
+  (0.45 s), rambutan 0.6 s, durian big, slow (0.85 s), bounces once, heavy drum sound
+  (`momentDurian`); Gold fruit = gold glow + trail (`momentGold` sound), Rare = purple glow + trail.
+  Durian and Gold hit harder (more damage, bigger knock-back and shake).
+- Hit: short white flash, small screen shake, knocked back and back, turning stars, the bar drops.
+- **Always the server's result:** the duel's loser gets the winner's hits, split by fruit power so
+  they add up to exactly 100 (K.O. on the last one); the winner gets at most one hit (it lost at
+  most one round) of 20-60, so it always keeps at least 40. Unit test: every 2-1 and 3-0 order,
+  both sides, both viewers, 5 fruit kinds each side (400 cases): loser 0, winner > 0.
+- Last hit: big "K.O.!" (title font), the loser sleeps (TaniBot's OFF look + Zzz), the winner jumps
+  + confetti, then the result. About 12 s (intro 1.2 s, 3 rounds of 2.7 s, K.O. 1.3 s, celebration
+  1.4 s); Skip any time. Reduced motion: nothing flies or shakes, the bars jump each round (~6 s).
+- A new title from the duel's XP is celebrated after the duel screen closes (not over it).
+- Light on phones: the screen is drawn again only when something changes (phase, hit, bars); the
+  motion is CSS (transform / opacity, short filters). Headless Chrome at 390x844 (x2 pixels): about
+  58-60 fps during a real fight. Dev builds: `window.__duelT = <ms>` freezes the fight (screenshots).
+- Sounds: CC0 files already in the game (`click`, `harvest`, `momentDurian`, `momentGold`,
+  `momentEvolve`, `levelup`); no new files.
+
+**Winner XP (server):** a challenger's win gives **15 XP** (demo x5 = 75), at most 3 wins with XP per
+village day (`ARENA_XP_WIN`, `ARENA_XP_WINS_PER_DAY`; the same as the 3 challenges a day, so the
+caps meet). A loss 1 XP, a defender's win 3 XP (max 3 a day), practice (one person's gardens) none.
+The result shows the PANEN really received (after the Season rule, from the server) and the XP as
+chips ("+2 PANEN", "+15 XP") and a small Season line from `state.season` ("Season 3: rewards are
+25% now"; never written in).
+
+**Duel button while visiting:** in the visit panel next to Sticker (phones: the middle of the three
+buttons under the garden name; laptops: the bottom bar, between Sticker and "Back to my garden"),
+with the Arena's sparkle icon. Shown only when the server has the Arena (`state.arena`) and the
+garden is not your own. On = you can challenge it now; off with a reason: "Dueled" (check mark,
+already challenged today), "No duels" (3 used), "Duel" greyed (you or they have no tree). The
+first screenshots showed only the "Dueled" state (the duel had just happened), faded to 45%, so it
+was easy to miss: now it keeps 80% and its icon, and ui-test also shows a visit with the button on.
+
 ## 1. Who wins a round
 
 **Recommendation: compare the living trees on the plots (the Tree NFTs), not fruit in Storage.**
@@ -94,7 +136,7 @@ seeded run of 20,000 duels through the real duel code).
 | Prize for a challenger's win | **8 PANEN base, `mint_reward`** (`ARENA_PRIZE`) | Season 3 now (/4) = **2 PANEN**, Season 4 = 1; smaller than one Common Mango sale (10 base) |
 | Paid wins per day | max **3** per garden (follows from 3 challenges), max **3 per device** (`ARENA_PAID_PER_DEVICE_PER_DAY`) and max **10 per IP** (`ARENA_PAID_PER_IP_PER_DAY`) per day | 10 per IP because many Indonesian mobile players share one IP (carrier NAT), and friends on one WiFi or judges in one office should all be able to win; the device limit stops one browser farming with many gardens |
 | Defender | never gets PANEN; wins give **+3 XP**, max 3 per day | being challenged cannot be farmed for tokens |
-| Challenger XP | win +5 XP, loss +1 XP (demo x5 as usual) | small, the prize is the reward |
+| Challenger XP | win **+15 XP** (max 3 a day; Ardian 2026-11-11), loss +1 XP (demo x5 as usual) | a win should feel worth it; the cap equals the prize limit |
 | Same opponent | **1 challenge from A to B per day**; B may still challenge A once that day ("Rematch") | no farming one weak garden; a rematch is fun |
 | Loss | costs nothing | no wagering |
 

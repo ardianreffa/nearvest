@@ -3,7 +3,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { DuelSide, DuelView } from '../src/api.ts';
-import { duelButton, duelPost, duelStep, duelTimeline, headline, prizeChip, receivedNotice, recentLine, rewardLine, roundView, roundWhat, scoreAfter, sides } from '../src/arena-play.ts';
+import { duelButton, duelPost, fightAt, fightHits, fightTimes, headline, hpTone, prizeChip, receivedNotice, recentLine, rewardLine, rewardOf, roundFruit, roundView, roundWhat, scoreAfter, seasonLine, sides } from '../src/arena-play.ts';
+import type { DuelRound, Quality, Species } from '../src/api.ts';
 
 const side = (name: string, o: Partial<DuelSide> = {}): DuelSide => ({
   name,
@@ -41,18 +42,6 @@ function duel(o: Partial<DuelView> = {}): DuelView {
 }
 
 describe('arena duel playback', () => {
-  it('shows the rounds one by one, then the result; reduced motion is faster but still step by step', () => {
-    const tl = duelTimeline(false);
-    assert.deepEqual(duelStep(0, false), { rounds: 0, result: false });
-    assert.deepEqual(duelStep(tl.intro, false), { rounds: 1, result: false });
-    assert.deepEqual(duelStep(tl.intro + tl.round, false), { rounds: 2, result: false });
-    assert.deepEqual(duelStep(tl.intro + 2 * tl.round + 1, false), { rounds: 3, result: false });
-    assert.deepEqual(duelStep(tl.result, false), { rounds: 3, result: true });
-    assert.ok(tl.result < 6000, 'the whole duel takes under 6 s');
-    assert.ok(duelTimeline(true).result < tl.result);
-    assert.deepEqual(duelStep(duelTimeline(true).intro, true), { rounds: 1, result: false });
-  });
-
   it('the viewer is always on the left; scores count from the viewer', () => {
     const d = duel();
     assert.equal(sides(d).me.name, 'sari');
@@ -77,15 +66,22 @@ describe('arena duel playback', () => {
     assert.equal(roundWhat(side('x', { trees: 3, scores: { quality: 1, care: 2, ripeness: 1 } }), 'care'), '2 of 3 trees cared for');
   });
 
-  it('result lines: prize, loss without cost, practice, defended', () => {
+  it('result: PANEN really received + XP as chips, the right line for each case', () => {
     assert.equal(headline(duel()), 'YOU WIN!');
-    assert.equal(rewardLine(duel()), '+2 PANEN from the game · +5 XP');
-    assert.match(rewardLine(duel({ winner: 'defender', prize: 0, gainedXp: 1 })), /No PANEN lost: the Arena never takes your tokens · \+1 XP/);
-    assert.match(rewardLine(duel({ practice: 'self', prize: 0, gainedXp: 0 })), /Practice duel/);
-    assert.match(rewardLine(duel({ practice: 'limit', prize: 0 })), /used up/);
-    assert.equal(rewardLine(duel({ you: 'defender', winner: 'defender', prize: 0, gainedXp: 3 })), 'You defended your garden · +3 XP.');
+    assert.deepEqual(rewardOf(duel()), { panen: 2, xp: 5, line: 'Paid by the game: nobody loses a token in the Arena.' });
+    assert.equal(rewardLine(duel({ gainedXp: 15 })), '+2 PANEN · +15 XP. Paid by the game: nobody loses a token in the Arena.');
+    assert.equal(rewardOf(duel({ winner: 'defender', prize: 0, gainedXp: 1 })).panen, null);
+    assert.match(rewardOf(duel({ winner: 'defender', prize: 0, gainedXp: 1 })).line, /never takes your tokens/);
+    assert.deepEqual(rewardOf(duel({ practice: 'self', prize: 0, gainedXp: 0 })).xp, 0);
+    assert.match(rewardOf(duel({ practice: 'self', prize: 0, gainedXp: 0 })).line, /Practice duel/);
+    assert.match(rewardOf(duel({ practice: 'limit', prize: 0 })).line, /used up/);
+    assert.equal(rewardOf(duel({ you: 'defender', winner: 'defender', prize: 0, gainedXp: 3 })).line, 'You defended your garden!');
     assert.equal(prizeChip(2, 8, { number: 3 }), 'Win: +2 PANEN (Season 3)');
     assert.equal(prizeChip(8, 8, { number: 1 }), 'Win: +8 PANEN');
+    // The Season note comes from the running Season (state.season), never written in.
+    assert.equal(seasonLine({ number: 3, divisor: 4, rewardPercent: 25 }), 'Season 3: rewards are 25% now');
+    assert.equal(seasonLine({ number: 1, divisor: 1, rewardPercent: 100 }), 'Season 1: full rewards');
+    assert.equal(seasonLine(undefined), '');
   });
 
   it('recent rows, notices and the X post', () => {
@@ -110,5 +106,111 @@ describe('arena duel playback', () => {
     assert.equal(duelButton({ ok: false, reason: 'limit', left: 0 }).label, 'No duels');
     assert.equal(duelButton({ ok: false, reason: 'pair_today', left: 2 }).label, 'Dueled');
     assert.match(duelButton({ ok: false, reason: 'no_tree', left: 3 }).title, /Plant a tree first/);
+  });
+});
+
+/** A duel where the challenger wins the rounds in `wins` (true = challenger) with the given trees. */
+function fight(wins: boolean[], you: 'challenger' | 'defender', c: [Species, Quality], d: [Species, Quality]): DuelView {
+  const tree = (x: [Species, Quality]) => ({ best: { species: x[0], quality: x[1] }, ripest: { species: x[0], quality: x[1], stage: 'fruiting' as const } });
+  const rounds: DuelRound[] = (['quality', 'care', 'ripeness'] as const).map((round, i) => ({
+    round,
+    c: { score: 1, dice: [4] },
+    d: { score: 1, dice: [3] },
+    winner: wins[i] ? 'challenger' : 'defender',
+  }));
+  const cw = wins.filter(Boolean).length;
+  return duel({ you, rounds, winner: cw >= 2 ? 'challenger' : 'defender', challenger: side('sari', tree(c)), defender: side('budi', tree(d)) });
+}
+
+describe('Fruit Fight life bars', () => {
+  const FRUITS: [Species, Quality][] = [
+    ['mango', 'common'],
+    ['rambutan', 'rare'],
+    ['durian', 'gold'],
+    ['durian', 'common'],
+    ['mango', 'gold'],
+  ];
+  // Every 2-1 and 3-0 result (both orders of rounds, both sides, both viewers, every fruit pair).
+  const RESULTS = [
+    [true, true, true],
+    [false, false, false],
+    [true, true, false],
+    [true, false, true],
+    [false, true, true],
+    [false, false, true],
+    [false, true, false],
+    [true, false, false],
+  ];
+
+  it('the duel loser always ends at 0 (K.O.) and the winner always keeps life: 2-1 and 3-0', () => {
+    let checked = 0;
+    for (const wins of RESULTS)
+      for (const you of ['challenger', 'defender'] as const)
+        for (const c of FRUITS)
+          for (const dd of FRUITS) {
+            const d = fight(wins, you, c, dd);
+            const hits = fightHits(d);
+            assert.equal(hits.length, 3);
+            const [mine, theirs] = hits[2].hpAfter;
+            const iWon = d.winner === d.you;
+            const [winner, loser] = iWon ? [mine, theirs] : [theirs, mine];
+            assert.equal(loser, 0, `loser at 0 (${wins} ${you} ${c} ${dd})`);
+            assert.ok(winner > 0, `winner keeps life (${wins} ${you} ${c} ${dd}): ${winner}`);
+            // Nobody is knocked out before the last hit on them, life never goes below 0.
+            for (const h of hits) assert.ok(h.hpAfter.every((x) => x >= 0 && x <= 100));
+            const loserHits = hits.filter((h) => (h.from === 'me') === iWon);
+            for (const h of loserHits.slice(0, -1)) assert.ok((iWon ? h.hpAfter[1] : h.hpAfter[0]) > 0, 'K.O. only on the last hit');
+            checked++;
+          }
+    assert.equal(checked, RESULTS.length * 2 * FRUITS.length * FRUITS.length);
+  });
+
+  it('each round the round winner throws its own fruit; durian and Gold hit harder', () => {
+    const d = fight([true, false, true], 'challenger', ['durian', 'gold'], ['mango', 'common']);
+    const hits = fightHits(d);
+    assert.deepEqual(hits.map((h) => h.from), ['me', 'them', 'me']);
+    assert.deepEqual(hits[0].fruit, { species: 'durian', quality: 'gold' });
+    assert.deepEqual(hits[1].fruit, { species: 'mango', quality: 'common' });
+    assert.equal(hits[0].hard, true);
+    assert.equal(hits[1].hard, false);
+    // 3-0 with a mango vs a durian: the durian hit does more damage.
+    const mixed = fightHits(fight([true, true, true], 'challenger', ['mango', 'common'], ['mango', 'common']));
+    assert.deepEqual(mixed.map((h) => h.damage).reduce((a, b) => a + b, 0), 100);
+    assert.equal(roundFruit(side('x', { ripest: { species: 'durian', quality: 'rare', stage: 'fruiting' } }), 'ripeness').species, 'durian');
+    assert.equal(roundFruit(side('x'), 'care').species, 'mango');
+  });
+
+  it('bar colours: full mint, half gold, nearly gone red', () => {
+    assert.equal(hpTone(100), 'high');
+    assert.equal(hpTone(51), 'high');
+    assert.equal(hpTone(50), 'mid');
+    assert.equal(hpTone(21), 'mid');
+    assert.equal(hpTone(20), 'low');
+    assert.equal(hpTone(0), 'low');
+  });
+
+  it('about 10-12 s; the bars change only on impact; K.O. then the result; reduced motion jumps per round', () => {
+    const T = fightTimes(false);
+    assert.ok(T.result >= 10_000 && T.result <= 12_500, `fight lasts ${T.result} ms`);
+    const d = fight([true, false, true], 'challenger', ['mango', 'common'], ['durian', 'gold']);
+    assert.equal(fightAt(d, 0, false).phase, 'intro');
+    assert.deepEqual(fightAt(d, 0, false).hp, [100, 100]);
+    const r1 = fightAt(d, T.intro + T.banner + T.windup + 100, false);
+    assert.equal(r1.phase, 'flight');
+    assert.deepEqual(r1.hp, [100, 100], 'no damage while the fruit flies');
+    const after = fightAt(d, r1.hitAt + 10, false);
+    assert.equal(after.phase, 'impact');
+    assert.ok(after.hp[1] < 100);
+    const ko = fightAt(d, T.intro + 3 * T.round + 10, false);
+    assert.equal(ko.phase, 'ko');
+    assert.equal(ko.hp[1], 0);
+    assert.ok(ko.hp[0] > 0);
+    assert.equal(fightAt(d, T.result, false).phase, 'result');
+    // Reduced motion: shorter, nothing flies; the bar has its round value right after the banner.
+    const R = fightTimes(true);
+    assert.ok(R.result < T.result);
+    const rr = fightAt(d, R.intro + R.banner, true);
+    assert.equal(rr.phase, 'impact');
+    assert.ok(rr.hp[1] < 100);
   });
 });

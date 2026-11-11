@@ -142,6 +142,9 @@ export function App() {
   const [arenaOpen, setArenaOpen] = useState(false);
   const [duel, setDuel] = useState<DuelView | null>(null);
   const [duelBusy, setDuelBusy] = useState<string | null>(null);
+  /** While a duel plays, a new title's moment (banner, TaniBot evolving) waits until it closes. */
+  const duelOnScreen = useRef(false);
+  const afterDuel = useRef<(() => void)[]>([]);
   const seenDone = useRef<Set<number> | null>(null);
   const lastTitle = useRef<string | null>(null);
   const wide = useWide();
@@ -314,14 +317,20 @@ export function App() {
       }
       if (lastTitle.current !== null && lastTitle.current !== s.player.title) {
         const evolved = tierRank(tierOf(s.player.title)) > tierRank(tierOf(lastTitle.current));
-        toast({ kind: 'info', text: evolved ? `New title: ${s.player.title}! TaniBot evolved.` : `New title: ${s.player.title}!` });
+        const title = s.player.title;
         const id = s.player.accountId;
-        // The moment's own animation + sound (banner, confetti, fanfare...), then its share card.
-        // ?record=1 (demo recording, record.ts): the animation only, no share card.
-        const popup = !RECORD_MODE;
-        if (s.player.title === 'Legend') shareMomentOnce(id, { kind: 'legend' }, { popup });
-        else if (evolved) shareMomentOnce(id, { kind: 'evolved', title: s.player.title }, { popup });
-        else shareMomentOnce(id, { kind: 'title', title: s.player.title }, { popup });
+        const celebrate = () => {
+          toast({ kind: 'info', text: evolved ? `New title: ${title}! TaniBot evolved.` : `New title: ${title}!` });
+          // The moment's own animation + sound (banner, confetti, fanfare...), then its share card.
+          // ?record=1 (demo recording, record.ts): the animation only, no share card.
+          const popup = !RECORD_MODE;
+          if (title === 'Legend') shareMomentOnce(id, { kind: 'legend' }, { popup });
+          else if (evolved) shareMomentOnce(id, { kind: 'evolved', title }, { popup });
+          else shareMomentOnce(id, { kind: 'title', title }, { popup });
+        };
+        // Arena: the title came from a duel's XP; it is celebrated once the duel screen closes.
+        if (duelOnScreen.current) afterDuel.current.push(celebrate);
+        else celebrate();
       }
       lastTitle.current = s.player.title;
       setState(withWeather(s));
@@ -828,6 +837,7 @@ export function App() {
     setDuelBusy(name);
     try {
       const r = await api<{ duel: DuelView; state: GameState }>('POST', '/api/arena/duel', { opponent: name, deviceId: judgeDeviceId() });
+      duelOnScreen.current = true;
       applyState(r.state);
       setDuel(r.duel);
     } catch (e) {
@@ -836,6 +846,17 @@ export function App() {
     } finally {
       setDuelBusy(null);
     }
+  };
+  /** Shows a stored duel again (Replay); new titles wait while it plays. */
+  const showDuel = (d: DuelView) => {
+    duelOnScreen.current = true;
+    setDuel(d);
+  };
+  const closeDuel = () => {
+    duelOnScreen.current = false;
+    setDuel(null);
+    const later = afterDuel.current.splice(0);
+    later.forEach((f, i) => window.setTimeout(f, 400 + i * 200));
   };
   const startVisit = (name: string) => {
     setFarmersOpen(false);
@@ -875,7 +896,7 @@ export function App() {
         social={
           <>
             {state.referral && <InvitePanel state={state} notify={toast} onVisit={Array.isArray(state.helps) ? startVisit : undefined} />}
-            {state.arena && <ArenaPanel state={state} onOpen={() => setArenaOpen(true)} onReplay={setDuel} />}
+            {state.arena && <ArenaPanel state={state} onOpen={() => setArenaOpen(true)} onReplay={showDuel} />}
             {(state.visitors || state.stickers) && (
               <VisitorsPanel state={state} onState={applyState} notify={toast} onVisit={Array.isArray(state.helps) ? startVisit : undefined} />
             )}
@@ -1082,8 +1103,8 @@ export function App() {
       {dialogView}
       {infoView}
       {farmersOpen && <FarmersWindow onClose={() => setFarmersOpen(false)} onVisit={startVisit} />}
-      {arenaOpen && state.arena && <ArenaWindow state={state} busy={duelBusy} onClose={() => setArenaOpen(false)} onDuel={startDuel} onReplay={setDuel} />}
-      {duel && <DuelScreen key={duel.id} duel={duel} wide={wide} activity={state.activity} onClose={() => setDuel(null)} />}
+      {arenaOpen && state.arena && <ArenaWindow state={state} busy={duelBusy} onClose={() => setArenaOpen(false)} onDuel={startDuel} onReplay={showDuel} />}
+      {duel && <DuelScreen key={duel.id} duel={duel} wide={wide} activity={state.activity} season={state.season} onClose={closeDuel} />}
       {shopSetup && config && (
         <Modal
           title="Set up Shop"

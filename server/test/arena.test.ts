@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { Arena, arenaScores, playDuel, type ArenaScores, type ArenaTree } from '../src/arena.ts';
 import type { PlayerRow } from '../src/game.ts';
-import { ARENA_DUELS_PER_DAY, ARENA_PAID_PER_DEVICE_PER_DAY, ARENA_PAID_PER_IP_PER_DAY, ARENA_PRIZE } from '../src/rules.ts';
+import { ARENA_XP_WIN, ARENA_XP_WINS_PER_DAY, ARENA_DUELS_PER_DAY, ARENA_PAID_PER_DEVICE_PER_DAY, ARENA_PAID_PER_IP_PER_DAY, ARENA_PRIZE } from '../src/rules.ts';
 import { DAY, makeWorld } from './helpers.ts';
 
 type World = ReturnType<typeof makeWorld>;
@@ -155,8 +155,8 @@ describe('duels', () => {
     assert.equal(duel.winner, 'challenger');
     assert.equal(duel.practice, null);
     assert.equal(duel.prize, ARENA_PRIZE / 4);
-    assert.equal(duel.gainedXp, 5);
-    assert.equal(w.game.getPlayer(a.id).xp, xpA + 5);
+    assert.equal(duel.gainedXp, 15);
+    assert.equal(w.game.getPlayer(a.id).xp, xpA + 15);
     const job = w.db.prepare("SELECT kind, payload FROM chain_jobs WHERE player_id = ? AND payload LIKE '%Arena prize%'").get(a.id) as { kind: string; payload: string };
     assert.equal(job.kind, 'mint_reward');
     assert.match(job.payload, /"memo":"Arena prize vs budi"/);
@@ -169,6 +169,34 @@ describe('duels', () => {
     assert.equal(sb.arena.received[0].challenger.name, 'sari');
     assert.ok(sb.news.latestAt > sb.news.seenAt);
     assert.equal(sb.arena.received[0].gainedXp, 0);
+  });
+
+  it('a challenger who wins gets 15 XP (demo x5), at most 3 times a day; practice gives none', async () => {
+    assert.equal(ARENA_XP_WIN, 15);
+    assert.equal(ARENA_XP_WINS_PER_DAY, 3);
+    const w = makeWorld();
+    const arena = new Arena(w.db, w.game, w.now, { die: cWins() });
+    const me = await garden(w, 'juara');
+    for (const n of ['f1', 'f2', 'f3', 'f4']) await garden(w, n);
+    const xp0 = w.game.getPlayer(me.id).xp;
+    const gained = ['f1', 'f2', 'f3'].map((n) => arena.duel(me.id, n, null, null).duel.gainedXp);
+    assert.deepEqual(gained, [15, 15, 15]);
+    assert.equal(w.game.getPlayer(me.id).xp, xp0 + 45);
+    // A 4th duel the same day is refused: no more XP.
+    assert.throws(() => arena.duel(me.id, 'f4', null, null), (e: { details?: { code?: string } }) => e.details?.code === 'arena_limit');
+    assert.equal(w.game.getPlayer(me.id).xp, xp0 + 45);
+    // (The XP cap of 3 wins a day equals the 3 challenges a day, so a 4th win cannot happen.)
+    // Next day: XP again.
+    w.advance(DAY);
+    assert.equal(arena.duel(me.id, 'f4', null, null).duel.gainedXp, 15);
+    // A demo garden gets x5.
+    const demoUser = Number(w.db.prepare('INSERT INTO users (provider, subject, created_at) VALUES (?, ?, ?)').run('dev', 'demo-juara', w.now()).lastInsertRowid);
+    const d = w.game.createPlayer(demoUser, 'demojuara', '10.0.5.5', true);
+    await w.worker.drain();
+    w.game.checkin(d.id);
+    const seed = (w.db.prepare("SELECT id FROM seeds WHERE player_id = ? AND species = 'mango' LIMIT 1").get(d.id) as { id: number }).id;
+    w.game.plant(d.id, 0, seed);
+    assert.equal(arena.duel(d.id, 'f1', null, null).duel.gainedXp, 75);
   });
 
   it('a loss costs nothing; the defender gets +3 XP at most 3 times a day', async () => {
@@ -263,7 +291,7 @@ describe('duels', () => {
     }
     assert.deepEqual(results.map((r) => r.practice), [null, null, null, 'limit']);
     assert.equal(results[3].prize, 0);
-    assert.equal(results[3].gainedXp, 5);
+    assert.equal(results[3].gainedXp, 15);
     assert.equal(ARENA_PAID_PER_DEVICE_PER_DAY, 3);
     // One IP (carrier NAT / one WiFi): 10 paid wins, the 11th is practice.
     assert.equal(ARENA_PAID_PER_IP_PER_DAY, 10);
@@ -288,7 +316,7 @@ describe('duels', () => {
     const { duel } = arena.duel(j.id, 'budi', '10.0.0.9', null);
     assert.equal(duel.practice, null);
     assert.equal(duel.prize, ARENA_PRIZE);
-    assert.equal(duel.gainedXp, 25, 'demo XP x5');
+    assert.equal(duel.gainedXp, 75, 'demo XP x5');
   });
 
   it('the duel is stored once (no re-roll) and holds only public data', async () => {

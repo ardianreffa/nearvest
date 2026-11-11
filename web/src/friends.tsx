@@ -411,7 +411,8 @@ function VisitPanel({
         )}
         {duel && (
           <button class="btn visit-duel" onClick={duel.onClick} disabled={!duel.enabled || duel.busy} title={duel.title} aria-label={duel.enabled ? `Challenge ${name} in the Arena` : duel.title}>
-            {duel.busy ? 'Dueling...' : duel.label}
+            {duel.label === 'Dueled' ? <UiIcon name="check" /> : <Sprite name="sparkle" scale={2} />}
+            <span>{duel.busy ? 'Dueling...' : duel.label}</span>
           </button>
         )}
         <button class="btn btn-mint visit-back" onClick={onBack} aria-label="Back to my garden">
