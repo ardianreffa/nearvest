@@ -40,6 +40,10 @@ export interface PondSounds {
   crickets: boolean;
   ducks: boolean;
   rain: boolean;
+  /** Jungle birds (package 4): clear mornings and days, a few at dusk, none at night or in the rain. */
+  birds: boolean;
+  /** Bird songs per second. */
+  birdRate: number;
 }
 export function pondSounds(time: PondTime, weather: PondWeather): PondSounds {
   const night = time === 'night';
@@ -53,6 +57,8 @@ export function pondSounds(time: PondTime, weather: PondWeather): PondSounds {
     crickets: night, // also in the rain at night (Ardian, package 3)
     ducks: !night,
     rain,
+    birds: !night && !rain,
+    birdRate: night || rain ? 0 : time === 'dusk' ? 0.06 : 0.3,
   };
 }
 

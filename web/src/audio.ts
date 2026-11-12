@@ -500,7 +500,8 @@ export async function playRumble(): Promise<void> {
 //
 // Made right here with Web Audio (no file, nothing copied; docs/ASSETS.md): the waterfall's rush and
 // a soft breeze are filtered noise loops; ripples (soft plinks), frogs (short croak pulses), ducks
-// (two nasal quacks), crickets (high chirps) and rain (noise + tiny drips) come at random moments.
+// (two nasal quacks), crickets (high chirps), jungle birds (whistled songs) and rain (noise + tiny
+// drips) come at random moments.
 // Follows the Sound switch, starts only after the first tap, pauses while the tab is hidden.
 // `data-pond-sound` on <html> lists what plays (for the browser test).
 
@@ -513,6 +514,8 @@ export interface PondSoundMix {
   crickets: boolean;
   ducks: boolean;
   rain: boolean;
+  birds: boolean;
+  birdRate: number;
 }
 
 let pondWanted: PondSoundMix | null = null;
@@ -547,7 +550,7 @@ function syncPond(): void {
     pondPlaying = null;
   }
   document.documentElement.dataset.pondSound = want
-    ? (Object.keys(want) as (keyof PondSoundMix)[]).filter((k) => want[k] && k !== 'frogsBusy').join(',')
+    ? (Object.keys(want) as (keyof PondSoundMix)[]).filter((k) => want[k] && k !== 'frogsBusy' && k !== 'birdRate').join(',')
     : '';
   if (!want || !ctx || !sfxGain) return;
   const c = ctx;
@@ -632,6 +635,16 @@ function syncPond(): void {
       const f = 3900 + Math.random() * 900;
       const n = 3 + Math.floor(Math.random() * 2);
       for (let i = 0; i < n; i++) tone('triangle', f, f * 0.98, i * 0.045, 0.028, 0.07, { type: 'bandpass', f, q: 6 });
+    }
+    // Jungle birds: a short song of 2-5 quick rising / falling whistles.
+    if (want.birds && chance(want.birdRate)) {
+      const base = 2200 + Math.random() * 1600;
+      const n = 2 + Math.floor(Math.random() * 4);
+      const up = Math.random() < 0.5;
+      for (let i = 0; i < n; i++) {
+        const f = base * (1 + (up ? i : n - i) * 0.06);
+        tone('sine', f, f * (Math.random() < 0.5 ? 1.25 : 0.8), i * 0.11, 0.08, 0.05);
+      }
     }
     if (want.rain && chance(1.5)) tone('sine', 1800 + Math.random() * 600, 1100, 0, 0.03, 0.012);
   }, STEP * 1000);

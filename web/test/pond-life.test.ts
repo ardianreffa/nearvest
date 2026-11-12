@@ -157,4 +157,9 @@ describe('fishing pond life', () => {
     assert.deepEqual(pondMix(5.5), { dusk: 1, night: 0.5 }, 'dawn: night -> dusk');
     assert.deepEqual(pondMix(6.5), { dusk: 0.5, night: 0 }, 'dawn: dusk -> day');
   });
+  it('birds sing on clear mornings and days, a few at dusk, never at night or in the rain', () => {
+    assert.ok(pondSounds('morning', 'clear').birds && pondSounds('day', 'clear').birdRate > pondSounds('dusk', 'clear').birdRate);
+    assert.ok(pondSounds('dusk', 'clear').birds && pondSounds('dusk', 'clear').birdRate > 0);
+    for (const [t, w] of [['night', 'clear'], ['day', 'rain'], ['night', 'rain'], ['dusk', 'rain']] as const) assert.ok(!pondSounds(t, w).birds && pondSounds(t, w).birdRate === 0, `${t} ${w}`);
+  });
 });
