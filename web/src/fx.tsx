@@ -35,9 +35,10 @@ export function floatText(text: string, tone: 'gold' | 'mint' | 'burn' | 'xp' = 
 
 export function coinsToBalance(count = 6, x = pointer.x, y = pointer.y) {
   if (reduced()) return;
-  const target = document.querySelector('.hud-panen')?.getBoundingClientRect();
+  // Into the round PANEN coin inside the profile box.
+  const target = (document.querySelector('.hud-panen .panen-coin') ?? document.querySelector('.hud-panen'))?.getBoundingClientRect();
   if (!target) return;
-  const tx = target.left + 18;
+  const tx = target.left + target.width / 2;
   const ty = target.top + target.height / 2;
   emit(
     Array.from({ length: Math.min(count, 10) }, (_, i) => ({

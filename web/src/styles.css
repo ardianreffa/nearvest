@@ -16823,3 +16823,68 @@ html.pond-open .hud * {
 .hud .market-village {
   --mv-bottom: 186;
 }
+
+/* ---------- PANEN balance inside the profile box (Ardian 2026-11-13) ----------
+   Right of the name: the round gold coin on top, the number under it, no "PANEN" word; the separate
+   PANEN box is gone. Phones and laptops. */
+.hud-capsule-left.with-panen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-capsule-left.with-panen > .who-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hud-capsule-left.with-panen > .hud-panen {
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px 6px;
+  font-size: var(--fs-body);
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.hud-capsule-left.with-panen > .hud-panen .panen-coin {
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 1023px) {
+  .hud-capsule-left.with-panen > .hud-panen {
+    font-size: var(--fs-sm);
+    padding: 0 4px;
+  }
+
+  .hud-capsule-left.with-panen > .hud-panen .panen-coin {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Profile | system buttons (the PANEN column is gone). */
+  .phone-hud {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .phone-hud > .topbar > .hud-sys {
+    grid-column: 2;
+  }
+}
+
+/* Laptops: the profile box keeps its earlier width (profile + the old PANEN box), so the chips grid
+   under it stays the same size. */
+@media (min-width: 1024px) {
+  .hud-capsule-left.with-panen {
+    min-width: 300px;
+  }
+
+  .hud-capsule-left.with-panen > .hud-panen {
+    margin-left: auto;
+    padding: 2px 10px;
+  }
+}

@@ -1222,12 +1222,12 @@ export function App() {
       </div>
     </button>
   );
-  /** The PANEN balance next to the profile box: the round gold PANEN coin and the number (package 6). */
+  /** The PANEN balance INSIDE the profile box, right of the name (Ardian 2026-11-13): the round gold
+      coin on top, the number under it (no "PANEN" word); the coins fly to this coin (fx.tsx). */
   const panen = (
     <button class="hud-panen" title="Your PANEN balance: what is PANEN?" onClick={() => (playSound('click'), setInfo('panen'))} aria-label={`${formatPanen(p.balance)} PANEN. What is PANEN?`}>
-      <PanenCoin scale={wide ? 2 : 2} />
+      <PanenCoin scale={2} />
       <b>{formatPanen(p.balance)}</b>
-      <span class="hud-panen-unit">PANEN</span>
     </button>
   );
   const nextIn = formatDuration(state.clock.msUntilNextDay - elapsed);
@@ -1354,8 +1354,10 @@ export function App() {
           <header class="hud-top">
             <div class="hud-left">
               <div class="hud-who-row">
-                <div class="hud-capsule hud-capsule-left">{who}</div>
-                {panen}
+                <div class="hud-capsule hud-capsule-left with-panen">
+                  {who}
+                  {panen}
+                </div>
               </div>
               {chips}
               {notices}
@@ -1405,8 +1407,10 @@ export function App() {
         <>
           <div class="phone-hud">
             <header class="topbar">
-              <div class="hud-capsule hud-capsule-left">{who}</div>
-              {panen}
+              <div class="hud-capsule hud-capsule-left with-panen">
+                {who}
+                {panen}
+              </div>
               <div class="hud-capsule hud-sys topbar-right">{muteButton}</div>
             </header>
             {chips}
