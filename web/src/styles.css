@@ -79,6 +79,14 @@ html {
   cursor: var(--cur-arrow);
 }
 
+/* /play only (no-zoom.ts): no double-tap zoom, no sideways overflow (the empty strip on iPhone). */
+html.no-zoom,
+html.no-zoom body {
+  touch-action: manipulation;
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 a[href],
 button,
 summary,
