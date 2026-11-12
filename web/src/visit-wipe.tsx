@@ -13,7 +13,9 @@ import {
   easeOut,
   seededRandom,
   sparkleNotes,
+  WATER_COLORS,
   WIPE_COLORS,
+  type WipePalette,
   WIPE_COVER_MS,
   WIPE_FADE_MS,
   WIPE_HOLD_MS,
@@ -28,6 +30,8 @@ interface Job {
   label: string;
   /** The pixel sparkle rises for a visit ('up') and falls on the way back ('down'). */
   sound: 'up' | 'down';
+  /** Leaf squares (visits) or water squares (the fishing pond). */
+  palette: WipePalette;
   /** Runs under the cover; the wipe opens when it settles (at most WIPE_WAIT_MAX_MS). */
   swap: () => unknown;
 }
@@ -38,13 +42,13 @@ const reducedMotion = () => typeof matchMedia === 'function' && matchMedia('(pre
 export function useVisitWipe() {
   const [job, setJob] = useState<Job | null>(null);
   const busy = useRef(false);
-  const run = useCallback((label: string, swap: () => unknown, sound: 'up' | 'down' = 'up') => {
+  const run = useCallback((label: string, swap: () => unknown, sound: 'up' | 'down' = 'up', palette: WipePalette = 'leaf') => {
     if (busy.current) {
       void swap();
       return;
     }
     busy.current = true;
-    setJob({ id: Date.now(), label, swap, sound });
+    setJob({ id: Date.now(), label, swap, sound, palette });
   }, []);
   const done = useCallback(() => {
     busy.current = false;
@@ -74,7 +78,7 @@ function PixelWipe({ job, onDone }: { job: Job; onDone: () => void }) {
     const cols = Math.ceil(cv.width / cell);
     const rows = Math.ceil(cv.height / cell);
     const cells = wipeCells(cols, rows, seededRandom(job.id));
-    const colors = WIPE_COLORS.map((c) => token(c.token));
+    const colors = (job.palette === 'water' ? WATER_COLORS : WIPE_COLORS).map((c) => token(c.token));
     const fadeMs = WIPE_FADE_MS;
 
     let raf = 0;
@@ -167,7 +171,7 @@ function PixelWipe({ job, onDone }: { job: Job; onDone: () => void }) {
   }, []);
 
   return (
-    <div ref={root} class={`visit-wipe${reduced.current ? ' reduced' : ''}`} role="status" aria-live="polite">
+    <div ref={root} class={`visit-wipe wipe-${job.palette}${reduced.current ? ' reduced' : ''}`} role="status" aria-live="polite">
       <canvas ref={canvas} class="visit-wipe-canvas" aria-hidden="true" />
       <div class={`visit-wipe-text${text ? ' on' : ''}`}>{job.label}</div>
     </div>

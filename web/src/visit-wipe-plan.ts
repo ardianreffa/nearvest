@@ -21,6 +21,17 @@ export const WIPE_COLORS = [
   { token: '--mint-500', weight: 8 },
 ] as const;
 
+/** Water colours for the way to and from the fishing pond (Fishing package 2, 2026-11-12). */
+export const WATER_COLORS = [
+  { token: '--cyan-700', weight: 34 },
+  { token: '--cyan-500', weight: 30 },
+  { token: '--cyan-300', weight: 24 },
+  { token: '--leaf-500', weight: 12 },
+] as const;
+export type WipePalette = 'leaf' | 'water';
+export const POND_TEXT = 'To the fishing pond';
+export const POND_BACK_TEXT = 'Back to the village';
+
 /**
  * Size of one square in CSS px: a multiple of the game's pixel grid (8 px). Phones 16 px
  * (about 25 x 53 squares at 390 x 844), laptops 24 px (about 54 x 34 at 1280 x 800).

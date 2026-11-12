@@ -14028,6 +14028,11 @@ html.duel-open .duel-bg .backdrop * {
   }
 }
 
+/* The fishing pond's wipe: a dark water band. */
+.visit-wipe.wipe-water .visit-wipe-text {
+  background: color-mix(in srgb, var(--cyan-700) 92%, transparent);
+}
+
 /* The title sits on a dark leaf band with stepped pixel corners, so it reads on the busy squares. */
 .visit-wipe-text {
   left: 50%;

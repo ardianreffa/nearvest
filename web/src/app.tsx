@@ -29,7 +29,7 @@ import { FarmersWindow, friendCall, VisitGarden } from './friends';
 import { friendAddNotice } from './friends-logic';
 import { usePresence } from './presence';
 import { useVisitWipe } from './visit-wipe';
-import { BACK_TEXT, visitingText, WIPE_WAIT_MAX_MS } from './visit-wipe-plan';
+import { BACK_TEXT, POND_BACK_TEXT, POND_TEXT, visitingText, WIPE_WAIT_MAX_MS } from './visit-wipe-plan';
 import { SPECIES_NAME as SPECIES_LABEL } from './ui';
 import { burnAt, coinsToBalance, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
@@ -940,7 +940,7 @@ export function App() {
       onBot={openBot}
       onPlace={(p) =>
         (playSound('click'),
-        p === 'friends' ? setFarmersOpen(true) : p === 'arena' ? setArenaOpen(true) : p === 'fishing' ? setFishingOpen(true) : wide ? openSide(p) : setTab(p))
+        p === 'friends' ? setFarmersOpen(true) : p === 'arena' ? setArenaOpen(true) : p === 'fishing' ? openPond() : wide ? openSide(p) : setTab(p))
       }
     />
   );
@@ -1082,6 +1082,9 @@ export function App() {
       'down',
     );
   visitRef.current = startVisit;
+  /** The fishing pond: water squares cover the screen on the way in and out (old servers: the small window). */
+  const openPond = () => (stateRef.current?.fishing ? wipe.run(POND_TEXT, () => setFishingOpen(true), 'up', 'water') : setFishingOpen(true));
+  const closePond = () => wipe.run(POND_BACK_TEXT, () => setFishingOpen(false), 'down', 'water');
   /** "Add back" (notice and Village tab): add a garden that added us. */
   const addBack = async (name: string) => {
     try {
@@ -1399,7 +1402,7 @@ export function App() {
           state={state}
           onState={applyState}
           notify={toast}
-          onClose={() => setFishingOpen(false)}
+          onClose={closePond}
           // Golden Arowana: its moment (animation + sound now, the share card once the window closes).
           onCatch={(c) => c.moment === 'golden_arowana' && shareMomentOnce(state.player.accountId, { kind: 'golden_arowana' }, { popup: !RECORD_MODE })}
         />
