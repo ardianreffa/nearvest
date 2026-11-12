@@ -10,7 +10,7 @@ import { lockedFraction, phaseOf } from './art/backdrop';
 /** Dev builds: ?time=day / dusk / night also locks the duel's village (screenshots), like the garden. */
 const DUEL_TIME_LOCK = import.meta.env.DEV && typeof location !== 'undefined' ? lockedFraction(location.search) : null;
 import { TaniBot, TaniBotHead, tierOf, tierRank } from './art/tanibot';
-import { getAudioPrefs, initAudio, onAudioPrefsChange, playRumble, playSound, setAmbient, setAudioPrefs, type SoundName } from './audio';
+import { claimSfx, getAudioPrefs, initAudio, onAudioPrefsChange, playBuy, playRumble, playSellCoins, playSound, setAmbient, setAudioPrefs, type SoundName } from './audio';
 import { useFullscreen } from './fullscreen';
 import { HowToPlay, Modal, PanenInfo } from './help';
 import { shopSetupText } from './shop-setup';
@@ -79,6 +79,18 @@ const ACTION_SOUNDS: Record<string, SoundName> = {
   '/api/seeds/sell': 'coins',
   '/api/seeds/discard': 'click',
 };
+
+/**
+ * The sound of a game action (sound polish 2026-11-12): buying = the burn + "item received"; selling
+ * seeds = coins with a "cring" per few seeds; everything else from ACTION_SOUNDS.
+ */
+function actionSound(path: string, payload: Record<string, unknown>): void {
+  if (path === '/api/shop/buy') {
+    playSound('burn');
+    playBuy();
+  } else if (path === '/api/seeds/sell') playSellCoins(Array.isArray(payload.seedIds) ? payload.seedIds.length : 1);
+  else playSound(ACTION_SOUNDS[path] ?? 'click');
+}
 
 const WIDE_QUERY = '(min-width: 1024px)';
 
@@ -546,6 +558,8 @@ export function App() {
 
   const act = useCallback(
     async (path: string, body?: unknown, success?: string): Promise<unknown | null> => {
+      // This action makes its own sound (now or after the server / wallet answers): no button click.
+      claimSfx();
       setBusy(true);
       try {
         let payload = (body ?? {}) as Record<string, unknown>;
@@ -560,7 +574,7 @@ export function App() {
         const guess = stateRef.current ? predict(path, payload, stateRef.current, config) : null;
         if (guess) {
           setState(guess);
-          playSound(ACTION_SOUNDS[path] ?? 'click');
+          actionSound(path, payload);
           if (path === '/api/shop/buy') burnAt();
         }
         let res: { state: GameState; result: unknown };
@@ -570,7 +584,7 @@ export function App() {
           if (guess) void refresh();
           throw e;
         }
-        if (!guess) playSound(ACTION_SOUNDS[path] ?? 'click');
+        if (!guess) actionSound(path, payload);
         juice(path, res.result, !!guess);
         applyState(res.state);
         moments(path, res.result, res.state);
@@ -593,6 +607,7 @@ export function App() {
       const mult = { common: 1, rare: 2, gold: 5 }[quality];
       const label = `${qty} ${QUALITY_NAME[quality]} ${SPECIES_NAME[species]}`;
       let price = shownPrice;
+      claimSfx();
       for (let attempt = 0; attempt < 3; attempt++) {
         setBusy(true);
         try {
@@ -601,7 +616,7 @@ export function App() {
           const guess = stateRef.current ? predict('/api/sell', body, stateRef.current, config) : null;
           if (guess) {
             setState(guess);
-            playSound('coins');
+            playSellCoins(qty);
             floatText(`+${formatPanen(seasonPayout(price * mult * qty, guess.season.divisor))} PANEN`, 'gold');
             coinsToBalance(Math.min(10, 3 + qty * 2));
           }
@@ -614,7 +629,7 @@ export function App() {
           }
           const earned = res.result?.expectedPanen ?? price * mult * qty;
           if (!guess) {
-            playSound('coins');
+            playSellCoins(qty);
             floatText(`+${formatPanen(earned)} PANEN`, 'gold');
             coinsToBalance(Math.min(10, 3 + qty * 2));
           }

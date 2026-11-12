@@ -147,6 +147,10 @@ function markAudio(): void {
 }
 
 export function playSound(name: SoundName): void {
+  if (name !== 'click') sfxMark(name);
+  // Every "click" is the soft pixel click made in code (sound polish, 2026-11-12); the old file stays
+  // unused as a fallback for a browser without Web Audio oscillators (never seen).
+  if (name === 'click') return playUiClick();
   if (!prefs.sfx || !ctx || !sfxGain) return;
   const buffer = buffers.get(name);
   if (!buffer) return;
@@ -157,12 +161,145 @@ export function playSound(name: SoundName): void {
   src.start();
 }
 
+// ---------- Sound polish (Ardian 2026-11-12, last before the feature freeze) ----------
+//
+// Made right here with Web Audio (no file, nothing copied; docs/ASSETS.md), through the same Sound
+// (sfx) switch and only after the first tap (the AudioContext is created then; iPhone Safari too):
+// - a soft, short pixel click for buttons, tabs, menus and windows (playUiClick; the global listener
+//   below plays it for any button that has no sound of its own);
+// - "item received" when the Shop sells you seeds or Fertilizer (playBuy, with the burn sound);
+// - coin "cring"s when Mr. Darto pays you (playSellCoins, with the coin sound; more coins for a big sale).
+
+/** When any game sound last started (performance.now()): a button that made its own sound gets no click. */
+let lastSfxAt = 0;
+function sfxMark(kind = 'sfx'): void {
+  lastSfxAt = typeof performance === 'undefined' ? Date.now() : performance.now();
+  // Dev builds: every effect that starts, for tools/sound-polish-test.mjs (sounds are not in screenshots).
+  if (import.meta.env?.DEV && typeof window !== 'undefined' && prefs.sfx && ctx) {
+    const w = window as unknown as { __sfxLog?: { at: number; kind: string }[] };
+    (w.__sfxLog ??= []).push({ at: lastSfxAt, kind });
+  }
+}
+/** An action that will make its own sound a moment later (after the server answers): no click now. */
+export function claimSfx(): void {
+  lastSfxAt = typeof performance === 'undefined' ? Date.now() : performance.now();
+}
+
+/** One short tone through the effects switch (shared by the polish sounds). */
+function blip(type: OscillatorType, f0: number, f1: number, at: number, dur: number, vol: number, filter?: { type: BiquadFilterType; f: number }): void {
+  if (!ctx || !sfxGain) return;
+  const c = ctx;
+  const t = c.currentTime + at;
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.006, dur / 4));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  let node: AudioNode = o;
+  if (filter) {
+    const f = c.createBiquadFilter();
+    f.type = filter.type;
+    f.frequency.value = filter.f;
+    node = o.connect(f);
+  }
+  node.connect(g).connect(sfxGain);
+  o.start(t);
+  o.stop(t + dur + 0.02);
+}
+
+const ready = () => {
+  if (!prefs.sfx || !ctx || !sfxGain) return false;
+  if (ctx.state === 'suspended') void ctx.resume();
+  return true;
+};
+
+/** A soft, short pixel click (~35 ms): a little square "tik" with a quieter high tick on top. */
+export function playUiClick(): void {
+  sfxMark('click');
+  if (!ready()) return;
+  blip('square', 1250, 820, 0, 0.035, 0.05, { type: 'lowpass', f: 3200 });
+  blip('triangle', 2600, 2200, 0, 0.012, 0.025);
+}
+
+/**
+ * The Shop hands you your item: a soft "thump" of a small bag landing, then a bright two-note "got it"
+ * (rising), ~0.3 s. Played with the burn sound (the spent PANEN is burned).
+ */
+export function playBuy(): void {
+  sfxMark('buy');
+  if (!ready()) return;
+  const c = ctx!;
+  // The bag: a short burst of low, muffled noise.
+  const len = Math.floor(c.sampleRate * 0.07);
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 2;
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  const f = c.createBiquadFilter();
+  f.type = 'lowpass';
+  f.frequency.value = 520;
+  const g = c.createGain();
+  g.gain.value = 0.5;
+  src.connect(f).connect(g).connect(sfxGain!);
+  src.start(c.currentTime + 0.12);
+  blip('triangle', 150, 90, 0.12, 0.07, 0.18);
+  // "Got it": two quick rising notes.
+  blip('square', 784, 784, 0.2, 0.07, 0.06, { type: 'lowpass', f: 2600 });
+  blip('square', 1175, 1175, 0.27, 0.11, 0.06, { type: 'lowpass', f: 3000 });
+}
+
+/** How many extra coin "cring"s a sale of `qty` gets (1 = none extra; a big sale up to 3 more, short). */
+export function sellCoinCount(qty: number): number {
+  return qty >= 10 ? 4 : qty >= 5 ? 3 : qty >= 2 ? 2 : 1;
+}
+
+/**
+ * Mr. Darto pays: the coin sound plus bright metallic "cring"s (two high partials that ring out), one
+ * per coin, 70 ms apart and a little higher each time; at most 4 (~0.5 s), so a big sale sounds a bit
+ * more festive without dragging on.
+ */
+export function playSellCoins(qty: number): void {
+  playSound('coins');
+  sfxMark(`cring x${sellCoinCount(qty)}`);
+  if (!ready()) return;
+  const n = sellCoinCount(qty);
+  for (let i = 0; i < n; i++) {
+    const at = 0.05 + i * 0.07;
+    const up = 1 + i * 0.06;
+    blip('triangle', 2093 * up, 2093 * up, at, 0.22, 0.07);
+    blip('sine', 3136 * up, 3136 * up, at, 0.16, 0.05);
+    blip('sine', 4186 * up, 4186 * up, at + 0.005, 0.09, 0.025);
+  }
+}
+
+// Any button, tab, menu item or pin gets the soft click, unless it made a sound of its own during its
+// own click handler (Cast line, Reel in, Harvest, Water, Sell, Buy...: they mark it) or is disabled.
+if (typeof document !== 'undefined') {
+  document.addEventListener(
+    'click',
+    (e) => {
+      const el = (e.target as Element | null)?.closest?.('button, [role="tab"], [role="button"], a.btn, summary, .place-pin');
+      if (!el || (el as HTMLButtonElement).disabled || el.getAttribute('aria-disabled') === 'true' || el.closest('[data-sfx="none"]')) return;
+      const t = performance.now();
+      window.setTimeout(() => {
+        if (lastSfxAt < t) playUiClick();
+      }, 0);
+    },
+    true,
+  );
+}
+
 /**
  * The Gold Durian's own sound (Arena v2), made right here with Web Audio: no sound file, nothing
  * copied (docs/ASSETS.md). charge = a rising hum while TaniBot gathers power, fall = the whoosh of the
  * meteor, impact = a deep boom with a bright gold ring. Follows the Sound switch like every effect.
  */
 export function playGoldDurian(part: 'charge' | 'fall' | 'impact'): void {
+  sfxMark();
   if (!prefs.sfx || !ctx || !sfxGain) return;
   if (ctx.state === 'suspended') void ctx.resume();
   const c = ctx;
@@ -220,6 +357,7 @@ export function playGoldDurian(part: 'charge' | 'fall' | 'impact'): void {
  * when the squares leave. Follows the Sound switch like every effect.
  */
 export function playWhoosh(soft = false): void {
+  sfxMark();
   if (!prefs.sfx || !ctx || !sfxGain) return;
   if (ctx.state === 'suspended') void ctx.resume();
   const c = ctx;
@@ -253,6 +391,7 @@ export function playWhoosh(soft = false): void {
  * switch and plays only after the first tap, like every effect.
  */
 export function playPixelSparkle(notes: { at: number; freq: number; dur: number; level: number }[]): void {
+  sfxMark();
   if (!prefs.sfx || !ctx || !sfxGain) return;
   if (ctx.state === 'suspended') void ctx.resume();
   const c = ctx;
@@ -289,6 +428,7 @@ export function playPixelSparkle(notes: { at: number; freq: number; dur: number;
  */
 export type FishingSound = 'cast' | 'plop' | 'bite' | 'reel' | 'junk' | 'fish' | 'item' | 'gourami' | 'legend';
 export function playFishing(kind: FishingSound): void {
+  sfxMark(`fishing ${kind}`);
   if (!prefs.sfx || !ctx || !sfxGain) return;
   if (ctx.state === 'suspended') void ctx.resume();
   const c = ctx;
