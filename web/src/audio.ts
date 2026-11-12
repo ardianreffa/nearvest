@@ -86,14 +86,17 @@ async function loadBuffers(): Promise<void> {
   );
 }
 
+/** True while the fishing pond is open: Tandur's music waits (the pond has its own sounds). */
+let musicHeld = false;
+
 function startMusic(): void {
-  if (!prefs.music) return;
+  if (!prefs.music || musicHeld) return;
   if (!music) {
     music = new Audio(MUSIC_FILE);
     music.loop = true;
     music.volume = MUSIC_VOLUME;
   }
-  void music.play().catch(() => undefined);
+  void music.play().then(markAudio, () => undefined);
 }
 
 /** Call once at startup: audio unlocks on the player's first interaction. */
@@ -120,8 +123,27 @@ export function initAudio(): void {
   document.addEventListener('visibilitychange', () => {
     if (!music) return;
     if (document.hidden) music.pause();
-    else if (prefs.music && unlocked) void music.play().catch(() => undefined);
+    else if (prefs.music && unlocked && !musicHeld) void music.play().catch(() => undefined);
   });
+}
+
+/**
+ * The fishing pond (Fishing package 3): while it is open, Tandur's music and its ambient loop are
+ * silent and only the pond's own sounds play; leaving the pond brings them back (if switched on).
+ */
+export function setPondMode(on: boolean): void {
+  musicHeld = on;
+  if (on) music?.pause();
+  else if (unlocked && !document.hidden) startMusic();
+  void syncAmbient();
+  markAudio();
+}
+
+/** <html data-music="on|off" data-ambient="day|night|rain|"> (read by the browser tests). */
+function markAudio(): void {
+  if (typeof document === 'undefined') return;
+  document.documentElement.dataset.music = music && !music.paused ? 'on' : 'off';
+  document.documentElement.dataset.ambient = ambientPlaying?.kind ?? '';
 }
 
 export function playSound(name: SoundName): void {
@@ -373,6 +395,7 @@ export function setAudioPrefs(change: Partial<AudioPrefs>): void {
   }
   if (!prefs.music) music?.pause();
   else if (unlocked) startMusic();
+  markAudio();
   for (const l of listeners) l(prefs);
 }
 
@@ -428,16 +451,17 @@ function fadeOut(node: { src: AudioBufferSourceNode; gain: GainNode }): void {
 }
 
 async function syncAmbient(): Promise<void> {
-  const want = prefs.sfx && unlocked && !document.hidden ? ambientWanted : null;
+  const want = prefs.sfx && unlocked && !document.hidden && !musicHeld ? ambientWanted : null;
   if (ambientPlaying?.kind === want) return;
   if (ambientPlaying) {
     fadeOut(ambientPlaying);
     ambientPlaying = null;
+    markAudio();
   }
   if (!want || !ctx || !sfxGain) return;
   const buffer = await ambientBuffer(want);
   // Something else was asked for while loading.
-  if (!buffer || !ctx || !sfxGain || ambientPlaying || want !== (prefs.sfx && unlocked && !document.hidden ? ambientWanted : null)) return;
+  if (!buffer || !ctx || !sfxGain || ambientPlaying || want !== (prefs.sfx && unlocked && !document.hidden && !musicHeld ? ambientWanted : null)) return;
   if (ctx.state === 'suspended') void ctx.resume();
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, ctx.currentTime);
@@ -449,6 +473,7 @@ async function syncAmbient(): Promise<void> {
   src.connect(gain);
   src.start();
   ambientPlaying = { kind: want, src, gain };
+  markAudio();
 }
 
 /** The loop the garden wants now (null = silence, e.g. outside the garden). */
@@ -601,7 +626,13 @@ function syncPond(): void {
       const n = 1 + Math.floor(Math.random() * 2);
       for (let i = 0; i < n; i++) tone('sawtooth', 430, 320, i * 0.2, 0.13, 0.06, { type: 'bandpass', f: 1100, q: 3 });
     }
-    if (want.crickets && chance(1.2)) for (let i = 0; i < 3; i++) tone('sine', 4300, 4250, i * 0.05, 0.03, 0.014);
+    // Crickets: a few insects, each a quick run of 3-4 bright pulses (loud enough to hear over the
+    // waterfall and the rain; package 3: they were too soft to notice).
+    if (want.crickets && chance(2.2)) {
+      const f = 3900 + Math.random() * 900;
+      const n = 3 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < n; i++) tone('triangle', f, f * 0.98, i * 0.045, 0.028, 0.07, { type: 'bandpass', f, q: 6 });
+    }
     if (want.rain && chance(1.5)) tone('sine', 1800 + Math.random() * 600, 1100, 0, 0.03, 0.012);
   }, STEP * 1000);
   pondPlaying = { key, out, stops, timer };

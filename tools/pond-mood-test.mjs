@@ -126,7 +126,7 @@ for (const L of LOOKS) {
   check(hopped, `${L.q}: a frog hops`);
   check(night ? !swam : swam, `${L.q}: ducks ${night ? 'stay still (asleep)' : 'paddle'}`);
   const s = (await look()).sound;
-  const want = { waterfall: true, breeze: !night && L.weather !== 'rain', crickets: night && L.weather !== 'rain', ducks: !night, rain: L.weather === 'rain', frogs: true };
+  const want = { waterfall: true, breeze: !night && L.weather !== 'rain', crickets: night, ducks: !night, rain: L.weather === 'rain', frogs: true };
   const got = Object.fromEntries(Object.keys(want).map((k) => [k, s.split(',').includes(k)]));
   check(JSON.stringify(got) === JSON.stringify(want), `${L.q}: pond sounds ${s}`);
   await closePond(L.q);

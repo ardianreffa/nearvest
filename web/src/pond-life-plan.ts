@@ -49,7 +49,7 @@ export function pondSounds(time: PondTime, weather: PondWeather): PondSounds {
     breeze: !night && !rain,
     frogs: true,
     frogsBusy: night || rain,
-    crickets: night && !rain,
+    crickets: night, // also in the rain at night (Ardian, package 3)
     ducks: !night,
     rain,
   };

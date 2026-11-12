@@ -14,7 +14,7 @@ import { villageHour } from './share';
 import { lookOf } from './weather';
 import { TaniBot } from './art/tanibot';
 import { tierOf } from './art/tiers';
-import { playFishing, playSound, setPondAmbience } from './audio';
+import { playFishing, playSound, setPondAmbience, setPondMode } from './audio';
 import { Modal } from './help';
 import { judgeDeviceId } from './judge';
 import { castsLeftText, catchNote, catchTier, rewardChips, startPhase, untilText, type FishPhase } from './fishing-logic';
@@ -102,7 +102,14 @@ export function FishingWindow({
   useEffect(() => {
     setPondAmbience(pondSounds(time, weather));
   }, [time, weather]);
-  useEffect(() => () => setPondAmbience(null), []);
+  // Tandur's music and ambient loop are silent at the pond and come back when it closes.
+  useEffect(() => {
+    setPondMode(true);
+    return () => {
+      setPondAmbience(null);
+      setPondMode(false);
+    };
+  }, []);
 
   // What can be caught + today's catches (the window works without it too). The game state may be a
   // few seconds old, so a line still in the water is resumed from this fresh answer too.

@@ -39,7 +39,7 @@ describe('fishing pond life', () => {
     for (const look of ['clear', 'drought', 'warning', 'eruption', 'volcanic'] as const) assert.equal(pondWeather(look), 'clear', look);
   });
 
-  it('sounds: breeze by day, frogs + crickets and no ducks at night, rain with frogs (ducks only by day)', () => {
+  it('sounds: breeze by day, frogs + crickets and no ducks at night (rain too), rain with frogs (ducks only by day)', () => {
     const day = pondSounds('day', 'clear');
     assert.ok(day.waterfall && day.ripples && day.breeze && day.ducks && day.frogs && !day.crickets && !day.rain);
     assert.ok(pondSounds('morning', 'clear').breeze);
@@ -48,7 +48,7 @@ describe('fishing pond life', () => {
     const rainDay = pondSounds('day', 'rain');
     assert.ok(rainDay.rain && rainDay.frogs && rainDay.frogsBusy && rainDay.ducks && !rainDay.breeze);
     const rainNight = pondSounds('night', 'rain');
-    assert.ok(rainNight.rain && rainNight.frogs && !rainNight.ducks);
+    assert.ok(rainNight.rain && rainNight.frogs && rainNight.crickets && !rainNight.ducks, 'crickets at night, also in the rain');
     assert.ok(ducksAsleep('night') && !ducksAsleep('dusk'));
   });
 
