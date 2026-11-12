@@ -42,7 +42,7 @@ server / old web, database change = **new table only** (rollback-safe), CC0 soun
 | | 10% | Carp | 5 PANEN |
 | | 7% | Gourami | 10 PANEN |
 | | 1% | **Golden Arowana** | 30 PANEN + moment (animation + share card "Golden Arowana") |
-| Junk 30% | 7.5% each | Stone, Driftwood, Fish bone, Old boot | 1 XP |
+| Junk 30% | 6% each | Stone, Driftwood, Fish bone, Old boot, Rusty can (added 2026-11-12, Ardian's test package 1) | 1 XP |
 | Items 12% | 5% | Mango seed (Common, unknown quality like a check-in seed) | 1 seed (Storage rule, see 1.1) |
 | | 3% | Fertilizer (a drifting bottle) | 1 Fertilizer |
 | | 3% | Message in a bottle | 5 XP + one funny line about Tandur (list of ~12 lines in `rules.ts`) |
@@ -130,7 +130,7 @@ Same idea as the Arena's paid wins:
 ### 3.4 Pictures: new ChatGPT images or code?
 
 **Decided: 1 new ChatGPT image (the pond); everything else in code.**
-- Fish, junk and item icons (13 small 16x16 icons) = **drawn in code** in `web/src/sprites.tsx`
+- Fish, junk and item icons (14 small icons; fish and junk redrawn 2026-11-12, see section 8) = **drawn in code** in `web/src/sprites.tsx`
   (like the seed and fertilizer icons): sharp, consistent, fast; ChatGPT pictures this small get
   muddy after pixelizing.
 - The cast / reel scene needs a bigger picture than the tiny hut corner → **one pond scene image**,
@@ -220,3 +220,21 @@ Arowana moment forced with a dev-only `FAKE_DB` roll); too-early tap; 3 casts th
 
 Schedule note: Thu 12 Nov is the buffer + feature freeze. Fishing fits only if it is started now and
 the freeze holds; if it slips, the pin simply stays "Soon" (nothing else depends on it).
+
+## 8. Package 1 of fixes after Ardian's test (2026-11-12)
+
+1. TaniBot on the dock faces right (toward the water).
+2. A better rod: bamboo with nodes, a cork handle, a small reel and a tapering tip. The line and the
+   float are ALWAYS attached to the rod's tip. Cast = the rod swings, the line flies in an arc and the
+   float drops into the water; wait = the line sags softly to the float; bite (strike) = the rod BENDS
+   toward the float and the line goes taut; reel in = the line is pulled back to the rod.
+3. Sounds made in code (docs/ASSETS.md): a swing whoosh at the cast, a "plunk" when the float lands,
+   a reel clicking while reeling in.
+4. New pixel icons (drawn in code, not traced from photos): Tilapia, Catfish, Carp, Gourami, Golden
+   Arowana, Driftwood, Fish bone. The fish jumping out of the pond uses the same grids.
+5. New junk **Rusty can** (1 XP). Junk stays 30% in all, now 6% for each of the 5 kinds. The PANEN
+   economy does not change (fish 58%, items 12% as before).
+6. Result animation + sound per tier: junk = a soft, slightly funny plop; normal fish = a splash +
+   a short happy sound; items (seed, fertilizer, bottle, chest) = their own "item" sound; Gourami =
+   more festive; Golden Arowana = gold sparkles + the biggest jingle.
+7. Share card only for the top catch (Golden Arowana), showing the new fish picture.

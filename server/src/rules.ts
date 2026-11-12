@@ -227,6 +227,7 @@ export type FishingCatchId =
   | 'driftwood'
   | 'fish_bone'
   | 'old_boot'
+  | 'rusty_can'
   | 'mango_seed'
   | 'fertilizer'
   | 'bottle'
@@ -235,7 +236,7 @@ export type FishingKind = 'fish' | 'junk' | 'item';
 
 /**
  * The catch table: `chance` in 1/1000 (sums to 1000). `panen` = base PANEN before the Season rule
- * (mint_reward). `paid` = counts toward the paid-catch limits per browser / IP.
+ * (mint_reward). Junk = 30% in all, split evenly over 5 kinds (Rusty can added 2026-11-12). `paid` = counts toward the paid-catch limits per browser / IP.
  */
 export const FISHING_CATCHES: { id: FishingCatchId; name: string; kind: FishingKind; chance: number; panen: number; paid: boolean }[] = [
   { id: 'tilapia', name: 'Tilapia', kind: 'fish', chance: 250, panen: 3, paid: true },
@@ -243,10 +244,11 @@ export const FISHING_CATCHES: { id: FishingCatchId; name: string; kind: FishingK
   { id: 'carp', name: 'Carp', kind: 'fish', chance: 100, panen: 5, paid: true },
   { id: 'gourami', name: 'Gourami', kind: 'fish', chance: 70, panen: 10, paid: true },
   { id: 'golden_arowana', name: 'Golden Arowana', kind: 'fish', chance: 10, panen: 30, paid: true },
-  { id: 'stone', name: 'Stone', kind: 'junk', chance: 75, panen: 0, paid: false },
-  { id: 'driftwood', name: 'Driftwood', kind: 'junk', chance: 75, panen: 0, paid: false },
-  { id: 'fish_bone', name: 'Fish bone', kind: 'junk', chance: 75, panen: 0, paid: false },
-  { id: 'old_boot', name: 'Old boot', kind: 'junk', chance: 75, panen: 0, paid: false },
+  { id: 'stone', name: 'Stone', kind: 'junk', chance: 60, panen: 0, paid: false },
+  { id: 'driftwood', name: 'Driftwood', kind: 'junk', chance: 60, panen: 0, paid: false },
+  { id: 'fish_bone', name: 'Fish bone', kind: 'junk', chance: 60, panen: 0, paid: false },
+  { id: 'old_boot', name: 'Old boot', kind: 'junk', chance: 60, panen: 0, paid: false },
+  { id: 'rusty_can', name: 'Rusty can', kind: 'junk', chance: 60, panen: 0, paid: false },
   { id: 'mango_seed', name: 'Mango seed', kind: 'item', chance: 50, panen: 0, paid: true },
   { id: 'fertilizer', name: 'Fertilizer', kind: 'item', chance: 30, panen: 0, paid: true },
   { id: 'bottle', name: 'Message in a bottle', kind: 'item', chance: 30, panen: 0, paid: false },

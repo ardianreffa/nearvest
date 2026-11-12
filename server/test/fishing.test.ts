@@ -98,6 +98,10 @@ describe('fishing', () => {
     // Groups: fish 58%, junk 30%, items 12%.
     const group = (k: string) => FISHING_CATCHES.filter((c) => c.kind === k).reduce((s, c) => s + c.chance, 0);
     assert.deepEqual([group('fish'), group('junk'), group('item')], [580, 300, 120]);
+    // Junk: 5 kinds with the same chance (Rusty can added 2026-11-12), 1 XP each, never PANEN.
+    const junk = FISHING_CATCHES.filter((c) => c.kind === 'junk');
+    assert.deepEqual(junk.map((c) => c.id), ['stone', 'driftwood', 'fish_bone', 'old_boot', 'rusty_can']);
+    for (const c of junk) assert.deepEqual([c.chance, c.panen, c.paid], [60, 0, false], c.id);
   });
 
   it('the cast answer and the state never hold the catch; the reel does', async () => {
@@ -133,7 +137,7 @@ describe('fishing', () => {
     const { w, fishing, catchOne } = setup({ demo: true });
     const p = await garden(w, 'demo');
     const xp0 = w.game.getPlayer(p.id).xp;
-    for (let i = 0; i < FISHING_CASTS_PER_DAY; i++) catchOne(p, 'old_boot');
+    for (let i = 0; i < FISHING_CASTS_PER_DAY; i++) catchOne(p, i ? 'old_boot' : 'rusty_can');
     assert.equal(w.game.getPlayer(p.id).xp, xp0 + 3 * 5, 'junk 1 XP x5');
     w.advance(5 * MINUTE); // five demo days
     assert.throws(() => fishing.cast(p.id, null, null), /casts today/);
