@@ -518,6 +518,19 @@ export interface PondSoundMix {
   birdRate: number;
 }
 
+/**
+ * Dev builds only (package 7, Ardian: sounds do not show in screenshots): every pond sound that plays
+ * is logged in `window.__pondLog` ({ at: ms, kind, vol }), and `window.__pondLevel()` gives the pond's
+ * loudness right now (RMS of its output), for tools/pond-sound-test.mjs.
+ */
+type PondLogEntry = { at: number; kind: string; vol: number };
+function logPond(kind: string, vol: number): void {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return;
+  const w = window as unknown as { __pondLog?: PondLogEntry[] };
+  (w.__pondLog ??= []).push({ at: performance.now(), kind, vol });
+  if (w.__pondLog.length > 2000) w.__pondLog.splice(0, 500);
+}
+
 let pondWanted: PondSoundMix | null = null;
 let pondPlaying: { key: string; out: GainNode; stops: AudioScheduledSourceNode[]; timer: number } | null = null;
 let noiseBuf: AudioBuffer | null = null;
@@ -559,6 +572,18 @@ function syncPond(): void {
   out.gain.setValueAtTime(0, c.currentTime);
   out.gain.linearRampToValueAtTime(0.6, c.currentTime + 1.2);
   out.connect(sfxGain);
+  if (import.meta.env.DEV) {
+    const an = c.createAnalyser();
+    an.fftSize = 1024;
+    out.connect(an);
+    const buf = new Float32Array(an.fftSize);
+    (window as unknown as { __pondLevel?: () => number }).__pondLevel = () => {
+      an.getFloatTimeDomainData(buf);
+      let e = 0;
+      for (const v of buf) e += v * v;
+      return Math.sqrt(e / buf.length);
+    };
+  }
   const stops: AudioScheduledSourceNode[] = [];
   const bed = (type: BiquadFilterType, freq: number, q: number, vol: number, lfo?: { hz: number; depth: number }) => {
     const src = noiseLoop(c);
@@ -581,14 +606,17 @@ function syncPond(): void {
       stops.push(o);
     }
   };
+  // Package 7 (Ardian): the waterfall a little softer, so birds, ducks, frogs and crickets are heard
+  // clearly over it (measured with tools/pond-sound-test.mjs).
   if (want.waterfall) {
-    bed('bandpass', 700, 0.5, 0.11);
-    bed('highpass', 3200, 0.7, 0.015);
+    bed('bandpass', 700, 0.5, 0.075);
+    bed('highpass', 3200, 0.7, 0.011);
   }
   if (want.breeze) bed('lowpass', 480, 0.7, 0.05, { hz: 0.11, depth: 0.04 });
+  // Rain softer (package 7): it drowned the ducks and frogs.
   if (want.rain) {
-    bed('bandpass', 2600, 0.4, 0.08);
-    bed('lowpass', 300, 0.7, 0.04);
+    bed('bandpass', 2600, 0.4, 0.04);
+    bed('lowpass', 300, 0.7, 0.025);
   }
   // Short sounds at random moments.
   const tone = (type: OscillatorType, f0: number, f1: number, at: number, dur: number, vol: number, filter?: { type: BiquadFilterType; f: number; q: number }) => {
@@ -650,28 +678,48 @@ function syncPond(): void {
     if (want.ripples && chance(0.22)) {
       const f = 700 + Math.random() * 500;
       tone('sine', f, f * 0.6, 0, 0.09, 0.03);
+      logPond('ripple', 0.03);
     }
-    if (want.frogs && chance(want.frogsBusy ? 0.4 : 0.1)) {
-      const f = 95 + Math.random() * 40;
+    // Frogs (package 7): a "ribbit" a phone speaker can play (the old croak was ~100 Hz: phones
+    // cannot play that, so Ardian heard no frogs): two or three quick nasal pulses around 400-600 Hz.
+    // At night (with the crickets) and in the rain they call much more often.
+    if (want.frogs && chance(want.frogsBusy ? 0.45 : 0.08)) {
+      const f = 380 + Math.random() * 220;
       const n = 2 + Math.floor(Math.random() * 2);
-      for (let i = 0; i < n; i++) tone('sawtooth', f, f * 0.92, i * 0.1, 0.06, 0.09, { type: 'lowpass', f: 700, q: 2 });
+      const vol = 0.16;
+      for (let i = 0; i < n; i++) {
+        tone('square', f * 1.25, f, i * 0.12, 0.07, vol, { type: 'bandpass', f: f * 2.2, q: 3 });
+        tone('sawtooth', f * 0.5, f * 0.45, i * 0.12, 0.07, vol * 0.6, { type: 'lowpass', f: 900, q: 4 });
+      }
+      logPond('frog', vol);
     }
-    if (want.ducks && chance(0.08)) {
-      const n = 1 + Math.floor(Math.random() * 2);
-      for (let i = 0; i < n; i++) tone('sawtooth', 430, 320, i * 0.2, 0.13, 0.06, { type: 'bandpass', f: 1100, q: 3 });
+    // Ducks (package 7: they were too soft and rare to hear): a nasal "waak", one to three in a row,
+    // a little lower each time. Mornings, days and dusk (also in the rain); asleep at night.
+    if (want.ducks && chance(0.13)) {
+      const n = 1 + Math.floor(Math.random() * 3);
+      const f = 300 + Math.random() * 60;
+      const vol = 0.28;
+      for (let i = 0; i < n; i++) {
+        const p = f * (1 - i * 0.05);
+        tone('sawtooth', p * 1.15, p * 0.82, i * 0.2, 0.15, vol, { type: 'bandpass', f: 1250, q: 4 });
+        tone('square', p * 1.15, p * 0.82, i * 0.2, 0.15, vol * 0.35, { type: 'bandpass', f: 2600, q: 5 });
+      }
+      logPond('duck', vol);
     }
     // Crickets: a few insects, each a quick run of 3-4 bright pulses (loud enough to hear over the
     // waterfall and the rain; package 3: they were too soft to notice).
     if (want.crickets && chance(2.2)) {
       const f = 3900 + Math.random() * 900;
       const n = 3 + Math.floor(Math.random() * 2);
-      for (let i = 0; i < n; i++) tone('triangle', f, f * 0.98, i * 0.045, 0.028, 0.07, { type: 'bandpass', f, q: 6 });
+      for (let i = 0; i < n; i++) tone('triangle', f, f * 0.98, i * 0.045, 0.028, 0.11, { type: 'bandpass', f, q: 6 });
+      logPond('cricket', 0.11);
     }
     // Jungle birds (package 5: richer and louder): four kinds with real tunes, sometimes answering
     // each other; heard over the waterfall without drowning it.
     if (want.birds && chance(want.birdRate)) {
       const kind = Math.floor(Math.random() * BIRDS.length);
       birdSong(kind, 0, 1);
+      logPond('bird', BIRDS[kind].vol);
       // Another bird answers now and then (a different kind, or the same one a little higher).
       if (Math.random() < 0.45) birdSong(Math.random() < 0.5 ? (kind + 1 + Math.floor(Math.random() * (BIRDS.length - 1))) % BIRDS.length : kind, 0.7 + Math.random() * 0.8, 1.12);
     }
@@ -696,7 +744,8 @@ export function playPondSplash(vol = 0.5): void {
   f.frequency.setValueAtTime(1600, t);
   f.frequency.exponentialRampToValueAtTime(500, t + 0.18);
   const g = c.createGain();
-  g.gain.setValueAtTime(0.12 * vol, t);
+  // Package 7 (Ardian): loud enough to hear over the waterfall (was 0.12).
+  g.gain.setValueAtTime(0.34 * vol, t);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
   src.connect(f).connect(g).connect(pondPlaying.out);
   src.start(t);
@@ -705,26 +754,28 @@ export function playPondSplash(vol = 0.5): void {
   o.frequency.setValueAtTime(520, t);
   o.frequency.exponentialRampToValueAtTime(180, t + 0.1);
   og.gain.setValueAtTime(0.0001, t);
-  og.gain.exponentialRampToValueAtTime(0.12 * vol, t + 0.01);
+  og.gain.exponentialRampToValueAtTime(0.22 * vol, t + 0.01);
   og.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
   o.connect(og).connect(pondPlaying.out);
   o.start(t);
   o.stop(t + 0.12);
+  logPond('splash', 0.34 * vol);
 }
 
 /**
  * Four jungle birds (made in code): a whistler ("tu-wiii, tu-wiii"), a bulbul (a bubbly tune), a
- * warbler (a fast trill) and a dove (a low "hoo-hoo"). Volumes are heard over the waterfall.
+ * warbler (a fast trill) and a dove (a low "hoo-hoo"). Volumes are heard over the waterfall (package 7:
+ * a little softer, they were the loudest thing at the pond).
  */
 const BIRDS: { base: number; type: OscillatorType; vol: number; vib: number; song: [number, number, number, number][] }[] = [
   // whistler: two rising whistles
-  { base: 1700, type: 'sine', vol: 0.16, vib: 0.01, song: [[1, 1.5, 0, 0.26], [1, 1.55, 0.36, 0.3], [1.5, 1.2, 0.7, 0.14]] },
+  { base: 1700, type: 'sine', vol: 0.1, vib: 0.01, song: [[1, 1.5, 0, 0.26], [1, 1.55, 0.36, 0.3], [1.5, 1.2, 0.7, 0.14]] },
   // bulbul: a bubbly five-note tune
-  { base: 1500, type: 'triangle', vol: 0.15, vib: 0.02, song: [[1, 1.2, 0, 0.1], [1.33, 1.25, 0.12, 0.09], [1.5, 1.7, 0.23, 0.12], [1.2, 1.1, 0.38, 0.09], [1.6, 1.33, 0.49, 0.16]] },
+  { base: 1500, type: 'triangle', vol: 0.09, vib: 0.02, song: [[1, 1.2, 0, 0.1], [1.33, 1.25, 0.12, 0.09], [1.5, 1.7, 0.23, 0.12], [1.2, 1.1, 0.38, 0.09], [1.6, 1.33, 0.49, 0.16]] },
   // warbler: a fast trill that falls a little
-  { base: 3300, type: 'sine', vol: 0.11, vib: 0.03, song: Array.from({ length: 9 }, (_, i): [number, number, number, number] => [1.12 - i * 0.02, 1 - i * 0.02, i * 0.055, 0.04]) },
+  { base: 3300, type: 'sine', vol: 0.07, vib: 0.03, song: Array.from({ length: 9 }, (_, i): [number, number, number, number] => [1.12 - i * 0.02, 1 - i * 0.02, i * 0.055, 0.04]) },
   // dove: a low, hollow hoo-hoo
-  { base: 560, type: 'sine', vol: 0.18, vib: 0, song: [[1, 0.95, 0, 0.32], [1.12, 1, 0.42, 0.4]] },
+  { base: 560, type: 'sine', vol: 0.11, vib: 0, song: [[1, 0.95, 0, 0.32], [1.12, 1, 0.42, 0.4]] },
 ];
 
 /** The pond's background while the Fishing window is open (null = silence). */

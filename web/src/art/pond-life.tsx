@@ -180,8 +180,9 @@ export function PondLife({
           const j = pickJump(rand, { ducks: ducksRef.current.map((d) => duckAt(d.m, now)), zone: ctx.current.zone, avoid: ctx.current.avoid, layout: L });
           if (j) {
             setJump({ ...j, id: now });
-            window.setTimeout(() => playPondSplash(0.35), 150);
-            window.setTimeout(() => playPondSplash(0.6), 900);
+            // Out of the water, and the bigger splash back in (package 7: louder).
+            window.setTimeout(() => playPondSplash(0.7), 150);
+            window.setTimeout(() => playPondSplash(1), 900);
             window.setTimeout(() => setJump((cur) => (cur?.id === now ? null : cur)), 1700);
           }
         }
