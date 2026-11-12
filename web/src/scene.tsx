@@ -11,6 +11,7 @@ import { leafBurst } from './fx';
 import { Pixels, Sprite } from './sprites';
 import { formatDuration } from './ui';
 import { lookOf } from './weather';
+import { besideGap, faceToward, nextStand, type BotStand } from './bot-stand';
 import { dotsFor } from './dots';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 
@@ -56,9 +57,9 @@ function plotCenter(plot: number, lane: Lane): number {
   return lane.left + (lane.width / 3) * (plot + 0.5);
 }
 
-/** TaniBot stands to the right of plots 1-2 and to the left of plot 3. */
-function botX(plot: number, lane: Lane): number {
-  return plot < 2 ? plotCenter(plot, lane) + lane.botOffset : plotCenter(plot, lane) - lane.botOffset;
+/** A plot's own TaniBot spot: right of the plot, the last plot's on its left (bot-stand.ts). */
+function botX(plot: number, lane: Lane, plots: number): number {
+  return plot < plots - 1 ? plotCenter(plot, lane) + lane.botOffset : plotCenter(plot, lane) - lane.botOffset;
 }
 
 // ---------- Immersive layout (laptop / PC): web/src/layout.ts ----------
@@ -139,7 +140,17 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const tier = tierOf(state.player.title);
   /** Drone size: about a third of TaniBot's width at every scale. */
   const droneScale = Math.max(1, botScale);
-  const bx = botX(selected, lane);
+  // TaniBot stays in its gap while the picked plot is next to it; it only walks to the picked
+  // plot's own spot when the plot is not next to it (bot-stand.ts). It faces the plot it works on.
+  const plotCount = state.plots.length;
+  const standRef = useRef<{ stand: BotStand; selected: number; count: number } | null>(null);
+  if (!standRef.current || standRef.current.selected !== selected || standRef.current.count !== plotCount) {
+    standRef.current = { stand: nextStand(standRef.current?.stand ?? null, selected, plotCount), selected, count: plotCount };
+  }
+  const stand = standRef.current.stand;
+  const bx = botX(stand.plot, lane, plotCount);
+  const aim = fx && !visit && besideGap(stand.gap, fx.plot) ? fx.plot : selected;
+  const face = faceToward(stand.gap, aim);
   // A visited garden's TaniBot never works (the visitor's watering drone flies on its own).
   const working = fx !== null && !visit;
   const tb = visit ? null : state.player.tanibot;
@@ -150,7 +161,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const askOn = !visit && !state.tutorial && (!tb || tb.status === 'failed' || (tb.status === 'ready' && !tb.enabled));
   const flash = useActionBubble(on, tb?.last ?? null);
   const nudge = useTurnOnNudge(askOn, state);
-  const motion = useBotMotion(bx, on, working, selected);
+  const motion = useBotMotion(bx, on, working, face);
   const bye = useGoodbye(on, tb?.status === 'ready');
   // Visits: the owner's look appears when their garden loads (that is not an evolution).
   const evolving = useEvolution(tier, !visit);
@@ -360,7 +371,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
       </div>
       )}
 
-      {fx && <ActionEffect fx={fx} from={botX(fx.plot, lane)} to={plotCenter(fx.plot, lane)} tier={tier} px={px} droneScale={droneScale} lend={!visit && on && droneCount(tier) > 0} key={fx.id} />}
+      {fx && <ActionEffect fx={fx} from={besideGap(stand.gap, fx.plot) ? bx : botX(fx.plot, lane, plotCount)} to={plotCenter(fx.plot, lane)} tier={tier} px={px} droneScale={droneScale} lend={!visit && on && droneCount(tier) > 0} key={fx.id} />}
       </Stage>
     </div>
   );
@@ -774,7 +785,7 @@ type IdleAct = 'glance' | 'blink' | 'leds' | 'wave' | 'look';
  * - a happy bounce only right after it finished a job;
  * - switched off: none of this (it sleeps).
  */
-function useBotMotion(x: number, on: boolean, working: boolean, plot: number) {
+function useBotMotion(x: number, on: boolean, working: boolean, lookDir: 'left' | 'right') {
   const [move, setMove] = useState<{ dir: 'left' | 'right'; id: number } | null>(null);
   const [landing, setLanding] = useState(0);
   const [dust, setDust] = useState<{ x: number; id: number; kind: 'lift' | 'land' } | null>(null);
@@ -834,8 +845,7 @@ function useBotMotion(x: number, on: boolean, working: boolean, plot: number) {
     return () => (clearTimeout(timer), clearTimeout(off));
   }, [on]);
 
-  // The nearest tree is on the bot's left for plots 1-2 and on its right for plot 3.
-  const lookDir = plot < 2 ? 'left' : 'right';
+  // lookDir: toward the plot TaniBot works on (left or right of its gap: bot-stand.ts).
   // TaniBot FACES its plot (2026-11-12, Ardian), and the way it moves while moving. The sprite looks a
   // little to the left; facing right = mirrored (CSS .face-right). Its eyes' "look" then always runs
   // toward its own front (the sprite's left).
