@@ -124,9 +124,12 @@ async function lineOnTip(what) {
   return r;
 }
 
+/** The water pixel wipe (on the way in and out) has finished. */
+const wipeDone = () => pg.waitForSelector('.visit-wipe', { state: 'detached', timeout: 5000 });
 const openWindow = async () => {
   await pg.locator('.place-pin.pin-fishing').click({ force: true });
   await pg.waitForSelector('.fishing-dialog');
+  await wipeDone();
 };
 const forceCatch = (id) => db.prepare("UPDATE fishing_casts SET catch = ?, paid = ?, line = ? WHERE player_id = ? AND status = 'open'").run(id, ['stone', 'driftwood', 'fish_bone', 'old_boot', 'rusty_can', 'bottle'].includes(id) ? 0 : 1, id === 'bottle' ? 3 : null, pid);
 
@@ -217,6 +220,7 @@ await pg.evaluate(() => {
 check(await pg.evaluate(() => [...document.querySelectorAll('.fish-list-name')].every((e) => e.getBoundingClientRect().height < 56)), 'catch names stay on one or two lines');
 await pg.screenshot({ path: `${out}/fish-${tag}-4-list.png` });
 await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+await wipeDone();
 
 // The Golden Arowana's share card waits until the window closes, then opens.
 await pg.waitForSelector('.mfx-golden_arowana', { timeout: 4000 }).catch(() => null);
@@ -240,6 +244,7 @@ check(/released/i.test(t4) && /used up/.test(t4) && !/PANEN/.test(t4), `released
 const anim = await pg.evaluate(() => getComputedStyle(document.querySelector('.pond-catch')).animationName);
 check(anim === 'none', `reduced motion: the catch does not fly (${anim})`);
 await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+await wipeDone();
 await pg.emulateMedia({ reducedMotion: null });
 
 // A line left in the water is resumed when the window opens again.
@@ -247,12 +252,14 @@ await openWindow();
 await pg.locator('.fish-cast').click();
 await pg.waitForSelector('.pond-wait');
 await pg.locator('.info-close').click();
+await wipeDone();
 await openWindow();
 check((await pg.locator('.pond-wait, .pond-bite').count()) === 1, 'reopening resumes the line in the water');
 await pg.waitForSelector('.pond-bite', { timeout: 8000 });
 await pg.locator('.fish-reel').click();
 await pg.waitForSelector('.fish-result');
 await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+await wipeDone();
 
 // Another day: the other result tiers (Gourami festive, junk = Rusty can, a normal fish).
 db.prepare('UPDATE fishing_casts SET cast_day = cast_day - 1 WHERE player_id = ?').run(pid);
@@ -272,6 +279,7 @@ await pg.evaluate(() => {
 });
 await pg.screenshot({ path: `${out}/fish-${tag}-9-list.png` });
 await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+await wipeDone();
 
 // A server without fishing: the pin says "Soon" and opens the coming-soon window; no errors.
 await pg.route(`${API}/api/me**`, async (route) => {

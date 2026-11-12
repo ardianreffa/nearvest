@@ -243,3 +243,21 @@ line on the tip mid-cast / waiting / bite / reeling, the bent rod, TaniBot facin
    a short happy sound; items (seed, fertilizer, bottle, chest) = their own "item" sound; Gourami =
    more festive; Golden Arowana = gold sparkles + the biggest jingle.
 7. Share card only for the top catch (Golden Arowana), showing the new fish picture.
+
+## 9. Package 2: atmosphere (Ardian 2026-11-12) — BUILT 2026-11-12 (committed locally, not pushed)
+
+1. Water pixel wipe ("To the fishing pond" / "Back to the village") on the way in and out (the visit
+   wipe with water squares, `useVisitWipe` palette `water`; reduced motion = a short fade).
+2. Life (`web/src/art/pond-life.tsx`, rules `web/src/pond-life-plan.ts`): waterfall streaks + foam,
+   drifting glints, frogs hop in place now and then and sometimes to a neighbouring lily pad, facing a
+   random side; ducks paddle to random spots on the right-hand side only (never near the float); the big
+   tree's crown sways. The ChatGPT frogs and ducks were taken out of the picture
+   (`tools/pixelize/pond_clean.py`) and are drawn in code.
+3. Background sounds made in code (`setPondAmbience`, Sound switch): waterfall, ripples, frogs, ducks;
+   the garden's ambient loop pauses while the pond is open.
+4. Village clock: morning / day / dusk / night tints. Morning + day: breeze sound, green leaves.
+   Dusk: warm tint, dusk leaves. Night: dark tint, night leaves, frogs + crickets, ducks ASLEEP (still,
+   "zzz"), no duck sounds. Rain follows the village (drops, rings on the water, rain sound, frogs; ducks
+   only when not night). NO eruption or ash at the pond: those show a clear pond.
+5. Reduced motion: nothing moves (no timer, no leaves); only a few particles (5 leaves, 8 rain rings).
+6. Browser test: `tools/pond-mood-test.mjs` (fake chain, `?time=day|dusk|night`, `?weather=rain|eruption`).
