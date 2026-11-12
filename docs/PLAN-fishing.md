@@ -221,7 +221,12 @@ Arowana moment forced with a dev-only `FAKE_DB` roll); too-early tap; 3 casts th
 Schedule note: Thu 12 Nov is the buffer + feature freeze. Fishing fits only if it is started now and
 the freeze holds; if it slips, the pin simply stays "Soon" (nothing else depends on it).
 
-## 8. Package 1 of fixes after Ardian's test (2026-11-12)
+## 8. Package 1 of fixes after Ardian's test (2026-11-12) — BUILT 2026-11-12 (committed locally, not pushed)
+
+Rod maths: `web/src/art/rod-pose.ts` (tests `web/test/rod-pose.test.ts`: the line always starts at the
+tip, no jumps, nothing touches a frog or a duck at any moment). Icons: `tools/pixelize/catch_icons.py`.
+Tiers: `catchTier` in `web/src/fishing-logic.ts`. Browser: `tools/fishing-test.mjs` also checks the
+line on the tip mid-cast / waiting / bite / reeling, the bent rod, TaniBot facing right and each tier.
 
 1. TaniBot on the dock faces right (toward the water).
 2. A better rod: bamboo with nodes, a cork handle, a small reel and a tapering tip. The line and the
