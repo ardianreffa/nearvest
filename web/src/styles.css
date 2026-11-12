@@ -3421,7 +3421,7 @@ input:focus-visible {
   text-align: right;
 }
 
-/* ---------- Login page: daytime village behind a dark veil ---------- */
+/* ---------- Login page: the Fishing pond behind it (2026-11-12; was the daytime village) ---------- */
 
 .login-page {
   position: relative;
@@ -3430,26 +3430,30 @@ input:focus-visible {
   isolation: isolate;
 }
 
-.login-bg {
+/* The pond (login-pond.tsx): fixed behind everything, clipped to the screen. */
+.login-pond {
   position: fixed;
   inset: 0;
   z-index: -1;
-  /* The v3 village at midday (its bottom rows are grass and bushes), under a dark veil that is
-     lighter at the bottom so the grass shows; the art's see-through sky shows the cyan behind. */
-  background:
-    linear-gradient(color-mix(in srgb, var(--ink) 74%, transparent), color-mix(in srgb, var(--ink) 62%, transparent) 55%, color-mix(in srgb, var(--ink) 40%, transparent)),
-    url('/assets/bg/village3-web-day.png') center bottom / cover no-repeat,
-    linear-gradient(var(--cyan-700), var(--cyan-500));
-  image-rendering: pixelated;
+  overflow: hidden;
+  background: var(--leaf-700);
+  pointer-events: none;
 }
 
-@media (max-width: 1023px) {
-  .login-bg {
-    background:
-      linear-gradient(color-mix(in srgb, var(--ink) 74%, transparent), color-mix(in srgb, var(--ink) 62%, transparent) 55%, color-mix(in srgb, var(--ink) 40%, transparent)),
-      url('/assets/bg/village3-phone-day.png') center bottom / cover no-repeat,
-      linear-gradient(var(--cyan-700), var(--cyan-500));
-  }
+.login-pond .pond {
+  border: 0;
+}
+
+/* A soft ink shade at the top (title) and the bottom (note, links); the middle stays clear. */
+.login-pond-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    color-mix(in srgb, var(--ink) 62%, transparent),
+    color-mix(in srgb, var(--ink) 18%, transparent) 30%,
+    color-mix(in srgb, var(--ink) 10%, transparent) 62%,
+    color-mix(in srgb, var(--ink) 55%, transparent)
+  );
 }
 
 /* Sign-in page layout: one screen, no scrolling. Title near the top (sky / volcano), buttons in
@@ -3468,7 +3472,12 @@ input:focus-visible {
    sits in the sky right above the peak (no empty band between the tagline and the mountain). */
 @media (max-width: 1023px) {
   .login-page .login.shell {
-    padding-top: max(calc(env(safe-area-inset-top) + 16px), calc(34dvh - 150px));
+    padding-top: calc(env(safe-area-inset-top) + 16px);
+  }
+
+  /* The phone pond's waterfall starts at the top right: a smaller tagline stays clear of it. */
+  .login-page .login-head .tagline {
+    font-size: var(--fs-h3);
   }
 }
 
@@ -3508,32 +3517,9 @@ input:focus-visible {
   text-shadow: none;
 }
 
-/* The note in the middle of the plain grass of the background village (cover, bottom-anchored):
-   laptops rows 104-120 of the 135-row art (middle 112: 23/135 of its drawn height from the
-   bottom), phones rows 130-163 of 180 (middle 146.5: 33.5/180). */
-.login-page {
-  --art-h: max(100dvh, 100vw * 135 / 240);
-  --grass-mid: calc(var(--art-h) * 23 / 135);
-}
-
-@media (max-width: 1023px) {
-  .login-page {
-    --art-h: max(100dvh, 100vw * 180 / 120);
-    --grass-mid: calc(var(--art-h) * 33.5 / 180);
-  }
-}
-
+/* The note sits in the column at the bottom (2026-11-12: the pond has no plain grass band). */
 .login-page .login-foot-ghost {
-  visibility: hidden;
-}
-
-.login-page .login-foot-grass {
-  position: absolute;
-  left: 50%;
-  bottom: var(--grass-mid);
-  width: min(560px, calc(100% - 32px));
-  box-sizing: border-box;
-  transform: translate(-50%, 50%);
+  display: none;
 }
 
 /* Sign-in messages: light text on a red panel, readable over the dark village. */

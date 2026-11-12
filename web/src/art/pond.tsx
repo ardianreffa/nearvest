@@ -148,6 +148,7 @@ export function PondScene({
   layout: L = WIDE,
   rain = true,
   pictures = true,
+  angler = true,
   bot,
   children,
 }: {
@@ -156,6 +157,8 @@ export function PondScene({
    * screen-sized canvas per picture, package 7c), the scene has no background of its own.
    */
   pictures?: boolean;
+  /** false = just the pond (the sign-in page): no rod, line, float, bucket or lamp light. */
+  angler?: boolean;
   /** false = the caller draws the rain over the whole screen (the Fishing window, package 7b). */
   rain?: boolean;
   phase: PondPhase;
@@ -223,7 +226,9 @@ export function PondScene({
         </>
       )}
       <Waterfall mix={mix} k={k} L={L} />
-      <PondLife mix={mix} time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? fishingZone(L) : null} avoid={avoid} layout={L} />
+      <PondLife bucket={angler} mix={mix} time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? fishingZone(L) : null} avoid={avoid} layout={L} />
+      {angler && (
+        <>
       <svg class="pond-svg" viewBox={`0 0 ${L.w} ${L.h}`} aria-hidden="true">
         {pose.inWater && (
           <g class="pond-rings" fill="none" stroke={C.ripple} stroke-width={1}>
@@ -233,6 +238,8 @@ export function PondScene({
         )}
         {pose.lift > 0 && <ellipse class="pond-float-shadow" cx={pose.float.x} cy={pose.float.y + 1} rx={3} ry={1.6} fill={C.shadow} opacity={0.45} />}
       </svg>
+        </>
+      )}
       {bot && (
         <div class="pond-bot" style={{ ...pondAt(L.bot.x, L.bot.y, L), '--bot-k': String((k * BOT_H) / 64) }}>
           {/* An own box for the size and the facing: TaniBot's idle animation sets its own transform. */}
@@ -247,6 +254,8 @@ export function PondScene({
           </div>
         </div>
       )}
+      {angler && (
+        <>
       <svg class="pond-svg pond-rod-layer" viewBox={`0 0 ${L.w} ${L.h}`} aria-hidden="true">
         {/* In front of TaniBot: the rod from its hands out over the water, then the line and the float. */}
         <Rod pose={pose} spin={phase === 'reeling' ? ms : 0} />
@@ -280,6 +289,8 @@ export function PondScene({
           <circle class="float-glow" cx={f.x} cy={f.y} r={8} fill="url(#pond-glow-warm)" />
           <circle cx={f.x} cy={f.y - 0.5} r={0.9} fill={C.crystalCore} />
         </svg>
+        </>
+      )}
       <PondMood time={time} weather={weather} layout={L} rain={rain} />
       {children}
     </div>

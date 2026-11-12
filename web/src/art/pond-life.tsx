@@ -108,6 +108,7 @@ function LeafArt({ rows, color }: { rows: string[]; color: string }) {
 }
 
 export function PondLife({
+  bucket = true,
   layout: L = WIDE,
   mix = { dusk: 0, night: 0 },
   time,
@@ -116,6 +117,8 @@ export function PondLife({
   zone = null,
   avoid = [],
 }: {
+  /** The fish bucket on the dock (false on the sign-in page: nobody is fishing). */
+  bucket?: boolean;
   /** Which pond (art/pond-layouts.ts). */
   layout?: PondLayout;
   /** The dusk / night pictures' share (the tree crown follows them). */
@@ -266,9 +269,11 @@ export function PondLife({
           </g>
         )}
         {/* The wooden fish bucket on the dock, behind TaniBot (package 4). */}
-        <g class="pond-bucket" transform={`translate(${L.bucket.x} ${L.bucket.y}) scale(0.7)`}>
-          <Sprite rows={FISH_BUCKET} palette={BUCKET_PALETTE} />
-        </g>
+        {bucket && (
+          <g class="pond-bucket" transform={`translate(${L.bucket.x} ${L.bucket.y}) scale(0.7)`}>
+            <Sprite rows={FISH_BUCKET} palette={BUCKET_PALETTE} />
+          </g>
+        )}
         {frogs.map((f, i) => {
           const p = L.frogSpots[f.spot];
           return (

@@ -23,6 +23,7 @@ import { matchNotice } from './arena-turn';
 import { MatchScreen } from './arena-match';
 import { InvitePopup } from './arena-invite';
 import { FishingWindow } from './fishing';
+import { LoginPond } from './login-pond';
 import { autoCatchToShow, autoNotice } from './fishing-logic';
 import { overlayKey } from './overlay-key';
 import { FarmersWindow, friendCall, VisitGarden } from './friends';
@@ -1627,7 +1628,8 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
 
   return (
     <div class="login-page">
-      <div class="login-bg" aria-hidden="true" />
+      {/* The Fishing pond behind the sign-in (Ardian 2026-11-12; was the village). */}
+      <LoginPond />
     <main class="shell center login">
       {/* Top to bottom: title near the sky, buttons in the middle, the note on the grass, links last.
           The two flexible gaps around the buttons are equal (login-gap). */}
