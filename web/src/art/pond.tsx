@@ -19,6 +19,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { CRITTERS, type Box, type FishingZone, type PondTime, type PondWeather } from '../pond-life-plan';
 import { PondLife, PondMood } from './pond-life';
+import type { TallPond } from './pond-tall';
 import { CAST_MS, FLOAT_AT, REEL_MS, qAt, qNormal, rodPose, type Pt, type RodPose } from './rod-pose';
 
 /** Pond grid (image px). */
@@ -157,6 +158,7 @@ export function PondScene({
   weather = 'clear',
   avoid = [],
   mix = { dusk: 0, night: 0 },
+  tall = null,
   bot,
   children,
 }: {
@@ -169,6 +171,8 @@ export function PondScene({
   avoid?: Box[];
   /** How much of the dusk / night pictures show (pondMix: cross-fade like the village). */
   mix?: { dusk: number; night: number };
+  /** The upright picture (phones, art/pond-tall.ts): the 16:9 scene is drawn in its middle band. */
+  tall?: TallPond | null;
   bot?: ComponentChildren;
   children?: ComponentChildren;
 }) {
@@ -200,22 +204,38 @@ export function PondScene({
   const fs = 1 + pose.lift * 0.7;
   return (
     <div
-      class={`pond pond-${phase} pond-${time}${weather === 'rain' ? ' pond-rain-on' : ''}`}
+      class={`pond pond-${phase} pond-${time}${weather === 'rain' ? ' pond-rain-on' : ''}${tall ? ` pond-tall${tall.src.dusk ? '' : ' tall-no-dusk'}${tall.src.night ? '' : ' tall-no-night'}` : ''}`}
       data-time={time}
       data-dark={dark ? '1' : '0'}
       data-weather={weather}
       ref={host}
-      data-critters={JSON.stringify(CRITTERS)}
-      data-grid={`${POND_W}x${POND_H}`}
       data-tip={`${pose.tip.x.toFixed(2)},${pose.tip.y.toFixed(2)}`}
       data-bend={pose.bend.toFixed(1)}
-      style={{ '--pk': String(k) }}
+      style={{ '--pk': String(k), ...(tall ? { aspectRatio: `${POND_W} / ${tall.h}` } : {}) }}
     >
-      <img class="pond-img" src="/assets/bg/fishing-pond.png" alt="" width={POND_W} height={POND_H} draggable={false} />
+      {tall && (
+        <>
+          {/* The upright picture (its middle band is the 16:9 pond). */}
+          <img class="pond-img pond-img-tall" src={tall.src.day} alt="" draggable={false} />
+          {tall.src.dusk && <img class="pond-img pond-img-tall pond-fade" src={tall.src.dusk} alt="" style={{ opacity: mix.dusk }} draggable={false} />}
+          {tall.src.night && <img class="pond-img pond-img-tall pond-fade" src={tall.src.night} alt="" style={{ opacity: mix.night }} draggable={false} />}
+        </>
+      )}
+      <div
+        class="pond-band"
+        data-critters={JSON.stringify(CRITTERS)}
+        data-grid={`${POND_W}x${POND_H}`}
+        style={tall ? { top: `${(tall.band / tall.h) * 100}%`, height: `${(POND_H / tall.h) * 100}%` } : undefined}
+      >
+      {!tall && <img class="pond-img" src="/assets/bg/fishing-pond.png" alt="" width={POND_W} height={POND_H} draggable={false} />}
       {/* Ardian's dusk and night pictures over the day one, faded in by the village clock. */}
       {/* Always there (loaded once), faded in and out by CSS: no popping when the time changes. */}
-      <img class="pond-img pond-img-dusk pond-fade" src="/assets/bg/fishing-pond-dusk.png" alt="" style={{ opacity: mix.dusk }} draggable={false} />
-      <img class="pond-img pond-img-night pond-fade" src="/assets/bg/fishing-pond-night.png" alt="" style={{ opacity: mix.night }} draggable={false} />
+      {(!tall || tall.src.dusk === undefined) && (
+        <img class="pond-img pond-img-dusk pond-fade" src="/assets/bg/fishing-pond-dusk.png" alt="" style={{ opacity: tall ? 0 : mix.dusk }} draggable={false} />
+      )}
+      {(!tall || tall.src.night === undefined) && (
+        <img class="pond-img pond-img-night pond-fade" src="/assets/bg/fishing-pond-night.png" alt="" style={{ opacity: tall ? 0 : mix.night }} draggable={false} />
+      )}
       <Waterfall mix={mix} k={k} />
       <PondLife mix={mix} time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? FISHING_ZONE : null} avoid={avoid} />
       <svg class="pond-svg" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
@@ -275,8 +295,9 @@ export function PondScene({
           <circle class="float-glow" cx={f.x} cy={f.y} r={8} fill="url(#pond-glow-warm)" />
           <circle cx={f.x} cy={f.y - 0.5} r={0.9} fill={C.crystalCore} />
         </svg>
-      <PondMood time={time} weather={weather} />
       {children}
+      </div>
+      <PondMood time={time} weather={weather} band={tall ? { top: tall.band, h: tall.h } : null} />
     </div>
   );
 }

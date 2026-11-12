@@ -58,3 +58,6 @@ backups/
 
 # Local screenshots (UI tests, before/after); never committed
 screenshots/
+
+# Stand-in upright pond for ?tallpond=test (dev only, never committed)
+web/public/assets/bg/fishing-pond-tall-test.png

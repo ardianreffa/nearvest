@@ -14308,9 +14308,33 @@ html.duel-open .duel-bg .backdrop * {
 
 /* Upright phones: the panel takes the space under the pond. */
 @media (max-width: 1023px) and (orientation: portrait) {
-  .pond-screen[data-fit='fit'] .pond-panel {
+  .pond-screen[data-fit='fit'] .pond-panel,
+  .pond-screen[data-fit='tall'] .pond-panel {
     max-height: var(--pond-free, 52%);
   }
+}
+
+/* The 16:9 scene inside the pond: the whole pond, or the middle band of the upright picture. */
+.pond-band {
+  position: absolute;
+  inset: 0;
+}
+
+.pond-tall .pond-band {
+  bottom: auto;
+}
+
+/* An upright picture without its own dusk / night version: the day picture, dimmed in code. */
+.pond-img-tall {
+  transition: filter 4s ease-in-out;
+}
+
+.pond-tall.tall-no-dusk.pond-dusk .pond-img-tall {
+  filter: sepia(0.35) saturate(1.2) brightness(0.85);
+}
+
+.pond-tall.tall-no-night.pond-night .pond-img-tall {
+  filter: brightness(0.45) saturate(0.75);
 }
 
 /* Phones (package 6, Ardian's iPhone test): a compact panel and catch card that never cover the lake:
