@@ -14556,6 +14556,10 @@ html.duel-open .duel-bg .backdrop * {
     padding: 4px 8px;
   }
 
+  .pond-panel .fish-result .fish-done {
+    padding: 1px 6px;
+  }
+
   .pond-actions .btn {
     min-height: 48px;
   }
@@ -14612,7 +14616,9 @@ html.duel-open .duel-bg .backdrop * {
   /* One short line: the bottle's message instead of "A message in a bottle!", no Season line (the
      chip already shows what you received; the full note is in "What can I catch?"). */
   .pond-panel .fish-note:has(+ .fish-line),
-  .pond-panel .fish-season {
+  .pond-panel .fish-season,
+  .pond-panel .fish-done ~ .fish-note,
+  .pond-panel .fish-done ~ .fish-line {
     display: none;
   }
 

@@ -241,7 +241,22 @@ const t3b = await oneCast('3b', { force: 'stone', tier: 'junk' });
 check(/STONE/i.test(t3b) && /\+1 XP/.test(t3b), `cast 4: Stone, 1 XP (${t3b.replace(/\n/g, ' | ')})`);
 await oneCast('3c', { force: 'driftwood' });
 check((await pg.locator('.fish-cast').isDisabled()) && /No casts left/.test(await pg.locator('.fish-cast').innerText()), 'after 5 casts: "No casts left" (disabled)');
-check(/Come back at 07:00 WIB/.test(await pg.locator('.fish-status').innerText()), 'after 5 casts: come back at 07:00 WIB');
+check(/Come back at 07:00 WIB/.test(await pg.locator('.fish-done').innerText()), 'after 5 casts: come back at 07:00 WIB');
+// Package 7: after the last cast the panel shows the notice and "No casts left" fully (nothing cut
+// off inside the panel), and the catch has left the lake once its show is over.
+{
+  const r = await pg.evaluate(() => {
+    const body = document.querySelector('.pond-panel-body');
+    const done = document.querySelector('.fish-done')?.getBoundingClientRect();
+    const panel = document.querySelector('.pond-panel')?.getBoundingClientRect();
+    return { scroll: body.scrollHeight - body.clientHeight, done: !!done && done.top >= panel.top && done.bottom <= panel.bottom };
+  });
+  check(r.scroll <= 1 && r.done, `after 5 casts: the notice and the card fit the panel (hidden ${r.scroll} px)`);
+  await pg.waitForTimeout(3300);
+  const gone = await pg.evaluate(() => { const e = document.querySelector('.pond-result-fx'); return !e || getComputedStyle(e).opacity === '0'; });
+  check(gone, 'after 5 casts: no catch left floating in the lake');
+  await pg.screenshot({ path: `${out}/fish-${tag}-5-last-cast.png` });
+}
 await pg.locator('.fish-list-open').click();
 await pg.waitForSelector('.fishing-list-dialog');
 check((await pg.locator('.fish-list li').count()) === 14, 'What can I catch? lists 14 catches (with the Rusty can)');

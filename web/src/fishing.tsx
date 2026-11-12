@@ -394,7 +394,7 @@ export function FishingWindow({
       <section class="pond-panel" data-pond-avoid>
         <div class="pond-panel-body">
           {/* No casts left (package 7): one short, clear line instead of the hint. */}
-          {left === 0 && (phase.k === 'ready' || phase.k === 'result') ? (
+          {left === 0 && phase.k === 'ready' ? (
             <p class="fish-status fish-done" aria-live="polite">
               Come back at 07:00 WIB (in {untilText(nextIn)})
             </p>
@@ -423,6 +423,8 @@ export function FishingWindow({
                     </span>
                   ))}
                 </div>
+                {/* The last cast: the notice is the card's short line (one row less on phones). */}
+                {left === 0 && <p class="fish-status fish-done">Come back at 07:00 WIB (in {untilText(nextIn)})</p>}
                 <p class="fish-note">{catchNote(c)}</p>
                 {c.line && <p class="fish-line">“{c.line}”</p>}
                 {c.panen > 0 && seasonNote(state.season) && <p class="fish-season">{seasonNote(state.season)}. This is what you received.</p>}

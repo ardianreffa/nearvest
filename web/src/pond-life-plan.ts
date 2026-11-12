@@ -233,9 +233,9 @@ export interface PondFit {
   h: number;
 }
 /** Room the phone's (compact, package 7) controls need under the lake (CSS px). */
-export const PHONE_PANEL_MIN = 150;
+export const PHONE_PANEL_MIN = 165;
 /** At most this much (grid px) of the phone picture's top (jungle above the lake) may go off screen. */
-export const PHONE_TOP_CROP = 60;
+export const PHONE_TOP_CROP = 72;
 /**
  * Where the pond goes on a W x H screen (CSS px). With the phone layout (package 7, Ardian): ALWAYS the
  * full width, no blurred copy. If the lake would come too low for the controls, the picture moves up

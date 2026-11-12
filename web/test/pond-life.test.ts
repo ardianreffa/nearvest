@@ -27,6 +27,8 @@ import {
   pickJump,
   POND_HOLD_DEMO_MS,
   pondFit,
+  PHONE_PANEL_MIN,
+  PHONE_TOP_CROP,
   pondMix,
   pondSounds,
   pondTime,
@@ -247,8 +249,8 @@ describe('fishing pond life', () => {
       assert.equal(f.mode, 'phone');
       assert.equal(f.left, 0);
       assert.equal(f.w, W);
-      assert.ok(f.top <= 0 && f.top >= -60 * (W / PHONE.w) - 0.01, `top ${f.top}`);
-      assert.ok(H - (f.top + PHONE.lakeBottom * (f.w / PHONE.w)) >= 149, `room under the lake at ${W}x${H}`);
+      assert.ok(f.top <= 0 && f.top >= -PHONE_TOP_CROP * (W / PHONE.w) - 0.01, `top ${f.top}`);
+      assert.ok(H - (f.top + PHONE.lakeBottom * (f.w / PHONE.w)) >= PHONE_PANEL_MIN - 0.01, `room under the lake at ${W}x${H}`);
     }
   });
 });

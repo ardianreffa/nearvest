@@ -65,11 +65,20 @@ const look = () =>
       leafShape: [...document.querySelectorAll('.pond-leaf')].map((e) => `${e.querySelectorAll('rect').length}:${new Set([...e.querySelectorAll('rect')].map((r) => getComputedStyle(r).fill)).size}`),
       tint: document.querySelector('.pond-tint')?.className,
       pics: ['dusk', 'night'].map((t) => { const i = document.querySelector(`.pond-img-${t}`); return i && i.complete && i.naturalWidth === 480 ? Number(getComputedStyle(i).opacity) : 0; }),
-      rain: document.querySelector('.pond-rain') && Number(getComputedStyle(document.querySelector('.pond-rain')).opacity) > 0.99 ? document.querySelectorAll('.pond-rain .wx-rain-layer').length : 0,
+      rain: document.querySelector('.pond .pond-rain') && Number(getComputedStyle(document.querySelector('.pond .pond-rain')).opacity) > 0.99 ? document.querySelectorAll('.pond .pond-rain .wx-rain-layer').length : 0,
+      // Phones (package 7): the same rain over the picture's ground below the pond.
+      groundRain: document.querySelector('.pond-ground-mood .pond-rain') && Number(getComputedStyle(document.querySelector('.pond-ground-mood .pond-rain')).opacity) > 0.99 ? document.querySelectorAll('.pond-ground-mood .wx-rain-layer').length : 0,
+      ground: document.querySelectorAll('.pond-ground').length,
+      blur: document.querySelectorAll('.pond-backfill').length,
       rings: document.querySelectorAll('.rain-ring').length,
       fireflies: document.querySelectorAll('.pond-firefly').length,
       bucket: document.querySelectorAll('.pond-bucket rect').length,
-      lights: !!document.querySelector('.pond-lights') && Number(getComputedStyle(document.querySelector('.pond-lights')).opacity) > 0.99 && !!document.querySelector('.pond-lamp'),
+      // The float's glow and TaniBot's torch, held IN its box (package 7: it breathes with TaniBot).
+      lights:
+        !!document.querySelector('.pond-lights') &&
+        Number(getComputedStyle(document.querySelector('.pond-lights')).opacity) > 0.99 &&
+        !!document.querySelector('.pond-bot-in .held-lamp-body') &&
+        Number(getComputedStyle(document.querySelector('.pond-bot-in .held-lamp-glow')).opacity) > 0.99,
       tree: [...document.querySelectorAll('.pond-tree img')].every((i) => i.complete && i.naturalWidth > 40) && document.querySelectorAll('.pond-tree img').length >= 1,
       trees: document.querySelectorAll('.pond-tree img').length,
       treeAnim: document.querySelector('.pond-tree') && getComputedStyle(document.querySelector('.pond-tree')).animationName,
@@ -125,6 +134,10 @@ for (const L of LOOKS) {
   leafColors[L.time] ??= a.leaves[0];
   check(JSON.stringify(a.pics) === JSON.stringify(L.time === 'dusk' ? [1, 0] : L.time === 'night' ? [0, 1] : [0, 0]) && !/tint-(dusk|night)|pond-glow/.test(a.tint), `${L.q}: ${L.time === 'day' ? 'day picture only' : `Ardian's ${L.time} picture`} (dusk ${a.pics[0]}, night ${a.pics[1]}), no code tint`);
   check(L.weather === 'rain' ? a.rain === 2 && a.rings === 8 : a.rain === 0 && a.rings === 0, `${L.q}: rain layers ${a.rain}, rings ${a.rings}`);
+  if (phone) {
+    check(a.ground === 3 && a.blur === 0, `${L.q}: phone: the picture's own ground below it, no blurred copy (${a.ground} ground, ${a.blur} blur)`);
+    check(a.groundRain === (L.weather === 'rain' ? 2 : 0), `${L.q}: phone: the same rain over that ground (${a.groundRain})`);
+  }
   const night = L.time === 'night';
   check(a.lights === (night || L.weather === 'rain'), `${L.q}: ${night || L.weather === 'rain' ? 'the float glows and TaniBot holds its lamp' : 'no lamp by day'} (${a.lights})`);
   check(a.fireflies === (night && L.weather !== 'rain' ? 10 : 0), `${L.q}: fireflies ${a.fireflies} (only on clear nights)`);
