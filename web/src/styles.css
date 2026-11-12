@@ -44,6 +44,68 @@
   color-scheme: light;
 }
 
+/* ---------- Pixel cursors (2026-11-12, Ardian): laptops / PCs only ----------
+   An own pixel arrow for the whole site and a pointing hand for everything clickable (art:
+   tools/pixelize/cursors.py, /assets/cursor/; 1x + 2x files so they stay sharp on Retina). Phones and
+   touch screens keep the normal cursors (no fine pointer = the plain values). Text fields keep the
+   text cursor. Every clickable rule uses var(--cur-hand), every plain one var(--cur-arrow). */
+:root {
+  --cur-arrow: default;
+  --cur-hand: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :root {
+    --cur-arrow: url('/assets/cursor/arrow.png') 1 1, default;
+    --cur-hand: url('/assets/cursor/hand.png') 11 1, pointer;
+  }
+
+  @supports (cursor: -webkit-image-set(url('/assets/cursor/arrow.png') 1x) 1 1, auto) {
+    :root {
+      --cur-arrow: -webkit-image-set(url('/assets/cursor/arrow.png') 1x, url('/assets/cursor/arrow@2x.png') 2x) 1 1, default;
+      --cur-hand: -webkit-image-set(url('/assets/cursor/hand.png') 1x, url('/assets/cursor/hand@2x.png') 2x) 11 1, pointer;
+    }
+  }
+
+  @supports (cursor: image-set(url('/assets/cursor/arrow.png') 1x) 1 1, auto) {
+    :root {
+      --cur-arrow: image-set(url('/assets/cursor/arrow.png') 1x, url('/assets/cursor/arrow@2x.png') 2x) 1 1, default;
+      --cur-hand: image-set(url('/assets/cursor/hand.png') 1x, url('/assets/cursor/hand@2x.png') 2x) 11 1, pointer;
+    }
+  }
+}
+
+html {
+  cursor: var(--cur-arrow);
+}
+
+a[href],
+button,
+summary,
+select,
+[role='button'],
+[role='tab'],
+input[type='checkbox'],
+input[type='radio'],
+label:has(> input[type='checkbox']),
+.place-pin {
+  cursor: var(--cur-hand);
+}
+
+button:disabled,
+[aria-disabled='true'] {
+  cursor: var(--cur-arrow);
+}
+
+input:not([type]),
+input[type='text'],
+input[type='search'],
+input[type='email'],
+input[type='number'],
+textarea {
+  cursor: text;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -296,7 +358,7 @@ button {
   border: var(--px) solid var(--ink);
   box-shadow: 0 var(--px) 0 var(--ink);
   font-weight: 700;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   touch-action: manipulation;
   transition: transform 60ms;
 }
@@ -361,7 +423,7 @@ button {
   padding: 4px;
   color: var(--leaf-700);
   text-decoration: underline;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   font-weight: 600;
 }
 
@@ -492,7 +554,7 @@ button {
   background: none;
   border: 0;
   padding: 0;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -1202,7 +1264,7 @@ button {
   background: var(--paper-light);
   border: var(--px) solid var(--ink);
   box-shadow: 0 var(--px) 0 var(--ink);
-  cursor: pointer;
+  cursor: var(--cur-hand);
   font-size: var(--fs-sm);
   font-weight: 600;
 }
@@ -1440,7 +1502,7 @@ button {
   color: var(--mint-300);
   font-size: var(--fs-xs);
   font-weight: 600;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .tab-icon {
@@ -1698,7 +1760,7 @@ input:focus-visible {
   height: 44px;
   background: var(--ink);
   border: 2px solid var(--leaf-700);
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .icon-btn:focus-visible {
@@ -3046,7 +3108,7 @@ input:focus-visible {
   color: var(--paper);
   background: color-mix(in srgb, var(--ink) 45%, transparent);
   border: 2px solid transparent;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .rail-btn:hover,
@@ -3598,7 +3660,7 @@ input:focus-visible {
   font-size: var(--fs-sm);
   color: var(--mint-300);
   text-decoration: underline;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .login-page .login-foot b {
@@ -3747,7 +3809,7 @@ input:focus-visible {
 
 button.balance {
   font-family: inherit;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 button.balance:hover,
@@ -3765,7 +3827,7 @@ button.balance:focus-visible {
   color: inherit;
   font: inherit;
   text-align: left;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   border-radius: 6px;
 }
 
@@ -3917,7 +3979,7 @@ button.balance:focus-visible {
   font-size: var(--fs-xs);
   line-height: 1.2;
   color: var(--ink, var(--ink));
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .avatar-choice:hover,
@@ -3942,7 +4004,7 @@ button.balance:focus-visible {
   border: 0;
   padding: 0;
   margin: 0;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   line-height: 0;
 }
 
@@ -4028,7 +4090,7 @@ button.balance:focus-visible {
   border: 2px solid transparent;
   border-radius: 6px;
   color: var(--ink);
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .bot-style b {
@@ -4194,7 +4256,7 @@ button.balance:focus-visible {
   max-width: 190px;
   transform: translateX(-50%);
   pointer-events: auto;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   font: inherit;
   font-size: var(--fs-xs);
   line-height: 1.35;
@@ -4339,7 +4401,7 @@ button.balance:focus-visible {
   border: 2px solid var(--soil-300);
   border-radius: 6px;
   box-shadow: inset 0 -3px 0 var(--paper), 0 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
-  cursor: pointer;
+  cursor: var(--cur-hand);
   transition: transform 0.08s steps(2);
 }
 
@@ -4355,7 +4417,7 @@ button.balance:focus-visible {
 
 .seed-card:disabled {
   opacity: 0.55;
-  cursor: default;
+  cursor: var(--cur-arrow);
 }
 
 .seed-card-icon {
@@ -4704,7 +4766,7 @@ button.balance:focus-visible {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  cursor: default;
+  cursor: var(--cur-arrow);
   animation: bot-hint-in 0.5s ease-out forwards, bot-hint-out 0.6s ease-in 7.4s forwards;
 }
 
@@ -4714,7 +4776,7 @@ button.balance:focus-visible {
   background: none;
   border: 0;
   padding: 0;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   text-align: center;
 }
 
@@ -4726,7 +4788,7 @@ button.balance:focus-visible {
   border: 0;
   padding: 2px 4px;
   text-decoration: underline;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 /* The sleepy "Tap me to help!" bubble: small, right next to TaniBot's head. */
@@ -5249,7 +5311,7 @@ button.balance:focus-visible {
   border: 2px solid var(--leaf-300);
   background: var(--paper-light);
   color: var(--ink);
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .owned-chip.selected {
@@ -5611,7 +5673,7 @@ details.panel > summary.panel-head {
   border: 2px solid color-mix(in srgb, var(--soil-300) 60%, transparent);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 28%, transparent);
   backdrop-filter: blur(4px);
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 button.chip:focus-visible {
@@ -5714,7 +5776,7 @@ button.chip:focus-visible {
 
 /* Farm day: information only, so quieter and not clickable. */
 .chip-day {
-  cursor: default;
+  cursor: var(--cur-arrow);
   font-weight: 600;
   color: var(--paper);
   background: color-mix(in srgb, var(--soil-700) 50%, transparent);
@@ -6813,7 +6875,7 @@ button.chip:focus-visible {
 .share-preview > summary {
   display: inline-flex;
   list-style: none;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .share-preview > summary::-webkit-details-marker {
@@ -6946,7 +7008,7 @@ button.chip:focus-visible {
   padding: 0;
   background: var(--gold-300);
   border: 2px solid var(--ink);
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .howto-dot.active {
@@ -7567,7 +7629,7 @@ button.chip:focus-visible {
   background: transparent;
   border: 0;
   border-radius: 6px;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   pointer-events: auto;
 }
 
@@ -7637,7 +7699,7 @@ button.chip:focus-visible {
   background: none;
   border: 0;
   filter: drop-shadow(0 0 4px var(--pin-glow)) drop-shadow(0 2px 2px color-mix(in srgb, var(--ink) 45%, transparent));
-  cursor: pointer;
+  cursor: var(--cur-hand);
   pointer-events: auto;
   animation: pin-bob 3.2s ease-in-out infinite;
   transition: transform 0.15s ease-out, filter 0.15s;
@@ -7870,7 +7932,7 @@ button.chip:focus-visible {
   color: inherit;
   background: none;
   border: 0;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .sheet-toggle h2 {
@@ -8740,7 +8802,7 @@ button.chip:focus-visible {
   background: var(--cyan-700);
   border: 2px solid var(--ink);
   border-radius: 50%;
-  cursor: pointer;
+  cursor: var(--cur-hand);
   flex: none;
 }
 
@@ -8795,7 +8857,7 @@ button.chip:focus-visible {
   color: var(--ink-soft);
   background: none;
   border: 0;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 @keyframes info-in {
@@ -9260,7 +9322,7 @@ li b,
   color: var(--ink);
   background: var(--gold-500);
   border: 4px solid var(--ink);
-  cursor: pointer;
+  cursor: var(--cur-hand);
   clip-path: polygon(0 4px, 2px 4px, 2px 2px, 4px 2px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 2px, calc(100% - 2px) 2px, calc(100% - 2px) 4px, 100% 4px, 100% calc(100% - 4px), calc(100% - 2px) calc(100% - 4px), calc(100% - 2px) calc(100% - 2px), calc(100% - 4px) calc(100% - 2px), calc(100% - 4px) 100%, 4px 100%, 4px calc(100% - 2px), 2px calc(100% - 2px), 2px calc(100% - 4px), 0 calc(100% - 4px));
 }
 
@@ -9318,11 +9380,11 @@ li b,
   --n: 2px;
   animation: toast-in 160ms steps(3);
   pointer-events: auto;
-  cursor: default;
+  cursor: var(--cur-arrow);
 }
 
 .toasts > a.toast {
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .toasts > .toast-chain,
@@ -9340,7 +9402,7 @@ li b,
   padding: 7px 10px;
   white-space: normal;
   line-height: 1.3 !important;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 /* "+2 more": as small as its words (never stretched). On an alert it gets its own line at the
@@ -9453,7 +9515,7 @@ li b,
   appearance: none;
   height: 32px;
   background: transparent;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .qty-slider::-webkit-slider-runnable-track {
@@ -9500,7 +9562,7 @@ li b,
 
 .qty-slider:disabled {
   opacity: 0.5;
-  cursor: default;
+  cursor: var(--cur-arrow);
 }
 
 /* =====================================================================
@@ -9774,7 +9836,7 @@ html.page-locked body {
   background: var(--soil-700);
   border: 2px solid var(--ink);
   box-shadow: inset 0 2px 0 color-mix(in srgb, var(--ink) 35%, transparent);
-  cursor: pointer;
+  cursor: var(--cur-hand);
   touch-action: none;
 }
 
@@ -9828,7 +9890,7 @@ html.page-locked body {
   text-transform: inherit;
   background: none;
   border: 0;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .inv-toggle:focus-visible {
@@ -10073,7 +10135,7 @@ html.page-locked body {
   background: color-mix(in srgb, var(--hud) 88%, transparent);
   border: 2px solid var(--soil-700);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 30%, transparent);
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .hud-panen b {
@@ -10176,7 +10238,7 @@ html.page-locked body {
   font-size: var(--fs-sm);
   color: var(--ink-soft);
   text-decoration: underline;
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 /* =====================================================================
@@ -11657,7 +11719,7 @@ html.page-locked body {
 }
 
 .visitor-wave.waved:disabled {
-  cursor: default;
+  cursor: var(--cur-arrow);
   color: var(--mint-700);
   background: var(--mint-300);
   opacity: 1;
@@ -11697,7 +11759,7 @@ html.page-locked body {
   background: var(--paper-light);
   border: 2px solid var(--ink);
   box-shadow: 0 3px 0 color-mix(in srgb, var(--ink) 35%, transparent);
-  cursor: pointer;
+  cursor: var(--cur-hand);
 }
 
 .sticker-pick:hover:not(:disabled),
@@ -11711,7 +11773,7 @@ html.page-locked body {
 }
 
 .sticker-pick:disabled {
-  cursor: default;
+  cursor: var(--cur-arrow);
   opacity: 0.55;
 }
 
@@ -11744,7 +11806,7 @@ html.page-locked body {
 
 /* Sent today: greyed out, says "Sent" (one sticker per garden per village day). */
 .visit-sticker:disabled {
-  cursor: default;
+  cursor: var(--cur-arrow);
   opacity: 0.75;
 }
 
@@ -11889,7 +11951,7 @@ html.page-locked body {
 
 .visit-duel:disabled {
   opacity: 0.8;
-  cursor: default;
+  cursor: var(--cur-arrow);
   background: var(--paper);
 }
 
@@ -13805,13 +13867,13 @@ html.duel-open .duel-bg .backdrop * {
 .farmer-tags .tag.tag-friend {
   color: var(--gold-700);
   background: var(--gold-300);
-  cursor: pointer;
+  cursor: var(--cur-hand);
   min-height: 0;
   line-height: 1.2;
 }
 
 .farmer-tags .tag.tag-friend.static {
-  cursor: default;
+  cursor: var(--cur-arrow);
 }
 
 .farmer-tags .tag.tag-friend svg {
@@ -13896,7 +13958,7 @@ html.duel-open .duel-bg .backdrop * {
 
 .visit-friend:disabled {
   opacity: 0.8;
-  cursor: default;
+  cursor: var(--cur-arrow);
 }
 
 @media (max-width: 1023px) {
