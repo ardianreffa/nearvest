@@ -38,7 +38,7 @@ export function catchNote(c: CatchView): string {
   if (c.item === 'fertilizer') return 'A drifting bottle of Fertilizer! It is in your Storage now.';
   if (c.catch === 'bottle') return 'A message in a bottle! It says:';
   if (c.catch === 'chest') return 'A small chest full of PANEN!';
-  if (c.catch === 'golden_arowana') return 'The legendary fish of Tandur!';
+  if (c.catch === 'golden_arowana') return 'The legendary fish of Tandur! Mr. Darto bought it on the spot.';
   if (c.kind === 'junk') return 'Junk! Better luck next cast.';
   return 'Mr. Darto bought it on the spot and paid you right away.';
 }

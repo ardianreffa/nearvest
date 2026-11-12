@@ -240,7 +240,7 @@ export function PondLife({
             z<small>z</small>
           </span>
         ))}
-      {!still && (
+      {!stillMode && (
         <div class="pond-leaves" aria-hidden="true">
           {leaves.map((l, i) => (
             <span

@@ -14186,20 +14186,143 @@ html.duel-open .duel-bg .backdrop * {
 
 /* ---------- Fishing window (fishing.tsx, docs/PLAN-fishing.md) ---------- */
 
-.fishing-live {
-  max-width: 520px;
+/* Full screen (package 3, Ardian): the pond fills the screen like the village; the controls float
+   over it. Laptops: the pond covers the window (crops at most 12% of a side). Upright phones: the
+   whole pond across the width, a blurred, darker copy of it around, the panel below. */
+.pond-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 28;
+  overflow: hidden;
+  background: var(--leaf-700);
 }
 
-.fishing-live .info-body {
-  overflow-x: hidden;
+.pond-backfill {
+  position: absolute;
+  inset: -24px;
+  width: calc(100% + 48px);
+  height: calc(100% + 48px);
+  object-fit: cover;
+  filter: blur(10px) brightness(0.7) saturate(0.9);
+  pointer-events: none;
+  user-select: none;
+}
+
+.pond-screen.pond-time-dusk .pond-backfill {
+  filter: blur(10px) brightness(0.6) sepia(0.35);
+}
+
+.pond-screen.pond-time-night .pond-backfill {
+  filter: blur(10px) brightness(0.35) saturate(0.8);
+}
+
+.pond-stage {
+  position: absolute;
+}
+
+.pond-screen .pond {
+  border: 0;
+}
+
+.pond-screen[data-fit='fit'] .pond-stage {
+  box-shadow: 0 0 0 var(--px) var(--soil-700), 0 8px 24px color-mix(in srgb, var(--ink) 50%, transparent);
+}
+
+.pond-hud-top {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.pond-hud-top > * {
+  pointer-events: auto;
+}
+
+.pond-back {
+  min-height: 48px;
+}
+
+.pond-chip.fish-casts {
+  color: var(--paper-light);
+}
+
+.pond-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  min-height: 40px;
+  box-sizing: border-box;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--paper-light);
+  background: color-mix(in srgb, var(--hud) 88%, transparent);
+  border: 2px solid var(--soil-700);
+}
+
+.pond-panel {
+  position: absolute;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 24px));
+  max-height: 46%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 10px 12px 12px;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  border: var(--px) solid var(--soil-700);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 45%, transparent);
 }
 
-/* Nothing in the window shrinks: a long catch card scrolls inside the window instead. */
-.fishing-live .info-body > * {
+.pond-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.pond-panel-body > * {
   flex: none;
+}
+
+.pond-panel .fish-status:empty {
+  display: none;
+}
+
+.pond-actions {
+  display: flex;
+}
+
+.pond-actions .btn {
+  flex: 1;
+  min-height: 52px;
+}
+
+.fish-list-open {
+  align-self: center;
+}
+
+/* Upright phones: the panel takes the space under the pond. */
+@media (max-width: 1023px) and (orientation: portrait) {
+  .pond-screen[data-fit='fit'] .pond-panel {
+    max-height: var(--pond-free, 52%);
+  }
+}
+
+.fishing-list-dialog {
+  max-width: 560px;
 }
 
 /* The pond scene (art/pond.tsx), seen from above: the whole picture always shows (16:9), never cut
@@ -15104,20 +15227,6 @@ html.duel-open .duel-bg .backdrop * {
   font-family: var(--font-ui);
   color: var(--gold-700);
   white-space: nowrap;
-}
-
-/* Thumb-sized buttons; while the line is in the water there is one big "Reel in" button. */
-.fishing-live .info-actions .btn {
-  min-height: 52px;
-  font-size: var(--fs-body);
-}
-
-.fishing-one .info-actions {
-  grid-template-columns: 1fr;
-}
-
-.fishing-one .info-actions .fish-reel {
-  flex: 1;
 }
 
 .fish-now {

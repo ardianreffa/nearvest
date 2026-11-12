@@ -22,6 +22,7 @@ import {
   FROGS,
   frogTick,
   LEAF_COLORS,
+  pondFit,
   pondSounds,
   pondTime,
   pondWeather,
@@ -133,5 +134,17 @@ describe('fishing pond life', () => {
 
   it('the critter boxes hold every lily pad a frog uses', () => {
     for (const p of FROG_SPOTS) assert.ok(CRITTERS.some(([x, y, w, h]) => p.x > x && p.x < x + w && p.y > y && p.y < y + h));
+  });
+  it('full screen: laptops covered by the pond, upright phones show the whole pond across the width', () => {
+    const lap = pondFit(1280, 800);
+    assert.equal(lap.mode, 'cover');
+    assert.ok(lap.w >= 1280 && lap.h >= 800 && Math.abs(lap.w / lap.h - 16 / 9) < 0.01);
+    assert.ok((lap.w - 1280) / lap.w <= 0.12, 'crops at most 12%');
+    assert.equal(pondFit(1920, 1080).mode, 'cover');
+    const phone = pondFit(390, 844);
+    assert.equal(phone.mode, 'fit');
+    assert.equal(phone.w, 390);
+    assert.ok(phone.top >= 72 && phone.top + phone.h < 844 * 0.6, 'upper part, room for the panel below');
+    assert.equal(pondFit(1024, 768).mode, 'fit', 'too much would be cut: the whole pond with a blurred copy around');
   });
 });

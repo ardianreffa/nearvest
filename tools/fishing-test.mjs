@@ -51,24 +51,40 @@ const errors = [];
 pg.on('pageerror', (e) => errors.push(String(e)));
 pg.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && errors.push(m.text()));
 
-/** The window and its buttons are inside the screen, nothing scrolls sideways, buttons >= 48 px high. */
+/**
+ * Full screen (package 3): the pond fills the screen (laptops: covers it; phones: the whole pond across
+ * the width), the floating top bar and panel are inside the screen, nothing scrolls sideways, every
+ * button is thumb-sized (>= 48 px high) and the panel does not hide the pond on phones.
+ */
 async function fits(what) {
   const r = await pg.evaluate(() => {
-    const d = document.querySelector('.fishing-dialog')?.getBoundingClientRect();
-    const btns = [...document.querySelectorAll('.fishing-dialog .info-actions .btn')].map((b) => b.getBoundingClientRect());
-    const pond = document.querySelector('.pond')?.getBoundingClientRect();
+    const rect = (sel) => {
+      const e = document.querySelector(sel);
+      if (!e) return null;
+      const q = e.getBoundingClientRect();
+      return { l: q.left, r: q.right, t: q.top, b: q.bottom, w: q.width, h: q.height };
+    };
     return {
-      d: d && { l: d.left, r: d.right, t: d.top, b: d.bottom },
-      pond: pond && { l: pond.left, r: pond.right, w: pond.width, h: pond.height },
-      btns: btns.map((b) => ({ h: b.height, l: b.left, r: b.right, b: b.bottom })),
+      screen: rect('.pond-screen'),
+      fit: document.querySelector('.pond-screen')?.dataset.fit,
+      pond: rect('.pond'),
+      panel: rect('.pond-panel'),
+      top: rect('.pond-hud-top'),
+      btns: [...document.querySelectorAll('.pond-screen .pond-actions .btn, .pond-back')].map((b) => b.getBoundingClientRect()).map((b) => ({ h: b.height, l: b.left, r: b.right, b: b.bottom })),
       sx: document.documentElement.scrollWidth,
-      bodyX: document.querySelector('.fishing-dialog .info-body')?.scrollWidth - document.querySelector('.fishing-dialog .info-body')?.clientWidth,
+      panelX: (() => {
+        const e = document.querySelector('.pond-panel-body');
+        return e ? e.scrollWidth - e.clientWidth : 0;
+      })(),
     };
   });
-  const inside = r.d && r.d.l >= 0 && r.d.r <= W + 0.5 && r.d.t >= 0 && r.d.b <= H + 0.5;
-  check(inside, `${what}: window inside the screen (${JSON.stringify(r.d)})`);
-  check(r.sx <= W && r.bodyX <= 0, `${what}: no sideways scroll (page ${r.sx}, body overflow ${r.bodyX})`);
-  check(!r.pond || (r.pond.l >= r.d.l && r.pond.r <= r.d.r && Math.abs(r.pond.w / r.pond.h - 16 / 9) < 0.05), `${what}: pond whole, 16:9 (${r.pond && `${Math.round(r.pond.w)}x${Math.round(r.pond.h)}`})`);
+  const inScreen = (x) => x && x.l >= -0.5 && x.r <= W + 0.5 && x.t >= -0.5 && x.b <= H + 0.5;
+  check(r.screen && r.screen.w === W && r.screen.h === H, `${what}: the pond is full screen (${r.screen && `${r.screen.w}x${r.screen.h}`}, ${r.fit})`);
+  check(inScreen(r.panel) && inScreen(r.top), `${what}: top bar and panel inside the screen`);
+  check(r.sx <= W && r.panelX <= 0, `${what}: no sideways scroll (page ${r.sx}, panel ${r.panelX})`);
+  check(Math.abs(r.pond.w / r.pond.h - 16 / 9) < 0.05, `${what}: pond 16:9 (${Math.round(r.pond.w)}x${Math.round(r.pond.h)})`);
+  if (W < H) check(r.pond.l >= -0.5 && r.pond.r <= W + 0.5 && r.panel.t >= r.pond.b - 0.5 && r.top.b <= r.pond.t + 0.5, `${what}: phone: the whole pond shows, bar above, panel below`);
+  else check(r.fit === 'cover' && r.pond.w >= W && r.pond.h >= H - 0.5, `${what}: laptop: the pond covers the window`);
   check(r.btns.length > 0 && r.btns.every((b) => b.h >= 48 && b.l >= 0 && b.r <= W && b.b <= H), `${what}: buttons on screen, >= 48 px high (${r.btns.map((b) => Math.round(b.h)).join(', ')})`);
 }
 
@@ -128,7 +144,7 @@ async function lineOnTip(what) {
 const wipeDone = () => pg.waitForSelector('.visit-wipe', { state: 'detached', timeout: 5000 });
 const openWindow = async () => {
   await pg.locator('.place-pin.pin-fishing').click({ force: true });
-  await pg.waitForSelector('.fishing-dialog');
+  await pg.waitForSelector('.pond-screen');
   await wipeDone();
 };
 const forceCatch = (id) => db.prepare("UPDATE fishing_casts SET catch = ?, paid = ?, line = ? WHERE player_id = ? AND status = 'open'").run(id, ['stone', 'driftwood', 'fish_bone', 'old_boot', 'rusty_can', 'bottle'].includes(id) ? 0 : 1, id === 'bottle' ? 3 : null, pid);
@@ -210,16 +226,19 @@ const t3 = await oneCast(3, { force: 'bottle' });
 check(/message in a bottle/i.test(t3) && /“/.test(t3) && /\+5 XP/.test(t3), `cast 3: bottle line + 5 XP (${t3.replace(/\n/g, ' | ')})`);
 check((await pg.locator('.fish-cast').isDisabled()) && /No casts left/.test(await pg.locator('.fish-cast').innerText()), 'after 3 casts: "No casts left" (disabled)');
 check(/Come back at 07:00 WIB/.test(await pg.locator('.fish-status').innerText()), 'after 3 casts: come back at 07:00 WIB');
-await pg.locator('.fish-list .link-btn').click();
+await pg.locator('.fish-list-open').click();
+await pg.waitForSelector('.fishing-list-dialog');
 check((await pg.locator('.fish-list li').count()) === 14, 'What can I catch? lists 14 catches (with the Rusty can)');
-await fits('list open');
+check(/what you receive/.test(await pg.locator('.fish-list-note').innerText()), 'What can I catch? says the amounts are what you receive');
 await pg.evaluate(() => {
-  const b = document.querySelector('.fishing-dialog .info-body');
+  const b = document.querySelector('.fishing-list-dialog .info-body');
   b.scrollTop = b.scrollHeight;
 });
 check(await pg.evaluate(() => [...document.querySelectorAll('.fish-list-name')].every((e) => e.getBoundingClientRect().height < 56)), 'catch names stay on one or two lines');
+check(await pg.evaluate(() => { const d = document.querySelector('.fishing-list-dialog').getBoundingClientRect(); return d.left >= 0 && d.right <= innerWidth && d.bottom <= innerHeight; }), 'the catch list fits the screen');
 await pg.screenshot({ path: `${out}/fish-${tag}-4-list.png` });
-await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+await pg.locator('.fishing-list-dialog .info-actions .btn').click();
+await pg.locator('.pond-back').click();
 await wipeDone();
 
 // The Golden Arowana's share card waits until the window closes, then opens.
@@ -243,7 +262,7 @@ const t4 = await oneCast(5, { force: 'tilapia', released: true });
 check(/released/i.test(t4) && /used up/.test(t4) && !/PANEN/.test(t4), `released + reduced motion (${t4.replace(/\n/g, ' | ')})`);
 const anim = await pg.evaluate(() => getComputedStyle(document.querySelector('.pond-catch')).animationName);
 check(anim === 'none', `reduced motion: the catch does not fly (${anim})`);
-await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+await pg.locator('.pond-back').click();
 await wipeDone();
 await pg.emulateMedia({ reducedMotion: null });
 
@@ -251,14 +270,14 @@ await pg.emulateMedia({ reducedMotion: null });
 await openWindow();
 await pg.locator('.fish-cast').click();
 await pg.waitForSelector('.pond-wait');
-await pg.locator('.info-close').click();
+await pg.keyboard.press('Escape');
 await wipeDone();
 await openWindow();
 check((await pg.locator('.pond-wait, .pond-bite').count()) === 1, 'reopening resumes the line in the water');
 await pg.waitForSelector('.pond-bite', { timeout: 8000 });
 await pg.locator('.fish-reel').click();
 await pg.waitForSelector('.fish-result');
-await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+await pg.locator('.pond-back').click();
 await wipeDone();
 
 // Another day: the other result tiers (Gourami festive, junk = Rusty can, a normal fish).
@@ -272,13 +291,11 @@ const t8 = await oneCast(8, { force: 'rusty_can', tier: 'junk' });
 check(/RUSTY CAN/i.test(t8) && /\+1 XP/.test(t8) && !/PANEN/.test(t8), `cast 8: Rusty can, 1 XP (${t8.replace(/\n/g, ' | ')})`);
 const t9 = await oneCast(9, { force: 'catfish', tier: 'fish' });
 check(/CATFISH/i.test(t9), `cast 9: Catfish (${t9.replace(/\n/g, ' | ')})`);
-await pg.locator('.fish-list .link-btn').click();
-await pg.evaluate(() => {
-  const b = document.querySelector('.fishing-dialog .info-body');
-  b.scrollTop = b.scrollHeight;
-});
+await pg.locator('.fish-list-open').click();
+await pg.waitForSelector('.fishing-list-dialog');
 await pg.screenshot({ path: `${out}/fish-${tag}-9-list.png` });
-await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+await pg.locator('.fishing-list-dialog .info-actions .btn').click();
+await pg.locator('.pond-back').click();
 await wipeDone();
 
 // A server without fishing: the pin says "Soon" and opens the coming-soon window; no errors.

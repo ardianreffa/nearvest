@@ -4,12 +4,12 @@
 // A line left in the water is resumed when the window opens again (or pulled in by the server).
 // Text rules: fishing-logic.ts (unit-tested).
 
-import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { api, ApiError, type CatchView, type FishingView, type GameState } from './api';
 import { CatchIcon } from './art/catch-icons';
 import { FLOAT_AT, PondScene, pondAt } from './art/pond';
 import { CAST_MS, REEL_MS } from './art/rod-pose';
-import { pondSounds, pondTime, pondWeather } from './pond-life-plan';
+import { pondFit, pondSounds, pondTime, pondWeather, type Box } from './pond-life-plan';
 import { villageHour } from './share';
 import { lookOf } from './weather';
 import { TaniBot } from './art/tanibot';
@@ -85,6 +85,34 @@ export function FishingWindow({
   const [view, setView] = useState<FishingView | null>(null);
   const [early, setEarly] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  // Full screen (package 3): the pond fills the screen like the village. Cover when that crops at most
+  // 12% (laptops), else the whole pond fits the width with a blurred copy around it (phones upright).
+  const screen = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(() => pondFit(window.innerWidth, window.innerHeight));
+  const [avoid, setAvoid] = useState<Box[]>([]);
+  useLayoutEffect(() => {
+    const onResize = () => setFit(pondFit(window.innerWidth, window.innerHeight));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  // The floating panels as pond-grid boxes: the ducks do not swim under them.
+  useLayoutEffect(() => {
+    const el = screen.current;
+    if (!el) return;
+    const k = fit.w / 480;
+    const boxes = [...el.querySelectorAll<HTMLElement>('[data-pond-avoid]')].map((p): Box => {
+      const r = p.getBoundingClientRect();
+      return [(r.left - fit.left) / k, (r.top - fit.top) / k, r.width / k, r.height / k];
+    });
+    const key = (b: Box[]) => b.map((x) => x.map(Math.round).join(',')).join(';');
+    setAvoid((old) => (key(old) === key(boxes) ? old : boxes));
+  });
+  // Escape goes back to the village (unless the catch list is open on top).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !document.querySelector('.dialog-backdrop') && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
   /** When the pond's current animation started (cast tap, bite, reel tap); 0 = none (resumed line). */
   const [since, setSince] = useState(0);
   const castAt = useRef(0);
@@ -210,96 +238,116 @@ export function FishingWindow({
   const tier = c ? catchTier(c) : null;
   const canCast = left > 0 && (phase.k === 'ready' || phase.k === 'result');
 
-  const actions = inWater ? (
+  const primary = inWater ? (
     <button class={`btn fish-reel${phase.k === 'bite' ? ' btn-gold fish-now' : ' btn-mint'}`} onClick={reel} disabled={phase.k === 'reeling'}>
       {phase.k === 'bite' ? 'Reel in!' : phase.k === 'reeling' ? 'Reeling in...' : 'Reel in'}
     </button>
   ) : (
-    <>
-      <button class="btn" onClick={onClose}>
-        Close
-      </button>
-      <button class="btn btn-mint fish-cast" onClick={cast} disabled={!canCast || busy}>
-        {phase.k === 'casting' ? 'Casting...' : left === 0 ? 'No casts left' : c ? 'Cast again' : 'Cast line'}
-      </button>
-    </>
+    <button class="btn btn-mint fish-cast" onClick={cast} disabled={!canCast || busy}>
+      {phase.k === 'casting' ? 'Casting...' : left === 0 ? 'No casts left' : c ? 'Cast again' : 'Cast line'}
+    </button>
   );
 
   return (
-    <Modal title="Fishing" onClose={onClose} class={`fishing-dialog fishing-live${inWater ? ' fishing-one' : ''}`} actions={actions}>
-      <PondScene phase={phase.k} since={since} time={time} weather={weather} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
+    <div
+      ref={screen}
+      class={`pond-screen fishing-live pond-time-${time}${inWater ? ' fishing-one' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Fishing pond"
+      data-fit={fit.mode}
+      // Upright phones: the panel gets exactly the room under the pond (it scrolls inside, never covers it).
+      style={{ '--pond-free': `${Math.max(160, window.innerHeight - fit.top - fit.h - 24)}px` }}
+    >
+      <img class="pond-backfill" src="/assets/bg/fishing-pond.png" alt="" aria-hidden="true" draggable={false} />
+      <div class="pond-stage" style={{ left: `${fit.left}px`, top: `${fit.top}px`, width: `${fit.w}px`, height: `${fit.h}px` }}>
+        <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
         {phase.k === 'bite' && (
-          <span class="pond-bang" style={pondAt(FLOAT_AT.x, FLOAT_AT.y - 10)} aria-hidden="true">
-            !
-          </span>
-        )}
-        {tier && tier !== 'junk' && (
-          <span class={`pond-splash splash-${tier}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
-            {(tier === 'item' ? ITEM_GLINTS : tier === 'gourami' || tier === 'legend' ? CONFETTI : DROPS).map(([dx, dy], i) => (
-              <i key={i} style={{ '--dx': dx, '--dy': dy, animationDelay: `${(i % 4) * 40}ms` }} />
-            ))}
-          </span>
-        )}
-        {tier === 'junk' && <span class="pond-plop" style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true" />}
-        {c?.moment === 'golden_arowana' &&
-          SPARKS.map(([x, y], i) => (
-            <span key={i} class="pond-spark" style={{ ...pondAt(x, y), animationDelay: `${200 + i * 120}ms` }} aria-hidden="true">
-              <Sprite name="sparkle" scale={2} />
+            <span class="pond-bang" style={pondAt(FLOAT_AT.x, FLOAT_AT.y - 10)} aria-hidden="true">
+              !
             </span>
-          ))}
-        {c && (
-          <span class={`pond-catch tier-${tier}${c.released ? ' released' : ''}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
-            <CatchIcon id={c.catch} scale={2} />
-          </span>
-        )}
-      </PondScene>
-
-      <p class="fish-status" aria-live="polite">
-        {phase.k === 'ready' && (left > 0 ? 'Tap Cast line, then wait for the float to dip.' : `Come back at 07:00 WIB (in ${untilText(nextIn)}).`)}
-        {phase.k === 'casting' && 'Casting...'}
-        {phase.k === 'wait' && (early ? 'Wait for the bite! Watch the float.' : 'Waiting for a bite...')}
-        {phase.k === 'bite' && <b>A bite! Tap Reel in!</b>}
-        {phase.k === 'reeling' && 'Reeling in...'}
-        {phase.k === 'result' && left === 0 && `That was your last cast today. Come back at 07:00 WIB (in ${untilText(nextIn)}).`}
-      </p>
-
-      {c && (
-        <div class={`fish-result kind-${c.kind} tier-${tier}${tier === 'legend' ? ' legend' : ''}`}>
-          <span class="fish-result-icon">
-            <CatchIcon id={c.catch} scale={4} fitW={100} />
-          </span>
-          <div class="fish-result-text">
-            <h3>{c.released ? `${c.name} (released)` : c.name}</h3>
-            <p>{catchNote(c)}</p>
-            {c.line && <p class="fish-line">“{c.line}”</p>}
-            <div class="fish-chips">
-              {rewardChips(c).map((x) => (
-                <span key={x.text} class={`chip-reward reward-${x.kind}`}>
-                  {x.kind === 'panen' && <Coin scale={1} />}
-                  {x.text}
-                </span>
+          )}
+          {tier && tier !== 'junk' && (
+            <span class={`pond-splash splash-${tier}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
+              {(tier === 'item' ? ITEM_GLINTS : tier === 'gourami' || tier === 'legend' ? CONFETTI : DROPS).map(([dx, dy], i) => (
+                <i key={i} style={{ '--dx': dx, '--dy': dy, animationDelay: `${(i % 4) * 40}ms` }} />
               ))}
-            </div>
-            {c.panen > 0 && seasonNote(state.season) && <p class="fish-season">{seasonNote(state.season)}. This is what you received.</p>}
-          </div>
-        </div>
-      )}
-
-      <div class="fish-casts">
-        <span class="fish-pips" aria-hidden="true">
-          {Array.from({ length: max }, (_, i) => (
-            <i key={i} class={i < left ? 'on' : ''} />
-          ))}
-        </span>
-        <span>{castsLeftText({ left, max })}</span>
+            </span>
+          )}
+          {tier === 'junk' && <span class="pond-plop" style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true" />}
+          {c?.moment === 'golden_arowana' &&
+            SPARKS.map(([x, y], i) => (
+              <span key={i} class="pond-spark" style={{ ...pondAt(x, y), animationDelay: `${200 + i * 120}ms` }} aria-hidden="true">
+                <Sprite name="sparkle" scale={2} />
+              </span>
+            ))}
+          {c && (
+            <span class={`pond-catch tier-${tier}${c.released ? ' released' : ''}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
+              <CatchIcon id={c.catch} scale={2} />
+            </span>
+          )}
+        </PondScene>
       </div>
 
-      {view && (
-        <div class="fish-list">
-          <button class="link-btn" onClick={() => setListOpen((o) => !o)} aria-expanded={listOpen}>
-            {listOpen ? '− What can I catch?' : '+ What can I catch?'}
+      <header class="pond-hud-top" data-pond-avoid>
+        <button class="btn pond-back" onClick={onClose} aria-label="Back to the village">
+          ← Village
+        </button>
+        <div class="pond-chip fish-casts" aria-label={castsLeftText({ left, max })}>
+          <span class="fish-pips" aria-hidden="true">
+            {Array.from({ length: max }, (_, i) => (
+              <i key={i} class={i < left ? 'on' : ''} />
+            ))}
+          </span>
+          <span>{castsLeftText({ left, max })}</span>
+        </div>
+      </header>
+
+      <section class="pond-panel" data-pond-avoid>
+        <div class="pond-panel-body">
+          <p class="fish-status" aria-live="polite">
+            {phase.k === 'ready' && (left > 0 ? 'Tap Cast line, then wait for the float to dip.' : `Come back at 07:00 WIB (in ${untilText(nextIn)}).`)}
+            {phase.k === 'casting' && 'Casting...'}
+            {phase.k === 'wait' && (early ? 'Wait for the bite! Watch the float.' : 'Waiting for a bite...')}
+            {phase.k === 'bite' && <b>A bite! Tap Reel in!</b>}
+            {phase.k === 'reeling' && 'Reeling in...'}
+            {phase.k === 'result' && left === 0 && `That was your last cast today. Come back at 07:00 WIB (in ${untilText(nextIn)}).`}
+          </p>
+
+          {c && (
+            <div class={`fish-result kind-${c.kind} tier-${tier}${tier === 'legend' ? ' legend' : ''}`}>
+              <span class="fish-result-icon">
+                <CatchIcon id={c.catch} scale={4} fitW={100} />
+              </span>
+              <div class="fish-result-text">
+                <h3>{c.released ? `${c.name} (released)` : c.name}</h3>
+                <p>{catchNote(c)}</p>
+                {c.line && <p class="fish-line">“{c.line}”</p>}
+                <div class="fish-chips">
+                  {rewardChips(c).map((x) => (
+                    <span key={x.text} class={`chip-reward reward-${x.kind}`}>
+                      {x.kind === 'panen' && <Coin scale={1} />}
+                      {x.text}
+                    </span>
+                  ))}
+                </div>
+                {c.panen > 0 && seasonNote(state.season) && <p class="fish-season">{seasonNote(state.season)}. This is what you received.</p>}
+              </div>
+            </div>
+          )}
+
+        </div>
+        <div class="pond-actions">{primary}</div>
+        {view && (
+          <button class="link-btn fish-list-open" onClick={() => setListOpen(true)}>
+            + What can I catch?
           </button>
-          {listOpen && (
+        )}
+      </section>
+
+      {listOpen && view && (
+        <Modal title="What can I catch?" onClose={() => setListOpen(false)} closeLabel="Close" class="fishing-list-dialog">
+          <div class="fish-list">
             <ul>
               {view.catches.map((x) => (
                 <li key={x.id}>
@@ -307,20 +355,16 @@ export function FishingWindow({
                     <CatchIcon id={x.id} scale={2} fitW={64} />
                   </span>
                   <span class="fish-list-name">{x.name}</span>
-                  <span class="fish-list-reward">
-                    {catchReward(x, view.chest, state.season)}
-                  </span>
+                  <span class="fish-list-reward">{catchReward(x, view.chest, state.season)}</span>
                 </li>
               ))}
             </ul>
-          )}
-          {listOpen && (
             <p class="fish-list-note">
               Fish are bought on the spot by Mr. Darto. The amounts are what you receive{seasonNote(state.season) ? ` (${seasonNote(state.season)})` : ''}.
             </p>
-          )}
-        </div>
+          </div>
+        </Modal>
       )}
-    </Modal>
+    </div>
   );
 }

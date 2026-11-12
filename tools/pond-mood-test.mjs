@@ -84,7 +84,7 @@ async function openPond(what) {
   await pg.waitForTimeout(400);
 }
 async function closePond(what) {
-  await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+  await pg.locator('.pond-back').click();
   const wipe = await pg.waitForSelector('.visit-wipe.wipe-water', { timeout: 3000 }).catch(() => null);
   check(!!wipe, `${what}: water pixel wipe on the way out`);
   await pg.waitForSelector('.visit-wipe', { state: 'detached', timeout: 5000 });
@@ -100,10 +100,17 @@ const LOOKS = [
   { q: '?time=day&weather=eruption', time: 'day', weather: 'clear' },
 ];
 const leafColors = {};
+const sounds = () => pg.evaluate(() => ({ music: document.documentElement.dataset.music, ambient: document.documentElement.dataset.ambient, pond: document.documentElement.dataset.pondSound ?? '' }));
+let first = true;
 for (const L of LOOKS) {
   await pg.goto(UI + L.q, { waitUntil: 'networkidle' });
   await pg.mouse.click(5, H - 5); // the first tap unlocks sound (like a player)
+  await pg.waitForTimeout(first ? 2500 : 300);
+  const before = await sounds();
+  if (first) check(before.music === 'on' && !!before.ambient && !before.pond, `Tandur's music and ambient play in the village (${JSON.stringify(before)})`);
   await openPond(L.q);
+  const inside = await sounds();
+  check(inside.music === 'off' && !inside.ambient && !!inside.pond, `${L.q}: at the pond only the pond's sounds (${JSON.stringify(inside)})`);
   const a = await look();
   check(a.time === L.time && a.weather === L.weather, `${L.q}: pond time ${a.time}, weather ${a.weather}`);
   check(a.frogs.length === 4 && a.ducks.length === 3, `${L.q}: 4 frogs, 3 ducks`);
@@ -130,8 +137,24 @@ for (const L of LOOKS) {
   const want = { waterfall: true, breeze: !night && L.weather !== 'rain', crickets: night, ducks: !night, rain: L.weather === 'rain', frogs: true };
   const got = Object.fromEntries(Object.keys(want).map((k) => [k, s.split(',').includes(k)]));
   check(JSON.stringify(got) === JSON.stringify(want), `${L.q}: pond sounds ${s}`);
+  if (first) {
+    // The waterfall and the ripples really move: two shots 300 ms apart differ, so do the transforms.
+    const tr = () => pg.evaluate(() => ['.fall-flow', '.fall-ring', '.lake-ripple', '.pond-glint'].map((q) => [...document.querySelectorAll(q)].map((e) => getComputedStyle(e).transform).join('|')));
+    const a1 = await tr();
+    await pg.locator('.pond').screenshot({ path: `${out}/pond-${tag}-motion-1.png` });
+    await pg.waitForTimeout(300);
+    const a2 = await tr();
+    await pg.locator('.pond').screenshot({ path: `${out}/pond-${tag}-motion-2.png` });
+    check(a1.every((t, i) => t !== a2[i]), `waterfall, foam rings, lake ripples and glints move (${a1.map((t, i) => (t !== a2[i] ? 'moved' : 'STILL')).join(', ')})`);
+  }
   await closePond(L.q);
   check(!(await look()).sound, `${L.q}: pond sounds stop after leaving`);
+  if (first) {
+    await pg.waitForTimeout(2500);
+    const after = await sounds();
+    check(after.music === 'on' && !!after.ambient, `back in the village: Tandur's music and ambient come back (${JSON.stringify(after)})`);
+  }
+  first = false;
 }
 check(new Set(Object.values(leafColors)).size === 3, `leaf colours differ by time (${JSON.stringify(leafColors)})`);
 

@@ -224,3 +224,28 @@ export const mustFlee = (m: DuckMove, now: number, zone: FishingZone | null) => 
  * frog can sit on. (The ducks keep away from the line and the float themselves: planDuck.)
  */
 export const CRITTERS: [number, number, number, number][] = FROG_SPOTS.map((p): [number, number, number, number] => [p.x - 7, p.y - 7, 14, 14]);
+
+// ---------- Full screen (package 3) ----------
+
+export interface PondFit {
+  /** cover = fills the screen (crops at most 12%); fit = the whole pond, blurred copy around it. */
+  mode: 'cover' | 'fit';
+  left: number;
+  top: number;
+  w: number;
+  h: number;
+}
+/** Where the 480 x 270 pond goes on a W x H screen (CSS px). Upright phones keep it in the upper part. */
+export function pondFit(W: number, H: number): PondFit {
+  const ck = Math.max(W / 480, H / 270);
+  const crop = 1 - Math.min(W / (480 * ck), H / (270 * ck));
+  if (crop <= 0.12) {
+    const w = 480 * ck;
+    const h = 270 * ck;
+    return { mode: 'cover', left: (W - w) / 2, top: (H - h) / 2, w, h };
+  }
+  const k = Math.min(W / 480, H / 270);
+  const w = 480 * k;
+  const h = 270 * k;
+  return { mode: 'fit', left: (W - w) / 2, top: W < H ? Math.max(72, Math.round((H - h) * 0.3)) : (H - h) / 2, w, h };
+}
