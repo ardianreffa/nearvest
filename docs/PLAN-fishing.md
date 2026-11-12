@@ -347,3 +347,19 @@ light and the rain darkening stay code tints.
    (`server/src/rules.ts` `FISHING_CASTS_PER_DAY`, `FISHING_PAID_PER_DEVICE_PER_DAY`). **No database
    change**: the limits are counted from the existing `fishing_casts` rows; the web shows the server's
    `max`. An older release simply keeps its own numbers.
+1. **Glitch (live, demo garden):** a demo village day lasts 1 minute, so the pond jumped day -> dusk ->
+   night on every 8 s state poll, the pictures popping in (mounted at full opacity) with no fade; the
+   lights, rain and dimming switched at once too. Now (`nextMood` in `web/src/pond-life-plan.ts`) the
+   pond shows one mood that changes with a 4 s fade (all layers always loaded, CSS opacity / filter
+   transitions); in demo mode each picture and the weather hold at least 20 s. Browser:
+   `tools/pond-demo-test.mjs` (a demo garden for 60 s: >= 20 s between pictures, fades seen). (Ardian's
+   screen recording on the Desktop could not be opened: macOS blocks the Desktop folder for the
+   terminal; reproduced in a demo garden instead.)
+2. Phones: compact panel and catch card (small icon, name + reward on one line, short note).
+3. Upright phone pond ready: `web/src/art/pond-tall.ts` (`TALL_POND`, null until the picture comes),
+   the 16:9 scene drawn in the picture's middle band, controls on the land below.
+   `tools/pixelize/pond_tall.py` measures the band (STOP if a part is off by more than 1 px) and prints
+   the config. Dev: `?tallpond=test` uses a stand-in picture (`fishing-pond-tall-test.png`, git-ignored).
+4. The pond's top bar shows the PANEN balance (gold PANEN coin), counting up with "+N" after a catch.
+5. Village HUD: the PANEN balance next to the profile box with the round gold PANEN coin
+   (`web/src/art/panen-coin.tsx`: a P with a vertical stroke); the square PANEN chip is gone.
