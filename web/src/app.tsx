@@ -28,6 +28,7 @@ import { overlayKey } from './overlay-key';
 import { FarmersWindow, friendCall, VisitGarden } from './friends';
 import { friendAddNotice } from './friends-logic';
 import { usePresence } from './presence';
+import { PanenCoin } from './art/panen-coin';
 import { useVisitWipe } from './visit-wipe';
 import { BACK_TEXT, POND_BACK_TEXT, POND_TEXT, visitingText, WIPE_WAIT_MAX_MS } from './visit-wipe-plan';
 import { SPECIES_NAME as SPECIES_LABEL } from './ui';
@@ -683,7 +684,7 @@ export function App() {
   const balance = state?.player.balance;
   const lastBalance = useRef<number | undefined>(undefined);
   useEffect(() => {
-    const el = document.querySelector('.chip-panen');
+    const el = document.querySelector('.hud-panen');
     if (el && lastBalance.current !== undefined && balance !== lastBalance.current) {
       el.classList.remove('bump');
       void (el as HTMLElement).offsetWidth;
@@ -1165,15 +1166,18 @@ export function App() {
       </div>
     </button>
   );
+  /** The PANEN balance next to the profile box: the round gold PANEN coin and the number (package 6). */
+  const panen = (
+    <button class="hud-panen" title="Your PANEN balance: what is PANEN?" onClick={() => (playSound('click'), setInfo('panen'))} aria-label={`${formatPanen(p.balance)} PANEN. What is PANEN?`}>
+      <PanenCoin scale={wide ? 2 : 2} />
+      <b>{formatPanen(p.balance)}</b>
+      <span class="hud-panen-unit">PANEN</span>
+    </button>
+  );
   const nextIn = formatDuration(state.clock.msUntilNextDay - elapsed);
-  /** Player status chips under the profile: PANEN (most prominent), check-in, farm day. */
+  /** Player status chips under the profile: check-in, farm day, weather. */
   const chips = (
     <div class="hud-chips">
-      <button class="chip chip-panen" title="Your PANEN balance: what is PANEN?" onClick={() => (playSound('click'), setInfo('panen'))} aria-label={`${formatPanen(p.balance)} PANEN. What is PANEN?`}>
-        <Coin scale={2} />
-        <b>{formatPanen(p.balance)}</b>
-        <span class="chip-unit">PANEN</span>
-      </button>
       <button
         class={`chip chip-checkin ${state.checkin.available ? 'ready' : 'done'}`}
         onClick={() => (playSound('click'), setInfo('checkin'))}
@@ -1262,7 +1266,10 @@ export function App() {
           {/* Top left: the player's status. Top right: only system controls. The middle stays open. */}
           <header class="hud-top">
             <div class="hud-left">
-              <div class="hud-capsule hud-capsule-left">{who}</div>
+              <div class="hud-who-row">
+                <div class="hud-capsule hud-capsule-left">{who}</div>
+                {panen}
+              </div>
               {chips}
               {notices}
             </div>
@@ -1312,6 +1319,7 @@ export function App() {
           <div class="phone-hud">
             <header class="topbar">
               <div class="hud-capsule hud-capsule-left">{who}</div>
+              {panen}
               <div class="hud-capsule hud-sys topbar-right">{muteButton}</div>
             </header>
             {chips}

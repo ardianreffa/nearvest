@@ -10043,7 +10043,7 @@ html.page-locked body {
 
 .phone-hud {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   column-gap: var(--space);
   align-items: start;
 }
@@ -10052,14 +10052,82 @@ html.page-locked body {
   display: contents;
 }
 
-.phone-hud > .topbar > .hud-sys {
+.phone-hud > .topbar > .hud-panen {
   grid-column: 2;
+  align-self: stretch;
+}
+
+.phone-hud > .topbar > .hud-sys {
+  grid-column: 3;
   align-self: center;
 }
 
 .phone-hud > .hud-chips {
-  grid-column: 1;
+  grid-column: 1 / span 2;
   margin: var(--space) 0;
+}
+
+/* The PANEN balance next to the profile box (package 6): the round gold PANEN coin and the number,
+   on a dark HUD capsule (the square gold chip is gone). */
+.hud-who-row {
+  display: flex;
+  gap: var(--space);
+  align-items: stretch;
+}
+
+.hud-panen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px 4px 8px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  line-height: 1;
+  color: var(--gold-300);
+  background: color-mix(in srgb, var(--hud) 88%, transparent);
+  border: 2px solid var(--soil-700);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--ink) 30%, transparent);
+  cursor: pointer;
+}
+
+.hud-panen b {
+  font-weight: normal;
+}
+
+.hud-panen-unit {
+  font-size: var(--fs-2xs);
+  color: var(--paper-light);
+  opacity: 0.8;
+}
+
+.hud-panen:focus-visible {
+  outline: 3px solid var(--cyan-500);
+  outline-offset: 2px;
+}
+
+.hud-panen .panen-coin {
+  flex: none;
+}
+
+/* The balance pops when it changes; coins fly to it. */
+.hud-panen.bump {
+  animation: bump 0.4s steps(2);
+}
+
+/* Phones: number over the unit, so the capsule stays narrow next to the profile. */
+@media (max-width: 1023px) {
+  .hud-panen {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px 8px;
+    font-size: var(--fs-sm);
+  }
+
+  .hud-panen .panen-coin {
+    width: 20px;
+    height: 20px;
+  }
 }
 
 .phone-hud > .notice,

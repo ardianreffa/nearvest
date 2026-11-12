@@ -292,14 +292,14 @@ try {
       console.log('rows:', await evaluate(`[...document.querySelectorAll('.market-panel .market-row')].map(r => r.innerText.replace(/\\s+/g, ' ')).join(' || ')`));
       const fit = await evaluate(`(() => { const rows = [...document.querySelectorAll('.market-panel .market-row')]; return rows.map(r => { const h = r.querySelector('.market-price').getBoundingClientRect(); const s = r.querySelector('.sell-go').getBoundingClientRect(); return Math.round(s.bottom - h.top); }).join(','); })()`);
       console.log('price-to-sell height per row (px):', fit);
-      const balBefore = await evaluate(`document.querySelector('.chip-panen b').innerText`);
+      const balBefore = await evaluate(`document.querySelector('.hud-panen b').innerText`);
       const row = await evaluate(`(() => { const r = [...document.querySelectorAll('.market-panel .market-row')].find(x => !x.classList.contains('empty')); if (!r) return 'none'; r.querySelector('.sell-max').click(); return r.querySelector('.market-name').innerText; })()`);
       await sleep(200);
       const label = await evaluate(`[...document.querySelectorAll('.market-panel .market-row')].find(x => !x.classList.contains('empty')).querySelector('.sell-go').innerText`);
       await evaluate(`[...document.querySelectorAll('.market-panel .market-row')].find(x => !x.classList.contains('empty')).querySelector('.sell-go').click()`);
       await waitFor(bodyHas('Sold'), 'sold toast', 20000);
       await sleep(600);
-      console.log('sold', row, 'with', label, '| balance', balBefore, '->', await evaluate(`document.querySelector('.chip-panen b').innerText`));
+      console.log('sold', row, 'with', label, '| balance', balBefore, '->', await evaluate(`document.querySelector('.hud-panen b').innerText`));
       await screenshot('market-sold');
       const hasSeeds = await evaluate(`!!document.querySelector('.sell-seeds')`);
       if (hasSeeds) {

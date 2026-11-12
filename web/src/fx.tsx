@@ -35,7 +35,7 @@ export function floatText(text: string, tone: 'gold' | 'mint' | 'burn' | 'xp' = 
 
 export function coinsToBalance(count = 6, x = pointer.x, y = pointer.y) {
   if (reduced()) return;
-  const target = document.querySelector('.chip-panen')?.getBoundingClientRect();
+  const target = document.querySelector('.hud-panen')?.getBoundingClientRect();
   if (!target) return;
   const tx = target.left + 18;
   const ty = target.top + target.height / 2;
