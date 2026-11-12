@@ -11,7 +11,11 @@
 
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { Billboard, TIME_LOCK } from './art/backdrop';
 import { CatchIcon } from './art/catch-icons';
+import { DuelBackdrop } from './art/duel-backdrop';
+import { skyBackground, skyBands } from './art/sky-colors';
+import { boxIn, V3_WEB } from './art/village';
 import { DARTO_IDLE, DARTO_PALETTE, DARTO_WAVE } from './art/darto-sprite';
 import { PanenCoin } from './art/panen-coin';
 import { PondScene, pondAt, type PondPhase } from './art/pond';
@@ -104,6 +108,33 @@ export function PanenMedal() {
   );
 }
 
+/**
+ * The village at midday as in the game, for a landing card: the code sky's day bands (the art's sky
+ * is see-through), the v3 laptop village picture and its own overlays from art/village.ts V3_WEB (the
+ * "1 VS 1" billboard on the Arena gazebo, holograms, waterfalls, lanterns), in the art's 240 x 135
+ * grid, covering the card (bottom-anchored, centred).
+ */
+function VillagePicture() {
+  const v = V3_WEB;
+  const at = (b: [number, number, number, number]) => boxIn(v, ...b);
+  return (
+    <div class="lp-village" aria-hidden="true">
+      <div class="lp-village-sky" style={{ background: skyBackground(skyBands(12), v.h) }} />
+      <img class="lp-village-img" src={v.src('day', true)} alt="" draggable={false} />
+      {v.falls.map((b, i) => (
+        <i key={`f${i}`} class="fall" style={{ ...at(b), animationDelay: `${i * 0.15}s` }} />
+      ))}
+      {v.holograms.map((b, i) => (
+        <i key={`h${i}`} class={`holo${v.softHolograms ? ' soft' : ''}`} style={{ ...at(b), animationDelay: `${i * 1.7}s` }} />
+      ))}
+      {v.billboard && <Billboard style={at(v.billboard)} />}
+      {v.lanterns.map(([x, y, w, h], i) => (
+        <i key={`l${i}`} class="lamp" style={{ ...at([x - 2, y - 2, w + 4, h + 4]), animationDelay: `${i * 0.7}s` }} />
+      ))}
+    </div>
+  );
+}
+
 const GROW_MS = [1100, 1000, 1000, 1200, 1100, 1700];
 const GROW_LABEL = ['Plant a seed', 'It sprouts', 'It grows', 'Fruit!', 'Harvest', 'Sell to Mr. Darto'];
 
@@ -120,7 +151,8 @@ export function GrowLoop() {
   return (
     <div class="lp-grow" ref={ref} data-step={step}>
       <Card tilt={-2} back="/assets/bg/bg-market.png">
-        <div class="lp-grow-scene" ref={wref} style={{ backgroundImage: "url('/assets/bg/village3-web-day.png')" }}>
+        <div class="lp-grow-scene" ref={wref}>
+          <VillagePicture />
           <div class="lp-grow-plot">
             {stage && (
               <span class="lp-grow-tree" key={stage}>
@@ -176,7 +208,9 @@ export function DuelLoop() {
   return (
     <div class="lp-duel" ref={ref} data-step={step}>
       <Card tilt={2} back="/assets/bg/arena-web-dusk.png">
-        <div class="lp-duel-scene" ref={wref} style={{ backgroundImage: "url('/assets/bg/arena-web-day.png')" }}>
+        <div class="lp-duel-scene" ref={wref}>
+          {/* The game's own Tandur Arena (lanterns, neon, the ring, the volcano's smoke), at midday. */}
+          <DuelBackdrop fraction={TIME_LOCK.day} wide />
           <div class="lp-duel-bars" aria-hidden="true">
             <span class="lp-bar">
               <i style={{ width: `${left}%` }} />

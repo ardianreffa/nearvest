@@ -32,7 +32,7 @@ const GLYPHS: Record<string, string[]> = {
 };
 
 /** "1 VS 1" in pixel letters on the Arena gazebo's empty screen, glowing softly (v3). */
-function Billboard({ style }: { style: Record<string, string> }) {
+export function Billboard({ style }: { style: Record<string, string> }) {
   const parts: [string, number][] = [
     ['1', 0],
     ['V', 6],
