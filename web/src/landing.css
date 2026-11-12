@@ -308,11 +308,12 @@
 }
 
 .lp-screen-inner {
-  width: min(1080px, 100%);
+  width: min(1680px, 100%);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* Laptops (2026-11-12, Ardian: much bigger art): the art takes about 60% of the width. */
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   align-items: center;
-  gap: 48px;
+  gap: 56px;
 }
 
 .lp-screen-art {
@@ -405,6 +406,9 @@
 }
 
 .lp-own {
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
   padding: 12px;
   background: color-mix(in srgb, var(--ink) 30%, transparent);
 }
@@ -618,7 +622,7 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: min(360px, 70vw);
+  width: min(820px, 92%, 78vh);
   aspect-ratio: 1;
 }
 
@@ -672,7 +676,7 @@
 /* "Screenshot" cards: a thick paper-white frame, a hard shadow, slightly tilted; one more behind. */
 .lp-card-stack {
   position: relative;
-  width: min(520px, 100%);
+  width: 100%;
 }
 
 .lp-card {
@@ -703,7 +707,22 @@
 .lp-grow,
 .lp-duel,
 .lp-fish {
-  width: min(520px, 100%);
+  width: 100%;
+}
+
+/* A scene whose pixel scale comes from its width (Fitted in landing-scenes.tsx). */
+.lp-fitted {
+  width: 100%;
+}
+
+.lp-bot-stand.lp-fitted {
+  display: flex;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.lp-tree-row.lp-fitted {
+  box-sizing: border-box;
 }
 
 .lp-grow-scene,
@@ -1077,6 +1096,11 @@
 }
 
 @media (max-width: 1023px) {
+  .lp-screen-art {
+    width: calc(100% + 8px);
+    margin-inline: -4px;
+  }
+
   .lp-judges {
     padding: 24px 16px 72px;
   }
@@ -1103,7 +1127,7 @@
   }
 
   .lp-medal {
-    width: min(200px, 52vw);
+    width: min(300px, 78vw);
   }
 
   .lp-card {

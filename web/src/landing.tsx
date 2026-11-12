@@ -25,7 +25,7 @@ import { TaniBot } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import { Sprite, type SpriteName } from './sprites';
 import { Motif, type MotifKind } from './landing-motif';
-import { Card, DuelLoop, FishLoop, GrowLoop, PanenMedal } from './landing-scenes';
+import { Card, DuelLoop, FishLoop, Fitted, GrowLoop, PanenMedal } from './landing-scenes';
 import { parseRef, readRef, withRef } from './referral';
 
 /** An invite (?ref=) goes with every link to /play (index.html's script also kept it in localStorage). */
@@ -50,6 +50,9 @@ interface Stats {
   treeNfts: number;
   village: { players: number; harvests: number };
 }
+
+/** The avatar's art is 16 px across: a size in whole multiples of it keeps every pixel sharp. */
+const sharp = (px: number) => Math.max(16, Math.floor(px / 16) * 16);
 
 const fmt = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}k` : Math.round(n).toLocaleString('en-US'));
 
@@ -303,7 +306,6 @@ function Landing() {
   useReveal();
   usePauseOffscreen();
   const narrow = useNarrow();
-  const treeScale = narrow ? 2 : 4;
   return (
     <>
       <Hero />
@@ -338,7 +340,7 @@ function Landing() {
         </section>
 
         <Screen id="panen"
-          track="Memecoins" tone="hud" next="--leaf-500" motif="mendung" title="$PANEN" bigTitle art={<PanenMedal scale={narrow ? 10 : 18} />}>
+          track="Memecoins" tone="hud" next="--leaf-500" motif="mendung" title="$PANEN" bigTitle art={<PanenMedal />}>
           <Points
             items={[
               ['sprout', <><b>Earn it</b> by harvesting and selling fruit to Mr. Darto, by fishing and by winning duels.</>],
@@ -353,7 +355,7 @@ function Landing() {
         </Screen>
 
         <Screen id="grow"
-          track="Games" tone="leaf" next="--soil-500" motif="parang" title="Grow, harvest, earn" art={<GrowLoop scale={narrow ? 2 : 3} />}>
+          track="Games" tone="leaf" next="--soil-500" motif="parang" title="Grow, harvest, earn" art={<GrowLoop />}>
           <Points
             items={[
               ['seedPacket', <><b>Plant</b> a seed: a Tree NFT is born.</>],
@@ -372,9 +374,9 @@ function Landing() {
           title="TaniBot, your AI farmer"
           art={
             <Card tilt={2} back="/assets/bg/bg-shop.png" class="lp-bot-card">
-              <div class="lp-bot-stand">
-                <TaniBot tier="farmer" scale={narrow ? 1 : 4} effects={false} />
-              </div>
+              <Fitted base={110} class="lp-bot-stand">
+                {(k) => <TaniBot tier="farmer" scale={k} effects={false} />}
+              </Fitted>
             </Card>
           }
         >
@@ -397,7 +399,9 @@ function Landing() {
           title="Your tree is a living NFT"
           art={
             <Card tilt={-2} back="/assets/bg/village3-web-dusk.png" class="lp-tree-card">
-              <div class="lp-tree-row">
+              <Fitted base={160} min={2} class="lp-tree-row">
+                {(k) => (
+                  <>
                 {(
                   [
                     ['sprout', 'Sprout', 'common'],
@@ -407,11 +411,13 @@ function Landing() {
                   ] as const
                 ).map(([stage, label, q], i) => (
                   <figure key={stage}>
-                    <TreePixels species={i === 2 ? 'durian' : 'mango'} stage={stage} quality={q} scale={treeScale} seed={i + 1} />
+                    <TreePixels species={i === 2 ? 'durian' : 'mango'} stage={stage} quality={q} scale={k} seed={i + 1} />
                     <figcaption>{label}</figcaption>
                   </figure>
                 ))}
-              </div>
+                  </>
+                )}
+              </Fitted>
             </Card>
           }
         >
@@ -426,7 +432,7 @@ function Landing() {
         </Screen>
 
         <Screen id="duel"
-          track="Games" tone="purple" next="--cyan-700" motif="mendung" title="1 VS 1" art={<DuelLoop scale={narrow ? 1 : 2} />}>
+          track="Games" tone="purple" next="--cyan-700" motif="mendung" title="1 VS 1" art={<DuelLoop />}>
           <Points
             items={[
               ['bolt', <><b>Challenge another farmer</b>, live or against their TaniBot.</>],
@@ -455,9 +461,9 @@ function Landing() {
           motif="tumpal"
           title="Play first, own later"
           art={
-            <div class="lp-own">
-              <Avatar id="farmer_hat" size={narrow ? 96 : 224} />
-            </div>
+            <Fitted base={1} min={180} max={620} class="lp-own">
+              {(k) => <Avatar id="farmer_hat" size={sharp(Math.min(k, narrow ? 260 : Math.round(window.innerHeight * 0.66)))} />}
+            </Fitted>
           }
         >
           <Points

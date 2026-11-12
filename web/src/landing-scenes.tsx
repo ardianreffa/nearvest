@@ -37,6 +37,29 @@ function useInView<T extends Element>(): [preact.RefObject<T>, boolean] {
 }
 
 /**
+ * The element's width in CSS px (follows resizes). The scenes pick a whole-number pixel scale from it
+ * (2026-11-12, Ardian: much bigger art on laptops, full width on phones, always sharp).
+ */
+export function useWidth<T extends Element>(): [preact.RefObject<T>, number] {
+  const ref = useRef<T>(null);
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const on = () => setW(el.getBoundingClientRect().width);
+    on();
+    if (typeof ResizeObserver !== 'function') return;
+    const ro = new ResizeObserver(on);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w];
+}
+
+/** A whole-number scale so that `base` art px fill about `w` CSS px (at least `min`). */
+export const fitScale = (w: number, base: number, min = 1) => Math.max(min, Math.floor(w / base));
+
+/**
  * Steps through `durations` (ms per step) in a loop while `run`; reduced motion = stays on `still`.
  * Returns the step and a counter of finished loops.
  */
@@ -67,9 +90,12 @@ export function Card({ tilt = -2, back, children, class: cls = '' }: { tilt?: nu
 }
 
 /** The big round PANEN medal: the game's PANEN coin, turning slowly in its gold ring. */
-export function PanenMedal({ scale }: { scale: number }) {
+export function PanenMedal() {
+  // The 13 px coin fills about half the medal.
+  const [ref, w] = useWidth<HTMLDivElement>();
+  const scale = fitScale(w, 26, 6);
   return (
-    <div class="lp-medal" role="img" aria-label="The PANEN coin">
+    <div class="lp-medal" role="img" aria-label="The PANEN coin" ref={ref}>
       <span class="lp-medal-ring" aria-hidden="true" />
       <span class="lp-medal-coin">
         <PanenCoin scale={scale} />
@@ -82,8 +108,11 @@ const GROW_MS = [1100, 1000, 1000, 1200, 1100, 1700];
 const GROW_LABEL = ['Plant a seed', 'It sprouts', 'It grows', 'Fruit!', 'Harvest', 'Sell to Mr. Darto'];
 
 /** Plant -> grow -> fruit -> harvest -> sell: coins fly to the balance, which counts up. */
-export function GrowLoop({ scale }: { scale: number }) {
+export function GrowLoop() {
   const [ref, inView] = useInView<HTMLDivElement>();
+  const [wref, w] = useWidth<HTMLDivElement>();
+  // About 150 art px across the scene (the tree, Mr. Darto and the coins grow with the card).
+  const scale = fitScale(w, 150, 2);
   const [step, loops] = useSteps(GROW_MS, inView, 3);
   const sold = step === 5;
   const balance = 50 + (loops + (sold ? 1 : 0)) * 10;
@@ -91,7 +120,7 @@ export function GrowLoop({ scale }: { scale: number }) {
   return (
     <div class="lp-grow" ref={ref} data-step={step}>
       <Card tilt={-2} back="/assets/bg/bg-market.png">
-        <div class="lp-grow-scene" style={{ backgroundImage: "url('/assets/bg/village3-web-day.png')" }}>
+        <div class="lp-grow-scene" ref={wref} style={{ backgroundImage: "url('/assets/bg/village3-web-day.png')" }}>
           <div class="lp-grow-plot">
             {stage && (
               <span class="lp-grow-tree" key={stage}>
@@ -136,15 +165,18 @@ export function GrowLoop({ scale }: { scale: number }) {
 const DUEL_MS = [1100, 1100, 1100, 1300, 1700];
 
 /** Two TaniBots on the Tandur Arena: fruit flies, bars drop, K.O., the prize from the game. */
-export function DuelLoop({ scale }: { scale: number }) {
+export function DuelLoop() {
   const [ref, inView] = useInView<HTMLDivElement>();
+  const [wref, w] = useWidth<HTMLDivElement>();
+  // Two 58 px TaniBots across about 280 art px.
+  const scale = fitScale(w, 280, 1);
   const [step, loops] = useSteps(DUEL_MS, inView, 3);
   const right = step === 0 ? 100 : step === 1 || step === 2 ? 60 : 0;
   const left = step >= 2 ? 65 : 100;
   return (
     <div class="lp-duel" ref={ref} data-step={step}>
       <Card tilt={2} back="/assets/bg/arena-web-dusk.png">
-        <div class="lp-duel-scene" style={{ backgroundImage: "url('/assets/bg/arena-web-day.png')" }}>
+        <div class="lp-duel-scene" ref={wref} style={{ backgroundImage: "url('/assets/bg/arena-web-day.png')" }}>
           <div class="lp-duel-bars" aria-hidden="true">
             <span class="lp-bar">
               <i style={{ width: `${left}%` }} />
@@ -239,6 +271,16 @@ export function FishLoop() {
           )}
         </div>
       </Card>
+    </div>
+  );
+}
+
+/** Renders `children(scale)` with a whole-number scale fitted to its own width (`base` art px across). */
+export function Fitted({ base, min = 1, max = 12, class: cls = '', children }: { base: number; min?: number; max?: number; class?: string; children: (scale: number) => ComponentChildren }) {
+  const [ref, w] = useWidth<HTMLDivElement>();
+  return (
+    <div class={`lp-fitted ${cls}`} ref={ref}>
+      {w > 0 && children(Math.min(max, fitScale(w, base, min)))}
     </div>
   );
 }
