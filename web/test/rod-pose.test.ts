@@ -4,20 +4,12 @@
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { CRITTERS } from '../src/pond-life-plan.ts';
 import { CAST_MS, CAST_RELEASE_MS, FLOAT_AT, HANDS, REEL_MS, ROD_LEN, qAt, rodPose, type Pt, type RodPhase } from '../src/art/rod-pose.ts';
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 const PHASES: RodPhase[] = ['ready', 'casting', 'wait', 'bite', 'reeling', 'result'];
-// Frogs and ducks (art/pond.tsx CRITTERS) the rod, line and float must never touch.
-const CRITTERS = [
-  [141, 67, 15, 13],
-  [300, 45, 15, 13],
-  [439, 76, 15, 13],
-  [99, 184, 15, 13],
-  [427, 108, 24, 16],
-  [404, 129, 24, 16],
-  [441, 144, 24, 16],
-];
+// Lily pads and the ducks' area (pond-life-plan.ts CRITTERS) the rod, line and float must never touch.
 const inCritter = (p: Pt) => CRITTERS.some(([x, y, w, h]) => p.x > x - 1 && p.x < x + w + 1 && p.y > y - 1 && p.y < y + h + 1);
 
 describe('fishing rod pose', () => {

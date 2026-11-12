@@ -1,20 +1,24 @@
 // The fishing pond scene at the top of the Fishing window (fishing.tsx, docs/PLAN-fishing.md).
 //
 // Backdrop: Ardian's ChatGPT pond, seen from ABOVE (docs/art-source/fishing-pond.png), pixelized to
-// 480 x 270 (`/assets/bg/fishing-pond.png`, commands in docs/ASSETS.md; the four frogs redrawn
-// crisp with tools/pixelize/frogs.py so they read on phones). On top, drawn in code in the same
+// 480 x 270 (`/assets/bg/fishing-pond.png`, commands in docs/ASSETS.md; since package 2 the frogs and
+// ducks are taken out of the picture by tools/pixelize/pond_clean.py and live in code: art/pond-life.tsx,
+// with the village clock, the rain and the swaying tree). On top, drawn in code in the same
 // 480 x 270 grid and the same top-down view: TaniBot on the end of the dock facing the water, a bamboo
 // rod (nodes, cork handle, small reel, tapering tip), the line and the float seen from above (a red /
 // white disc) with round ripples, a small waterfall animation (falling streaks + foam) and the catch
 // popping up out of the water. Rod, line and float move together from one pose (art/rod-pose.ts), so
 // the line always hangs from the rod's tip: cast swing, soft sag while waiting, the rod bends and the
 // line goes taut on a bite, the line is pulled back in when reeling.
-// Nothing ever covers the frogs or the ducks (CRITTERS; checked in tools/fishing-test.mjs).
+// Nothing ever covers the frogs' lily pads or the ducks' area (CRITTERS; checked in tools/fishing-test.mjs
+// and web/test/rod-pose.test.ts).
 // Overlay colours: pixel art, its own palette (CLAUDE.md Design system). With prefers-reduced-motion
 // nothing moves (CSS).
 
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { CRITTERS, type PondTime, type PondWeather } from '../pond-life-plan';
+import { PondLife, PondMood } from './pond-life';
 import { CAST_MS, FLOAT_AT, REEL_MS, qAt, qNormal, rodPose, type Pt, type RodPose } from './rod-pose';
 
 /** Pond grid (image px). */
@@ -26,16 +30,7 @@ export const BOT_AT = { x: 62, y: 130 };
 /** TaniBot's height in the pond grid (its sprite is scaled to it). */
 const BOT_H = 58;
 
-/** Frogs (on their lily pads) and ducks in the image: boxes [x, y, w, h] the overlay must stay clear of. */
-export const CRITTERS: [number, number, number, number][] = [
-  [141, 67, 15, 13],
-  [300, 45, 15, 13],
-  [439, 76, 15, 13],
-  [99, 184, 15, 13],
-  [427, 108, 24, 16],
-  [404, 129, 24, 16],
-  [441, 144, 24, 16],
-];
+export { CRITTERS };
 
 const C = {
   rodDark: '#3f2a19',
@@ -100,7 +95,22 @@ function useClock(active: boolean, since: number): number {
  * `bot` = TaniBot (any element), placed on the dock and sized to the pond; `children` = HTML on top
  * (the "!" bubble, the catch), placed with `pondAt`.
  */
-export function PondScene({ phase, since = 0, bot, children }: { phase: PondPhase; since?: number; bot?: ComponentChildren; children?: ComponentChildren }) {
+export function PondScene({
+  phase,
+  since = 0,
+  time = 'day',
+  weather = 'clear',
+  bot,
+  children,
+}: {
+  phase: PondPhase;
+  since?: number;
+  /** The village clock and weather (pond-life-plan.ts: rain only, never ash). */
+  time?: PondTime;
+  weather?: PondWeather;
+  bot?: ComponentChildren;
+  children?: ComponentChildren;
+}) {
   const host = useRef<HTMLDivElement>(null);
   const [k, setK] = useState(0);
   // TaniBot's scale: its 64 px sprite should be BOT_H image px tall, whatever the pond's width.
@@ -127,7 +137,9 @@ export function PondScene({ phase, since = 0, bot, children }: { phase: PondPhas
   const fs = 1 + pose.lift * 0.7;
   return (
     <div
-      class={`pond pond-${phase}`}
+      class={`pond pond-${phase} pond-${time}${weather === 'rain' ? ' pond-rain-on' : ''}`}
+      data-time={time}
+      data-weather={weather}
       ref={host}
       data-critters={JSON.stringify(CRITTERS)}
       data-grid={`${POND_W}x${POND_H}`}
@@ -136,6 +148,7 @@ export function PondScene({ phase, since = 0, bot, children }: { phase: PondPhas
       style={{ '--pk': String(k) }}
     >
       <img class="pond-img" src="/assets/bg/fishing-pond.png" alt="" width={POND_W} height={POND_H} draggable={false} />
+      <PondLife time={time} weather={weather} still={still} />
       <svg class="pond-svg" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
         <g class="pond-fall" shape-rendering="crispEdges">
           {FALL_STREAKS.map(([x, y], i) => (
@@ -173,6 +186,7 @@ export function PondScene({ phase, since = 0, bot, children }: { phase: PondPhas
           </g>
         </g>
       </svg>
+      <PondMood time={time} weather={weather} />
       {children}
     </div>
   );

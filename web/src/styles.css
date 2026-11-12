@@ -14245,6 +14245,228 @@ html.duel-open .duel-bg .backdrop * {
   transform-origin: 50% 100%;
 }
 
+/* The pond's life (art/pond-life.tsx, Fishing package 2): the tree's crown sways, glints drift, frogs
+   hop, ducks paddle (the timer sets where to; CSS moves them there), leaves fall, the village clock
+   tints everything, rain falls and rings the water. Few elements, only transforms / opacity move. */
+.pond-tree {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(80 / 480 * 100%);
+  height: calc(41 / 270 * 100%);
+  image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+  transform-origin: 30% 100%;
+  animation: pond-sway 4.8s ease-in-out infinite alternate;
+}
+
+@keyframes pond-sway {
+  from {
+    transform: skewX(-1.4deg);
+  }
+  to {
+    transform: skewX(1.4deg);
+  }
+}
+
+.pond-glint {
+  opacity: 0.5;
+  animation: pond-glint 7s linear infinite;
+}
+
+@keyframes pond-glint {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  30%,
+  70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+}
+
+.rain-ring {
+  opacity: 0.6;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: rain-ring 1.4s ease-out infinite;
+}
+
+@keyframes rain-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+.pond-frog {
+  transition: transform 0.45s ease-out;
+}
+
+.frog-hop {
+  animation: frog-hop 0.45s ease-out;
+}
+
+@keyframes frog-hop {
+  40% {
+    transform: translateY(-3px) scale(1.25);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+.pond-duck {
+  transition-property: transform;
+  transition-timing-function: linear;
+}
+
+.duck-bob {
+  animation: duck-bob 1.4s steps(2) infinite;
+}
+
+.pond-duck.asleep .duck-bob {
+  animation-duration: 3.2s;
+}
+
+@keyframes duck-bob {
+  50% {
+    transform: translateY(0.6px);
+  }
+}
+
+.pond-zzz {
+  position: absolute;
+  z-index: 1; /* over the night tint, so it stays readable */
+  font-family: var(--font-ui);
+  font-size: var(--fs-2xs);
+  line-height: 1;
+  color: var(--paper-light);
+  text-shadow:
+    1px 1px 0 var(--ink),
+    -1px -1px 0 var(--ink);
+  pointer-events: none;
+  animation: pond-zzz 2.4s ease-out infinite;
+}
+
+.pond-zzz small {
+  font-size: 0.8em;
+  vertical-align: super;
+}
+
+@keyframes pond-zzz {
+  0% {
+    opacity: 0;
+    transform: translate(0, 2px);
+  }
+  30%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(3px, -6px);
+  }
+}
+
+.pond-leaves {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  container-type: size;
+}
+
+.pond-leaf {
+  position: absolute;
+  top: -4%;
+  width: 4px;
+  height: 3px;
+  opacity: 0;
+  box-shadow: 1px 1px 0 color-mix(in srgb, var(--ink) 30%, transparent);
+  animation: pond-leaf 12s linear infinite;
+}
+
+@keyframes pond-leaf {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  35% {
+    transform: translate(calc(var(--drift) * 0.4cqw), 40cqh) rotate(90deg);
+  }
+  65% {
+    transform: translate(calc(var(--drift) * 0.2cqw), 72cqh) rotate(200deg);
+  }
+  92% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--drift) * 1cqw), 108cqh) rotate(320deg);
+  }
+}
+
+/* The village clock over the whole pond (TaniBot and the rod too), under the "!" and the catch. */
+.pond-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pond-tint.tint-morning {
+  background: color-mix(in srgb, var(--gold-300) 26%, transparent);
+  mix-blend-mode: soft-light;
+}
+
+.pond-tint.tint-dusk {
+  background: linear-gradient(color-mix(in srgb, var(--gold-300) 55%, var(--red-500)), color-mix(in srgb, var(--gold-300) 80%, var(--red-500)));
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+}
+
+/* A warm glow on top of the darker dusk colours (sunset light on the water). */
+.pond-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--gold-500) 60%, var(--red-500));
+  opacity: 0.5;
+  mix-blend-mode: soft-light;
+}
+
+.pond-tint.tint-night {
+  background: color-mix(in srgb, var(--hud) 85%, var(--cyan-700));
+  opacity: 0.72;
+  mix-blend-mode: multiply;
+}
+
+.pond-rain {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pond-rain-on .pond-tint.tint-day,
+.pond-rain-on .pond-tint.tint-morning {
+  background: color-mix(in srgb, var(--hud) 40%, var(--cyan-700));
+  opacity: 0.3;
+  mix-blend-mode: multiply;
+}
+
 /* The waterfall: light streaks run down, foam flickers at its foot. */
 .fall-streak {
   animation: fall-run 0.9s linear infinite;
@@ -14852,5 +15074,25 @@ html.duel-open .duel-bg .backdrop * {
   .pond-splash,
   .pond-plop {
     display: none;
+  }
+
+  /* The pond's life stands still. */
+  .pond-tree,
+  .pond-glint,
+  .rain-ring,
+  .frog-hop,
+  .duck-bob,
+  .pond-zzz,
+  .pond-rain .wx-rain-layer {
+    animation: none !important;
+  }
+
+  .pond-frog,
+  .pond-duck {
+    transition: none !important;
+  }
+
+  .pond-zzz {
+    opacity: 1;
   }
 }

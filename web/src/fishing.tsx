@@ -9,6 +9,9 @@ import { api, ApiError, type CatchView, type FishingView, type GameState } from 
 import { CatchIcon } from './art/catch-icons';
 import { FLOAT_AT, PondScene, pondAt } from './art/pond';
 import { CAST_MS, REEL_MS } from './art/rod-pose';
+import { pondTime, pondWeather } from './pond-life-plan';
+import { villageHour } from './share';
+import { lookOf } from './weather';
 import { TaniBot } from './art/tanibot';
 import { tierOf } from './art/tiers';
 import { playFishing, playSound } from './audio';
@@ -87,6 +90,14 @@ export function FishingWindow({
   const castAt = useRef(0);
   const alive = useRef(true);
   useEffect(() => () => void (alive.current = false), []);
+  // The pond follows the village clock and weather (rain only; never ash), checked every 30 s.
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setClockTick((n) => n + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const time = pondTime(villageHour(state));
+  const weather = pondWeather(lookOf(state.weather));
 
   // What can be caught + today's catches (the window works without it too). The game state may be a
   // few seconds old, so a line still in the water is resumed from this fresh answer too.
@@ -204,7 +215,7 @@ export function FishingWindow({
 
   return (
     <Modal title="Fishing" onClose={onClose} class={`fishing-dialog fishing-live${inWater ? ' fishing-one' : ''}`} actions={actions}>
-      <PondScene phase={phase.k} since={since} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
+      <PondScene phase={phase.k} since={since} time={time} weather={weather} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
         {phase.k === 'bite' && (
           <span class="pond-bang" style={pondAt(FLOAT_AT.x, FLOAT_AT.y - 10)} aria-hidden="true">
             !
