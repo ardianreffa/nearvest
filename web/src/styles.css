@@ -1058,7 +1058,18 @@ button {
   left: 50%;
   bottom: -6px;
   transform: translateX(-50%);
-  animation: pop-in 0.25s steps(2);
+  /* 2026-11-12 (Ardian saw a small woven box left under TaniBot): the basket always goes away by
+     itself after the harvest show, even if the scene's state lingers. */
+  animation:
+    pop-in 0.25s steps(2),
+    fx-gone 0.3s ease-in 1.6s forwards;
+}
+
+@keyframes fx-gone {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
 }
 
 /* ---------- TaniBot actions ---------- */
@@ -1068,6 +1079,8 @@ button {
   inset: 0;
   z-index: 6;
   pointer-events: none;
+  /* Never left on screen: every action show ends by itself (the scene clears it at 1.7 / 2.4 s). */
+  animation: fx-gone 0.3s ease-in 2.6s forwards;
 }
 
 /* Watering: the drone takes off next to TaniBot, flies to the tree, hovers just above its crown
@@ -4860,12 +4873,16 @@ button.balance:focus-visible {
   animation: none;
 }
 
-.bot-spot.moving.dir-right .tanibot {
-  transform: translateY(-8px) rotate(8deg);
+.bot-spot.moving.dir-right .tanibot,
+.bot-spot.moving.dir-left .tanibot {
+  /* The facing comes from .face-left / .face-right (mirror); this leans it forward either way. */
+  transform: translateY(-8px) rotate(-8deg);
 }
 
-.bot-spot.moving.dir-left .tanibot {
-  transform: translateY(-8px) scaleX(-1) rotate(8deg);
+/* TaniBot faces its plot: the sprite looks left; facing right = mirrored (its own scale property,
+   so its breathing / hover / work animations on transform keep running). */
+.bot-spot.face-right .tanibot {
+  scale: -1 1;
 }
 
 .bot-spot.moving::after {
@@ -5191,12 +5208,9 @@ button.balance:focus-visible {
   height: calc(var(--k) * 4px);
 }
 
-.stage .bot-spot.moving.dir-right .tanibot {
-  transform: translateY(calc(var(--k) * -5px)) rotate(8deg);
-}
-
+.stage .bot-spot.moving.dir-right .tanibot,
 .stage .bot-spot.moving.dir-left .tanibot {
-  transform: translateY(calc(var(--k) * -5px)) scaleX(-1) rotate(8deg);
+  transform: translateY(calc(var(--k) * -5px)) rotate(-8deg);
 }
 
 .stage .bot-dust {

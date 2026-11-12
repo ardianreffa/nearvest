@@ -836,11 +836,16 @@ function useBotMotion(x: number, on: boolean, working: boolean, plot: number) {
 
   // The nearest tree is on the bot's left for plots 1-2 and on its right for plot 3.
   const lookDir = plot < 2 ? 'left' : 'right';
+  // TaniBot FACES its plot (2026-11-12, Ardian), and the way it moves while moving. The sprite looks a
+  // little to the left; facing right = mirrored (CSS .face-right). Its eyes' "look" then always runs
+  // toward its own front (the sprite's left).
+  const face = move ? move.dir : lookDir;
   const cls = [
+    `face-${face}`,
     move ? `moving dir-${move.dir}` : '',
     landing ? 'landing' : '',
     bounce ? 'bounce' : '',
-    !move && !working && idle ? `idle-${idle === 'look' ? `look-${lookDir}` : idle}` : '',
+    !move && !working && idle ? `idle-${idle === 'look' ? 'look-left' : idle}` : '',
   ]
     .filter(Boolean)
     .join(' ');
