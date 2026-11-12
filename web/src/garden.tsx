@@ -8,6 +8,7 @@ import { phoneFill, phoneLayout } from './layout';
 import { bgVersion, villageFor } from './art/village';
 import { seasonPayout } from './qty';
 import { Info } from './info';
+import { Modal } from './help';
 import { GardenScene, WATER_FX_MS, type ActionKind, type Immersive, type SceneFx } from './scene';
 import { Sprite } from './sprites';
 import {
@@ -494,6 +495,19 @@ function SeedRow({ children, arrows = false }: { children: preact.ComponentChild
   );
 }
 
+/**
+ * A "?" button's text in a popup in the middle of the screen with a Close button (2026-11-12,
+ * Ardian's iPhone test: the text used to open under the panel and needed scrolling, so the "?"
+ * seemed to do nothing).
+ */
+function HelpPopup({ title, text, onClose }: { title: string; text: string; onClose: () => void }) {
+  return (
+    <Modal title={title} onClose={onClose} closeLabel="Got it" class="help-popup">
+      <p>{text}</p>
+    </Modal>
+  );
+}
+
 function PlotPanel({
   state,
   config,
@@ -540,7 +554,8 @@ function PlotPanel({
     // "Move to Memorials": only when the server has it (older servers send no `movable`).
     const moveMemorial = m?.movable && (
       <button
-        class={sheet ? 'link-btn move-memorial' : 'btn btn-small move-memorial'}
+        class={`btn btn-small move-memorial${sheet ? ' sheet-move' : ''}`}
+        aria-label="Move to Memorials"
         disabled={busy}
         onClick={async () => {
           if (await ask(`Move this Memorial ${SPECIES_NAME[m.species]} to your Memorial list in the Village tab? The plot becomes empty. Its NFT stays yours.`, 'Move')) {
@@ -548,7 +563,7 @@ function PlotPanel({
           }
         }}
       >
-        Move to Memorials
+        {sheet ? 'Move' : 'Move to Memorials'}
       </button>
     );
     const seedRow =
@@ -592,7 +607,7 @@ function PlotPanel({
           }
         >
           {seedRow}
-          {help && <p class="seed-note">Tap a seed to plant it: a Tree NFT is minted to your account. {SEED_ODDS_TEXT}</p>}
+          {help && <HelpPopup title="How planting works" text={`Tap a seed to plant it: a Tree NFT is minted to your account. ${SEED_ODDS_TEXT}`} onClose={() => setHelp(false)} />}
         </Panel>
       );
     }
@@ -602,9 +617,13 @@ function PlotPanel({
         class={`plot-empty${bar ? ' plot-bar' : ''}${sheet ? ' plot-sheet plain' : ''}`}
         right={
           sheet && (
-            <button class="icon-btn sheet-help-btn" onClick={() => setHelp(!help)} aria-label="How planting works" aria-expanded={help}>
-              ?
-            </button>
+            <>
+              {/* Phones: "Move" sits in the title row, so it is on screen without scrolling. */}
+              {moveMemorial}
+              <button class="icon-btn sheet-help-btn" onClick={() => setHelp(!help)} aria-label="How planting works" aria-expanded={help}>
+                ?
+              </button>
+            </>
           )
         }
       >
@@ -612,9 +631,7 @@ function PlotPanel({
           <p class={`memorial-note${sheet ? ' short' : ''}`}>
             {sheet ? (
               moveMemorial ? (
-                <>
-                  Memorial {SPECIES_NAME[m.species]} · {moveMemorial}
-                </>
+                `Memorial ${SPECIES_NAME[m.species]} · NFT stays yours`
               ) : (
                 `Memorial ${SPECIES_NAME[m.species]} · planting moves it to Village`
               )
@@ -623,10 +640,13 @@ function PlotPanel({
             )}
           </p>
         )}
+        {/* Laptops: under the note. Phones: in the title row (2026-11-12: it was cut off at the end of
+            the one-line note). */}
         {!sheet && moveMemorial}
         {seedRow}
-        {/* Phones: the long note waits behind the "?" button. */}
-        {(!sheet || help) && <p class="seed-note">Tap a seed to plant it: a Tree NFT is minted to your account. {SEED_ODDS_TEXT}</p>}
+        {/* Phones: the long note waits behind the "?" button (a popup in the middle of the screen). */}
+        {!sheet && <p class="seed-note">Tap a seed to plant it: a Tree NFT is minted to your account. {SEED_ODDS_TEXT}</p>}
+        {sheet && help && <HelpPopup title="How planting works" text={`Tap a seed to plant it: a Tree NFT is minted to your account. ${SEED_ODDS_TEXT}`} onClose={() => setHelp(false)} />}
       </Panel>
     );
   }
@@ -729,7 +749,7 @@ function PlotPanel({
             ?
           </button>
         </header>
-        {help && <p class="sheet-help small">{helpText}</p>}
+        {help && <HelpPopup title="How this tree grows" text={helpText} onClose={() => setHelp(false)} />}
         <div class="sheet-status">
           <div class="progress" aria-label="Growth">
             <div class="progress-bar" style={{ width: `${Math.min(100, t.growthPercent)}%` }} />
@@ -820,7 +840,7 @@ function PlotPanel({
               </span>
             )}
           </div>
-          {help && <p class="muted small bar-help">{helpText}</p>}
+          {help && <HelpPopup title="How this tree grows" text={helpText} onClose={() => setHelp(false)} />}
         </div>
         <div class="bar-side">
           {actions}

@@ -3491,6 +3491,14 @@ input:focus-visible {
 }
 
 /* Phones: the Move link sits inside the one-line Memorial note. */
+.plot-sheet .move-memorial.sheet-move {
+  flex: none;
+  min-height: 36px;
+  margin: 0 6px 0 0;
+  padding: 0 10px;
+  font-size: var(--fs-sm);
+}
+
 .memorial-note .link-btn.move-memorial {
   font-size: inherit;
   color: var(--purple-700);
