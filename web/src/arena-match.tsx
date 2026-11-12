@@ -36,7 +36,7 @@ import {
 } from './arena-turn';
 import { Avatar } from './art/avatars';
 import { DuelBackdrop } from './art/duel-backdrop';
-import { playGoldDurian, playSound } from './audio';
+import { playGoldDurian, playSound, setArenaMusic } from './audio';
 import { confetti } from './fx';
 import { PUBLIC_SITE } from './referral';
 import { postUrl } from './share';
@@ -368,6 +368,11 @@ export function MatchScreen({
   const secsLeft = (ms: number | undefined) => Math.max(0, Math.ceil(((ms ?? 0) - (now() - answeredAt)) / 1000));
   const last = anim ? m.turns[anim.i] : m.turns[m.turns.length - 1];
   const done = endPhase === 'result';
+  // The Arena's own music from after "VS / FIGHT!" until the result; Tandur's music waits while the
+  // duel screen is open and comes back when it closes (audio.ts setArenaMusic).
+  const fighting = !introAt && !done && (m.status === 'playing' || m.status === 'paused');
+  useEffect(() => setArenaMusic(true, fighting), [fighting]);
+  useEffect(() => () => setArenaMusic(false, false), []);
   const over = isOver(m.status) && !anim;
   const noWinner = m.status === 'cancelled' || m.winner === null;
   // Life and skill shown: the playing turn's frame, else the match now.

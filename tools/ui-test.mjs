@@ -777,6 +777,9 @@ try {
     await step(`make ${me} and ${foe}; a v2 server?`, async () => {
       const tok = await make(me);
       await make(foe);
+      // The Arena list shows 30 farmers, thirsty gardens first: on a test server full of old test
+      // gardens a freshly watered <foe> would drop off it, so its tree is made thirsty (test only).
+      db.prepare('UPDATE trees SET water_until = 0, water_day = NULL WHERE player_id = (SELECT id FROM players WHERE name = ?)').run(foe);
       // ME_XP / FOE_XP: titles for the two gardens (their TaniBots' looks in the duel: Farmer 200, Durian King 1500, Legend 4000).
       if (process.env.ME_XP) db.prepare('UPDATE players SET xp = ? WHERE name = ?').run(Number(process.env.ME_XP), me);
       if (process.env.FOE_XP) db.prepare('UPDATE players SET xp = ? WHERE name = ?').run(Number(process.env.FOE_XP), foe);
@@ -818,6 +821,20 @@ try {
     // LOSE=1: the TaniBot wins every turn (its locked pick beats ours), Skip each turn, until YOU LOSE.
     if (process.env.LOSE) {
       await step('LOSE=1: the TaniBot wins every turn until the result', async () => {
+        // The Arena's own music (audio.ts setArenaMusic): <html data-music> = arena while fighting.
+        const music = () => evaluate(`document.documentElement.dataset.music ?? 'none'`);
+        await realClick(5, 5);
+        await sleep(2400);
+        console.log('music while fighting:', await music(), '| level (RMS):', await evaluate(`(window.__arenaLevel?.() ?? 0).toFixed(3)`));
+        // The Music switch: off = the Arena track stops too, on = it plays again.
+        const musicBtn = (label) => evaluate(`(() => { const b = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)}); if (!b) return false; b.click(); return true; })()`);
+        console.log('pressed the Music button (off):', await musicBtn('Turn music off'));
+        await sleep(600);
+        console.log('music switched off during the duel:', await music());
+        console.log('pressed the Music button (on):', await musicBtn('Turn music on'));
+        await sleep(600);
+        console.log('music switched on again:', await music(), '| level (RMS):', await evaluate(`(window.__arenaLevel?.() ?? 0).toFixed(3)`));
+        await evaluate(`document.querySelector('.duel.match') && true`);
         const BEATS = { rock: 'paper', paper: 'scissors', scissors: 'rock' };
         for (let t = 0; t < 30 && !(await evaluate(`!!document.querySelector('.duel-result')`)); t++) {
           if (await evaluate(ready)) {
@@ -830,6 +847,10 @@ try {
         }
         await waitFor(`!!document.querySelector('.duel-result')`, 'result', 20000);
         await sleep(1200);
+        console.log('music on the result:', await music());
+        await evaluate(`[...document.querySelectorAll('.duel-result button')].find(b => b.innerText.includes('Back'))?.click()`);
+        await sleep(1200);
+        console.log('music after leaving the Arena:', await music());
         console.log('result:', await evaluate(info));
         await screenshot('lose-result');
         await layout('lose result');

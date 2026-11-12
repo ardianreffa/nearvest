@@ -3,6 +3,8 @@
 // first tap/click. Music and sound effects are switched on/off separately and
 // each choice is remembered in localStorage.
 
+import { ARENA_LOOP, ARENA_LOOP_STEPS, midiHz, STEP_S, type MusicNote } from './arena-music-plan';
+
 export type SoundName =
   | 'click'
   | 'plant'
@@ -38,6 +40,7 @@ const SOUND_FILES: Record<SoundName, string> = {
   momentEvolve: '/assets/audio/moment-evolve.m4a',
   momentLegend: '/assets/audio/moment-legend.m4a',
 };
+
 const MUSIC_FILE = '/assets/audio/music-apple-cider.m4a';
 const MUSIC_VOLUME = 0.3;
 const SFX_VOLUME = 0.6;
@@ -87,7 +90,11 @@ async function loadBuffers(): Promise<void> {
 }
 
 /** True while the fishing pond is open: Tandur's music waits (the pond has its own sounds). */
+let pondHeld = false;
+/** True while the Arena duel screen is open: Tandur's music waits (the Arena has its own track). */
+let arenaHeld = false;
 let musicHeld = false;
+const syncHeld = () => (musicHeld = pondHeld || arenaHeld);
 
 function startMusic(): void {
   if (!prefs.music || musicHeld) return;
@@ -116,6 +123,7 @@ export function initAudio(): void {
       ctx = null;
     }
     startMusic();
+    syncArenaTrack();
   };
   window.addEventListener('pointerdown', unlock);
   window.addEventListener('keydown', unlock);
@@ -132,7 +140,8 @@ export function initAudio(): void {
  * silent and only the pond's own sounds play; leaving the pond brings them back (if switched on).
  */
 export function setPondMode(on: boolean): void {
-  musicHeld = on;
+  pondHeld = on;
+  syncHeld();
   if (on) music?.pause();
   else if (unlocked && !document.hidden) startMusic();
   void syncAmbient();
@@ -142,7 +151,7 @@ export function setPondMode(on: boolean): void {
 /** <html data-music="on|off" data-ambient="day|night|rain|"> (read by the browser tests). */
 function markAudio(): void {
   if (typeof document === 'undefined') return;
-  document.documentElement.dataset.music = music && !music.paused ? 'on' : 'off';
+  document.documentElement.dataset.music = arenaTimer ? 'arena' : music && !music.paused ? 'on' : 'off';
   document.documentElement.dataset.ambient = ambientPlaying?.kind ?? '';
 }
 
@@ -535,6 +544,7 @@ export function setAudioPrefs(change: Partial<AudioPrefs>): void {
   }
   if (!prefs.music) music?.pause();
   else if (unlocked) startMusic();
+  syncArenaTrack();
   markAudio();
   for (const l of listeners) l(prefs);
 }
@@ -930,4 +940,125 @@ listeners.add(() => syncPond());
 if (typeof window !== 'undefined') {
   window.addEventListener('pointerdown', () => setTimeout(() => (void syncAmbient(), syncPond()), 50));
   document.addEventListener('visibilitychange', () => (void syncAmbient(), syncPond()));
+}
+
+// ---------- The Arena's own music (Ardian 2026-11-13) ----------
+// A fast chiptune made in code (arena-music-plan.ts): square / triangle waves and noise, scheduled a
+// little ahead in Web Audio. It follows the Music switch (not the Sound switch), starts only after the
+// first tap like every sound, and stops (Tandur's music comes back) when the duel screen closes.
+
+let arenaWanted = false;
+let arenaTimer: number | null = null;
+let arenaGain: GainNode | null = null;
+let arenaNext = 0;
+let arenaStep = 0;
+const ARENA_VOLUME = 0.16;
+
+/** The duel screen is open (Tandur's music waits) and whether the fight track should play now. */
+export function setArenaMusic(screenOpen: boolean, fighting: boolean): void {
+  arenaHeld = screenOpen;
+  syncHeld();
+  arenaWanted = screenOpen && fighting;
+  if (musicHeld) music?.pause();
+  else if (unlocked && !document.hidden) startMusic();
+  syncArenaTrack();
+  markAudio();
+}
+
+function syncArenaTrack(): void {
+  const play = arenaWanted && prefs.music && !!ctx && unlocked;
+  if (play && arenaTimer === null) startArenaTrack();
+  else if (!play && arenaTimer !== null) stopArenaTrack();
+}
+
+function startArenaTrack(): void {
+  const c = ctx!;
+  if (c.state === 'suspended') void c.resume();
+  arenaGain = c.createGain();
+  arenaGain.gain.setValueAtTime(0.0001, c.currentTime);
+  arenaGain.gain.exponentialRampToValueAtTime(ARENA_VOLUME, c.currentTime + 0.4);
+  arenaGain.connect(c.destination);
+  // Dev builds: the browser test reads the track's real level from this analyser.
+  if (import.meta.env.DEV) {
+    const an = c.createAnalyser();
+    arenaGain.connect(an);
+    (window as unknown as { __arenaLevel?: () => number }).__arenaLevel = () => {
+      const d = new Float32Array(an.fftSize);
+      an.getFloatTimeDomainData(d);
+      return Math.sqrt(d.reduce((a, v) => a + v * v, 0) / d.length);
+    };
+  }
+  arenaNext = c.currentTime + 0.05;
+  arenaStep = 0;
+  // Schedule ~0.25 s ahead every 60 ms (steady even when the page is busy).
+  arenaTimer = window.setInterval(scheduleArena, 60);
+  scheduleArena();
+}
+
+function stopArenaTrack(): void {
+  if (arenaTimer !== null) window.clearInterval(arenaTimer);
+  arenaTimer = null;
+  const g = arenaGain;
+  arenaGain = null;
+  if (g && ctx) {
+    const t = ctx.currentTime;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    window.setTimeout(() => g.disconnect(), 500);
+  }
+}
+
+const BY_STEP = new Map<number, MusicNote[]>();
+for (const n of ARENA_LOOP) BY_STEP.set(n.step, [...(BY_STEP.get(n.step) ?? []), n]);
+
+function scheduleArena(): void {
+  const c = ctx;
+  const out = arenaGain;
+  if (!c || !out) return;
+  if (document.hidden) {
+    // A hidden tab: skip ahead without sound (no pile-up when the tab comes back).
+    arenaNext = Math.max(arenaNext, c.currentTime + 0.05);
+    return;
+  }
+  while (arenaNext < c.currentTime + 0.25) {
+    for (const n of BY_STEP.get(arenaStep % ARENA_LOOP_STEPS) ?? []) arenaVoice(c, out, n, arenaNext);
+    arenaNext += STEP_S;
+    arenaStep++;
+  }
+}
+
+function arenaVoice(c: AudioContext, out: GainNode, n: MusicNote, t: number): void {
+  const dur = n.len * STEP_S;
+  const g = c.createGain();
+  g.connect(out);
+  if (n.voice === 'hat' || n.voice === 'snare') {
+    const len = Math.floor(c.sampleRate * (n.voice === 'hat' ? 0.04 : 0.12));
+    const buf = c.createBuffer(1, len, c.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const f = c.createBiquadFilter();
+    f.type = n.voice === 'hat' ? 'highpass' : 'bandpass';
+    f.frequency.value = n.voice === 'hat' ? 7000 : 1800;
+    const vol = n.voice === 'hat' ? 0.18 : 0.45;
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len / c.sampleRate);
+    src.connect(f).connect(g);
+    src.start(t);
+    src.stop(t + len / c.sampleRate + 0.02);
+    return;
+  }
+  const o = c.createOscillator();
+  o.type = n.voice === 'bass' ? 'triangle' : 'square';
+  o.frequency.setValueAtTime(midiHz(n.midi), t);
+  const vol = n.voice === 'lead' ? 0.32 : n.voice === 'bass' ? 0.55 : 0.1;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.005);
+  g.gain.setValueAtTime(vol, t + dur * 0.7);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.95);
+  o.connect(g);
+  o.start(t);
+  o.stop(t + dur);
 }
