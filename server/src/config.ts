@@ -81,7 +81,9 @@ export function loadConfig(): Config {
     databasePath: env('DATABASE_PATH', './data/nearvest.sqlite'),
     googleClientId: env('GOOGLE_CLIENT_ID', ''),
     devLogin: false, // set below: DEV_LOGIN=true only counts on a local-only server
-    demoModeDefault: bool('DEMO_MODE_DEFAULT', false),
+    // New gardens start in demo mode unless the player switches it off (Ardian 2026-11-12: judges
+    // must not wait days). DEMO_MODE_DEFAULT=false turns this back.
+    demoModeDefault: bool('DEMO_MODE_DEFAULT', true),
     playerAccountDepositNear: env('PLAYER_ACCOUNT_DEPOSIT_NEAR', '0.003'),
     webOrigins: env('WEB_ORIGINS', 'http://localhost:5173')
       .split(',')

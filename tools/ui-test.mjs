@@ -566,6 +566,8 @@ try {
       await clickText('Enter');
       await waitFor(`!!document.querySelector('form.create input:not([type])')`, 'create form');
       const field = `document.querySelector('form.create input:not([type])')`;
+      // Demo mode is ON when the form opens (Ardian 2026-11-12) and can be switched off.
+      console.log('demo mode when the form opens:', await evaluate(`(() => { const c = document.querySelector('form.create input[type=checkbox]'); return (c.checked ? 'ON' : 'OFF') + ' | "' + c.closest('label').innerText.trim() + '"'; })()`));
       const read = `(() => { const i = ${field}; return 'value "' + i.value + '" (' + i.value.length + ') | counter "' + document.querySelector('.name-count').innerText + '" | preview "' + document.querySelector('.account-preview').innerText + '"'; })()`;
       // Real key presses: 8 letters, then 12 more (the field stops at 16).
       await evaluate(`${field}.focus()`);

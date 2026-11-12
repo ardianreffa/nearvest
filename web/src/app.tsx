@@ -1697,6 +1697,7 @@ const NAME_MAX = 16;
 
 function CreateGarden({ onCreated, onLogout }: { onCreated: (s: GameState) => void; onLogout: () => void }) {
   const [name, setName] = useState('');
+  // On when the screen opens (Ardian 2026-11-12: judges should not wait days); the player may switch it off.
   const [demo, setDemo] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -1752,7 +1753,7 @@ function CreateGarden({ onCreated, onLogout }: { onCreated: (s: GameState) => vo
         </div>
         <label class="check">
           <input type="checkbox" checked={demo} onChange={(e) => setDemo((e.target as HTMLInputElement).checked)} />
-          Demo mode: 1 game day = 1 minute
+          Demo mode: 1 day = 1 minute (recommended for judges)
         </label>
         <button class="btn btn-mint" disabled={busy || clean.length < 2}>
           {busy ? 'Planting your garden...' : 'Start farming'}
