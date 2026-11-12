@@ -508,8 +508,11 @@ export function MatchScreen({
 
         {!done && m.status !== 'invite' && (
           <div class="match-info" aria-live="polite">
-            {note && m.turns.length === 0 && <p class="match-note">{note}</p>}
+            {note && m.turns.length === 0 && last && <p class="match-note">{note}</p>}
             <p class="match-turn">{turnLine(m, !!sending, anim?.i)}</p>
+            {/* Before turn 1 the same two-line slot holds the opening note (e.g. "said no: you fight
+                their TaniBot!"), so the dock keeps its height. */}
+            {!last && <p class={`match-why${note ? ' match-note' : ''}`}>{note ?? ''}</p>}
             {last && (
               <p class="match-why">
                 {/* A new turn is open: the line is about the turn before (its picks are hidden again). */}
@@ -531,7 +534,15 @@ export function MatchScreen({
 
         {!over && m.status !== 'invite' && (
           <div class="match-controls">
-            {idle && clock && <TurnTimer clock={clock} now={clockNow} />}
+            {/* The timer's row is always there (hidden between turns), so the dock never changes height. */}
+            {idle && clock ? (
+              <TurnTimer clock={clock} now={clockNow} />
+            ) : (
+              <div class="turn-timer turn-timer-slot" aria-hidden="true">
+                <b class="turn-secs">10</b>
+                <span class="turn-bar" />
+              </div>
+            )}
             <button
               class={`btn gold-durian-btn${ctl.goldLit ? ' lit' : ''}`}
               disabled={!ctl.gold}

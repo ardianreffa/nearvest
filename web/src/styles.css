@@ -16355,3 +16355,103 @@ html.pond-open .hud * {
     animation: none;
   }
 }
+
+/* ---------- Duel layout that never changes between turns (2026-11-12, Ardian's iPhone test) ----------
+   The dock keeps one fixed height: the turn line (1 line), "Last turn" (exactly 2 lines, longer text
+   ends with ...), the bonus line, the timer row (hidden between turns) and the buttons are always
+   there, so the arena keeps its size the whole duel. */
+.turn-timer-slot {
+  visibility: hidden;
+}
+
+.duel.match.full > .match-info {
+  flex: none;
+  height: auto;
+}
+
+.duel.match.full .match-turn {
+  height: 1.3em;
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.duel.match.full .match-why {
+  height: calc(2 * 1.3em);
+  min-height: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.duel.match.full .match-bonus {
+  height: 1.3em;
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.duel.match.full p.match-note:not(.match-why) {
+  display: none;
+}
+
+/* The buttons never move or blink while a turn plays: only dimmed. */
+.duel.match.full .rps-btn,
+.duel.match.full .gold-durian-btn {
+  transition: opacity 0.15s;
+}
+
+.duel.match.full .rps-btn:disabled,
+.duel.match.full .gold-durian-btn:disabled {
+  animation: none;
+}
+
+/* The turn's result: a solid box with a pixel frame, high contrast, just under the life bars (never
+   over the TaniBots or the picks above their heads); pops in quickly. */
+.duel.match.full .turn-banner {
+  top: 76px;
+  left: 50%;
+  right: auto;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 6px 12px;
+  transform: translateX(-50%);
+  color: var(--paper-light);
+  text-shadow: none;
+  background: var(--hud);
+  border: 3px solid var(--gold-500);
+  box-shadow:
+    0 0 0 2px var(--ink),
+    4px 4px 0 2px color-mix(in srgb, var(--ink) 60%, transparent);
+  animation: turn-banner-pop 160ms steps(2) both;
+}
+
+.duel.match.full .turn-banner.gold {
+  color: var(--gold-300);
+}
+
+@keyframes turn-banner-pop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+.duel.match.full.wide .turn-banner {
+  top: 108px;
+  font-size: var(--fs-h3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .duel.match.full .turn-banner {
+    animation: none;
+  }
+}
