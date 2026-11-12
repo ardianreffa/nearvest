@@ -471,9 +471,152 @@ export async function playRumble(): Promise<void> {
   src.start();
 }
 
+// ---------- The fishing pond's background (Fishing package 2, pond-life-plan.ts pondSounds) ----------
+//
+// Made right here with Web Audio (no file, nothing copied; docs/ASSETS.md): the waterfall's rush and
+// a soft breeze are filtered noise loops; ripples (soft plinks), frogs (short croak pulses), ducks
+// (two nasal quacks), crickets (high chirps) and rain (noise + tiny drips) come at random moments.
+// Follows the Sound switch, starts only after the first tap, pauses while the tab is hidden.
+// `data-pond-sound` on <html> lists what plays (for the browser test).
+
+export interface PondSoundMix {
+  waterfall: boolean;
+  ripples: boolean;
+  breeze: boolean;
+  frogs: boolean;
+  frogsBusy: boolean;
+  crickets: boolean;
+  ducks: boolean;
+  rain: boolean;
+}
+
+let pondWanted: PondSoundMix | null = null;
+let pondPlaying: { key: string; out: GainNode; stops: AudioScheduledSourceNode[]; timer: number } | null = null;
+let noiseBuf: AudioBuffer | null = null;
+
+function noiseLoop(c: AudioContext): AudioBufferSourceNode {
+  if (!noiseBuf) {
+    noiseBuf = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const src = c.createBufferSource();
+  src.buffer = noiseBuf;
+  src.loop = true;
+  src.loopStart = Math.random();
+  return src;
+}
+
+function syncPond(): void {
+  const want = prefs.sfx && unlocked && !document.hidden ? pondWanted : null;
+  const key = want ? JSON.stringify(want) : '';
+  if ((pondPlaying?.key ?? '') === key) return;
+  if (pondPlaying && ctx) {
+    const p = pondPlaying;
+    const t = ctx.currentTime;
+    p.out.gain.cancelScheduledValues(t);
+    p.out.gain.setValueAtTime(p.out.gain.value, t);
+    p.out.gain.linearRampToValueAtTime(0, t + 0.6);
+    p.stops.forEach((n) => n.stop(t + 0.7));
+    window.clearInterval(p.timer);
+    pondPlaying = null;
+  }
+  document.documentElement.dataset.pondSound = want
+    ? (Object.keys(want) as (keyof PondSoundMix)[]).filter((k) => want[k] && k !== 'frogsBusy').join(',')
+    : '';
+  if (!want || !ctx || !sfxGain) return;
+  const c = ctx;
+  if (c.state === 'suspended') void c.resume();
+  const out = c.createGain();
+  out.gain.setValueAtTime(0, c.currentTime);
+  out.gain.linearRampToValueAtTime(0.6, c.currentTime + 1.2);
+  out.connect(sfxGain);
+  const stops: AudioScheduledSourceNode[] = [];
+  const bed = (type: BiquadFilterType, freq: number, q: number, vol: number, lfo?: { hz: number; depth: number }) => {
+    const src = noiseLoop(c);
+    const f = c.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = freq;
+    f.Q.value = q;
+    const g = c.createGain();
+    g.gain.value = vol;
+    src.connect(f).connect(g).connect(out);
+    src.start();
+    stops.push(src);
+    if (lfo) {
+      const o = c.createOscillator();
+      const d = c.createGain();
+      o.frequency.value = lfo.hz;
+      d.gain.value = lfo.depth;
+      o.connect(d).connect(g.gain);
+      o.start();
+      stops.push(o);
+    }
+  };
+  if (want.waterfall) {
+    bed('bandpass', 700, 0.5, 0.11);
+    bed('highpass', 3200, 0.7, 0.015);
+  }
+  if (want.breeze) bed('lowpass', 480, 0.7, 0.05, { hz: 0.11, depth: 0.04 });
+  if (want.rain) {
+    bed('bandpass', 2600, 0.4, 0.08);
+    bed('lowpass', 300, 0.7, 0.04);
+  }
+  // Short sounds at random moments.
+  const tone = (type: OscillatorType, f0: number, f1: number, at: number, dur: number, vol: number, filter?: { type: BiquadFilterType; f: number; q: number }) => {
+    const t = c.currentTime + at;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.015, dur / 3));
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    if (filter) {
+      const f = c.createBiquadFilter();
+      f.type = filter.type;
+      f.frequency.value = filter.f;
+      f.Q.value = filter.q;
+      o.connect(f).connect(g);
+    } else o.connect(g);
+    g.connect(out);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  };
+  const STEP = 0.25;
+  const chance = (perSecond: number) => Math.random() < perSecond * STEP;
+  const timer = window.setInterval(() => {
+    if (document.hidden) return;
+    if (want.ripples && chance(0.22)) {
+      const f = 700 + Math.random() * 500;
+      tone('sine', f, f * 0.6, 0, 0.09, 0.03);
+    }
+    if (want.frogs && chance(want.frogsBusy ? 0.4 : 0.1)) {
+      const f = 95 + Math.random() * 40;
+      const n = 2 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < n; i++) tone('sawtooth', f, f * 0.92, i * 0.1, 0.06, 0.09, { type: 'lowpass', f: 700, q: 2 });
+    }
+    if (want.ducks && chance(0.08)) {
+      const n = 1 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < n; i++) tone('sawtooth', 430, 320, i * 0.2, 0.13, 0.06, { type: 'bandpass', f: 1100, q: 3 });
+    }
+    if (want.crickets && chance(1.2)) for (let i = 0; i < 3; i++) tone('sine', 4300, 4250, i * 0.05, 0.03, 0.014);
+    if (want.rain && chance(1.5)) tone('sine', 1800 + Math.random() * 600, 1100, 0, 0.03, 0.012);
+  }, STEP * 1000);
+  pondPlaying = { key, out, stops, timer };
+}
+
+/** The pond's background while the Fishing window is open (null = silence). */
+export function setPondAmbience(mix: PondSoundMix | null): void {
+  pondWanted = mix;
+  syncPond();
+}
+
 // Follow the Sound switch, the first tap and the tab being hidden.
 listeners.add(() => void syncAmbient());
+listeners.add(() => syncPond());
 if (typeof window !== 'undefined') {
-  window.addEventListener('pointerdown', () => setTimeout(() => void syncAmbient(), 50));
-  document.addEventListener('visibilitychange', () => void syncAmbient());
+  window.addEventListener('pointerdown', () => setTimeout(() => (void syncAmbient(), syncPond()), 50));
+  document.addEventListener('visibilitychange', () => (void syncAmbient(), syncPond()));
 }

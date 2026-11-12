@@ -9,12 +9,12 @@ import { api, ApiError, type CatchView, type FishingView, type GameState } from 
 import { CatchIcon } from './art/catch-icons';
 import { FLOAT_AT, PondScene, pondAt } from './art/pond';
 import { CAST_MS, REEL_MS } from './art/rod-pose';
-import { pondTime, pondWeather } from './pond-life-plan';
+import { pondSounds, pondTime, pondWeather } from './pond-life-plan';
 import { villageHour } from './share';
 import { lookOf } from './weather';
 import { TaniBot } from './art/tanibot';
 import { tierOf } from './art/tiers';
-import { playFishing, playSound } from './audio';
+import { playFishing, playSound, setPondAmbience } from './audio';
 import { Modal } from './help';
 import { judgeDeviceId } from './judge';
 import { castsLeftText, catchNote, catchTier, rewardChips, startPhase, untilText, type FishPhase } from './fishing-logic';
@@ -98,6 +98,11 @@ export function FishingWindow({
   }, []);
   const time = pondTime(villageHour(state));
   const weather = pondWeather(lookOf(state.weather));
+  // The pond's own background sounds while the window is open (the garden's loop pauses, app.tsx).
+  useEffect(() => {
+    setPondAmbience(pondSounds(time, weather));
+  }, [time, weather]);
+  useEffect(() => () => setPondAmbience(null), []);
 
   // What can be caught + today's catches (the window works without it too). The game state may be a
   // few seconds old, so a line still in the water is resumed from this fresh answer too.

@@ -447,9 +447,10 @@ export function App() {
     ? phaseOf(1 - Math.max(0, state.clock.msUntilNextDay - (now - loadedAt)) / state.clock.dayLengthMs) === 'night'
     : false;
   useEffect(() => {
-    setAmbient(phase === 'play' && state ? (ambientLook === 'rain' ? 'rain' : ambientNight ? 'night' : 'day') : null);
+    // At the fishing pond its own sounds play instead (fishing.tsx).
+    setAmbient(phase === 'play' && state && !(fishingOpen && state.fishing) ? (ambientLook === 'rain' ? 'rain' : ambientNight ? 'night' : 'day') : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, !!state, ambientLook, ambientNight]);
+  }, [phase, !!state, ambientLook, ambientNight, fishingOpen]);
   useEffect(() => () => setAmbient(null), []);
 
   // Back from Google after "Continue with Google" in the Profile (iPhone / iPad redirect): link
