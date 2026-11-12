@@ -141,13 +141,17 @@ for (const L of LOOKS) {
   check(JSON.stringify(got) === JSON.stringify(want), `${L.q}: pond sounds ${s}`);
   if (first) {
     // The waterfall and the ripples really move: two shots 300 ms apart differ, so do the transforms.
-    const tr = () => pg.evaluate(() => ['.fall-flow', '.fall-ring', '.lake-ripple', '.pond-glint'].map((q) => [...document.querySelectorAll(q)].map((e) => getComputedStyle(e).transform).join('|')));
+    const tr = () =>
+      pg.evaluate(() => [
+        [...document.querySelectorAll('.fall-flow')].map((e) => getComputedStyle(e).backgroundPosition).join('|'),
+        ...['.fall-foam', '.lake-wave', '.pond-glint'].map((q) => [...document.querySelectorAll(q)].map((e) => getComputedStyle(e).transform + getComputedStyle(e).opacity).join('|')),
+      ]);
     const a1 = await tr();
     await pg.locator('.pond').screenshot({ path: `${out}/pond-${tag}-motion-1.png` });
     await pg.waitForTimeout(300);
     const a2 = await tr();
     await pg.locator('.pond').screenshot({ path: `${out}/pond-${tag}-motion-2.png` });
-    check(a1.every((t, i) => t !== a2[i]), `waterfall, foam rings, lake ripples and glints move (${a1.map((t, i) => (t !== a2[i] ? 'moved' : 'STILL')).join(', ')})`);
+    check(a1.every((t, i) => t !== a2[i]), `waterfall water, foam, lake waves and glints move (${a1.map((t, i) => (t !== a2[i] ? 'moved' : 'STILL')).join(', ')})`);
   }
   await closePond(L.q);
   check(!(await look()).sound, `${L.q}: pond sounds stop after leaving`);

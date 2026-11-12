@@ -51,64 +51,48 @@ const C = {
   floatDark: '#1b1b2f',
   ripple: '#a8f1fb',
   foam: '#fffaf0',
-  fallDark: '#22a8c8',
 };
 
 /**
- * The waterfall (Fishing package 3: the old thin pale streaks did not show on the white water).
- * Each falling sheet is clipped to its place in the picture and filled with columns of bright and
- * dark dashes; the whole group slides down one dash period per loop (seamless), so the water is
- * clearly seen flowing. Foam puffs flicker at the foot and rings spread out over the pool.
+ * The waterfall (Fishing package 4: the package 3 dashes looked like grey rain stuck on the picture).
+ * The water flows with the picture's OWN waterfall colours (tools/pixelize/pond_fall.py): a texture of
+ * each column's colours slides down inside a mask of the falling water, one per time of day, faded
+ * like the pictures (`mix`). Soft white foam breathes at the foot (warm at dusk, blue at night).
  */
-const FALLS: { clip: [number, number, number, number]; x0: number; x1: number }[] = [
-  { clip: [384, 16, 21, 39], x0: 384, x1: 405 },
-  { clip: [411, 0, 18, 14], x0: 411, x1: 429 },
-];
-const FALL_PERIOD = 8;
+const FALL_BOX = { x: 376, y: 0, w: 58, h: 56 };
 const FOAM_PUFFS = [
-  [382, 54, 3],
-  [388, 57, 4],
-  [395, 55, 3.5],
-  [401, 58, 3],
-  [392, 51, 2.5],
-  [399, 52, 2],
+  [384, 53, 7],
+  [392, 56, 9],
+  [400, 53, 7],
+  [388, 49, 5],
+  [397, 50, 5],
 ];
 
-function Waterfall() {
+function Waterfall({ mix, k }: { mix: { dusk: number; night: number }; k: number }) {
+  const layers: [string, number][] = [
+    ['day', 1],
+    ['dusk', mix.dusk],
+    ['night', mix.night],
+  ];
   return (
-    <g class="pond-fall" aria-hidden="true">
-      <defs>
-        {FALLS.map((f, i) => (
-          <clipPath key={i} id={`pond-fall-${i}`}>
-            <rect x={f.clip[0]} y={f.clip[1]} width={f.clip[2]} height={f.clip[3]} />
-          </clipPath>
-        ))}
-      </defs>
-      {FALLS.map((f, i) => {
-        const dashes = [];
-        for (let x = f.x0; x < f.x1; x += 2)
-          for (let y = f.clip[1] - FALL_PERIOD * 2; y < f.clip[1] + f.clip[3]; y += FALL_PERIOD) {
-            const off = ((x * 5) % FALL_PERIOD) - FALL_PERIOD / 2;
-            dashes.push(<rect key={`w${x}-${y}`} x={x} y={y + off} width={1.4} height={3} fill={C.foam} />);
-            dashes.push(<rect key={`d${x}-${y}`} x={x + 1} y={y + off + 4} width={1} height={2} fill={C.fallDark} />);
-          }
-        return (
-          <g key={i} clip-path={`url(#pond-fall-${i})`}>
-            <g class="fall-flow" shape-rendering="crispEdges" style={{ animationDelay: `${-i * 0.2}s` }}>
-              {dashes}
-            </g>
-          </g>
-        );
-      })}
+    <>
+      <div
+        class="pond-fall"
+        aria-hidden="true"
+        style={{
+          left: `${(FALL_BOX.x / POND_W) * 100}%`,
+          top: `${(FALL_BOX.y / POND_H) * 100}%`,
+          width: `${(FALL_BOX.w / POND_W) * 100}%`,
+          height: `${(FALL_BOX.h / POND_H) * 100}%`,
+          '--fall-h': `${FALL_BOX.h * k}px`,
+        }}
+      >
+        {layers.map(([t, o]) => o > 0 && <i key={t} class={`fall-flow fall-${t}`} style={{ opacity: o }} />)}
+      </div>
       {FOAM_PUFFS.map(([x, y, r], i) => (
-        <ellipse key={i} class="fall-foam" cx={x} cy={y} rx={r} ry={r * 0.6} fill={C.foam} style={{ animationDelay: `${-i * 0.17}s` }} />
+        <i key={i} class="fall-foam" style={{ ...pondAt(x, y), '--r': `${r * k}px`, animationDelay: `${-i * 0.37}s` }} aria-hidden="true" />
       ))}
-      <g fill="none" stroke={C.foam} stroke-width={0.9}>
-        {[0, 1, 2].map((i) => (
-          <ellipse key={i} class="fall-ring" cx={392} cy={63} rx={10} ry={3} style={{ animationDelay: `${-i * 0.8}s` }} />
-        ))}
-      </g>
-    </g>
+    </>
   );
 }
 
@@ -201,9 +185,9 @@ export function PondScene({
       {/* Ardian's dusk and night pictures over the day one, faded in by the village clock. */}
       {mix.dusk > 0 && <img class="pond-img pond-img-dusk" src="/assets/bg/fishing-pond-dusk.png" alt="" style={{ opacity: mix.dusk }} draggable={false} />}
       {mix.night > 0 && <img class="pond-img pond-img-night" src="/assets/bg/fishing-pond-night.png" alt="" style={{ opacity: mix.night }} draggable={false} />}
+      <Waterfall mix={mix} k={k} />
       <PondLife mix={mix} time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? FISHING_ZONE : null} avoid={avoid} />
       <svg class="pond-svg" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
-        <Waterfall />
         {pose.inWater && (
           <g class="pond-rings" fill="none" stroke={C.ripple} stroke-width={1}>
             <circle class="ring ring-a" cx={FLOAT_AT.x} cy={FLOAT_AT.y} r={6} />
