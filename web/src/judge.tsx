@@ -39,7 +39,7 @@ const STEPS: Record<JudgeStep, { title: string; doText: string; see: string; go:
   },
   shop: {
     title: 'Buy in the Shop',
-    doText: 'Buy fertilizer in the Shop.',
+    doText: 'Buy a seed or fertilizer in the Shop.',
     see: 'The PANEN you spend is burned on chain.',
     go: 'Open the Shop',
   },
