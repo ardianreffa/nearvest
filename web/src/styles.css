@@ -5831,10 +5831,12 @@ button.chip:focus-visible {
   visibility: hidden;
 }
 
-/* Farm day: information only, so quieter and not clickable. */
+/* Farm day: information only, so quieter and not clickable. Regular weight: Tiny5 has no bold, and
+   the browser's fake bold filled the holes of its narrow 8 ("6084" read "60$4", Ardian 2026-11-12). */
 .chip-day {
   cursor: var(--cur-arrow);
-  font-weight: 600;
+  font-weight: 400;
+  font-synthesis: none;
   color: var(--paper);
   background: color-mix(in srgb, var(--soil-700) 50%, transparent);
   border-color: color-mix(in srgb, var(--soil-300) 35%, transparent);
