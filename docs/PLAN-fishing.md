@@ -261,3 +261,42 @@ line on the tip mid-cast / waiting / bite / reeling, the bent rod, TaniBot facin
    only when not night). NO eruption or ash at the pond: those show a clear pond.
 5. Reduced motion: nothing moves (no timer, no leaves); only a few particles (5 leaves, 8 rain rings).
 6. Browser test: `tools/pond-mood-test.mjs` (fake chain, `?time=day|dusk|night`, `?weather=rain|eruption`).
+
+## 10. Package 3 (Ardian's test, 2026-11-12) — BUILT 2026-11-12 (committed locally, not pushed)
+
+1. **Full screen** like the village: `pondFit` (web/src/pond-life-plan.ts). Laptops: the pond covers
+   the window (crops at most 12%: 1280x800 loses 71 px on each side, TaniBot and the dock stay in
+   view). Upright phones: the 16:9 pond fits the width (390 x 219 at 390x844) in the upper part, a
+   blurred, darker copy of it fills the rest, the panel sits under the pond and never covers it.
+   Floating controls: top bar "← Village" + casts left, bottom panel (status, catch card, Cast line /
+   Reel in), "What can I catch?" in its own window. The water wipe stays.
+   **Phone answer:** the 16:9 picture works, but on an upright phone it uses only about a quarter of
+   the screen (cropping it would cut the dock, the float or the ducks). For a real full-screen phone
+   pond an upright picture is needed; prompt below. The overlay (dock end, float, frogs, ducks,
+   waterfall) would then be measured again on that picture, like the village's phone version.
+2. Honest PANEN: the list shows what you receive after the Season rule (chest range too) with
+   "Season N: rewards X%"; the catch card says Mr. Darto bought the fish on the spot.
+3. Ducks float (shadow, waterline, ripple) and swim anywhere on the lake by a water map made from the
+   picture (`WATER_MASK`, `tools/pixelize/pond_clean.py`), never bump into each other (paths kept 24 px
+   apart), keep away from the float and the line while fishing, and from the floating panels.
+4. Waterfall and ripples did not visibly move: the lake glints' animation shared its name with the
+   item glints (`pond-glint`), so it was replaced; the waterfall streaks were 1 px pale lines on white
+   water. Now bright / dark dashes slide down each falling sheet, foam puffs and rings at the foot,
+   slow ripples on the lake. Proof: two shots 300 ms apart differ (tools/pond-mood-test.mjs).
+5. Falling leaves are pixel leaves (blade, vein, stem; 3 shapes), turning slowly, colour by time.
+6. The village's fish hologram sign moved 3 px (laptop) / 2 px (phone) to the right.
+7. At the pond Tandur's music and ambient loop are silent (`setPondMode`), back after leaving.
+8. Crickets at night (also in the rain), louder.
+
+### Image prompt: upright (phone) fishing pond, for ChatGPT
+
+> Pixel art game background, seen from directly ABOVE (top-down), PORTRAIT format 9:16 (for example
+> 1080 x 1920), same style and colours as the landscape NEARvest fishing pond: a tropical jungle pond in
+> a futuristic Indonesian village. A wooden dock comes in from the LEFT edge at about 40% of the height
+> and ends over the water (room for a small robot to stand on its end). A big calm area of open water in
+> the middle of the picture, from about 30% to 75% of the height, with nothing in it (the fishing float
+> goes there). A small waterfall at the TOP RIGHT falling over mossy rocks into the pond, with foam and
+> rings at its foot. Lily pads WITHOUT frogs: two or three groups near the left bank and one near the
+> top. NO ducks, NO frogs, NO fish, NO people, NO text. Lush jungle banks with palms, ferns, red and pink
+> flowers and grey stones all around; a big tree at the top left. The bottom 20% of the picture is bank
+> and jungle (game buttons will sit there). Crisp pixels, no blur, no outline frame.
