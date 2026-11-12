@@ -49,6 +49,7 @@ const C = {
   crystal: '#9cf8d2',
   crystalCore: '#fffaf0',
   leaf: '#4caf6a',
+  lampGlass: '#1e5a38',
   floatRed: '#e5484d',
   floatWhite: '#fffaf0',
   floatDark: '#1b1b2f',
@@ -262,11 +263,11 @@ export function PondScene({
           </defs>
           {/* The lamp's light around TaniBot on the dock, its halo, and the crystal itself. */}
           <ellipse class="lamp-pool" cx={LAMP.x + 6} cy={BOT_AT.y - 2} rx={30} ry={13} fill="url(#pond-glow-mint)" />
-          <circle class="lamp-halo" cx={LAMP.x} cy={LAMP.y} r={13} fill="url(#pond-glow-mint)" />
+          <circle class="lamp-halo" cx={LAMP.x} cy={LAMP.y} r={12} fill="url(#pond-glow-mint)" />
           <g shape-rendering="crispEdges">
-            <rect x={LAMP.x - 1} y={LAMP.y - 4} width={2} height={8} fill={C.crystal} />
             <rect x={LAMP.x - 2} y={LAMP.y - 2} width={4} height={4} fill={C.crystal} />
-            <rect x={LAMP.x} y={LAMP.y - 2} width={1} height={3} fill={C.crystalCore} />
+            <rect x={LAMP.x - 1} y={LAMP.y - 3} width={2} height={6} fill={C.crystal} />
+            <rect x={LAMP.x - 0.5} y={LAMP.y - 1.5} width={1} height={2} fill={C.crystalCore} />
           </g>
           {/* The float glows, and so does its reflection on the water. */}
           <ellipse class="float-reflect" cx={f.x} cy={f.y + 4} rx={4} ry={1.6} fill="url(#pond-glow-warm)" />
@@ -299,24 +300,36 @@ function band(p: RodPose, t: number, half: number): { x1: number; y1: number; x2
 }
 
 /**
- * TaniBot's night lamp (package 4, own design): a bamboo staff in its left hand (the side away from
- * the rod) with a leaf-shaped holder cradling a glowing crystal. The staff is drawn with the rod (it is
- * dimmed with TaniBot at night), the crystal and its light in `.pond-lights` (never dimmed).
+ * TaniBot's night lamp (package 4; a SHORT torch since package 5, own design): held in its left hand
+ * (the side away from the rod), a short bamboo grip with one node, a small dark lantern box with
+ * rivets on its corners and a glowing mint crystal inside, a tiny leaf on top (solarpunk). The grip
+ * and box are drawn with the rod (dimmed with TaniBot at night); the crystal and its light are in
+ * `.pond-lights` (never dimmed). From the hand up to about head height.
  */
-const LAMP = { x: BOT_AT.x - 15, y: BOT_AT.y - 41 };
+const LAMP = { x: BOT_AT.x - 17, y: BOT_AT.y - 33 };
 function LampStaff() {
   const x = LAMP.x;
   const y = LAMP.y;
   return (
     <g class="pond-lamp" shape-rendering="crispEdges">
-      <rect x={x - 1.5} y={y + 3} width={3} height={33} fill={C.rodDark} />
-      <rect x={x - 0.75} y={y + 3} width={1.5} height={32} fill={C.bamboo} />
-      {[10, 18, 26].map((d) => (
-        <rect key={d} x={x - 1} y={y + d} width={2} height={0.8} fill={C.node} />
+      {/* grip: from the box down to just below the hand */}
+      <rect x={x - 1.5} y={y + 3.5} width={3} height={14} fill={C.rodDark} />
+      <rect x={x - 0.75} y={y + 3.5} width={1.5} height={13.2} fill={C.bamboo} />
+      <rect x={x - 1} y={y + 10} width={2} height={0.8} fill={C.node} />
+      {/* the lantern box: dark frame, corner rivets (the crystal glows inside, .pond-lights) */}
+      <rect x={x - 4} y={y - 4} width={8} height={8} fill={C.rodDark} />
+      <rect x={x - 3} y={y - 3} width={6} height={6} fill={C.lampGlass} />
+      {[
+        [-4, -4],
+        [3, -4],
+        [-4, 3],
+        [3, 3],
+      ].map(([dx, dy]) => (
+        <rect key={`${dx}${dy}`} x={x + dx} y={y + dy} width={1} height={1} fill={C.reel} />
       ))}
-      {/* Leaf-shaped holder (two small leaves) around the crystal. */}
-      <path d={`M${x} ${y + 4} q -4 -1 -4 -5 q 3 0 4 3 z`} fill={C.leaf} stroke={C.rodDark} stroke-width={0.4} />
-      <path d={`M${x} ${y + 4} q 4 -1 4 -5 q -3 0 -4 3 z`} fill={C.leaf} stroke={C.rodDark} stroke-width={0.4} />
+      <rect x={x - 2} y={y - 5} width={4} height={1} fill={C.rodDark} />
+      {/* a tiny leaf on the cap */}
+      <path d={`M${x} ${y - 5} q 1 -3 4 -3 q -1 3 -4 3 z`} fill={C.leaf} stroke={C.rodDark} stroke-width={0.35} />
     </g>
   );
 }
