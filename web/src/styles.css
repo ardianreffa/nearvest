@@ -14313,6 +14313,78 @@ html.duel-open .duel-bg .backdrop * {
   }
 }
 
+/* Phones (package 6, Ardian's iPhone test): a compact panel and catch card that never cover the lake:
+   a small icon, the name and the reward on one line, the note in small text under it. */
+@media (max-width: 1023px) {
+  .pond-panel {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .pond-panel .fish-status {
+    min-height: 0;
+    font-size: var(--fs-sm) !important;
+  }
+
+  .pond-actions .btn {
+    min-height: 48px;
+  }
+
+  .pond-panel .fish-result {
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+  }
+
+  .pond-panel .fish-result-icon {
+    min-width: 48px;
+    width: 48px;
+    height: 40px;
+    padding: 0;
+  }
+
+  .pond-panel .fish-result-icon svg {
+    max-width: 44px;
+    max-height: 36px;
+    width: auto;
+    height: auto;
+  }
+
+  .pond-panel .fish-result-text {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+  }
+
+  .pond-panel .fish-result-text h3 {
+    margin: 0 !important;
+  }
+
+  .pond-panel .fish-chips {
+    margin-top: 0;
+  }
+
+  .pond-panel .fish-result-text p {
+    flex-basis: 100%;
+    margin: 0 !important;
+    font-size: var(--fs-sm) !important;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .pond-panel .fish-result-text .fish-line {
+    -webkit-line-clamp: 3;
+  }
+
+  .fish-list-open {
+    min-height: 32px;
+  }
+}
+
 .fishing-list-dialog {
   max-width: 560px;
 }

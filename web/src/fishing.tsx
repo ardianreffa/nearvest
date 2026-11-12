@@ -335,8 +335,6 @@ export function FishingWindow({
               </span>
               <div class="fish-result-text">
                 <h3>{c.released ? `${c.name} (released)` : c.name}</h3>
-                <p>{catchNote(c)}</p>
-                {c.line && <p class="fish-line">“{c.line}”</p>}
                 <div class="fish-chips">
                   {rewardChips(c).map((x) => (
                     <span key={x.text} class={`chip-reward reward-${x.kind}`}>
@@ -345,6 +343,8 @@ export function FishingWindow({
                     </span>
                   ))}
                 </div>
+                <p class="fish-note">{catchNote(c)}</p>
+                {c.line && <p class="fish-line">“{c.line}”</p>}
                 {c.panen > 0 && seasonNote(state.season) && <p class="fish-season">{seasonNote(state.season)}. This is what you received.</p>}
               </div>
             </div>
