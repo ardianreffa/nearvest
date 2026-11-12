@@ -23,9 +23,17 @@ write_png(os.path.join(out, 'fishing-fall-mask.png'), W, H, [[(255, 255, 255, 25
 
 for name, path in (('day', day), ('dusk', dusk), ('night', night)):
     _, _, px = read_png(path)
+    # Only the water's own light colours: in the dusk / night pictures some masked pixels are darker rock
+    # (dark specks in the flow, package 5), so pixels darker than 80% of the waterfall's median are left out.
+    lum = lambda p: 0.3 * p[0] + 0.59 * p[1] + 0.11 * p[2]
+    wet_px = sorted(lum(px[Y0 + y][X0 + x]) for y in range(H) for x in range(W) if mask[y][x])
+    floor = 0.8 * wet_px[len(wet_px) // 2]
+    bright_all = [tuple(px[Y0 + y][X0 + x][:3]) for y in range(H) for x in range(W) if mask[y][x] and lum(px[Y0 + y][X0 + x]) >= floor]
     cols = []
     for x in range(W):
-        seq = [tuple(px[Y0 + y][X0 + x][:3]) for y in range(H) if mask[y][x]]
+        seq = [tuple(px[Y0 + y][X0 + x][:3]) for y in range(H) if mask[y][x] and lum(px[Y0 + y][X0 + x]) >= floor]
+        if not seq and any(mask[y][x] for y in range(H)):
+            seq = bright_all[x::W] or bright_all[:1]
         cols.append(seq)
     rows = []
     for y in range(H):

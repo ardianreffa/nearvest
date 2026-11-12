@@ -57,18 +57,32 @@ const C = {
 };
 
 /**
- * The waterfall (Fishing package 4: the package 3 dashes looked like grey rain stuck on the picture).
- * The water flows with the picture's OWN waterfall colours (tools/pixelize/pond_fall.py): a texture of
- * each column's colours slides down inside a mask of the falling water, one per time of day, faded
- * like the pictures (`mix`). Soft white foam breathes at the foot (warm at dusk, blue at night).
+ * The waterfall (package 4: the picture's OWN waterfall colours, tools/pixelize/pond_fall.py; package 5:
+ * the flow follows the real path down the rock steps). The fall in the picture comes in from the top
+ * right, runs down-left onto the first step, then falls three more steps into the pool. Each step is
+ * its own layer: clipped to that step, masked to the falling water, its texture slides down along the
+ * water's slant there (a skewed layer), a little faster on each lower step. White spray flickers on each
+ * step's lip, and foam spreads out at the foot. Day / dusk / night textures fade like the pictures.
  */
 const FALL_BOX = { x: 376, y: 0, w: 58, h: 56 };
+/** The steps (grid px polygons), the water's slant (degrees of skew) and the loop time. */
+const FALL_STEPS: { pts: [number, number][]; skew: number; s: number }[] = [
+  { pts: [[415, 0], [434, 0], [424, 17], [405, 17]], skew: -27, s: 1.05 },
+  { pts: [[397, 12], [413, 12], [407, 31], [380, 31]], skew: -14, s: 0.95 },
+  { pts: [[376, 30], [410, 30], [408, 45], [379, 45]], skew: -5, s: 0.85 },
+  { pts: [[376, 44], [403, 44], [401, 56], [376, 56]], skew: 0, s: 0.75 },
+];
+/** White spray on each step's lip: x, y, width (grid px). */
+const FALL_LIPS = [
+  [406, 15, 12],
+  [383, 31, 22],
+  [381, 40, 20],
+];
+/** Foam at the foot: puffs, and foam spreading out over the pool. */
 const FOAM_PUFFS = [
-  [384, 53, 7],
-  [392, 56, 9],
-  [400, 53, 7],
-  [388, 49, 5],
-  [397, 50, 5],
+  [382, 54, 6],
+  [389, 56, 8],
+  [396, 54, 6],
 ];
 
 function Waterfall({ mix, k }: { mix: { dusk: number; night: number }; k: number }) {
@@ -77,23 +91,33 @@ function Waterfall({ mix, k }: { mix: { dusk: number; night: number }; k: number
     ['dusk', mix.dusk],
     ['night', mix.night],
   ];
+  const box = {
+    left: `${(FALL_BOX.x / POND_W) * 100}%`,
+    top: `${(FALL_BOX.y / POND_H) * 100}%`,
+    width: `${(FALL_BOX.w / POND_W) * 100}%`,
+    height: `${(FALL_BOX.h / POND_H) * 100}%`,
+    '--fall-w': `${FALL_BOX.w * k}px`,
+    '--fall-h': `${FALL_BOX.h * k}px`,
+  };
+  const pct = ([x, y]: [number, number]) => `${(((x - FALL_BOX.x) / FALL_BOX.w) * 100).toFixed(2)}% ${(((y - FALL_BOX.y) / FALL_BOX.h) * 100).toFixed(2)}%`;
   return (
     <>
-      <div
-        class="pond-fall"
-        aria-hidden="true"
-        style={{
-          left: `${(FALL_BOX.x / POND_W) * 100}%`,
-          top: `${(FALL_BOX.y / POND_H) * 100}%`,
-          width: `${(FALL_BOX.w / POND_W) * 100}%`,
-          height: `${(FALL_BOX.h / POND_H) * 100}%`,
-          '--fall-h': `${FALL_BOX.h * k}px`,
-        }}
-      >
-        {layers.map(([t, o]) => o > 0 && <i key={t} class={`fall-flow fall-${t}`} style={{ opacity: o }} />)}
-      </div>
+      {FALL_STEPS.map((st, i) => (
+        <div key={i} class="pond-fall" data-step={i} aria-hidden="true" style={{ ...box, clipPath: `polygon(${st.pts.map(pct).join(', ')})` }}>
+          {layers.map(
+            ([t, o]) =>
+              o > 0 && <i key={t} class={`fall-flow fall-${t}`} style={{ opacity: o, transform: `skewX(${st.skew}deg)`, animationDuration: `${st.s}s` }} />,
+          )}
+        </div>
+      ))}
+      {FALL_LIPS.map(([x, y, w], i) => (
+        <i key={`l${i}`} class="fall-lip" style={{ ...pondAt(x + w / 2, y), width: `${w * k}px`, height: `${2.4 * k}px`, animationDelay: `${-i * 0.29}s` }} aria-hidden="true" />
+      ))}
       {FOAM_PUFFS.map(([x, y, r], i) => (
         <i key={i} class="fall-foam" style={{ ...pondAt(x, y), '--r': `${r * k}px`, animationDelay: `${-i * 0.37}s` }} aria-hidden="true" />
+      ))}
+      {[0, 1, 2].map((i) => (
+        <i key={`s${i}`} class="fall-spread" style={{ ...pondAt(389, 58), '--r': `${12 * k}px`, animationDelay: `${-i * 0.9}s` }} aria-hidden="true" />
       ))}
     </>
   );
