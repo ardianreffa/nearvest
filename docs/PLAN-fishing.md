@@ -9,7 +9,7 @@ testing. Everything stays on NEAR testnet.
 Decisions already made (Ardian, 2026-11-11):
 - Fishing on your own at the existing fishing hut (village v3 `fishing` corner). The "Fishing" pin
   becomes live (no "Soon"). v1 is simple: tap to cast, wait for the bite sign, tap to reel, see the catch.
-- **3 casts per village day per garden.** The catch is decided **only on the server** (the browser
+- **5 casts per village day per garden** (3 until 2026-11-12, package 6). The catch is decided **only on the server** (the browser
   never decides or sees it before reeling).
 - PANEN through `mint_reward` (Season rule). Base values before the Season divisor below.
 - UI text in English, design-system tokens only (CLAUDE.md "Design system").
@@ -50,7 +50,7 @@ server / old web, database change = **new table only** (rollback-safe), CC0 soun
 
 - Fish go straight to Mr. Darto's ice box: the PANEN is paid at once (no new "fish" inventory in v1).
 - Demo gardens: XP x5 (`DEMO_XP_MULTIPLIER`), as everywhere. PANEN is never multiplied.
-- Expected value: about **3.1 PANEN per cast**, about 9.4 PANEN per day for 3 casts (less after
+- Expected value: about **3.1 PANEN per cast**, about 9.4 PANEN per day for 3 casts (about 15.6 for 5 casts since package 6) (less after
   Season 2). For comparison: check-in 5 PANEN/day, one Arena prize 8 PANEN. Worst case one garden:
   3 x 30 = 90 PANEN in a day (chance 1 in a million).
 - The sell text shows what the player really gets after the Season rule (`afterSeason`), the same as
@@ -99,15 +99,15 @@ timing game can come later.
 ### 3.1 Demo mode (1 day = 1 minute)
 
 **Fishing counts the normal village day (07:00 WIB), also for demo gardens** — exactly like the Arena
-(`arenaDay(now) = dayIndex(now, false)`). So demo gardens also get 3 casts per real day; demo mode
+(`arenaDay(now) = dayIndex(now, false)`). So demo gardens also get 5 casts (3 before package 6) per real day; demo mode
 cannot become a PANEN tap. Demo only changes XP (x5), like everywhere. The window says "3 casts a
 day · next casts at 07:00 WIB" with a countdown.
 
 ### 3.2 Anti-cheat (many gardens from one IP / browser)
 
 Same idea as the Arena's paid wins:
-- 3 casts per garden per village day (hard limit).
-- **Paid catches** (anything with PANEN, a seed or Fertilizer) at most **3 per browser** (`deviceId`)
+- 5 casts per garden per village day (hard limit; 3 until package 6).
+- **Paid catches** (anything with PANEN, a seed or Fertilizer) at most **5 per browser** (`deviceId`; 3 until package 6)
   and **10 per IP** per village day (`FISH_PAID_PER_DEVICE_PER_DAY = 3`, `FISH_PAID_PER_IP_PER_DAY = 10`;
   10 because many phones share a mobile IP, Ardian's Arena decision). The device id is the existing
   `nearvest.judgeDevice` (also recorded with `recordDevice`).
@@ -118,7 +118,7 @@ Same idea as the Arena's paid wins:
 
 ### 3.3 Judge gardens, wallet gardens, visits
 
-- **Judge gardens: yes**, same 3 casts and limits. The judge garden's **first cast is always Tilapia or
+- **Judge gardens: yes**, same 5 casts and limits. The judge garden's **first cast is always Tilapia or
   Catfish** (decided), so a judge with 2 minutes never sees only an old boot.
 - **Wallet gardens: yes.** Fishing never burns, it only mints with the game key to the player's own
   account (`mint_reward`), so no wallet popup and no "Set up Shop" needed.
@@ -186,13 +186,13 @@ It is recorded in `docs/ASSETS.md` as AI-generated at Ardian's request, original
 Server (`server/test/fishing.test.ts`, fake chain, fixed random):
 1. Odds: 100,000 rolls hit the table within ±0.5% per row; chest amount always 10-15.
 2. The cast answer never contains the catch (also checked as raw JSON).
-3. 3 casts per village day; the 4th = 429 `fishing_limit`; next day after 07:00 WIB works again.
+3. 5 casts per village day; the 6th = 429 `fishing_limit`; next day after 07:00 WIB works again.
 4. Demo garden: still 3 per normal day (a demo "day" of 1 minute does not reset it); XP x5.
 5. Reel before the bite = 409 `too_early`; reel twice = paid once; someone else's cast = 404.
 6. Abandoned cast: auto-reeled after 60 s, paid once, notice in state.
 7. PANEN via `mint_reward` with the base amount; Season 2 shows half in the answer.
 8. Mango seed with 20/20 Storage → Darto sale 2 PANEN base; with room → seed in Storage.
-9. Paid limit: 4th paid catch from one device / 11th from one IP = "released" (1 XP, no PANEN);
+9. Paid limit: 6th paid catch from one device / 11th from one IP = "released" (1 XP, no PANEN);
    junk still counted normally.
 10. Switch off / missing: every fishing endpoint 404 `fishing_off`, no `state.fishing`, config false.
 11. Judge garden: first cast is Tilapia or Catfish (many seeds); wallet garden: mint to its own account.
@@ -204,7 +204,7 @@ text.
 
 Browser (`tools/ui-test.mjs --fishing=<devUser>`, fake-chain server + FAKE_DB) at **390x844** and
 **1280x800**: pin live → window opens; cast → float → bite sign → reel → catch card (fish, junk, item,
-Arowana moment forced with a dev-only `FAKE_DB` roll); too-early tap; 3 casts then "Come back at
+Arowana moment forced with a dev-only `FAKE_DB` roll); too-early tap; 5 casts then "Come back at
 07:00 WIB"; Storage full seed text; visit mode = no pin; reduced motion = still; old server
 (`--oldserver`) and `FISHING=off` = "Soon" window; screenshots of every step; fps while the float moves.
 
@@ -340,3 +340,10 @@ light and the rain darkening stay code tints.
    louder; same times as before (more often by day).
 3. The fish bucket is a galvanised metal pail with a wire handle.
 4. TaniBot's lamp is a short torch (bamboo grip, lantern box with a mint crystal, leaf on the cap).
+
+## 14. Package 6 (Ardian's test on the LIVE site, 2026-11-12)
+
+6. **5 casts per village day** (was 3) and **5 paid catches per browser** (was 3); per IP stays 10
+   (`server/src/rules.ts` `FISHING_CASTS_PER_DAY`, `FISHING_PAID_PER_DEVICE_PER_DAY`). **No database
+   change**: the limits are counted from the existing `fishing_casts` rows; the web shows the server's
+   `max`. An older release simply keeps its own numbers.

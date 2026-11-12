@@ -5,7 +5,7 @@
 //   PLAYWRIGHT=... FAKE_DB=... node tools/fishing-test.mjs <outDir> <newDevUser> [w] [h]
 // Checks: the pin opens the window; the window and its buttons fit the screen (no sideways shift,
 // thumb-sized buttons); cast -> too-early tap -> bite -> reel -> catch card; forced catches (Golden
-// Arowana, seed sold, released, bottle); 3 casts then "No casts left"; reduced motion still works;
+// Arowana, seed sold, released, bottle); 5 casts then "No casts left"; reduced motion still works;
 // a server without fishing keeps "Fishing · Soon" with the coming-soon window and no errors.
 import { DatabaseSync } from 'node:sqlite';
 
@@ -206,7 +206,7 @@ await pg.goto(UI, { waitUntil: 'networkidle' });
 await pg.waitForSelector('.place-pin.pin-fishing', { timeout: 15000 });
 check(!(await pg.locator('.place-pin.pin-fishing.soon').count()), 'the Fishing pin is live (no "Soon")');
 await openWindow();
-check((await pg.locator('.fish-casts').innerText()).includes('3 of 3'), 'the window shows 3 of 3 casts');
+check((await pg.locator('.fish-casts').innerText()).includes('5 of 5'), 'the pond shows 5 of 5 casts');
 await fits('open');
 await clearOfCritters('open');
 check(await pg.evaluate(() => { const i = document.querySelector('.pond-img'); return i && i.complete && i.naturalWidth === 480; }), 'the pond image (480 x 270) is loaded');
@@ -224,8 +224,12 @@ const t2 = await oneCast(2, { force: 'mango_seed', tier: 'item' });
 check(/Mr\. Darto bought/.test(t2) && /\+2 PANEN/.test(t2), `cast 2: Storage full, seed sold (${t2.replace(/\n/g, ' | ')})`);
 const t3 = await oneCast(3, { force: 'bottle' });
 check(/message in a bottle/i.test(t3) && /“/.test(t3) && /\+5 XP/.test(t3), `cast 3: bottle line + 5 XP (${t3.replace(/\n/g, ' | ')})`);
-check((await pg.locator('.fish-cast').isDisabled()) && /No casts left/.test(await pg.locator('.fish-cast').innerText()), 'after 3 casts: "No casts left" (disabled)');
-check(/Come back at 07:00 WIB/.test(await pg.locator('.fish-status').innerText()), 'after 3 casts: come back at 07:00 WIB');
+// Casts 4 and 5 (5 a day since package 6).
+const t3b = await oneCast('3b', { force: 'stone', tier: 'junk' });
+check(/STONE/i.test(t3b) && /\+1 XP/.test(t3b), `cast 4: Stone, 1 XP (${t3b.replace(/\n/g, ' | ')})`);
+await oneCast('3c', { force: 'driftwood' });
+check((await pg.locator('.fish-cast').isDisabled()) && /No casts left/.test(await pg.locator('.fish-cast').innerText()), 'after 5 casts: "No casts left" (disabled)');
+check(/Come back at 07:00 WIB/.test(await pg.locator('.fish-status').innerText()), 'after 5 casts: come back at 07:00 WIB');
 await pg.locator('.fish-list-open').click();
 await pg.waitForSelector('.fishing-list-dialog');
 check((await pg.locator('.fish-list li').count()) === 14, 'What can I catch? lists 14 catches (with the Rusty can)');

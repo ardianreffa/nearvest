@@ -18,7 +18,7 @@ export function startPhase(f: FishingState | undefined, now: number): FishPhase 
   return { k: 'ready' };
 }
 
-/** "2 of 3 casts left today" */
+/** "4 of 5 casts left today" */
 export function castsLeftText(f: Pick<FishingState, 'left' | 'max'>): string {
   return f.left === 0 ? 'No casts left today' : `${f.left} of ${f.max} cast${f.max === 1 ? '' : 's'} left today`;
 }

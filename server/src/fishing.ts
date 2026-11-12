@@ -6,7 +6,7 @@
 // nobody can roll again by closing the window; a line nobody reels in is pulled in by the server
 // (sweep, or the next cast) and paid all the same. A reel before the bite is refused.
 //
-// Limits: 3 casts per garden per village day (the normal 07:00 WIB day, also for demo gardens, like
+// Limits: 5 casts per garden per village day (the normal 07:00 WIB day, also for demo gardens, like
 // the Arena, so demo mode is not a PANEN tap). Paid catches (PANEN, a seed or Fertilizer) at most 3
 // per browser and 10 per IP per day; over that the catch is "released" (1 XP). An IP is only counted,
 // never blocked. A judge garden's first cast is always Tilapia or Catfish.

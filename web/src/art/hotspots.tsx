@@ -43,7 +43,7 @@ const IDS = Object.keys(SPOTS) as Spot[];
 /** The Fishing pin (village.ts `fishing`): a tap opens the "Fishing pond coming soon!" window. */
 const FISHING: SpotInfo = { name: 'Fishing', short: 'Fishing', label: 'Fishing pond: coming soon', icon: 'fish', open: 'fishing', soon: true };
 /** The Fishing pin once the server has fishing (`state.fishing`, FISHING=on; docs/PLAN-fishing.md). */
-const FISHING_LIVE: SpotInfo = { name: 'Fishing', short: 'Fishing', label: 'Fishing pond: 3 casts a day', icon: 'fish', open: 'fishing' };
+const FISHING_LIVE: SpotInfo = { name: 'Fishing', short: 'Fishing', label: 'Fishing pond: 5 casts a day', icon: 'fish', open: 'fishing' };
 /** The Friends pin once garden visits are live (the server sends `helps`). */
 const FRIENDS_LIVE: SpotInfo = { name: 'Friends', short: 'Friends', label: 'Visit farmers and help water a tree', icon: 'sprout', open: 'friends' };
 /** The Arena pin once the server has the Arena (`state.arena`; docs/PLAN-arena.md). */

@@ -199,9 +199,9 @@ export const ARENA_PAUSE_MS = 20_000;
 // ---------- Fishing (fishing.ts, docs/PLAN-fishing.md, Ardian 2026-11-11) ----------
 
 /** Casts per garden per village day (the normal 07:00 WIB day, also for demo gardens, like the Arena). */
-export const FISHING_CASTS_PER_DAY = 3;
+export const FISHING_CASTS_PER_DAY = 5; // 3 until 2026-11-12 (Ardian, fishing package 6)
 /** Paid catches (PANEN, a seed or Fertilizer) per village day from one browser / one IP; more = "released" (1 XP). */
-export const FISHING_PAID_PER_DEVICE_PER_DAY = 3;
+export const FISHING_PAID_PER_DEVICE_PER_DAY = 5; // 3 until 2026-11-12 (package 6); per IP stays 10
 export const FISHING_PAID_PER_IP_PER_DAY = 10;
 /** The bite comes this long after the cast (server clock). */
 export const FISHING_BITE_MIN_MS = 2_000;

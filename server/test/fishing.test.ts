@@ -1,5 +1,5 @@
 // Fishing (fishing.ts, docs/PLAN-fishing.md): the catch table, the catch decided at the cast and never
-// sent before the reel, 3 casts per normal village day (also demo), reel rules (too early, twice,
+// sent before the reel, 5 casts per normal village day (also demo), reel rules (too early, twice,
 // someone else's), lines pulled in by the server, mint_reward with the Season rule, the Mango seed
 // with a full Storage (Mr. Darto buys it), paid-catch limits per browser / IP, judge and wallet
 // gardens, and the FISHING switch over HTTP.
@@ -122,7 +122,7 @@ describe('fishing', () => {
     assert.equal(w.game.state(p.id).fishing?.last?.id, c.cast.id);
   });
 
-  it(`${FISHING_CASTS_PER_DAY} casts per village day; the 4th is refused; casts come back at 07:00 WIB`, async () => {
+  it(`${FISHING_CASTS_PER_DAY} casts per village day; the next one is refused; casts come back at 07:00 WIB`, async () => {
     const { w, fishing, catchOne } = setup();
     const p = await garden(w, 'sari');
     for (let i = 0; i < FISHING_CASTS_PER_DAY; i++) catchOne(p, 'stone');
@@ -133,12 +133,12 @@ describe('fishing', () => {
     catchOne(p, 'stone');
   });
 
-  it('demo gardens: still 3 casts per NORMAL day (a 1-minute demo day does not reset them); XP x5', async () => {
+  it(`demo gardens: still ${FISHING_CASTS_PER_DAY} casts per NORMAL day (a 1-minute demo day does not reset them); XP x5`, async () => {
     const { w, fishing, catchOne } = setup({ demo: true });
     const p = await garden(w, 'demo');
     const xp0 = w.game.getPlayer(p.id).xp;
     for (let i = 0; i < FISHING_CASTS_PER_DAY; i++) catchOne(p, i ? 'old_boot' : 'rusty_can');
-    assert.equal(w.game.getPlayer(p.id).xp, xp0 + 3 * 5, 'junk 1 XP x5');
+    assert.equal(w.game.getPlayer(p.id).xp, xp0 + FISHING_CASTS_PER_DAY * 5, 'junk 1 XP x5');
     w.advance(5 * MINUTE); // five demo days
     assert.throws(() => fishing.cast(p.id, null, null), /casts today/);
   });
@@ -246,12 +246,14 @@ describe('fishing', () => {
 
   it(`paid catches: at most ${FISHING_PAID_PER_DEVICE_PER_DAY} per browser and ${FISHING_PAID_PER_IP_PER_DAY} per IP a day; more = released (1 XP)`, async () => {
     const { w, catchOne } = setup();
-    // One browser, two gardens: the 4th paid catch from that browser is released.
+    // One browser, two gardens: the paid catch after the limit from that browser is released.
+    assert.equal(FISHING_PAID_PER_DEVICE_PER_DAY, 5);
     const a = await garden(w, 'sari');
     const b = await garden(w, 'budi');
     const dev = 'device-aaaaaaaaaaaaaaaa';
-    const res = [catchOne(a, 'tilapia', { device: dev }), catchOne(a, 'catfish', { device: dev }), catchOne(a, 'fertilizer', { device: dev })].map((x) => x.result);
-    assert.ok(res.every((x) => !x.released));
+    const paid = ['tilapia', 'catfish', 'fertilizer', 'carp', 'chest'] as const;
+    const res = paid.map((id) => catchOne(a, id, { device: dev }).result);
+    assert.ok(res.every((x) => !x.released), 'the first 5 paid catches pay');
     const junk = catchOne(b, 'stone', { device: dev }).result;
     assert.equal(junk.released, false, 'junk is never released');
     const over = catchOne(b, 'gourami', { device: dev }).result;

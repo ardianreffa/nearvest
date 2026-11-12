@@ -39,6 +39,7 @@ describe('fishing window', () => {
 
   it('casts left and the countdown to 07:00 WIB', () => {
     assert.equal(castsLeftText({ left: 2, max: 3 }), '2 of 3 casts left today');
+    assert.equal(castsLeftText({ left: 5, max: 5 }), '5 of 5 casts left today');
     assert.equal(castsLeftText({ left: 0, max: 3 }), 'No casts left today');
     assert.equal(untilText(5 * 3_600_000 + 12 * 60_000), '5h 12m');
     assert.equal(untilText(30_000), '1m');
