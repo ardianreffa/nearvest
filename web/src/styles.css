@@ -14281,6 +14281,12 @@ html.duel-open .duel-bg .backdrop * {
 }
 
 /* Upright phones (package 7): the picture's own ground below the picture (pond_ground.py), no blur. */
+.pond-ground-mood {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .pond-ground {
   position: absolute;
   image-rendering: pixelated;
@@ -14313,7 +14319,48 @@ html.duel-open .duel-bg .backdrop * {
 }
 
 .pond-back {
+  flex: none;
   min-height: 48px;
+  white-space: nowrap;
+}
+
+/* Package 7: the pond's HUD chips (PANEN, casts, village clock, weather, laptop fullscreen) in one
+   group on the right; on phones they wrap to a second row, right-aligned. */
+.pond-hud-top {
+  align-items: flex-start;
+}
+
+.pond-hud-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pond-clock {
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  color: var(--paper-light);
+}
+
+.pond-weather {
+  font-weight: normal;
+}
+
+.pond-fullscreen {
+  min-height: 40px;
+}
+
+@media (max-width: 1023px) {
+  .pond-hud-chips {
+    gap: 6px;
+  }
+
+  .pond-clock {
+    font-size: var(--fs-sm);
+  }
 }
 
 .pond-chip.fish-casts {

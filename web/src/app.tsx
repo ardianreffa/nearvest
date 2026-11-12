@@ -4,7 +4,7 @@ import type { ComponentChildren } from 'preact';
 import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { activityLabel, api, ApiError, hasToken, setToken, type Activity, type ArenaInvite, type DuelView, type GameState, type MatchView, type JudgeStep, type Quality, type TutorialStep, type ServerConfig, type Species } from './api';
 import { DartoHead } from './art/darto';
-import { LOOK_LABEL, lookOf, lookText, withWeather, type WeatherLook } from './weather';
+import { LOOK_LABEL, lookOf, lookText, WEATHER_ICON, withWeather, type WeatherLook } from './weather';
 import { lockedFraction, phaseOf } from './art/backdrop';
 
 /** Dev builds: ?time=day / dusk / night also locks the duel's village (screenshots), like the garden. */
@@ -1525,16 +1525,6 @@ function DevLogin({
     </form>
   );
 }
-
-/** Weather chip icons (existing sprites only). */
-const WEATHER_ICON: Record<WeatherLook, 'sparkle' | 'droplet' | 'fire' | 'sprout'> = {
-  clear: 'sparkle',
-  rain: 'droplet',
-  drought: 'fire',
-  warning: 'fire',
-  eruption: 'fire',
-  volcanic: 'sprout',
-};
 
 /** Width of every sign-in button (px); the Google button is drawn at the same width. */
 const LOGIN_BUTTON_W = 300;

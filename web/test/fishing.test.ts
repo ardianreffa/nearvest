@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CatchView } from '../src/api.ts';
 import { CATCH_GRIDS, FISH_PALETTE } from '../src/art/catch-grids.ts';
-import { autoCatchToShow, autoNotice, castsLeftText, catchNote, catchReward, catchTier, seasonNote, rewardChips, startPhase, untilText } from '../src/fishing-logic.ts';
+import { autoCatchToShow, autoNotice, castsLeftText, clockText, catchNote, catchReward, catchTier, seasonNote, rewardChips, startPhase, untilText } from '../src/fishing-logic.ts';
 
 const NOW = 1_800_000_000_000;
 const c = (o: Partial<CatchView> = {}): CatchView => ({
@@ -99,5 +99,13 @@ describe('fishing window', () => {
     assert.equal(catchReward({ id: 'chest', kind: 'item', panenNow: 0 }, chest, s1), '10-15 PANEN');
     assert.equal(catchReward({ id: 'rusty_can', kind: 'junk', panenNow: 0 }, chest, s3), '1 XP');
     assert.match(catchNote(c()), /Mr\. Darto bought it on the spot/);
+  });
+  it('the village clock for the pond HUD reads in AM / PM', () => {
+    assert.equal(clockText(0), '12:00 AM');
+    assert.equal(clockText(7.0834), '7:05 AM');
+    assert.equal(clockText(12.5), '12:30 PM');
+    assert.equal(clockText(19.999), '7:59 PM');
+    assert.equal(clockText(23.75), '11:45 PM');
+    assert.equal(clockText(24), '12:00 AM');
   });
 });

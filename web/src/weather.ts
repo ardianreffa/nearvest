@@ -58,6 +58,16 @@ export const LOOK_LABEL: Record<WeatherLook, string> = {
   volcanic: 'Volcanic soil',
 };
 
+/** Weather chip icons (existing sprites only; the village HUD and the fishing pond). */
+export const WEATHER_ICON: Record<WeatherLook, 'sparkle' | 'droplet' | 'fire' | 'sprout'> = {
+  clear: 'sparkle',
+  rain: 'droplet',
+  drought: 'fire',
+  warning: 'fire',
+  eruption: 'fire',
+  volcanic: 'sprout',
+};
+
 /** One line for the chip's info bubble. */
 export function lookText(w: Weather | undefined): string {
   const look = lookOf(w);

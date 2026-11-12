@@ -351,10 +351,10 @@ export function PondLife({
 
 
 /** The village clock and the rain over everything (above TaniBot and the rod, under the "!" and the catch). */
-export function PondMood({ time, weather, layout: L = WIDE }: { time: PondTime; weather: PondWeather; layout?: PondLayout }) {
+export function PondMood({ time, weather, layout: L = WIDE, fireflies = true }: { time: PondTime; weather: PondWeather; layout?: PondLayout; fireflies?: boolean }) {
   return (
     <>
-      {time === 'night' && weather !== 'rain' && (
+      {fireflies && time === 'night' && weather !== 'rain' && (
         <div class="pond-fireflies" aria-hidden="true">
           {L.fireflies.map(([x, y, dx, dy], i) => (
             <i

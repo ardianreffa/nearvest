@@ -8,17 +8,19 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preac
 import { api, ApiError, type CatchView, type FishingView, type GameState } from './api';
 import { CatchIcon } from './art/catch-icons';
 import { PondScene, pondAt } from './art/pond';
+import { PondMood } from './art/pond-life';
 import { layoutFor } from './art/pond-layouts';
 import { CAST_MS, REEL_MS } from './art/rod-pose';
 import { moodMix, nextMood, pondFit, pondSounds, pondTime, pondWeather, type Box, type PondMood as PondMoodState } from './pond-life-plan';
 import { villageHour } from './share';
-import { lookOf } from './weather';
+import { LOOK_LABEL, lookOf, lookText, WEATHER_ICON } from './weather';
+import { useFullscreen } from './fullscreen';
 import { TaniBot } from './art/tanibot';
 import { tierOf } from './art/tiers';
 import { playFishing, playSound, setPondAmbience, setPondMode } from './audio';
 import { Modal } from './help';
 import { judgeDeviceId } from './judge';
-import { castsLeftText, catchNote, catchReward, catchTier, rewardChips, seasonNote, startPhase, untilText, type FishPhase } from './fishing-logic';
+import { castsLeftText, catchNote, clockText, catchReward, catchTier, rewardChips, seasonNote, startPhase, untilText, type FishPhase } from './fishing-logic';
 import { Sprite } from './sprites';
 import { Coin, formatPanen } from './ui';
 import { PanenCoin } from './art/panen-coin';
@@ -94,6 +96,9 @@ export function FishingWindow({
   const [L, setL] = useState(() => layoutFor(window.innerWidth, window.innerHeight));
   const [fit, setFit] = useState(() => pondFit(window.innerWidth, window.innerHeight, layoutFor(window.innerWidth, window.innerHeight)));
   const [avoid, setAvoid] = useState<Box[]>([]);
+  // Laptops (>= 1024 px, like the village HUD): the fullscreen button.
+  const fullscreen = useFullscreen();
+  const wideScreen = window.innerWidth >= 1024;
   useLayoutEffect(() => {
     const onResize = () => {
       const l = layoutFor(window.innerWidth, window.innerHeight);
@@ -271,26 +276,6 @@ export function FishingWindow({
       // Upright phones: the panel gets exactly the room under the pond (it scrolls inside, never covers it).
       style={{ '--pond-free': `${Math.max(120, window.innerHeight - fit.top - (fit.mode === 'phone' ? L.lakeBottom * (fit.w / L.w) : fit.h) - 16)}px` }}
     >
-      {/* Upright phones (package 7): no blurred copy; the picture's own ground continues below it. */}
-      {fit.mode === 'phone' && L.ground
-        ? (['day', 'dusk', 'night'] as const).map((t) => (
-            <img
-              key={`g${t}`}
-              class="pond-ground pond-fade"
-              src={L.ground!.pics[t]}
-              style={{
-                left: `${fit.left}px`,
-                top: `${fit.top + fit.h - L.ground!.over * (fit.w / 480)}px`,
-                width: `${fit.w}px`,
-                height: `${L.ground!.h * (fit.w / 480)}px`,
-                opacity: t === 'day' ? 1 : t === 'dusk' ? mix.dusk : mix.night,
-              }}
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-            />
-          ))
-        : null}
       {fit.mode !== 'phone' && (['day', 'dusk', 'night'] as const).map((t) => (
         <img
           key={t}
@@ -334,21 +319,75 @@ export function FishingWindow({
         </PondScene>
       </div>
 
+      {/* Upright phones (package 7): no blurred copy; the picture's own ground continues below it, drawn
+          OVER the picture's last rows, where its wavy seam joins (tools/pixelize/pond_ground.py). */}
+      {fit.mode === 'phone' && L.ground
+        ? (['day', 'dusk', 'night'] as const).map((t) => (
+            <img
+              key={`g${t}`}
+              class="pond-ground pond-fade"
+              src={L.ground!.pics[t]}
+              style={{
+                left: `${fit.left}px`,
+                top: `${fit.top + fit.h - L.ground!.over * (fit.w / 480)}px`,
+                width: `${fit.w}px`,
+                height: `${L.ground!.h * (fit.w / 480)}px`,
+                opacity: t === 'day' ? 1 : t === 'dusk' ? mix.dusk : mix.night,
+              }}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+          ))
+        : null}
+      {/* The same rain and tint over that ground (else the rain stopped at the picture's edge). */}
+      {fit.mode === 'phone' && L.ground && (
+        <div
+          class={`pond-ground-mood${weather === 'rain' ? ' pond-rain-on' : ''}`}
+          style={{ left: `${fit.left}px`, top: `${fit.top + fit.h - L.ground.over * (fit.w / 480)}px`, width: `${fit.w}px`, height: `${L.ground.h * (fit.w / 480)}px` }}
+          aria-hidden="true"
+        >
+          <PondMood time={time} weather={weather} layout={L} fireflies={false} />
+        </div>
+      )}
       <header class="pond-hud-top" data-pond-avoid>
         <button class="btn pond-back" onClick={onClose} aria-label="Back to the village">
           ← Village
         </button>
-        <PondBalance balance={state.player.balance} />
-        <div class="pond-chip fish-casts" aria-label={castsLeftText({ left, max })}>
-          <span class="fish-pips" aria-hidden="true">
-            {Array.from({ length: max }, (_, i) => (
-              <i key={i} class={i < left ? 'on' : ''} />
-            ))}
-          </span>
-          <span class="fish-casts-long">{castsLeftText({ left, max })}</span>
-          <span class="fish-casts-short" aria-hidden="true">
-            {left}/{max}
-          </span>
+        {/* Package 7: PANEN, casts, the village clock and the village weather chip (as in the village HUD),
+            and on laptops the fullscreen button; phones wrap the chips to a second row. */}
+        <div class="pond-hud-chips">
+          <PondBalance balance={state.player.balance} />
+          <div class="pond-chip fish-casts" aria-label={castsLeftText({ left, max })}>
+            <span class="fish-pips" aria-hidden="true">
+              {Array.from({ length: max }, (_, i) => (
+                <i key={i} class={i < left ? 'on' : ''} />
+              ))}
+            </span>
+            <span class="fish-casts-long">{castsLeftText({ left, max })}</span>
+            <span class="fish-casts-short" aria-hidden="true">
+              {left}/{max}
+            </span>
+          </div>
+          <div class="pond-chip pond-clock" title="Village clock" aria-label={`Village clock ${clockText(villageHour(state))}`}>
+            {clockText(villageHour(state))}
+          </div>
+          {state.weather && (
+            <div class={`pond-chip pond-weather chip-weather wx-${lookOf(state.weather)}`} title={lookText(state.weather)}>
+              <Sprite name={WEATHER_ICON[lookOf(state.weather)]} scale={2} />
+              {LOOK_LABEL[lookOf(state.weather)]}
+            </div>
+          )}
+          {fullscreen.supported && wideScreen && (
+            <button
+              class="icon-btn pond-fullscreen"
+              onClick={fullscreen.toggle}
+              aria-label={fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'}
+              title={fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'}
+            >
+              <Sprite name={fullscreen.active ? 'fullscreenExit' : 'fullscreen'} scale={3} />
+            </button>
+          )}
         </div>
       </header>
 

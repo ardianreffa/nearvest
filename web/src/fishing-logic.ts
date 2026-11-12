@@ -30,6 +30,14 @@ export function untilText(ms: number): string {
   return h ? `${h}h ${m % 60}m` : `${m}m`;
 }
 
+/** The village clock for the pond's HUD (package 7): village hour 0-24 -> "7:05 AM", "12:30 PM". */
+export function clockText(hour: number): string {
+  const total = Math.floor((((hour % 24) + 24) % 24) * 60);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
 /** The line under the catch's name. */
 export function catchNote(c: CatchView): string {
   if (c.released) return 'Daily fishing rewards from this device are used up. You let it go. +1 XP';
