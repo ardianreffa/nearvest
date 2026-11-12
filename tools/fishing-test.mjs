@@ -95,7 +95,7 @@ async function clearOfCritters(what) {
         if (boxes.some((b) => touch({ l: x - 1, r: x + 1, t: y - 1, b: y + 1 }, b))) out.push('line');
       }
     }
-    for (const sel of ['.pond-float', '.pond-bang', '.pond-catch', '.pond-spark', '.pond-bot .tanibot']) {
+    for (const sel of ['.pond-rod', '.pond-float', '.pond-bang', '.pond-catch', '.pond-spark', '.pond-splash i', '.pond-bot .tanibot']) {
       for (const el of document.querySelectorAll(sel)) {
         const r = el.getBoundingClientRect();
         if (boxes.some((b) => touch({ l: r.left, r: r.right, t: r.top, b: r.bottom }, b))) out.push(sel);
@@ -106,16 +106,45 @@ async function clearOfCritters(what) {
   check(hits.length === 0, `${what}: nothing covers a frog or a duck${hits.length ? ` (${hits.join(', ')})` : ''}`);
 }
 
+/** The line starts exactly at the rod's tip (never broken); returns the pond's bend and the line's sag. */
+async function lineOnTip(what) {
+  const r = await pg.evaluate(() => {
+    const pond = document.querySelector('.pond');
+    const d = document.querySelector('.pond-line')?.getAttribute('d') ?? '';
+    const m = /^M([\d.-]+) ([\d.-]+) Q([\d.-]+) ([\d.-]+) ([\d.-]+) ([\d.-]+)/.exec(d);
+    const [tx, ty] = pond.dataset.tip.split(',').map(Number);
+    if (!m) return { ok: false, d };
+    const [x0, y0, cx, cy, x1, y1] = m.slice(1).map(Number);
+    // How far the control point is from the straight line tip -> float (0 = taut).
+    const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+    const sag = Math.abs((cx - x0) * (y1 - y0) - (cy - y0) * (x1 - x0)) / len;
+    return { ok: Math.abs(x0 - tx) < 0.02 && Math.abs(y0 - ty) < 0.02, bend: Number(pond.dataset.bend), sag, float: [x1, y1] };
+  });
+  check(r.ok, `${what}: the line starts at the rod's tip`);
+  return r;
+}
+
 const openWindow = async () => {
   await pg.locator('.place-pin.pin-fishing').click({ force: true });
   await pg.waitForSelector('.fishing-dialog');
 };
-const forceCatch = (id) => db.prepare("UPDATE fishing_casts SET catch = ?, paid = ?, line = ? WHERE player_id = ? AND status = 'open'").run(id, ['stone', 'driftwood', 'fish_bone', 'old_boot', 'bottle'].includes(id) ? 0 : 1, id === 'bottle' ? 3 : null, pid);
+const forceCatch = (id) => db.prepare("UPDATE fishing_casts SET catch = ?, paid = ?, line = ? WHERE player_id = ? AND status = 'open'").run(id, ['stone', 'driftwood', 'fish_bone', 'old_boot', 'rusty_can', 'bottle'].includes(id) ? 0 : 1, id === 'bottle' ? 3 : null, pid);
 
 /** Cast, (optionally tap early), wait for the bite, reel; returns the catch card text. */
 async function oneCast(n, opts = {}) {
   await pg.locator('.fish-cast').click();
+  if (opts.shotBite) {
+    // Mid-cast: the rod swings, the float flies on its line.
+    for (const ms of [120, 380, 640]) {
+      await pg.waitForTimeout(ms === 120 ? 120 : 260);
+      await lineOnTip(`cast ${n} at ~${ms} ms`);
+    }
+    await pg.screenshot({ path: `${out}/fish-${tag}-${n}-casting.png` });
+  }
   await pg.waitForSelector('.pond-wait', { timeout: 5000 });
+  await pg.waitForTimeout(1000);
+  const w = await lineOnTip(`cast ${n} waiting`);
+  check(w.bend === 0 && w.sag > 4, `cast ${n} waiting: straight rod, the line sags softly (sag ${w.sag.toFixed(1)})`);
   if (opts.force) forceCatch(opts.force);
   if (opts.released) db.prepare("UPDATE fishing_casts SET released = 1 WHERE player_id = ? AND status = 'open'").run(pid);
   if (opts.early) {
@@ -127,13 +156,27 @@ async function oneCast(n, opts = {}) {
   }
   await pg.waitForSelector('.pond-bite', { timeout: 8000 });
   check(await pg.locator('.pond-bang').isVisible(), `cast ${n}: the bite shows "!"`);
+  const b = await lineOnTip(`cast ${n} bite`);
+  const still = await pg.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches);
+  check(b.bend > 10 && b.sag < 0.05, `cast ${n} bite: the rod bends (${b.bend}) and the line is taut (sag ${b.sag.toFixed(2)})${still ? ' (reduced motion)' : ''}`);
   check((await pg.locator('.fish-reel').innerText()).includes('Reel in!'), `cast ${n}: button says "Reel in!"`);
   if (opts.shotBite) await pg.screenshot({ path: `${out}/fish-${tag}-${n}-bite.png` });
   await clearOfCritters(`cast ${n} bite`);
   await pg.locator('.fish-reel').click();
+  if (!still) {
+    await pg.waitForTimeout(300);
+    const r = await lineOnTip(`cast ${n} reeling`);
+    check(r.float[0] < 245, `cast ${n} reeling: the float is being pulled in (x ${r.float[0].toFixed(0)})`);
+    if (opts.shotBite) await pg.screenshot({ path: `${out}/fish-${tag}-${n}-reeling.png` });
+  }
   await pg.waitForSelector('.fish-result', { timeout: 5000 });
   await pg.waitForTimeout(900);
   const text = await pg.locator('.fish-result').innerText();
+  if (opts.tier) {
+    const cls = await pg.evaluate(() => [document.querySelector('.pond-catch')?.className, document.querySelector('.pond-splash')?.className ?? '', !!document.querySelector('.pond-plop')]);
+    const splashOk = opts.tier === 'junk' ? cls[2] && !cls[1] : cls[1].includes(`splash-${opts.tier}`);
+    check(cls[0].includes(`tier-${opts.tier}`) && splashOk, `cast ${n}: ${opts.tier} animation (${cls.join(' / ')})`);
+  }
   await pg.screenshot({ path: `${out}/fish-${tag}-${n}-result.png` });
   await clearOfCritters(`cast ${n} result`);
   await fits(`cast ${n} result`);
@@ -149,21 +192,23 @@ await fits('open');
 await clearOfCritters('open');
 check(await pg.evaluate(() => { const i = document.querySelector('.pond-img'); return i && i.complete && i.naturalWidth === 480; }), 'the pond image (480 x 270) is loaded');
 await pg.screenshot({ path: `${out}/fish-${tag}-0-open.png` });
+check(await pg.evaluate(() => new DOMMatrix(getComputedStyle(document.querySelector('.pond-bot-in')).transform).a < 0), 'TaniBot faces right, toward the water (mirrored sprite)');
+await lineOnTip('open');
 
-const t1 = await oneCast(1, { early: true, force: 'golden_arowana', shotBite: true });
+const t1 = await oneCast(1, { early: true, force: 'golden_arowana', shotBite: true, tier: 'legend' });
 check(/GOLDEN AROWANA/i.test(t1) && /PANEN/.test(t1), `cast 1: Golden Arowana with PANEN (${t1.replace(/\n/g, ' | ')})`);
 check((await pg.locator('.pond-spark').count()) > 0, 'cast 1: gold sparkles around the Golden Arowana in the pond');
 check(await pg.locator('.fish-result.legend').count() === 1, 'cast 1: the Golden Arowana card glows');
 // Storage full + Mango seed = Mr. Darto buys it.
 for (let i = 0; i < 25; i++) db.prepare("INSERT INTO seeds (player_id, species, quality, source, created_at) SELECT ?, 'mango', NULL, 'test', 0 WHERE (SELECT COUNT(*) FROM seeds WHERE player_id = ?) < 20").run(pid, pid);
-const t2 = await oneCast(2, { force: 'mango_seed' });
+const t2 = await oneCast(2, { force: 'mango_seed', tier: 'item' });
 check(/Mr\. Darto bought/.test(t2) && /\+2 PANEN/.test(t2), `cast 2: Storage full, seed sold (${t2.replace(/\n/g, ' | ')})`);
 const t3 = await oneCast(3, { force: 'bottle' });
 check(/message in a bottle/i.test(t3) && /“/.test(t3) && /\+5 XP/.test(t3), `cast 3: bottle line + 5 XP (${t3.replace(/\n/g, ' | ')})`);
 check((await pg.locator('.fish-cast').isDisabled()) && /No casts left/.test(await pg.locator('.fish-cast').innerText()), 'after 3 casts: "No casts left" (disabled)');
 check(/Come back at 07:00 WIB/.test(await pg.locator('.fish-status').innerText()), 'after 3 casts: come back at 07:00 WIB');
 await pg.locator('.fish-list .link-btn').click();
-check((await pg.locator('.fish-list li').count()) === 13, 'What can I catch? lists 13 catches');
+check((await pg.locator('.fish-list li').count()) === 14, 'What can I catch? lists 14 catches (with the Rusty can)');
 await fits('list open');
 await pg.evaluate(() => {
   const b = document.querySelector('.fishing-dialog .info-body');
@@ -207,6 +252,25 @@ check((await pg.locator('.pond-wait, .pond-bite').count()) === 1, 'reopening res
 await pg.waitForSelector('.pond-bite', { timeout: 8000 });
 await pg.locator('.fish-reel').click();
 await pg.waitForSelector('.fish-result');
+await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
+
+// Another day: the other result tiers (Gourami festive, junk = Rusty can, a normal fish).
+db.prepare('UPDATE fishing_casts SET cast_day = cast_day - 1 WHERE player_id = ?').run(pid);
+await pg.reload({ waitUntil: 'networkidle' });
+await pg.waitForSelector('.place-pin.pin-fishing');
+await openWindow();
+const t7 = await oneCast(7, { force: 'gourami', tier: 'gourami' });
+check(/GOURAMI/i.test(t7) && /PANEN/.test(t7), `cast 7: Gourami (${t7.replace(/\n/g, ' | ')})`);
+const t8 = await oneCast(8, { force: 'rusty_can', tier: 'junk' });
+check(/RUSTY CAN/i.test(t8) && /\+1 XP/.test(t8) && !/PANEN/.test(t8), `cast 8: Rusty can, 1 XP (${t8.replace(/\n/g, ' | ')})`);
+const t9 = await oneCast(9, { force: 'catfish', tier: 'fish' });
+check(/CATFISH/i.test(t9), `cast 9: Catfish (${t9.replace(/\n/g, ' | ')})`);
+await pg.locator('.fish-list .link-btn').click();
+await pg.evaluate(() => {
+  const b = document.querySelector('.fishing-dialog .info-body');
+  b.scrollTop = b.scrollHeight;
+});
+await pg.screenshot({ path: `${out}/fish-${tag}-9-list.png` });
 await pg.locator('.fishing-dialog .info-actions .btn', { hasText: 'Close' }).click();
 
 // A server without fishing: the pin says "Soon" and opens the coming-soon window; no errors.
