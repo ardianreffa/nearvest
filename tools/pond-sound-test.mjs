@@ -65,6 +65,8 @@ for (const L of LOOKS) {
   await pg.mouse.click(5, 795); // the first tap unlocks sound (like a player)
   await pg.waitForSelector('.place-pin.pin-fishing', { timeout: 15000 });
   await pg.locator('.place-pin.pin-fishing').click({ force: true });
+  // 2026-11-12: the pin asks first ("Go to the fishing pond?"): Go fishing.
+  await pg.locator('.dialog button:has-text("Go fishing")').click({ timeout: 3000 }).catch(() => undefined);
   await pg.waitForSelector('.fishing-live .pond');
   await pg.waitForSelector('.visit-wipe', { state: 'detached', timeout: 6000 });
   await pg.waitForTimeout(1800); // the pond's sound fades in

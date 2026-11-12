@@ -37,6 +37,8 @@ await c.addInitScript((t) => {
 const pg = await c.newPage();
 await pg.goto(UI, { waitUntil: 'networkidle' });
 await pg.locator('.place-pin.pin-fishing').click({ force: true });
+// 2026-11-12: the pin asks first ("Go to the fishing pond?"): Go fishing.
+await pg.locator('.dialog button:has-text("Go fishing")').click({ timeout: 3000 }).catch(() => undefined);
 await pg.waitForSelector('.pond-screen');
 await pg.waitForSelector('.visit-wipe', { state: 'detached' });
 const samples = [];

@@ -100,6 +100,8 @@ const look = () =>
 async function openPond(what) {
   await pg.waitForSelector('.place-pin.pin-fishing', { timeout: 15000 });
   await pg.locator('.place-pin.pin-fishing').click({ force: true });
+  // 2026-11-12: the pin asks first ("Go to the fishing pond?"): Go fishing.
+  await pg.locator('.dialog button:has-text("Go fishing")').click({ timeout: 3000 }).catch(() => undefined);
   const wipe = await pg.waitForSelector('.visit-wipe.wipe-water', { timeout: 3000 }).catch(() => null);
   check(!!wipe, `${what}: water pixel wipe on the way in`);
   check(/fishing pond/i.test((await pg.locator('.visit-wipe-text').innerText().catch(() => '')) ?? ''), `${what}: wipe says "To the fishing pond"`);
@@ -215,6 +217,8 @@ await pg.emulateMedia({ reducedMotion: 'reduce' });
 await pg.goto(UI + '?time=day', { waitUntil: 'networkidle' });
 await pg.waitForSelector('.place-pin.pin-fishing');
 await pg.locator('.place-pin.pin-fishing').click({ force: true });
+// 2026-11-12: the pin asks first ("Go to the fishing pond?"): Go fishing.
+await pg.locator('.dialog button:has-text("Go fishing")').click({ timeout: 3000 }).catch(() => undefined);
 await pg.waitForSelector('.fishing-live .pond');
 await pg.waitForSelector('.visit-wipe', { state: 'detached', timeout: 5000 });
 const r0 = await look();

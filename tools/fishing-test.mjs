@@ -30,7 +30,7 @@ const post = async (path, body, token) => {
 
 // A new dev garden, ready, no tutorial in the way.
 const { token } = await post('/auth/dev', { username: user });
-await post('/api/player', { name: user }, token);
+await post('/api/player', { name: user, demo: false }, token); // normal mode (new gardens default to demo since 2026-11-12)
 for (let i = 0; i < 40; i++) {
   const p = db.prepare('SELECT account_status FROM players WHERE name = ?').get(user);
   if (p?.account_status === 'ready') break;
@@ -155,8 +155,21 @@ async function lineOnTip(what) {
 
 /** The water pixel wipe (on the way in and out) has finished. */
 const wipeDone = () => pg.waitForSelector('.visit-wipe', { state: 'detached', timeout: 5000 });
+let askedOnce = false;
 const openWindow = async () => {
+  if (!askedOnce) {
+    // The pin asks first; "Not now" stays in the village.
+    askedOnce = true;
+    await pg.locator('.place-pin.pin-fishing').click({ force: true });
+    const q = await pg.locator('.dialog #dialog-text').innerText({ timeout: 3000 }).catch(() => '');
+    check(/Go to the fishing pond\?/.test(q), `the Fishing pin asks first ("${q}")`);
+    await pg.locator('.dialog button:has-text("Not now")').click();
+    await pg.waitForTimeout(400);
+    check(!(await pg.locator('.pond-screen').count()), '"Not now" stays in the village');
+  }
   await pg.locator('.place-pin.pin-fishing').click({ force: true });
+  // 2026-11-12: the pin asks first ("Go to the fishing pond?"): Go fishing.
+  await pg.locator('.dialog button:has-text("Go fishing")').click({ timeout: 3000 }).catch(() => undefined);
   await pg.waitForSelector('.pond-screen');
   await wipeDone();
 };
@@ -361,6 +374,8 @@ await pg.reload({ waitUntil: 'networkidle' });
 await pg.waitForSelector('.place-pin.pin-fishing');
 check((await pg.locator('.place-pin.pin-fishing.soon').count()) === 1, 'old server: the pin says "Soon"');
 await pg.locator('.place-pin.pin-fishing').click({ force: true });
+// 2026-11-12: the pin asks first ("Go to the fishing pond?"): Go fishing.
+await pg.locator('.dialog button:has-text("Go fishing")').click({ timeout: 3000 }).catch(() => undefined);
 await pg.waitForSelector('.fishing-dialog');
 check(/coming soon/i.test(await pg.locator('.fishing-dialog').innerText()) && !(await pg.locator('.fishing-live').count()), 'old server: the coming-soon window');
 await pg.screenshot({ path: `${out}/fish-${tag}-6-oldserver.png` });

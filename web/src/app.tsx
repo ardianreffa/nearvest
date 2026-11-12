@@ -63,6 +63,8 @@ interface Dialog {
   message: string;
   choices: Choice[];
   resolve: (value: string | null) => void;
+  /** The "no" button's text (default "Cancel"). */
+  cancelLabel?: string;
 }
 
 /** Sound for each successful action. */
@@ -757,7 +759,7 @@ export function App() {
               setDialog(null);
             }}
           >
-            Cancel
+            {dialog.cancelLabel ?? 'Cancel'}
           </button>
           {dialog.choices.map((c) => (
             <button
@@ -1109,7 +1111,17 @@ export function App() {
     );
   visitRef.current = startVisit;
   /** The fishing pond: water squares cover the screen on the way in and out (old servers: the small window). */
-  const openPond = () => (stateRef.current?.fishing ? wipe.run(POND_TEXT, () => setFishingOpen(true), 'up', 'water') : setFishingOpen(true));
+  /**
+   * The Fishing pin asks first (2026-11-12, Ardian's iPhone test: a stray tap took players to the
+   * pond): "Go to the fishing pond?" with Go fishing / Not now. Servers without fishing keep the
+   * small "coming soon" window.
+   */
+  const openPond = () => {
+    if (!stateRef.current?.fishing) return setFishingOpen(true);
+    new Promise<string | null>((resolve) =>
+      setDialog({ message: 'Go to the fishing pond?', choices: [{ value: 'go', label: 'Go fishing', class: 'btn-mint' }], resolve, cancelLabel: 'Not now' }),
+    ).then((v) => v === 'go' && wipe.run(POND_TEXT, () => setFishingOpen(true), 'up', 'water'));
+  };
   const closePond = () => wipe.run(POND_BACK_TEXT, () => setFishingOpen(false), 'down', 'water');
   /** "Add back" (notice and Village tab): add a garden that added us. */
   const addBack = async (name: string) => {
