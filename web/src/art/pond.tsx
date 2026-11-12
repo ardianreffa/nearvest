@@ -147,9 +147,15 @@ export function PondScene({
   mix = { dusk: 0, night: 0 },
   layout: L = WIDE,
   rain = true,
+  pictures = true,
   bot,
   children,
 }: {
+  /**
+   * false = the caller draws the day / dusk / night pictures itself (the laptop Fishing window: one
+   * screen-sized canvas per picture, package 7c), the scene has no background of its own.
+   */
+  pictures?: boolean;
   /** false = the caller draws the rain over the whole screen (the Fishing window, package 7b). */
   rain?: boolean;
   phase: PondPhase;
@@ -194,7 +200,7 @@ export function PondScene({
   const fs = 1 + pose.lift * 0.7;
   return (
     <div
-      class={`pond pond-${phase} pond-${time}${weather === 'rain' ? ' pond-rain-on' : ''}`}
+      class={`pond pond-${phase} pond-${time}${weather === 'rain' ? ' pond-rain-on' : ''}${pictures ? '' : ' pond-no-pics'}`}
       data-time={time}
       data-dark={dark ? '1' : '0'}
       data-weather={weather}
@@ -207,11 +213,15 @@ export function PondScene({
       data-bend={pose.bend.toFixed(1)}
       style={{ '--pk': String(k), aspectRatio: `${L.w} / ${L.h}` }}
     >
+      {pictures && (
+        <>
       <img class="pond-img" src={L.pics.day} alt="" draggable={false} />
       {/* Ardian's dusk and night pictures over the day one, faded in by the village clock. */}
       {/* Always there (loaded once), faded in and out by CSS: no popping when the time changes. */}
       <img class="pond-img pond-img-dusk pond-fade" src={L.pics.dusk} alt="" style={{ opacity: mix.dusk }} draggable={false} />
       <img class="pond-img pond-img-night pond-fade" src={L.pics.night} alt="" style={{ opacity: mix.night }} draggable={false} />
+        </>
+      )}
       <Waterfall mix={mix} k={k} L={L} />
       <PondLife mix={mix} time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? fishingZone(L) : null} avoid={avoid} layout={L} />
       <svg class="pond-svg" viewBox={`0 0 ${L.w} ${L.h}`} aria-hidden="true">

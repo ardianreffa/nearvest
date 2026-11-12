@@ -91,7 +91,13 @@ async function fits(what) {
     const lakeBottom = r.pond.t + r.lake * r.pond.h;
     check(r.pond.l >= -0.5 && r.pond.r <= W + 0.5 && r.panel.t >= lakeBottom - 0.5, `${what}: phone: the whole pond shows, the panel below the lake (panel ${Math.round(r.panel.t)}, lake ends ${Math.round(lakeBottom)})`);
   }
-  else check(r.fit === 'cover' && r.pond.w >= W && r.pond.h >= H - 0.5, `${what}: laptop: the pond covers the window`);
+  // Laptops: the pond covers the window, or (taller windows such as 1800x1169, where covering would
+  // cut more than 12%) the whole pond fits inside it with its soft copy around.
+  else
+    check(
+      r.fit === 'cover' ? r.pond.w >= W && r.pond.h >= H - 0.5 : r.fit === 'fit' && r.pond.l >= -0.5 && r.pond.r <= W + 0.5 && r.pond.t >= -0.5 && r.pond.t + r.pond.h <= H + 0.5,
+      `${what}: laptop: the pond covers the window or fits whole inside it (${r.fit})`,
+    );
   check(r.btns.length > 0 && r.btns.every((b) => b.h >= 48 && b.l >= 0 && b.r <= W && b.b <= H), `${what}: buttons on screen, >= 48 px high (${r.btns.map((b) => Math.round(b.h)).join(', ')})`);
 }
 
@@ -218,7 +224,16 @@ const bal0 = Number((await pg.locator('.pond-balance b').innerText()).replace(/,
 check(Number.isFinite(bal0) && (await pg.locator('.pond-balance .panen-coin').count()) === 1, `the pond shows the PANEN balance with the coin (${bal0})`);
 await fits('open');
 await clearOfCritters('open');
-check(await pg.evaluate(() => { const i = document.querySelector('.pond-img'); return i && i.complete && i.naturalWidth === 480; }), 'the pond image (480 x 270) is loaded');
+// Phones: the picture is an <img>; laptops (package 7c): a screen-sized canvas, drawn once.
+check(
+  await pg.evaluate(() => {
+    const i = document.querySelector('.pond-img');
+    if (i) return i.complete && i.naturalWidth === 480;
+    const c = document.querySelector('.pond-pic-day');
+    return !!c && c.dataset.ready === '1' && c.width === Math.round(c.getBoundingClientRect().width * devicePixelRatio) && c.getBoundingClientRect().width <= innerWidth + 0.5 && c.getBoundingClientRect().height <= innerHeight + 0.5;
+  }),
+  'the pond picture is loaded (laptops: a canvas no bigger than the screen, at the screen\'s own pixels)',
+);
 await pg.screenshot({ path: `${out}/fish-${tag}-0-open.png` });
 check(await pg.evaluate(() => new DOMMatrix(getComputedStyle(document.querySelector('.pond-bot-in')).transform).a < 0), 'TaniBot faces right, toward the water (mirrored sprite)');
 await lineOnTip('open');

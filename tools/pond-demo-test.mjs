@@ -44,8 +44,8 @@ for (let i = 0; i < 130; i++) {
   samples.push(
     await pg.evaluate(() => {
       const p = document.querySelector('.pond');
-      const op = (q) => Number(getComputedStyle(document.querySelector(q)).opacity);
-      return { t: performance.now(), time: p.dataset.time, dusk: op('.pond-img-dusk'), night: op('.pond-img-night'), rain: op('.pond-rain') };
+      const op = (q) => { const e = document.querySelector(q); return e ? Number(getComputedStyle(e).opacity) : null; };
+      return { t: performance.now(), time: p.dataset.time, dusk: op('.pond-img-dusk') ?? op('.pond-pic-dusk'), night: op('.pond-img-night') ?? op('.pond-pic-night'), rain: op('.pond-rain') ?? 0 };
     }),
   );
   if (i % 10 === 0) await pg.screenshot({ path: `${out}/demo-${tag}-${String(i).padStart(3, '0')}.png` });

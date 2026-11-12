@@ -64,7 +64,13 @@ const look = () =>
       leaves: [...document.querySelectorAll('.pond-leaf')].map((e) => getComputedStyle(e.querySelector('rect')).fill),
       leafShape: [...document.querySelectorAll('.pond-leaf')].map((e) => `${e.querySelectorAll('rect').length}:${new Set([...e.querySelectorAll('rect')].map((r) => getComputedStyle(r).fill)).size}`),
       tint: document.querySelector('.pond-tint')?.className,
-      pics: ['dusk', 'night'].map((t) => { const i = document.querySelector(`.pond-img-${t}`); return i && i.complete && i.naturalWidth === 480 ? Number(getComputedStyle(i).opacity) : 0; }),
+      // Phones: <img> pictures; laptops (package 7c): screen-sized canvases.
+      pics: ['dusk', 'night'].map((t) => {
+        const i = document.querySelector(`.pond-img-${t}`) ?? document.querySelector(`.pond-pic-${t}`);
+        const ok = i && (i.tagName === 'CANVAS' ? i.dataset.ready === '1' : i.complete && i.naturalWidth === 480);
+        return ok ? Number(getComputedStyle(i).opacity) : 0;
+      }),
+      picTooBig: [...document.querySelectorAll('.pond-pic')].some((c) => c.getBoundingClientRect().width > innerWidth + 0.5 || c.getBoundingClientRect().height > innerHeight + 0.5),
       // Package 7b: ONE rain layer over the whole screen (never inside the oversized pond picture).
       rain: document.querySelector('.pond-rain-screen') && Number(getComputedStyle(document.querySelector('.pond-rain-screen')).opacity) > 0.99 ? document.querySelectorAll('.pond-rain-screen .wx-rain-layer').length : 0,
       rainInPond: document.querySelectorAll('.pond .pond-rain, .pond-ground-mood .pond-rain').length,
@@ -72,6 +78,8 @@ const look = () =>
       villageHidden: [...document.querySelectorAll('.backdrop')].every((e) => getComputedStyle(e).visibility === 'hidden'),
       ground: document.querySelectorAll('.pond-ground').length,
       blur: document.querySelectorAll('.pond-backfill').length,
+      // Package 7c: no CSS blur filter on anything big in the pond screen (they dropped GPU tiles).
+      bigBlur: [...document.querySelectorAll('.pond-screen *')].filter((e) => /blur/.test(getComputedStyle(e).filter) && e.getBoundingClientRect().width * e.getBoundingClientRect().height > innerWidth * innerHeight * 0.25).length,
       rings: document.querySelectorAll('.rain-ring').length,
       fireflies: document.querySelectorAll('.pond-firefly').length,
       bucket: document.querySelectorAll('.pond-bucket rect').length,
@@ -112,6 +120,7 @@ const LOOKS = [
   { q: '?time=dusk&weather=clear', time: 'dusk', weather: 'clear' },
   { q: '?time=night&weather=clear', time: 'night', weather: 'clear' },
   { q: '?time=day&weather=rain', time: 'day', weather: 'rain' },
+  { q: '?time=dusk&weather=rain', time: 'dusk', weather: 'rain' },
   { q: '?time=night&weather=rain', time: 'night', weather: 'rain' },
   { q: '?time=day&weather=eruption', time: 'day', weather: 'clear' },
 ];
@@ -137,6 +146,7 @@ for (const L of LOOKS) {
   check(JSON.stringify(a.pics) === JSON.stringify(L.time === 'dusk' ? [1, 0] : L.time === 'night' ? [0, 1] : [0, 0]) && !/tint-(dusk|night)|pond-glow/.test(a.tint), `${L.q}: ${L.time === 'day' ? 'day picture only' : `Ardian's ${L.time} picture`} (dusk ${a.pics[0]}, night ${a.pics[1]}), no code tint`);
   check(L.weather === 'rain' ? a.rain === 2 && a.rings === 8 : a.rain === 0 && a.rings === 0, `${L.q}: rain layers ${a.rain}, rings ${a.rings}`);
   check(a.rainInPond === 0 && (L.weather === 'rain' ? a.rainBox === `0,0,${W},${H}` : !a.rainBox), `${L.q}: the rain is one screen-sized layer (${a.rainBox || 'none'}), none inside the pond`);
+  check(!a.picTooBig && a.bigBlur === 0, `${L.q}: the pond's pictures are no bigger than the screen, no big blur filters (${a.bigBlur})`);
   check(a.villageHidden, `${L.q}: the village behind the pond is hidden while the pond is open`);
   if (phone) {
     check(a.ground === 3 && a.blur === 0, `${L.q}: phone: the picture's own ground below it, no blurred copy (${a.ground} ground, ${a.blur} blur)`);

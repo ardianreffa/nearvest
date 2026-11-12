@@ -420,3 +420,9 @@ Day / dusk / night changes were checked by Ardian and are unchanged.
   plain see-through layer (no multiply), and `html.pond-open` hides and pauses the village: 65 M px.
   Report: `screenshots/fishing-rain-glitch/layers-before-after.txt` (headless screenshots cannot show
   the dropped tiles; `tools/pond-mood-test.mjs` checks the screen-sized rain and the hidden village).
+- **Rain glitch, full screen only (7c):** Ardian's recordings (frames via AVFoundation): the top
+  ~512 device px band blanked to the pond's background colour, only in full screen. At 1800x1169 the
+  pond does not cover (it would cut >12%) but FITS, with three CSS-blurred 3600x2338 copies of the
+  picture around it. Now on laptops the pond's pictures are screen-sized canvases drawn once
+  (`PondPictures`), the soft copy is a tiny canvas the browser stretches (`BackfillCanvas`, no
+  filter), fully faded pictures are hidden. The pond HUD clock was removed (Ardian).

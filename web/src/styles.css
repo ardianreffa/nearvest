@@ -14265,19 +14265,38 @@ html.duel-open .duel-bg .backdrop * {
   background: var(--leaf-700);
 }
 
+/* The soft copy around a fitted pond: a small canvas stretched smoothly (package 7c: no blur filter). */
 .pond-backfill {
   position: absolute;
-  inset: -24px;
-  width: calc(100% + 48px);
-  height: calc(100% + 48px);
-  object-fit: cover;
-  filter: blur(10px) brightness(0.7) saturate(0.9);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: auto;
   pointer-events: none;
   user-select: none;
 }
 
 .pond-stage {
   position: absolute;
+}
+
+/* Laptops (package 7c): the pond's pictures as screen-sized canvases under the scene. */
+.pond-pic {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* A picture faded out completely is hidden (no GPU layer); visibility switches at the END of a fade
+   out and at the START of a fade in (it is "visible" while either end is visible). */
+.pond-pic.pond-fade,
+.pond-backfill.pond-fade {
+  transition:
+    opacity 4s ease-in-out,
+    visibility 4s;
+}
+
+.pond.pond-no-pics {
+  background: transparent;
 }
 
 /* Upright phones (package 7): the picture's own ground below the picture (pond_ground.py), no blur. */
@@ -14324,7 +14343,7 @@ html.duel-open .duel-bg .backdrop * {
   white-space: nowrap;
 }
 
-/* Package 7: the pond's HUD chips (PANEN, casts, village clock, weather, laptop fullscreen) in one
+/* Package 7: the pond's HUD chips (PANEN, casts, weather, laptop fullscreen) in one
    group on the right; on phones they wrap to a second row, right-aligned. */
 .pond-hud-top {
   align-items: flex-start;
@@ -14339,12 +14358,6 @@ html.duel-open .duel-bg .backdrop * {
   min-width: 0;
 }
 
-.pond-clock {
-  font-family: var(--font-ui);
-  font-size: var(--fs-body);
-  color: var(--paper-light);
-}
-
 .pond-weather {
   font-weight: normal;
 }
@@ -14356,10 +14369,6 @@ html.duel-open .duel-bg .backdrop * {
 @media (max-width: 1023px) {
   .pond-hud-chips {
     gap: 6px;
-  }
-
-  .pond-clock {
-    font-size: var(--fs-sm);
   }
 }
 
