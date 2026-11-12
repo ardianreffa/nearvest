@@ -22,6 +22,7 @@ import {
   FROGS,
   frogTick,
   LEAF_COLORS,
+  pickJump,
   pondFit,
   pondMix,
   pondSounds,
@@ -161,5 +162,27 @@ describe('fishing pond life', () => {
     assert.ok(pondSounds('morning', 'clear').birds && pondSounds('day', 'clear').birdRate > pondSounds('dusk', 'clear').birdRate);
     assert.ok(pondSounds('dusk', 'clear').birds && pondSounds('dusk', 'clear').birdRate > 0);
     for (const [t, w] of [['night', 'clear'], ['day', 'rain'], ['night', 'rain'], ['dusk', 'rain']] as const) assert.ok(!pondSounds(t, w).birds && pondSounds(t, w).birdRate === 0, `${t} ${w}`);
+  });
+  it('fish jump on open water, never near the float, the line, a duck or a lily pad; the Golden Arowana very rarely', () => {
+    const r = seeded(5);
+    const zone: FishingZone = { tip: { x: 133, y: 87 }, float: FLOAT_AT };
+    const ducks = [
+      { x: 300, y: 200 },
+      { x: 420, y: 150 },
+      { x: 200, y: 230 },
+    ];
+    const count = new Map<string, number>();
+    for (let i = 0; i < 4000; i++) {
+      const j = pickJump(r, { ducks, zone });
+      assert.ok(j, 'a spot is found');
+      assert.ok(swimmable(j));
+      assert.ok(ducks.every((d) => Math.hypot(d.x - j.x, d.y - j.y) >= 36), 'away from ducks');
+      assert.ok(FROG_SPOTS.every((f) => Math.hypot(f.x - j.x, f.y - j.y) >= 28), 'away from lily pads');
+      assert.ok(Math.hypot(j.x - FLOAT_AT.x, j.y - FLOAT_AT.y) >= 56 && !inZone(j, j, zone), 'away from the float and line');
+      count.set(j.fish, (count.get(j.fish) ?? 0) + 1);
+    }
+    const aro = (count.get('golden_arowana') ?? 0) / 4000;
+    assert.ok(aro > 0 && aro < 0.04, `Golden Arowana very rare (${aro})`);
+    for (const f of ['tilapia', 'catfish', 'carp', 'gourami']) assert.ok((count.get(f) ?? 0) > 400, f);
   });
 });

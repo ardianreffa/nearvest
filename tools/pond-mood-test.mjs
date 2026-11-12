@@ -146,6 +146,18 @@ for (const L of LOOKS) {
   const got = Object.fromEntries(Object.keys(want).map((k) => [k, s.split(',').includes(k)]));
   check(JSON.stringify(got) === JSON.stringify(want), `${L.q}: pond sounds ${s}`);
   if (first) {
+    // A fish jumps now and then (within ~17 s), on open water, away from the ducks.
+    const j = await pg.waitForSelector('.pond-jump', { timeout: 20000 }).catch(() => null);
+    if (j) await pg.waitForTimeout(450);
+    const jr = await pg.evaluate(() => {
+      const e = document.querySelector('.pond-jump');
+      if (!e) return null;
+      const m = /translate\(([\d.]+) ([\d.]+)\)/.exec(e.getAttribute('transform'));
+      const ducks = [...document.querySelectorAll('.pond-duck')].map((d) => [Number(d.dataset.x), Number(d.dataset.y)]);
+      return { fish: e.dataset.fish, x: Number(m[1]), y: Number(m[2]), near: Math.min(...ducks.map(([x, y]) => Math.hypot(x - Number(m[1]), y - Number(m[2])))) };
+    });
+    check(!!jr && jr.near >= 20, `a fish jumps out of the lake (${JSON.stringify(jr)})`);
+    if (jr) await pg.screenshot({ path: `${out}/pond-${tag}-fish-jump.png` });
     // The waterfall and the ripples really move: two shots 300 ms apart differ, so do the transforms.
     const tr = () =>
       pg.evaluate(() => [

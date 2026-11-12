@@ -651,6 +651,38 @@ function syncPond(): void {
   pondPlaying = { key, out, stops, timer };
 }
 
+/** A small splash at the pond (a fish jumping out of or back into the water), only while the pond plays. */
+export function playPondSplash(vol = 0.5): void {
+  if (!pondPlaying || !ctx) return;
+  const c = ctx;
+  const t = c.currentTime + 0.01;
+  const len = Math.floor(c.sampleRate * 0.18);
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  const f = c.createBiquadFilter();
+  f.type = 'bandpass';
+  f.frequency.setValueAtTime(1600, t);
+  f.frequency.exponentialRampToValueAtTime(500, t + 0.18);
+  const g = c.createGain();
+  g.gain.setValueAtTime(0.12 * vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+  src.connect(f).connect(g).connect(pondPlaying.out);
+  src.start(t);
+  const o = c.createOscillator();
+  const og = c.createGain();
+  o.frequency.setValueAtTime(520, t);
+  o.frequency.exponentialRampToValueAtTime(180, t + 0.1);
+  og.gain.setValueAtTime(0.0001, t);
+  og.gain.exponentialRampToValueAtTime(0.12 * vol, t + 0.01);
+  og.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+  o.connect(og).connect(pondPlaying.out);
+  o.start(t);
+  o.stop(t + 0.12);
+}
+
 /** The pond's background while the Fishing window is open (null = silence). */
 export function setPondAmbience(mix: PondSoundMix | null): void {
   pondWanted = mix;

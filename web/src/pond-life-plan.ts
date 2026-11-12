@@ -269,3 +269,49 @@ export function pondMix(hour: number): { dusk: number; night: number } {
   if (hour >= 16 && hour < 19.5) return { night: ramp(18.5, 19.5), dusk: ramp(16, 17) };
   return { night: hour >= 7 && hour < 16 ? 0 : 1, dusk: 0 };
 }
+
+// ---------- Jumping fish (package 4) ----------
+
+export type JumpFish = 'tilapia' | 'catfish' | 'carp' | 'gourami' | 'golden_arowana';
+/** Which fish jumps (weights): the Golden Arowana very rarely. */
+export const JUMP_WEIGHTS: [JumpFish, number][] = [
+  ['tilapia', 30],
+  ['catfish', 25],
+  ['carp', 25],
+  ['gourami', 18],
+  ['golden_arowana', 2],
+];
+/** Seconds between jumps (random in this range): now and then, not too often. */
+export const JUMP_EVERY: [number, number] = [7, 16];
+export interface Jump {
+  x: number;
+  y: number;
+  fish: JumpFish;
+  /** Jumps to the right (else to the left). */
+  right: boolean;
+}
+/**
+ * A spot for a fish to jump: on open water (the ducks' water map: never on pads or the bank), far
+ * from the float and the line while fishing, from every duck and every lily pad, not under a panel.
+ */
+export function pickJump(rand: () => number, opts: { ducks?: Pt[]; zone?: FishingZone | null; avoid?: Box[] } = {}): Jump | null {
+  for (let k = 0; k < 30; k++) {
+    const p = { x: Math.round(40 + rand() * 420), y: Math.round(60 + rand() * 200) };
+    if (!swimmable(p, opts.avoid ?? [])) continue;
+    if ((opts.ducks ?? []).some((d) => Math.hypot(d.x - p.x, d.y - p.y) < 36)) continue;
+    if (FROG_SPOTS.some((f) => Math.hypot(f.x - p.x, f.y - p.y) < 28)) continue;
+    const z = opts.zone;
+    if (z && (segDist(p, p, z.float, z.float) < 56 || segDist(p, p, z.tip, z.float) < 34)) continue;
+    let r = rand() * JUMP_WEIGHTS.reduce((s, [, w]) => s + w, 0);
+    let fish: JumpFish = 'tilapia';
+    for (const [f, w] of JUMP_WEIGHTS) {
+      if (r < w) {
+        fish = f;
+        break;
+      }
+      r -= w;
+    }
+    return { x: p.x, y: p.y, fish, right: rand() < 0.5 };
+  }
+  return null;
+}

@@ -9,8 +9,12 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
   DUCK_STARTS,
   ducksAsleep,
+  duckAt,
+  JUMP_EVERY,
   mustFlee,
+  pickJump,
   planDuck,
+  type Jump,
   still,
   type Box,
   type DuckMove,
@@ -26,7 +30,8 @@ import {
   type Pt,
 } from '../pond-life-plan';
 import { PALETTE } from '../sprites';
-import { FISH_PALETTE } from './catch-grids';
+import { playPondSplash } from '../audio';
+import { CATCH_GRIDS, FISH_PALETTE } from './catch-grids';
 import { FISH_BUCKET } from './pond-bucket';
 import { DUCK_DRAKE, DUCK_DRAKE_ASLEEP, DUCK_HEN, DUCK_HEN_ASLEEP, FROG, POND_LIFE_PALETTE } from './pond-sprites';
 
@@ -167,6 +172,33 @@ export function PondLife({
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stillMode]);
+  // Now and then a fish jumps out of the water and back in (never near the line, ducks or pads).
+  const [jump, setJump] = useState<(Jump & { id: number }) | null>(null);
+  const ducksRef = useRef(ducks);
+  ducksRef.current = ducks;
+  useEffect(() => {
+    if (stillMode) return;
+    let t = 0;
+    const next = () => {
+      const [a, b] = JUMP_EVERY;
+      t = window.setTimeout(() => {
+        if (!document.hidden) {
+          const now = Date.now();
+          const j = pickJump(rand, { ducks: ducksRef.current.map((d) => duckAt(d.m, now)), zone: ctx.current.zone, avoid: ctx.current.avoid });
+          if (j) {
+            setJump({ ...j, id: now });
+            window.setTimeout(() => playPondSplash(0.35), 150);
+            window.setTimeout(() => playPondSplash(0.6), 900);
+            window.setTimeout(() => setJump((cur) => (cur?.id === now ? null : cur)), 1700);
+          }
+        }
+        next();
+      }, (a + rand() * (b - a)) * 1000);
+    };
+    next();
+    return () => window.clearTimeout(t);
+  }, [stillMode]);
+
   // Fishing starts (or a panel moves): ducks in the way leave at once.
   useEffect(() => {
     if (!stillMode) setDucks(moveDucks);
@@ -232,6 +264,26 @@ export function PondLife({
             </g>
           );
         })}
+        {jump && (
+          <g key={jump.id} class="pond-jump" data-fish={jump.fish} transform={`translate(${jump.x} ${jump.y})${jump.right ? '' : ' scale(-1 1)'}`}>
+            <ellipse class="jump-ring" cx={-9} cy={1} rx={4} ry={1.6} />
+            <ellipse class="jump-ring late" cx={9} cy={1} rx={4} ry={1.6} />
+            <g class="jump-drops">
+              {[-11, -8, -6].map((x, i) => (
+                <rect key={i} class="jump-drop" x={x} y={-1} width={1} height={1} style={{ '--dx': String((i - 1) * 3), animationDelay: `${i * 40}ms` }} />
+              ))}
+              {[6, 8, 11].map((x, i) => (
+                <rect key={`b${i}`} class="jump-drop late" x={x} y={-1} width={1} height={1} style={{ '--dx': String((i - 1) * 3), animationDelay: `${780 + i * 40}ms` }} />
+              ))}
+            </g>
+            <g class="jump-fish">
+              {/* Our catch icons face left: turned to face the way it jumps (right), half size. */}
+              <g transform="scale(-0.5 0.5)">
+                <Sprite rows={CATCH_GRIDS[jump.fish]!} palette={BUCKET_PALETTE} />
+              </g>
+            </g>
+          </g>
+        )}
         {ducks.map((d, i) => (
           <g
             key={i}
