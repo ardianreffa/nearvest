@@ -70,7 +70,7 @@ async function open(ctx, name) {
     await page.waitForSelector('.plots');
   }
   await sleep(1500);
-  await page.evaluate(() => document.querySelectorAll('.dialog-backdrop .info-close').forEach((b) => b.click()));
+  await page.evaluate(() => document.querySelectorAll('.dialog-backdrop:not(.duel-backdrop) .info-close').forEach((b) => b.click()));
   const skip = page.getByText('Skip tutorial');
   if (await skip.count()) await skip.first().click().catch(() => undefined);
   await sleep(400);
@@ -345,7 +345,7 @@ async function goneScenario(n) {
   await sleep(300);
   console.log('   B leave question:', await B.evaluate(() => document.querySelector('.match-leave')?.innerText.replace(/\n/g, ' ')));
   await shot(B, 'gone-b-leave-question');
-  await B.locator('.match-leave button', { hasText: 'Leave' }).click();
+  await B.locator('.match-leave .duel-actions button', { hasText: /^Leave$/ }).click();
   await B.close();
   for (let i = 0; i < 140 && !(await ended(A)); i++) await sleep(250);
   const ra = await state(A);
