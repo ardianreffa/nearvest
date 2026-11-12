@@ -16887,3 +16887,9 @@ html.pond-open .hud * {
     padding: 2px 10px;
   }
 }
+
+/* Memorial Trees: "Show all (N)" under the 5 newest (Village tab). */
+.memorial-section .memorial-all {
+  display: block;
+  margin: 8px auto 0;
+}
