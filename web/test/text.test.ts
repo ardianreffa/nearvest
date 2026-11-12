@@ -21,3 +21,19 @@ describe("Mr. Darto's red-dot line", () => {
     assert.equal(dartoFreshLine(1), "Fresh fruit! I'll buy your 1 fruit. Tap Sell!");
   });
 });
+
+describe('Mr. Darto greeting', async () => {
+  const { DARTO_INTRO, dartoGreeting, firstDartoMeeting } = await import('../src/text.ts');
+  it('shows ONE greeting: the introduction the first time, then the daily line', () => {
+    assert.equal(dartoGreeting(true, 'Good day, farmer!'), DARTO_INTRO);
+    assert.equal(dartoGreeting(false, 'Good day, farmer!'), 'Good day, farmer!');
+    assert.equal(dartoGreeting(false, ''), DARTO_INTRO);
+  });
+  it('remembers the first meeting per garden', () => {
+    const m = new Map<string, string>();
+    const store = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
+    assert.equal(firstDartoMeeting('a.testnet', store), true);
+    assert.equal(firstDartoMeeting('a.testnet', store), false);
+    assert.equal(firstDartoMeeting('b.testnet', store), true);
+  });
+});

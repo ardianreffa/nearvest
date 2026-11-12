@@ -14,7 +14,7 @@ import { sortMemorials } from './memorials';
 import { Info, type InfoKey } from './info';
 import { clampQty, saleTotal, seasonNote, seasonPayout, stepQty } from './qty';
 import { ATTENTION_MS, attentionPending, jumpTo, revealIfHidden, useAttention } from './attention';
-import { dartoFreshLine } from './text';
+import { dartoFreshLine, dartoGreeting, firstDartoMeeting } from './text';
 import { shopNeed } from './dots';
 import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QtyPicker, QualityTag, QUALITY_NAME, SPECIES_NAME, type SeedGroup } from './ui';
 
@@ -259,6 +259,8 @@ const MARKET_SEEDS_OPEN_KEY = 'nearvest.marketSeedsOpen';
 
 export function Market({ state, config, sell, act, busy, focus = 0 }: { state: GameState; config: ServerConfig; sell: Sell; act: Act; busy: boolean; focus?: number }) {
   const d = state.darto;
+  // His introduction only the first time, after that the daily greeting (one line at a time).
+  const [firstMeeting] = useState(() => firstDartoMeeting(state.player.accountId));
   const [pose, heldFruit, showPose] = useDartoPose();
   const sceneRef = useRef<HTMLDivElement>(null);
   const [thanks, setThanks] = useState(0);
@@ -336,7 +338,7 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
                 "{dartoFreshLine(fruitCount)}"
               </p>
             ) : (
-              <p class="speech">"Welcome, farmer! I'm Mr. Darto. Show me what you've got! {d.greeting}"</p>
+              <p class="speech">"{dartoGreeting(firstMeeting, d.greeting)}"</p>
             )}
             {byDot && fruitCount > 0 && sellRowHidden && (
               <button class="btn btn-small btn-gold sell-now" onClick={sellNow}>
