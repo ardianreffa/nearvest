@@ -58,7 +58,7 @@ export function pondSounds(time: PondTime, weather: PondWeather): PondSounds {
     ducks: !night,
     rain,
     birds: !night && !rain,
-    birdRate: night || rain ? 0 : time === 'dusk' ? 0.06 : 0.3,
+    birdRate: night || rain ? 0 : time === 'dusk' ? 0.08 : 0.45,
   };
 }
 

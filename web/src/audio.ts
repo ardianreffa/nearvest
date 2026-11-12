@@ -614,6 +614,37 @@ function syncPond(): void {
   };
   const STEP = 0.25;
   const chance = (perSecond: number) => Math.random() < perSecond * STEP;
+  /** One sung note: a glide from f0 to f1 with a little vibrato (birds are never quite steady). */
+  const note = (f0: number, f1: number, at: number, dur: number, vol: number, type: OscillatorType = 'sine', vib = 0) => {
+    const t = c.currentTime + at;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    if (vib) {
+      const l = c.createOscillator();
+      const lg = c.createGain();
+      l.frequency.value = 28 + Math.random() * 14;
+      lg.gain.value = vib;
+      l.connect(lg).connect(o.frequency);
+      l.start(t);
+      l.stop(t + dur + 0.02);
+    }
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + Math.min(0.02, dur / 4));
+    g.gain.setValueAtTime(vol, t + dur * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(out);
+    o.start(t);
+    o.stop(t + dur + 0.03);
+  };
+  /** Bird songs: [frequency from, to, start (s), length (s)] in units of the bird's base pitch. */
+  const birdSong = (kind: number, at: number, up: number) => {
+    const b = BIRDS[kind];
+    const base = b.base * up * (0.94 + Math.random() * 0.12);
+    for (const [f0, f1, st, d] of b.song) note(base * f0, base * f1, at + st, d, b.vol, b.type, b.vib * base);
+  };
   const timer = window.setInterval(() => {
     if (document.hidden) return;
     if (want.ripples && chance(0.22)) {
@@ -636,15 +667,13 @@ function syncPond(): void {
       const n = 3 + Math.floor(Math.random() * 2);
       for (let i = 0; i < n; i++) tone('triangle', f, f * 0.98, i * 0.045, 0.028, 0.07, { type: 'bandpass', f, q: 6 });
     }
-    // Jungle birds: a short song of 2-5 quick rising / falling whistles.
+    // Jungle birds (package 5: richer and louder): four kinds with real tunes, sometimes answering
+    // each other; heard over the waterfall without drowning it.
     if (want.birds && chance(want.birdRate)) {
-      const base = 2200 + Math.random() * 1600;
-      const n = 2 + Math.floor(Math.random() * 4);
-      const up = Math.random() < 0.5;
-      for (let i = 0; i < n; i++) {
-        const f = base * (1 + (up ? i : n - i) * 0.06);
-        tone('sine', f, f * (Math.random() < 0.5 ? 1.25 : 0.8), i * 0.11, 0.08, 0.05);
-      }
+      const kind = Math.floor(Math.random() * BIRDS.length);
+      birdSong(kind, 0, 1);
+      // Another bird answers now and then (a different kind, or the same one a little higher).
+      if (Math.random() < 0.45) birdSong(Math.random() < 0.5 ? (kind + 1 + Math.floor(Math.random() * (BIRDS.length - 1))) % BIRDS.length : kind, 0.7 + Math.random() * 0.8, 1.12);
     }
     if (want.rain && chance(1.5)) tone('sine', 1800 + Math.random() * 600, 1100, 0, 0.03, 0.012);
   }, STEP * 1000);
@@ -682,6 +711,21 @@ export function playPondSplash(vol = 0.5): void {
   o.start(t);
   o.stop(t + 0.12);
 }
+
+/**
+ * Four jungle birds (made in code): a whistler ("tu-wiii, tu-wiii"), a bulbul (a bubbly tune), a
+ * warbler (a fast trill) and a dove (a low "hoo-hoo"). Volumes are heard over the waterfall.
+ */
+const BIRDS: { base: number; type: OscillatorType; vol: number; vib: number; song: [number, number, number, number][] }[] = [
+  // whistler: two rising whistles
+  { base: 1700, type: 'sine', vol: 0.16, vib: 0.01, song: [[1, 1.5, 0, 0.26], [1, 1.55, 0.36, 0.3], [1.5, 1.2, 0.7, 0.14]] },
+  // bulbul: a bubbly five-note tune
+  { base: 1500, type: 'triangle', vol: 0.15, vib: 0.02, song: [[1, 1.2, 0, 0.1], [1.33, 1.25, 0.12, 0.09], [1.5, 1.7, 0.23, 0.12], [1.2, 1.1, 0.38, 0.09], [1.6, 1.33, 0.49, 0.16]] },
+  // warbler: a fast trill that falls a little
+  { base: 3300, type: 'sine', vol: 0.11, vib: 0.03, song: Array.from({ length: 9 }, (_, i): [number, number, number, number] => [1.12 - i * 0.02, 1 - i * 0.02, i * 0.055, 0.04]) },
+  // dove: a low, hollow hoo-hoo
+  { base: 560, type: 'sine', vol: 0.18, vib: 0, song: [[1, 0.95, 0, 0.32], [1.12, 1, 0.42, 0.4]] },
+];
 
 /** The pond's background while the Fishing window is open (null = silence). */
 export function setPondAmbience(mix: PondSoundMix | null): void {
