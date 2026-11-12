@@ -31,7 +31,21 @@ const chain: Chain =
         pohonContractId: config.pohonContractId,
         playerAccountDepositNear: config.playerAccountDepositNear,
       })
-    : new FakeChain();
+    : fakeChain();
+
+/**
+ * The local fake chain (tests on the Mac only). FAKE_SEASON=1..4 starts it in that Season (divisor
+ * 1 / 2 / 4 / 8) to check the Season rule in the browser (fishing package 4); ignored with the real chain.
+ */
+function fakeChain(): FakeChain {
+  const f = new FakeChain();
+  const season = Number(process.env.FAKE_SEASON);
+  if (Number.isInteger(season) && season >= 1 && season <= 4) {
+    f.rewardDivisor = 2 ** (season - 1);
+    console.log(`[fake chain] Season ${season} (rewards / ${f.rewardDivisor}) (FAKE_SEASON)`);
+  }
+  return f;
+}
 
 const game = new Game({
   db,
