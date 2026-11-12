@@ -68,6 +68,7 @@ const look = () =>
       rain: document.querySelectorAll('.pond-rain .wx-rain-layer').length,
       rings: document.querySelectorAll('.rain-ring').length,
       fireflies: document.querySelectorAll('.pond-firefly').length,
+      lights: !!document.querySelector('.pond-lights .float-glow') && !!document.querySelector('.pond-lamp') && !!document.querySelector('.lamp-halo'),
       tree: [...document.querySelectorAll('.pond-tree img')].every((i) => i.complete && i.naturalWidth === 80) && document.querySelectorAll('.pond-tree img').length >= 1,
       trees: document.querySelectorAll('.pond-tree img').length,
       treeAnim: document.querySelector('.pond-tree') && getComputedStyle(document.querySelector('.pond-tree')).animationName,
@@ -123,6 +124,7 @@ for (const L of LOOKS) {
   check(JSON.stringify(a.pics) === JSON.stringify(L.time === 'dusk' ? [1, 0] : L.time === 'night' ? [0, 1] : [0, 0]) && !/tint-(dusk|night)|pond-glow/.test(a.tint), `${L.q}: ${L.time === 'day' ? 'day picture only' : `Ardian's ${L.time} picture`} (dusk ${a.pics[0]}, night ${a.pics[1]}), no code tint`);
   check(L.weather === 'rain' ? a.rain === 2 && a.rings === 8 : a.rain === 0 && a.rings === 0, `${L.q}: rain layers ${a.rain}, rings ${a.rings}`);
   const night = L.time === 'night';
+  check(a.lights === (night || L.weather === 'rain'), `${L.q}: ${night || L.weather === 'rain' ? 'the float glows and TaniBot holds its lamp' : 'no lamp by day'} (${a.lights})`);
   check(a.fireflies === (night && L.weather !== 'rain' ? 10 : 0), `${L.q}: fireflies ${a.fireflies} (only on clear nights)`);
   check(night ? a.asleep === 3 && a.zzz === 3 : a.asleep === 0 && a.zzz === 0, `${L.q}: ducks ${night ? 'asleep with zzz' : 'awake'} (${a.asleep}, ${a.zzz})`);
   await pg.screenshot({ path: `${out}/pond-${tag}-${L.time}-${L.weather}${L.q.includes('eruption') ? '-eruption' : ''}.png` });

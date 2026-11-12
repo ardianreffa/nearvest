@@ -14628,6 +14628,43 @@ html.duel-open .duel-bg .backdrop * {
 }
 
 /* Fireflies (night, not in the rain): a soft glow that blinks and drifts slowly. */
+/* Night lights (package 4): TaniBot's lamp and the glowing float; above the night dimming. */
+.pond-lights {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.lamp-pool {
+  mix-blend-mode: screen;
+  opacity: 0.55;
+}
+
+.lamp-halo,
+.float-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lamp-breathe 2.4s ease-in-out infinite;
+}
+
+.float-reflect {
+  opacity: 0.6;
+}
+
+@keyframes lamp-breathe {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
 .pond-fireflies {
   position: absolute;
   inset: 0;
@@ -15327,6 +15364,8 @@ html.duel-open .duel-bg .backdrop * {
   .pond-glint,
   .lake-wave,
   .pond-firefly,
+  .lamp-halo,
+  .float-glow,
   .rain-ring,
   .frog-hop,
   .duck-bob,

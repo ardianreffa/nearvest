@@ -46,6 +46,9 @@ const C = {
   reelDark: '#4b5563',
   line: '#fffaf0',
   shadow: '#0b3a4a',
+  crystal: '#9cf8d2',
+  crystalCore: '#fffaf0',
+  leaf: '#4caf6a',
   floatRed: '#e5484d',
   floatWhite: '#fffaf0',
   floatDark: '#1b1b2f',
@@ -158,6 +161,8 @@ export function PondScene({
     return () => ro.disconnect();
   }, []);
   const still = reduced();
+  // Night (and dark rain): the float glows and TaniBot carries its lamp.
+  const dark = time === 'night' || weather === 'rain';
   const sinceMs = since > 0 ? Date.now() - since : Infinity;
   const moving =
     !still &&
@@ -173,6 +178,7 @@ export function PondScene({
     <div
       class={`pond pond-${phase} pond-${time}${weather === 'rain' ? ' pond-rain-on' : ''}`}
       data-time={time}
+      data-dark={dark ? '1' : '0'}
       data-weather={weather}
       ref={host}
       data-critters={JSON.stringify(CRITTERS)}
@@ -204,6 +210,7 @@ export function PondScene({
       )}
       <svg class="pond-svg pond-rod-layer" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
         {/* In front of TaniBot: the rod from its hands out over the water, then the line and the float. */}
+        {dark && <LampStaff />}
         <Rod pose={pose} spin={phase === 'reeling' ? ms : 0} />
         <path class="pond-line" d={`M${pose.tip.x} ${pose.tip.y} Q${pose.line.x} ${pose.line.y} ${f.x} ${f.y}`} fill="none" stroke={C.line} stroke-width={0.9} />
         <g class="pond-float-at" transform={`translate(${f.x} ${f.y}) scale(${fs})`}>
@@ -216,6 +223,33 @@ export function PondScene({
           </g>
         </g>
       </svg>
+      {dark && (
+        <svg class="pond-lights" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
+          <defs>
+            <radialGradient id="pond-glow-warm">
+              <stop offset="0" style={{ stopColor: 'var(--gold-300)', stopOpacity: 0.9 }} />
+              <stop offset="1" style={{ stopColor: 'var(--gold-300)', stopOpacity: 0 }} />
+            </radialGradient>
+            <radialGradient id="pond-glow-mint">
+              <stop offset="0" style={{ stopColor: 'var(--mint-300)', stopOpacity: 0.95 }} />
+              <stop offset="0.4" style={{ stopColor: 'var(--cyan-300)', stopOpacity: 0.45 }} />
+              <stop offset="1" style={{ stopColor: 'var(--cyan-300)', stopOpacity: 0 }} />
+            </radialGradient>
+          </defs>
+          {/* The lamp's light around TaniBot on the dock, its halo, and the crystal itself. */}
+          <ellipse class="lamp-pool" cx={LAMP.x + 6} cy={BOT_AT.y - 2} rx={30} ry={13} fill="url(#pond-glow-mint)" />
+          <circle class="lamp-halo" cx={LAMP.x} cy={LAMP.y} r={13} fill="url(#pond-glow-mint)" />
+          <g shape-rendering="crispEdges">
+            <rect x={LAMP.x - 1} y={LAMP.y - 4} width={2} height={8} fill={C.crystal} />
+            <rect x={LAMP.x - 2} y={LAMP.y - 2} width={4} height={4} fill={C.crystal} />
+            <rect x={LAMP.x} y={LAMP.y - 2} width={1} height={3} fill={C.crystalCore} />
+          </g>
+          {/* The float glows, and so does its reflection on the water. */}
+          <ellipse class="float-reflect" cx={f.x} cy={f.y + 4} rx={4} ry={1.6} fill="url(#pond-glow-warm)" />
+          <circle class="float-glow" cx={f.x} cy={f.y} r={8} fill="url(#pond-glow-warm)" />
+          <circle cx={f.x} cy={f.y - 0.5} r={0.9} fill={C.crystalCore} />
+        </svg>
+      )}
       <PondMood time={time} weather={weather} />
       {children}
     </div>
@@ -238,6 +272,29 @@ function band(p: RodPose, t: number, half: number): { x1: number; y1: number; x2
   const q = qAt(p.butt, p.ctrl, p.tip, t);
   const n = qNormal(p.butt, p.ctrl, p.tip, t);
   return { x1: q.x - n.x * half, y1: q.y - n.y * half, x2: q.x + n.x * half, y2: q.y + n.y * half };
+}
+
+/**
+ * TaniBot's night lamp (package 4, own design): a bamboo staff in its left hand (the side away from
+ * the rod) with a leaf-shaped holder cradling a glowing crystal. The staff is drawn with the rod (it is
+ * dimmed with TaniBot at night), the crystal and its light in `.pond-lights` (never dimmed).
+ */
+const LAMP = { x: BOT_AT.x - 15, y: BOT_AT.y - 41 };
+function LampStaff() {
+  const x = LAMP.x;
+  const y = LAMP.y;
+  return (
+    <g class="pond-lamp" shape-rendering="crispEdges">
+      <rect x={x - 1.5} y={y + 3} width={3} height={33} fill={C.rodDark} />
+      <rect x={x - 0.75} y={y + 3} width={1.5} height={32} fill={C.bamboo} />
+      {[10, 18, 26].map((d) => (
+        <rect key={d} x={x - 1} y={y + d} width={2} height={0.8} fill={C.node} />
+      ))}
+      {/* Leaf-shaped holder (two small leaves) around the crystal. */}
+      <path d={`M${x} ${y + 4} q -4 -1 -4 -5 q 3 0 4 3 z`} fill={C.leaf} stroke={C.rodDark} stroke-width={0.4} />
+      <path d={`M${x} ${y + 4} q 4 -1 4 -5 q -3 0 -4 3 z`} fill={C.leaf} stroke={C.rodDark} stroke-width={0.4} />
+    </g>
+  );
 }
 
 /** Thick to thin: handle, butt, middle, tip (t ranges along the rod and stroke widths in grid px). */
