@@ -2,8 +2,7 @@
 
 Status: **APPROVED by Ardian 2026-11-11 with the decisions below. Server part BUILT 2026-11-11 (committed
 locally, not pushed, not released; `server/src/fishing.ts`, tests `server/test/fishing.test.ts`); web part BUILT
-2026-11-11 with a temporary code-drawn pond (`web/src/art/pond.tsx` `PondBackdrop`; swap in the ChatGPT image when
-it arrives).** Replaces "Fishing · Soon"
+2026-11-11; the ChatGPT pond (seen from above) replaced the temporary code-drawn pond on 2026-11-12.** Replaces "Fishing · Soon"
 (docs/BACKLOG.md roadmap item). Draft numbers go to `server/src/rules.ts` once built and are tuned in
 testing. Everything stays on NEAR testnet.
 
@@ -143,18 +142,27 @@ Same idea as the Arena's paid wins:
 
 Image prompts for ChatGPT (send one at a time):
 
-**Image 1 (needed) — pond scene:**
+**Image 1 (needed) — pond scene.** The first prompt (side view, below) gave a pond seen from ABOVE,
+which works well; the art was built for the top-down picture Ardian made (2026-11-12). Prompt that
+matches the picture in the game (for a new version):
+> Pixel art, 16-bit style, wide landscape 16:9, seen from above (top-down, slight angle). A calm
+> tropical fishing pond filling most of the picture, clear blue-green water with gentle ripples and
+> a large empty area of open water in the middle. A short wooden dock on the left edge, reaching into
+> the water. Lily pads with pink lotus flowers and a few small frogs sitting on them near the banks,
+> three ducks swimming near the right edge, a small waterfall over mossy rocks in the top right
+> corner. Lush jungle banks with palms, ferns, red and pink flowers and grey stones all around. No
+> people, no fishing rod, no float, no text, no logos. Clean outlines, limited palette, crisp pixels,
+> no blur.
+
+First prompt (2026-11-11, side view; not what the game uses):
 > Pixel art, 16-bit style, wide landscape 16:9. A calm tropical fishing pond in a futuristic
 > solarpunk Indonesian village called Tandur, seen from the side at a slight angle from a small
-> wooden dock on the left. Clear blue-green water filling the lower two thirds, with lily pads,
-> a few reeds and gentle ripples. On the far bank: palm trees, a bamboo hut with solar panels on the
-> roof, a small hologram sign with a fish, and a volcano in the soft distance. Daytime, warm light,
-> no people, no animals, no fishing rod, no text, no logos. Clean outlines, limited palette, flat
-> colours, no blur, no gradients, crisp pixels. Leave the middle of the water empty (a float and a
-> fishing line will be drawn on top).
+> wooden dock on the left. [...] Leave the middle of the water empty (a float and a fishing line will
+> be drawn on top).
 
 It is recorded in `docs/ASSETS.md` as AI-generated at Ardian's request, original in
-`docs/art-source/`, converted with `tools/pixelize/pixelize.py --keep-bg`.
+`docs/art-source/`, converted with `tools/pixelize/pixelize.py --keep-bg --hq` (480x270) and the frogs redrawn with
+`tools/pixelize/frogs.py` (exact commands in docs/ASSETS.md).
 
 ### 3.5 Server and database change; is `nearvest-fd0112c` still OK?
 

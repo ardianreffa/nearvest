@@ -72,6 +72,40 @@ async function fits(what) {
   check(r.btns.length > 0 && r.btns.every((b) => b.h >= 48 && b.l >= 0 && b.r <= W && b.b <= H), `${what}: buttons on screen, >= 48 px high (${r.btns.map((b) => Math.round(b.h)).join(', ')})`);
 }
 
+/** The line, float, "!", the catch, sparkles and TaniBot never touch a frog or a duck (art/pond.tsx CRITTERS). */
+async function clearOfCritters(what) {
+  const hits = await pg.evaluate(() => {
+    const pond = document.querySelector('.pond');
+    if (!pond) return ['no pond'];
+    const pr = pond.getBoundingClientRect();
+    const [gw, gh] = pond.dataset.grid.split('x').map(Number);
+    const sx = pr.width / gw;
+    const sy = pr.height / gh;
+    const boxes = JSON.parse(pond.dataset.critters).map(([x, y, w, h]) => ({ l: pr.left + x * sx, t: pr.top + y * sy, r: pr.left + (x + w) * sx, b: pr.top + (y + h) * sy }));
+    const touch = (a, b) => a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
+    const out = [];
+    const line = document.querySelector('.pond-line');
+    if (line) {
+      const n = line.getTotalLength();
+      const m = line.getScreenCTM();
+      for (let i = 0; i <= 40; i++) {
+        const p = line.getPointAtLength((n * i) / 40);
+        const x = m.a * p.x + m.c * p.y + m.e;
+        const y = m.b * p.x + m.d * p.y + m.f;
+        if (boxes.some((b) => touch({ l: x - 1, r: x + 1, t: y - 1, b: y + 1 }, b))) out.push('line');
+      }
+    }
+    for (const sel of ['.pond-float', '.pond-bang', '.pond-catch', '.pond-spark', '.pond-bot .tanibot']) {
+      for (const el of document.querySelectorAll(sel)) {
+        const r = el.getBoundingClientRect();
+        if (boxes.some((b) => touch({ l: r.left, r: r.right, t: r.top, b: r.bottom }, b))) out.push(sel);
+      }
+    }
+    return [...new Set(out)];
+  });
+  check(hits.length === 0, `${what}: nothing covers a frog or a duck${hits.length ? ` (${hits.join(', ')})` : ''}`);
+}
+
 const openWindow = async () => {
   await pg.locator('.place-pin.pin-fishing').click({ force: true });
   await pg.waitForSelector('.fishing-dialog');
@@ -95,11 +129,13 @@ async function oneCast(n, opts = {}) {
   check(await pg.locator('.pond-bang').isVisible(), `cast ${n}: the bite shows "!"`);
   check((await pg.locator('.fish-reel').innerText()).includes('Reel in!'), `cast ${n}: button says "Reel in!"`);
   if (opts.shotBite) await pg.screenshot({ path: `${out}/fish-${tag}-${n}-bite.png` });
+  await clearOfCritters(`cast ${n} bite`);
   await pg.locator('.fish-reel').click();
   await pg.waitForSelector('.fish-result', { timeout: 5000 });
   await pg.waitForTimeout(900);
   const text = await pg.locator('.fish-result').innerText();
   await pg.screenshot({ path: `${out}/fish-${tag}-${n}-result.png` });
+  await clearOfCritters(`cast ${n} result`);
   await fits(`cast ${n} result`);
   return text;
 }
@@ -110,6 +146,8 @@ check(!(await pg.locator('.place-pin.pin-fishing.soon').count()), 'the Fishing p
 await openWindow();
 check((await pg.locator('.fish-casts').innerText()).includes('3 of 3'), 'the window shows 3 of 3 casts');
 await fits('open');
+await clearOfCritters('open');
+check(await pg.evaluate(() => { const i = document.querySelector('.pond-img'); return i && i.complete && i.naturalWidth === 480; }), 'the pond image (480 x 270) is loaded');
 await pg.screenshot({ path: `${out}/fish-${tag}-0-open.png` });
 
 const t1 = await oneCast(1, { early: true, force: 'golden_arowana', shotBite: true });

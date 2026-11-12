@@ -14197,21 +14197,31 @@ html.duel-open .duel-bg .backdrop * {
   flex: none;
 }
 
-/* The pond scene: the whole picture always shows (16:9), never cut or shifted sideways. */
+/* The pond scene (art/pond.tsx), seen from above: the whole picture always shows (16:9), never cut
+   or shifted sideways. The image and the overlay share one 480 x 270 grid. */
 .pond {
   position: relative;
   flex: none;
   width: 100%;
-  aspect-ratio: 160 / 90;
+  aspect-ratio: 480 / 270;
   overflow: hidden;
   border: var(--px) solid var(--soil-700);
   background: var(--cyan-700);
 }
 
+.pond-img,
 .pond-svg {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.pond-img {
+  image-rendering: pixelated;
+  user-select: none;
+  pointer-events: none;
 }
 
 .pond-bot {
@@ -14220,52 +14230,77 @@ html.duel-open .duel-bg .backdrop * {
   height: 0;
 }
 
-.pond-bot .tanibot {
+/* TaniBot stands on the end of the dock, sized to the pond (--bot-k from PondScene). */
+.pond-bot-in {
   position: absolute;
   left: 0;
   bottom: 0;
-  transform: translateX(-50%) scale(0.8);
+  transform: translateX(-50%) scale(var(--bot-k, 0.6));
   transform-origin: 50% 100%;
 }
 
-.pond-ripples {
-  animation: pond-drift 3.2s steps(4) infinite alternate;
+/* The waterfall: light streaks run down, foam flickers at its foot. */
+.fall-streak {
+  animation: fall-run 0.9s linear infinite;
 }
 
-.pond-holo {
-  animation: pond-holo 2.4s steps(2) infinite;
+.fall-foam {
+  animation: fall-foam 1.2s steps(3) infinite;
 }
 
-.pond-float {
-  transition: transform 0.35s ease-in;
+@keyframes fall-run {
+  0% {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(18px);
+    opacity: 0;
+  }
 }
 
+@keyframes fall-foam {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.pond-line {
+  transition: d 0.35s ease-out;
+}
+
+/* The float from above: bobbing = a slow pulse; the bite = it is pulled under (shrinks, fades). */
 .pond-wait .pond-float {
   animation: pond-bob 1.4s steps(2) infinite;
 }
 
 .pond-bite .pond-float {
-  animation: pond-dip 0.32s steps(2) infinite;
-}
-
-.pond-reeling .pond-float {
-  transform: translate(-30px, -30px);
+  animation: pond-dip 0.36s steps(2) infinite;
 }
 
 .pond-rings .ring {
   opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
 .pond-wait .ring-a {
-  animation: pond-ring 2.8s steps(3) infinite;
+  animation: pond-ring 2.8s steps(4) infinite;
 }
 
 .pond-bite .ring {
-  animation: pond-ring 0.6s steps(3) infinite;
+  animation: pond-ring 0.7s steps(4) infinite;
 }
 
 .pond-bite .ring-b {
-  animation-delay: 0.3s;
+  animation-delay: 0.35s;
 }
 
 .pond-bang {
@@ -14283,13 +14318,14 @@ html.duel-open .duel-bg .backdrop * {
   animation: pond-bang 0.5s steps(2) infinite alternate;
 }
 
+/* The catch seen from above: it pops up out of the water toward you, its shadow stays on the water. */
 .pond-catch {
   position: absolute;
   display: block;
   line-height: 0;
-  transform: translate(-50%, -160%);
-  filter: drop-shadow(0 2px 0 color-mix(in srgb, var(--ink) 60%, transparent));
-  animation: pond-jump 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(3px 4px 0 color-mix(in srgb, var(--ink) 45%, transparent));
+  animation: pond-jump 0.8s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
 .pond-spark {
@@ -14312,42 +14348,33 @@ html.duel-open .duel-bg .backdrop * {
 }
 
 .pond-catch.released {
-  animation: pond-jump 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.2) both, pond-release 0.6s 1.4s ease-in forwards;
-}
-
-@keyframes pond-drift {
-  to {
-    transform: translateX(3px);
-  }
-}
-
-@keyframes pond-holo {
-  50% {
-    opacity: 0.5;
-  }
+  animation: pond-jump 0.8s cubic-bezier(0.2, 0.9, 0.3, 1.2) both, pond-release 0.6s 1.4s ease-in forwards;
 }
 
 @keyframes pond-bob {
   50% {
-    transform: translateY(1px);
+    transform: scale(1.15);
   }
 }
 
 @keyframes pond-dip {
   50% {
-    transform: translateY(3px);
+    transform: scale(0.55);
+    opacity: 0.45;
   }
 }
 
 @keyframes pond-ring {
   0% {
     opacity: 0;
+    transform: scale(0.6);
   }
   40% {
     opacity: 1;
   }
   100% {
     opacity: 0;
+    transform: scale(1.6);
   }
 }
 
@@ -14359,22 +14386,23 @@ html.duel-open .duel-bg .backdrop * {
 
 @keyframes pond-jump {
   0% {
-    transform: translate(-50%, -20%) scale(0.4);
+    transform: translate(-50%, -50%) scale(0.2);
     opacity: 0;
+    filter: drop-shadow(0 0 0 transparent);
   }
-  60% {
-    transform: translate(-50%, -200%) scale(1.1);
+  55% {
+    transform: translate(-50%, -80%) scale(1.35);
     opacity: 1;
   }
   100% {
-    transform: translate(-50%, -160%) scale(1);
+    transform: translate(-50%, -60%) scale(1);
     opacity: 1;
   }
 }
 
 @keyframes pond-release {
   to {
-    transform: translate(-50%, 0) scale(0.6);
+    transform: translate(-50%, -50%) scale(0.3);
     opacity: 0;
   }
 }
@@ -14575,9 +14603,10 @@ html.duel-open .duel-bg .backdrop * {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pond-ripples,
-  .pond-holo,
+  .fall-streak,
+  .fall-foam,
   .pond-float,
+  .pond-line,
   .pond-rings .ring,
   .pond-bang,
   .pond-catch,

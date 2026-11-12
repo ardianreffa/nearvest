@@ -19,12 +19,12 @@ import { Coin } from './ui';
 
 /** Gold sparkles around the leaping Golden Arowana (pond grid points). */
 const SPARKS = [
-  [88, 30],
-  [120, 26],
-  [100, 16],
-  [130, 44],
-  [80, 46],
-  [112, 52],
+  [220, 112],
+  [282, 108],
+  [250, 96],
+  [292, 150],
+  [208, 160],
+  [270, 178],
 ];
 import type { Toast } from './toast';
 
@@ -149,12 +149,9 @@ export function FishingWindow({
 
   return (
     <Modal title="Fishing" onClose={onClose} class={`fishing-dialog fishing-live${inWater ? ' fishing-one' : ''}`} actions={actions}>
-      <PondScene phase={phase.k}>
-        <div class="pond-bot" style={pondAt(14, 62)}>
-          <TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />
-        </div>
+      <PondScene phase={phase.k} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
         {phase.k === 'bite' && (
-          <span class="pond-bang" style={pondAt(FLOAT_AT.x, FLOAT_AT.y - 8)} aria-hidden="true">
+          <span class="pond-bang" style={pondAt(FLOAT_AT.x, FLOAT_AT.y - 10)} aria-hidden="true">
             !
           </span>
         )}
