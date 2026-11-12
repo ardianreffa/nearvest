@@ -10261,14 +10261,14 @@ html.page-locked body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .hud-chips-phone > .chip {
   flex: none;
   width: auto;
   gap: 4px;
-  padding: 0 6px;
+  padding: 0 4px;
 }
 
 .hud-chips-phone > .chip-judge:not(.chip-judge-mini) {
@@ -10284,8 +10284,7 @@ html.page-locked body {
 }
 
 .hud-chips-phone > .chip-judge-mini {
-  width: 30px;
-  padding: 0;
+  padding: 0 5px;
   justify-content: center;
 }
 
