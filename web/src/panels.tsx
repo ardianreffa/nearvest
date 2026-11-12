@@ -5,9 +5,10 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { activityLabel, api, nearblocksAccount, nearblocksNft, type GameState, type MemorialView, type Quality, type ServerConfig, type Species, type VillageStats } from './api';
 import type { Act } from './garden';
 import { DartoFace, DartoFigure, HoverCart, type DartoPose } from './art/darto';
-import { MarketBackdrop, ShopBackdrop } from './art/scenes';
+import { MarketVillage, ShopBackdrop } from './art/scenes';
 import { MOMENT_LABELS, openShare, playMoment, removeShareLater, useShareLater, type MomentKind } from './share';
 import { ShopStall } from './art/shop';
+import { lockedFraction } from './art/backdrop';
 import { Sprite } from './sprites';
 import { TreePixels } from './art/trees';
 import { sortMemorials } from './memorials';
@@ -262,6 +263,8 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
   // His introduction only the first time, after that the daily greeting (one line at a time).
   const [firstMeeting] = useState(() => firstDartoMeeting(state.player.accountId));
   const [pose, heldFruit, showPose] = useDartoPose();
+  // His bubble fades after ~5 s so the village shows; a tap on him or new fruit brings it back.
+  const [saying, sayAgain] = useSayFor(DARTO_SAY_MS, state.fruits.reduce((n, f) => n + Math.max(0, f.qty), 0));
   const sceneRef = useRef<HTMLDivElement>(null);
   const [thanks, setThanks] = useState(0);
   const thanksTimer = useRef<number>();
@@ -329,10 +332,13 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
         }
       >
         <div class="market-scene" ref={sceneRef}>
-          <MarketBackdrop />
-          <DartoFigure pose={pose} fruit={heldFruit} scale={2} />
+          <MarketVillage fraction={villageFraction(state)} />
+          {/* A tap on Mr. Darto brings his bubble back. */}
+          <button class="darto-tap" onClick={sayAgain} aria-label="Mr. Darto: say hello again">
+            <DartoFigure pose={pose} fruit={heldFruit} scale={2} />
+          </button>
           <HoverCart scale={2} />
-          <div class="darto-say">
+          <div class={`darto-say${saying || (byDot && fruitCount > 0) ? '' : ' quiet'}`}>
             {byDot && fruitCount > 0 ? (
               <p class="speech speech-fresh" role="status">
                 "{dartoFreshLine(fruitCount)}"
@@ -838,4 +844,29 @@ function Stat({ label, value, note, accent, wide, info }: { label: string; value
       {note && <span class="stat-note">{note}</span>}
     </div>
   );
+}
+
+/** How long Mr. Darto's greeting stays before it fades (the fresh-fruit line stays while it matters). */
+const DARTO_SAY_MS = 5000;
+
+/** True for `ms` after mount, after `again()` and whenever `more` grows (e.g. new fruit). */
+function useSayFor(ms: number, more: number): [boolean, () => void] {
+  const [at, setAt] = useState(() => Date.now());
+  const last = useRef(more);
+  useEffect(() => {
+    if (more > last.current) setAt(Date.now());
+    last.current = more;
+  }, [more]);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = window.setTimeout(() => tick((n) => n + 1), Math.max(0, at + ms - Date.now()) + 20);
+    return () => window.clearTimeout(t);
+  }, [at, ms]);
+  return [Date.now() - at < ms, () => setAt(Date.now())];
+}
+
+/** The village clock (0..1 of the day), like the garden; dev builds honour ?time=day|dusk|night. */
+function villageFraction(state: GameState): number {
+  const locked = import.meta.env.DEV && typeof location !== 'undefined' ? lockedFraction(location.search) : null;
+  return locked ?? 1 - Math.max(0, state.clock.msUntilNextDay) / state.clock.dayLengthMs;
 }

@@ -5,6 +5,7 @@
 // fountain shimmer and twinkling string lights. Coordinates are in art pixels.
 
 import type { ComponentChildren } from 'preact';
+import { skyMix } from './backdrop';
 
 const W = 240;
 const H = 120;
@@ -142,5 +143,27 @@ export function ShopBackdrop() {
       <i class="led" style={{ ...at(195, 14, 1, 1), animationDelay: '0.5s' }} />
       <FlyBy y={8} />
     </Art>
+  );
+}
+
+// ---------- Market: Mr. Darto in Tandur (Ardian 2026-11-13) ----------
+// A crop of our own village v3 picture (village3-web-*.png, 480x270): the two green farm towers, the
+// monorail and the market stall, down to the grass, so Mr. Darto stands on the ground (no water any
+// more). Day / dusk / night cross-fade from the same village clock as the garden.
+
+/** The crop in village3-web picture pixels: from x to the right edge, its bottom row on the grass. */
+export const MARKET_CROP = { x: 240, bottom: 212 } as const;
+
+export function MarketVillage({ fraction }: { fraction: number }) {
+  const { night, dusk } = skyMix(fraction);
+  // Width: the crop (x .. 480) fills the scene; the bottom row is set in CSS (--mv-bottom: the
+  // laptop menu's short scene shows the path in front of the stall, phones the grass).
+  const style = { width: `${(480 / (480 - MARKET_CROP.x)) * 100}%` };
+  return (
+    <div class="market-village" aria-hidden="true" style={{ '--dusk': dusk.toFixed(3), '--night': night.toFixed(3) }}>
+      <img class="mv-img" src="/assets/bg/village3-web-day.png" alt="" style={style} />
+      <img class="mv-img mv-dusk" src="/assets/bg/village3-web-dusk.png" alt="" style={style} />
+      <img class="mv-img mv-night" src="/assets/bg/village3-web-night.png" alt="" style={style} />
+    </div>
   );
 }

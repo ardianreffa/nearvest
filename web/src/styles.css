@@ -16754,3 +16754,72 @@ html.pond-open .hud * {
   display: flex;
   max-width: 100%;
 }
+
+/* Market: Mr. Darto in Tandur, a crop of the village picture (art/scenes.tsx MarketVillage). */
+.market-village {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  --dusk: 0;
+  --night: 0;
+}
+
+.mv-img {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  height: auto;
+  /* The picture row at the scene's bottom (village3-web pixels, 270 rows): grass on phones. */
+  transform: translateY(calc((270 - var(--mv-bottom, 212)) / 270 * 100%));
+  image-rendering: pixelated;
+  user-select: none;
+}
+
+.mv-dusk {
+  opacity: var(--dusk);
+}
+
+.mv-night {
+  opacity: var(--night);
+}
+
+.market-scene .darto-tap {
+  position: absolute;
+  left: 18px;
+  bottom: 8px;
+  z-index: 1;
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: var(--cur-hand);
+}
+
+.market-scene .darto-tap .darto-figure {
+  position: static;
+}
+
+.market-scene .darto-tap:focus-visible {
+  outline: 3px solid var(--cyan-500);
+  outline-offset: 2px;
+}
+
+/* The greeting fades out after ~5 s (and back in on a tap); never removed, so nothing jumps. */
+.market-scene .darto-say {
+  transition: opacity 0.8s ease;
+}
+
+.market-scene .darto-say.quiet {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-scene .darto-say {
+    transition: none;
+  }
+}
+
+/* Laptop menu (a short Market picture): the path in front of the stall, towers and monorail above. */
+.hud .market-village {
+  --mv-bottom: 186;
+}
