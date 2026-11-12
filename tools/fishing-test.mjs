@@ -68,6 +68,8 @@ async function fits(what) {
       screen: rect('.pond-screen'),
       fit: document.querySelector('.pond-screen')?.dataset.fit,
       pond: rect('.pond'),
+      grid: document.querySelector('.pond')?.dataset.grid,
+      lake: Number(document.querySelector('.pond')?.dataset.lakeBottom ?? 1),
       panel: rect('.pond-panel'),
       top: rect('.pond-hud-top'),
       btns: [...document.querySelectorAll('.pond-screen .pond-actions .btn, .pond-back')].map((b) => b.getBoundingClientRect()).map((b) => ({ h: b.height, l: b.left, r: b.right, b: b.bottom })),
@@ -82,8 +84,13 @@ async function fits(what) {
   check(r.screen && r.screen.w === W && r.screen.h === H, `${what}: the pond is full screen (${r.screen && `${r.screen.w}x${r.screen.h}`}, ${r.fit})`);
   check(inScreen(r.panel) && inScreen(r.top), `${what}: top bar and panel inside the screen`);
   check(r.sx <= W && r.panelX <= 0, `${what}: no sideways scroll (page ${r.sx}, panel ${r.panelX})`);
-  check(Math.abs(r.pond.w / r.pond.h - 16 / 9) < 0.05, `${what}: pond 16:9 (${Math.round(r.pond.w)}x${Math.round(r.pond.h)})`);
-  if (W < H) check(r.pond.l >= -0.5 && r.pond.r <= W + 0.5 && r.panel.t >= r.pond.b - 0.5 && r.top.b <= r.pond.t + 0.5, `${what}: phone: the whole pond shows, bar above, panel below`);
+  const [gw, gh] = (r.grid ?? '480x270').split('x').map(Number);
+  check(Math.abs(r.pond.w / r.pond.h - gw / gh) < 0.02, `${what}: pond in its picture's shape ${gw}x${gh} (${Math.round(r.pond.w)}x${Math.round(r.pond.h)})`);
+  if (W < H) {
+    // Phones: the phone pictures across the width; the panel stays below the lake (it may cover the land at the bottom).
+    const lakeBottom = r.pond.t + r.lake * r.pond.h;
+    check(r.pond.l >= -0.5 && r.pond.r <= W + 0.5 && r.panel.t >= lakeBottom - 0.5, `${what}: phone: the whole pond shows, the panel below the lake (panel ${Math.round(r.panel.t)}, lake ends ${Math.round(lakeBottom)})`);
+  }
   else check(r.fit === 'cover' && r.pond.w >= W && r.pond.h >= H - 0.5, `${what}: laptop: the pond covers the window`);
   check(r.btns.length > 0 && r.btns.every((b) => b.h >= 48 && b.l >= 0 && b.r <= W && b.b <= H), `${what}: buttons on screen, >= 48 px high (${r.btns.map((b) => Math.round(b.h)).join(', ')})`);
 }

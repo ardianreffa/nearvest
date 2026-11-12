@@ -7,7 +7,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
-  DUCK_STARTS,
   ducksAsleep,
   duckAt,
   JUMP_EVERY,
@@ -19,7 +18,6 @@ import {
   type Box,
   type DuckMove,
   type FishingZone,
-  FROG_SPOTS,
   frogTick,
   LEAF_COLORS,
   LEAF_COUNT,
@@ -30,6 +28,7 @@ import {
   type Pt,
 } from '../pond-life-plan';
 import { PALETTE } from '../sprites';
+import { WIDE, type PondLayout } from './pond-layouts';
 import { playPondSplash } from '../audio';
 import { CATCH_GRIDS, FISH_PALETTE } from './catch-grids';
 import { FISH_BUCKET } from './pond-bucket';
@@ -65,34 +64,11 @@ interface Duck {
   right: boolean;
 }
 
-/** Light glints drifting over the open water (grid px: x, y, width), away from the frogs and ducks. */
-const GLINTS = [
-  [200, 182, 5],
-  [292, 206, 4],
-  [338, 118, 5],
-  [236, 236, 4],
-  [372, 196, 5],
-  [196, 112, 4],
-  [318, 160, 3],
-];
 /** Waves leave the waterfall's foot one after another (seconds: animation delays of a 16 s loop). */
 const WAVES = [0, -4, -8, -12];
-/** Where rain drops ring the water (grid px). */
-const RAIN_RINGS = [
-  [214, 120],
-  [300, 108],
-  [356, 168],
-  [270, 196],
-  [190, 160],
-  [330, 232],
-  [232, 250],
-  [380, 120],
-];
 
 const rand = () => Math.random();
 
-/** The fish bucket's middle on the dock (grid px), left of TaniBot (who stands at x 62). */
-const BUCKET_AT = { x: 35, y: 120 };
 const BUCKET_PALETTE = { ...PALETTE, ...FISH_PALETTE };
 
 /**
@@ -118,6 +94,7 @@ function LeafArt({ rows, color }: { rows: string[]; color: string }) {
 }
 
 export function PondLife({
+  layout: L = WIDE,
   mix = { dusk: 0, night: 0 },
   time,
   weather,
@@ -125,6 +102,8 @@ export function PondLife({
   zone = null,
   avoid = [],
 }: {
+  /** Which pond (art/pond-layouts.ts). */
+  layout?: PondLayout;
   /** The dusk / night pictures' share (the tree crown follows them). */
   mix?: { dusk: number; night: number };
   time: PondTime;
@@ -135,11 +114,11 @@ export function PondLife({
   /** Floating panels over the pond (grid boxes): ducks do not swim under them. */
   avoid?: Box[];
 }) {
-  const [frogs, setFrogs] = useState<FrogState[]>(() => startFrogs(rand));
-  const [ducks, setDucks] = useState<Duck[]>(() => DUCK_STARTS.map((at, i) => ({ m: still(at, Date.now()), right: i === 1 })));
+  const [frogs, setFrogs] = useState<FrogState[]>(() => startFrogs(rand, L));
+  const [ducks, setDucks] = useState<Duck[]>(() => L.duckStarts.map((at, i) => ({ m: still(at, Date.now()), right: i === 1 })));
   const asleep = ducksAsleep(time);
   /** When each duck may paddle again (a short rest after each paddle). */
-  const restUntil = useRef<number[]>(DUCK_STARTS.map(() => 0));
+  const restUntil = useRef<number[]>(L.duckStarts.map(() => 0));
   const ctx = useRef({ zone, avoid, asleep });
   ctx.current = { zone, avoid, asleep };
 
@@ -152,7 +131,7 @@ export function PondLife({
     for (let i = 0; i < moves.length; i++) {
       const flee = mustFlee(moves[i], now, z);
       if (!flee && (sleeping || now < Math.max(restUntil.current[i], moves[i].start + moves[i].dur))) continue;
-      const next = planDuck(moves, i, now, rand, { avoid: av, zone: z, flee });
+      const next = planDuck(moves, i, now, rand, { avoid: av, zone: z, flee, layout: L });
       if (!next) continue;
       moves[i] = next;
       restUntil.current[i] = next.start + next.dur + 1000 + rand() * 4000;
@@ -165,7 +144,7 @@ export function PondLife({
     if (stillMode) return;
     const tick = () => {
       if (document.hidden) return;
-      setFrogs((fs) => fs.map((f, i) => frogTick(f, i, rand)));
+      setFrogs((fs) => fs.map((f, i) => frogTick(f, i, rand, L)));
       setDucks(moveDucks);
     };
     const id = window.setInterval(tick, TICK_MS);
@@ -184,7 +163,7 @@ export function PondLife({
       t = window.setTimeout(() => {
         if (!document.hidden) {
           const now = Date.now();
-          const j = pickJump(rand, { ducks: ducksRef.current.map((d) => duckAt(d.m, now)), zone: ctx.current.zone, avoid: ctx.current.avoid });
+          const j = pickJump(rand, { ducks: ducksRef.current.map((d) => duckAt(d.m, now)), zone: ctx.current.zone, avoid: ctx.current.avoid, layout: L });
           if (j) {
             setJump({ ...j, id: now });
             window.setTimeout(() => playPondSplash(0.35), 150);
@@ -219,41 +198,49 @@ export function PondLife({
 
   return (
     <>
-      <div class="pond-tree">
-        <img src="/assets/bg/fishing-pond-tree.png" alt="" draggable={false} />
-        <img class="pond-fade" src="/assets/bg/fishing-pond-tree-dusk.png" alt="" style={{ opacity: mix.dusk }} draggable={false} />
-        <img class="pond-fade" src="/assets/bg/fishing-pond-tree-night.png" alt="" style={{ opacity: mix.night }} draggable={false} />
+      <div
+        class="pond-tree"
+        style={{
+          left: `${(L.tree.box[0] / L.w) * 100}%`,
+          top: `${(L.tree.box[1] / L.h) * 100}%`,
+          width: `${(L.tree.box[2] / L.w) * 100}%`,
+          height: `${(L.tree.box[3] / L.h) * 100}%`,
+        }}
+      >
+        <img src={L.tree.pics.day} alt="" draggable={false} />
+        <img class="pond-fade" src={L.tree.pics.dusk} alt="" style={{ opacity: mix.dusk }} draggable={false} />
+        <img class="pond-fade" src={L.tree.pics.night} alt="" style={{ opacity: mix.night }} draggable={false} />
       </div>
-      <svg class="pond-svg pond-life" viewBox="0 0 480 270" aria-hidden="true">
+      <svg class="pond-svg pond-life" viewBox={`0 0 ${L.w} ${L.h}`} aria-hidden="true">
         <g class="pond-glints" fill="var(--paper-light)">
-          {GLINTS.map(([x, y, w], i) => (
+          {L.glints.map(([x, y, w], i) => (
             <rect key={i} class="pond-glint" x={x} y={y} width={w} height={1} style={{ animationDelay: `${-i * 1.3}s` }} />
           ))}
         </g>
         {/* Small waves spreading slowly from the waterfall over the whole lake (only on the water). */}
         <defs>
-          <mask id="pond-water-mask" maskUnits="userSpaceOnUse" x={0} y={0} width={480} height={270}>
-            <image href="/assets/bg/fishing-pond-water.png" x={0} y={0} width={480} height={270} preserveAspectRatio="none" />
+          <mask id="pond-water-mask" maskUnits="userSpaceOnUse" x={0} y={0} width={L.w} height={L.h}>
+            <image href={L.waves.mask} x={0} y={0} width={L.w} height={L.h} preserveAspectRatio="none" />
           </mask>
         </defs>
         <g class="pond-waves" mask="url(#pond-water-mask)" fill="none" stroke="var(--paper-light)">
           {WAVES.map((d, i) => (
-            <ellipse key={i} class="lake-wave" cx={392} cy={64} rx={300} ry={130} vector-effect="non-scaling-stroke" style={{ animationDelay: `${d}s` }} />
+            <ellipse key={i} class="lake-wave" cx={L.waves.x} cy={L.waves.y} rx={L.waves.rx} ry={L.waves.ry} vector-effect="non-scaling-stroke" style={{ animationDelay: `${d}s` }} />
           ))}
         </g>
         {weather === 'rain' && (
           <g class="pond-rain-rings" fill="none" stroke="var(--cyan-300)" stroke-width={0.8}>
-            {RAIN_RINGS.map(([x, y], i) => (
+            {L.rainRings.map(([x, y], i) => (
               <ellipse key={i} class="rain-ring" cx={x} cy={y} rx={3} ry={1.6} style={{ animationDelay: `${(i * 0.37) % 1.4}s` }} />
             ))}
           </g>
         )}
         {/* The wooden fish bucket on the dock, behind TaniBot (package 4). */}
-        <g class="pond-bucket" transform={`translate(${BUCKET_AT.x} ${BUCKET_AT.y}) scale(0.7)`}>
+        <g class="pond-bucket" transform={`translate(${L.bucket.x} ${L.bucket.y}) scale(0.7)`}>
           <Sprite rows={FISH_BUCKET} palette={BUCKET_PALETTE} />
         </g>
         {frogs.map((f, i) => {
-          const p = FROG_SPOTS[f.spot];
+          const p = L.frogSpots[f.spot];
           return (
             <g key={i} class="pond-frog" data-spot={f.spot} style={{ transform: `translate(${p.x}px, ${p.y}px)` }}>
               <g key={f.hops} class={f.hops ? 'frog-hop' : undefined}>
@@ -307,7 +294,7 @@ export function PondLife({
       </svg>
       {asleep &&
         ducks.map((d, i) => (
-          <span key={i} class="pond-zzz" style={{ left: `${((d.m.to.x + 2) / 480) * 100}%`, top: `${((d.m.to.y - 8) / 270) * 100}%`, animationDelay: `${-i * 0.7}s` }} aria-hidden="true">
+          <span key={i} class="pond-zzz" style={{ left: `${((d.m.to.x + 2) / L.w) * 100}%`, top: `${((d.m.to.y - 8) / L.h) * 100}%`, animationDelay: `${-i * 0.7}s` }} aria-hidden="true">
             z<small>z</small>
           </span>
         ))}
@@ -333,31 +320,18 @@ export function PondLife({
   );
 }
 
-/** Fireflies at night (not in the rain): near the bushes and the banks, grid px + their drift. */
-const FIREFLIES = [
-  [24, 160, 6, -4],
-  [50, 206, -5, -6],
-  [94, 238, 7, -3],
-  [150, 236, -6, -5],
-  [178, 30, 5, 4],
-  [238, 24, -7, 3],
-  [348, 22, 6, 5],
-  [464, 112, -5, 6],
-  [468, 196, -6, -4],
-  [118, 48, 4, 6],
-];
 
 /** The village clock and the rain over everything (above TaniBot and the rod, under the "!" and the catch). */
-export function PondMood({ time, weather }: { time: PondTime; weather: PondWeather }) {
+export function PondMood({ time, weather, layout: L = WIDE }: { time: PondTime; weather: PondWeather; layout?: PondLayout }) {
   return (
     <>
       {time === 'night' && weather !== 'rain' && (
         <div class="pond-fireflies" aria-hidden="true">
-          {FIREFLIES.map(([x, y, dx, dy], i) => (
+          {L.fireflies.map(([x, y, dx, dy], i) => (
             <i
               key={i}
               class="pond-firefly"
-              style={{ left: `${(x / 480) * 100}%`, top: `${(y / 270) * 100}%`, '--fx': String(dx), '--fy': String(dy), animationDelay: `${-i * 0.9}s, ${-i * 0.53}s` }}
+              style={{ left: `${(x / L.w) * 100}%`, top: `${(y / L.h) * 100}%`, '--fx': String(dx), '--fy': String(dy), animationDelay: `${-i * 0.9}s, ${-i * 0.53}s` }}
             />
           ))}
         </div>

@@ -17,7 +17,8 @@
 
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { CRITTERS, type Box, type FishingZone, type PondTime, type PondWeather } from '../pond-life-plan';
+import { CRITTERS, crittersOf, type Box, type FishingZone, type PondTime, type PondWeather } from '../pond-life-plan';
+import { WIDE, type PondLayout } from './pond-layouts';
 import { PondLife, PondMood } from './pond-life';
 import { CAST_MS, FLOAT_AT, REEL_MS, qAt, qNormal, rodPose, type Pt, type RodPose } from './rod-pose';
 
@@ -33,7 +34,9 @@ const BOT_H = 58;
 export { CRITTERS };
 
 /** While the line is out: the ducks keep away from the float and the line to the rod's tip. */
-const FISHING_ZONE: FishingZone = { tip: rodPose('wait', Infinity).tip, float: FLOAT_AT };
+const zoneOf = (L: PondLayout): FishingZone => ({ tip: rodPose('wait', Infinity, false, L).tip, float: L.float });
+const ZONES = new Map<string, FishingZone>();
+const fishingZone = (L: PondLayout) => ZONES.get(L.key) ?? (ZONES.set(L.key, zoneOf(L)), ZONES.get(L.key)!);
 
 const C = {
   rodDark: '#3f2a19',
@@ -65,38 +68,19 @@ const C = {
  * water's slant there (a skewed layer), a little faster on each lower step. White spray flickers on each
  * step's lip, and foam spreads out at the foot. Day / dusk / night textures fade like the pictures.
  */
-const FALL_BOX = { x: 376, y: 0, w: 58, h: 56 };
-/** The steps (grid px polygons), the water's slant (degrees of skew) and the loop time. */
-const FALL_STEPS: { pts: [number, number][]; skew: number; s: number }[] = [
-  { pts: [[415, 0], [434, 0], [424, 17], [405, 17]], skew: -27, s: 1.05 },
-  { pts: [[397, 12], [413, 12], [407, 31], [380, 31]], skew: -14, s: 0.95 },
-  { pts: [[376, 30], [410, 30], [408, 45], [379, 45]], skew: -5, s: 0.85 },
-  { pts: [[376, 44], [403, 44], [401, 56], [376, 56]], skew: 0, s: 0.75 },
-];
-/** White spray on each step's lip: x, y, width (grid px). */
-const FALL_LIPS = [
-  [406, 15, 12],
-  [383, 31, 22],
-  [381, 40, 20],
-];
-/** Foam at the foot: puffs, and foam spreading out over the pool. */
-const FOAM_PUFFS = [
-  [382, 54, 6],
-  [389, 56, 8],
-  [396, 54, 6],
-];
-
-function Waterfall({ mix, k }: { mix: { dusk: number; night: number }; k: number }) {
+function Waterfall({ mix, k, L }: { mix: { dusk: number; night: number }; k: number; L: PondLayout }) {
+  const { box: FALL_BOX, steps: FALL_STEPS, lips: FALL_LIPS, foam: FOAM_PUFFS, spread } = L.fall;
   const layers: [string, number][] = [
     ['day', 1],
     ['dusk', mix.dusk],
     ['night', mix.night],
   ];
   const box = {
-    left: `${(FALL_BOX.x / POND_W) * 100}%`,
-    top: `${(FALL_BOX.y / POND_H) * 100}%`,
-    width: `${(FALL_BOX.w / POND_W) * 100}%`,
-    height: `${(FALL_BOX.h / POND_H) * 100}%`,
+    left: `${(FALL_BOX.x / L.w) * 100}%`,
+    top: `${(FALL_BOX.y / L.h) * 100}%`,
+    width: `${(FALL_BOX.w / L.w) * 100}%`,
+    height: `${(FALL_BOX.h / L.h) * 100}%`,
+    '--fall-mask': `url('${L.fall.mask}')`,
     '--fall-w': `${FALL_BOX.w * k}px`,
     '--fall-h': `${FALL_BOX.h * k}px`,
   };
@@ -106,18 +90,22 @@ function Waterfall({ mix, k }: { mix: { dusk: number; night: number }; k: number
       {FALL_STEPS.map((st, i) => (
         <div key={i} class="pond-fall" data-step={i} aria-hidden="true" style={{ ...box, clipPath: `polygon(${st.pts.map(pct).join(', ')})` }}>
           {layers.map(([t, o]) => (
-            <i key={t} class={`fall-flow fall-${t} pond-fade`} style={{ opacity: o, transform: `skewX(${st.skew}deg)`, animationDuration: `${st.s}s` }} />
+            <i
+              key={t}
+              class={`fall-flow fall-${t} pond-fade`}
+              style={{ opacity: o, transform: `skewX(${st.skew}deg)`, animationDuration: `${st.s}s`, backgroundImage: `url('${L.fall.tex[t as 'day' | 'dusk' | 'night']}')` }}
+            />
           ))}
         </div>
       ))}
       {FALL_LIPS.map(([x, y, w], i) => (
-        <i key={`l${i}`} class="fall-lip" style={{ ...pondAt(x + w / 2, y), width: `${w * k}px`, height: `${2.4 * k}px`, animationDelay: `${-i * 0.29}s` }} aria-hidden="true" />
+        <i key={`l${i}`} class="fall-lip" style={{ ...pondAt(x + w / 2, y, L), width: `${w * k}px`, height: `${2.4 * k}px`, animationDelay: `${-i * 0.29}s` }} aria-hidden="true" />
       ))}
       {FOAM_PUFFS.map(([x, y, r], i) => (
-        <i key={i} class="fall-foam" style={{ ...pondAt(x, y), '--r': `${r * k}px`, animationDelay: `${-i * 0.37}s` }} aria-hidden="true" />
+        <i key={i} class="fall-foam" style={{ ...pondAt(x, y, L), '--r': `${r * k}px`, animationDelay: `${-i * 0.37}s` }} aria-hidden="true" />
       ))}
       {[0, 1, 2].map((i) => (
-        <i key={`s${i}`} class="fall-spread" style={{ ...pondAt(389, 58), '--r': `${12 * k}px`, animationDelay: `${-i * 0.9}s` }} aria-hidden="true" />
+        <i key={`s${i}`} class="fall-spread" style={{ ...pondAt(spread[0], spread[1], L), '--r': `${12 * k}px`, animationDelay: `${-i * 0.9}s` }} aria-hidden="true" />
       ))}
     </>
   );
@@ -157,6 +145,7 @@ export function PondScene({
   weather = 'clear',
   avoid = [],
   mix = { dusk: 0, night: 0 },
+  layout: L = WIDE,
   bot,
   children,
 }: {
@@ -169,6 +158,8 @@ export function PondScene({
   avoid?: Box[];
   /** How much of the dusk / night pictures show (pondMix: cross-fade like the village). */
   mix?: { dusk: number; night: number };
+  /** Which pond: the 16:9 one or the phone pictures (art/pond-layouts.ts). */
+  layout?: PondLayout;
   bot?: ComponentChildren;
   children?: ComponentChildren;
 }) {
@@ -178,12 +169,12 @@ export function PondScene({
   useLayoutEffect(() => {
     const el = host.current;
     if (!el) return;
-    const fit = () => setK(el.clientWidth / POND_W);
+    const fit = () => setK(el.clientWidth / L.w);
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [L]);
   const still = reduced();
   // Night (and dark rain): the float glows and TaniBot carries its lamp.
   const dark = time === 'night' || weather === 'rain';
@@ -194,7 +185,7 @@ export function PondScene({
     (phase === 'bite' || ((phase === 'casting' || phase === 'wait') && sinceMs < CAST_MS + 50) || (phase === 'reeling' && sinceMs < REEL_MS + 50));
   const elapsed = useClock(moving, since);
   const ms = since > 0 ? elapsed : Infinity;
-  const pose = rodPose(phase, ms, still);
+  const pose = rodPose(phase, ms, still, L);
   // Seen from above, a flying float is drawn higher and bigger, its shadow stays on the water.
   const f = { x: pose.float.x, y: pose.float.y - pose.lift * 10 };
   const fs = 1 + pose.lift * 0.7;
@@ -205,38 +196,40 @@ export function PondScene({
       data-dark={dark ? '1' : '0'}
       data-weather={weather}
       ref={host}
-      data-critters={JSON.stringify(CRITTERS)}
-      data-grid={`${POND_W}x${POND_H}`}
+      data-critters={JSON.stringify(crittersOf(L))}
+      data-grid={`${L.w}x${L.h}`}
+      data-layout={L.key}
+      data-lake-bottom={(L.lakeBottom / L.h).toFixed(4)}
       data-tip={`${pose.tip.x.toFixed(2)},${pose.tip.y.toFixed(2)}`}
       data-bend={pose.bend.toFixed(1)}
-      style={{ '--pk': String(k) }}
+      style={{ '--pk': String(k), aspectRatio: `${L.w} / ${L.h}` }}
     >
-      <img class="pond-img" src="/assets/bg/fishing-pond.png" alt="" width={POND_W} height={POND_H} draggable={false} />
+      <img class="pond-img" src={L.pics.day} alt="" draggable={false} />
       {/* Ardian's dusk and night pictures over the day one, faded in by the village clock. */}
       {/* Always there (loaded once), faded in and out by CSS: no popping when the time changes. */}
-      <img class="pond-img pond-img-dusk pond-fade" src="/assets/bg/fishing-pond-dusk.png" alt="" style={{ opacity: mix.dusk }} draggable={false} />
-      <img class="pond-img pond-img-night pond-fade" src="/assets/bg/fishing-pond-night.png" alt="" style={{ opacity: mix.night }} draggable={false} />
-      <Waterfall mix={mix} k={k} />
-      <PondLife mix={mix} time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? FISHING_ZONE : null} avoid={avoid} />
-      <svg class="pond-svg" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
+      <img class="pond-img pond-img-dusk pond-fade" src={L.pics.dusk} alt="" style={{ opacity: mix.dusk }} draggable={false} />
+      <img class="pond-img pond-img-night pond-fade" src={L.pics.night} alt="" style={{ opacity: mix.night }} draggable={false} />
+      <Waterfall mix={mix} k={k} L={L} />
+      <PondLife mix={mix} time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? fishingZone(L) : null} avoid={avoid} layout={L} />
+      <svg class="pond-svg" viewBox={`0 0 ${L.w} ${L.h}`} aria-hidden="true">
         {pose.inWater && (
           <g class="pond-rings" fill="none" stroke={C.ripple} stroke-width={1}>
-            <circle class="ring ring-a" cx={FLOAT_AT.x} cy={FLOAT_AT.y} r={6} />
-            <circle class="ring ring-b" cx={FLOAT_AT.x} cy={FLOAT_AT.y} r={10} />
+            <circle class="ring ring-a" cx={L.float.x} cy={L.float.y} r={6} />
+            <circle class="ring ring-b" cx={L.float.x} cy={L.float.y} r={10} />
           </g>
         )}
         {pose.lift > 0 && <ellipse class="pond-float-shadow" cx={pose.float.x} cy={pose.float.y + 1} rx={3} ry={1.6} fill={C.shadow} opacity={0.45} />}
       </svg>
       {bot && (
-        <div class="pond-bot" style={{ ...pondAt(BOT_AT.x, BOT_AT.y), '--bot-k': String((k * BOT_H) / 64) }}>
+        <div class="pond-bot" style={{ ...pondAt(L.bot.x, L.bot.y, L), '--bot-k': String((k * BOT_H) / 64) }}>
           {/* An own box for the size and the facing: TaniBot's idle animation sets its own transform. */}
           <div class="pond-bot-in">{bot}</div>
         </div>
       )}
-      <svg class="pond-svg pond-rod-layer" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
+      <svg class="pond-svg pond-rod-layer" viewBox={`0 0 ${L.w} ${L.h}`} aria-hidden="true">
         {/* In front of TaniBot: the rod from its hands out over the water, then the line and the float. */}
         <g class="pond-fade" style={{ opacity: dark ? 1 : 0 }}>
-          <LampStaff />
+          <LampStaff L={L} />
         </g>
         <Rod pose={pose} spin={phase === 'reeling' ? ms : 0} />
         <path class="pond-line" d={`M${pose.tip.x} ${pose.tip.y} Q${pose.line.x} ${pose.line.y} ${f.x} ${f.y}`} fill="none" stroke={C.line} stroke-width={0.9} />
@@ -250,7 +243,7 @@ export function PondScene({
           </g>
         </g>
       </svg>
-      <svg class="pond-lights pond-fade" style={{ opacity: dark ? 1 : 0 }} viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
+      <svg class="pond-lights pond-fade" style={{ opacity: dark ? 1 : 0 }} viewBox={`0 0 ${L.w} ${L.h}`} aria-hidden="true">
           <defs>
             <radialGradient id="pond-glow-warm">
               <stop offset="0" style={{ stopColor: 'var(--gold-300)', stopOpacity: 0.9 }} />
@@ -263,19 +256,19 @@ export function PondScene({
             </radialGradient>
           </defs>
           {/* The lamp's light around TaniBot on the dock, its halo, and the crystal itself. */}
-          <ellipse class="lamp-pool" cx={LAMP.x + 6} cy={BOT_AT.y - 2} rx={30} ry={13} fill="url(#pond-glow-mint)" />
-          <circle class="lamp-halo" cx={LAMP.x} cy={LAMP.y} r={12} fill="url(#pond-glow-mint)" />
+          <ellipse class="lamp-pool" cx={lampAt(L).x + 6} cy={L.bot.y - 2} rx={30} ry={13} fill="url(#pond-glow-mint)" />
+          <circle class="lamp-halo" cx={lampAt(L).x} cy={lampAt(L).y} r={12} fill="url(#pond-glow-mint)" />
           <g shape-rendering="crispEdges">
-            <rect x={LAMP.x - 2} y={LAMP.y - 2} width={4} height={4} fill={C.crystal} />
-            <rect x={LAMP.x - 1} y={LAMP.y - 3} width={2} height={6} fill={C.crystal} />
-            <rect x={LAMP.x - 0.5} y={LAMP.y - 1.5} width={1} height={2} fill={C.crystalCore} />
+            <rect x={lampAt(L).x - 2} y={lampAt(L).y - 2} width={4} height={4} fill={C.crystal} />
+            <rect x={lampAt(L).x - 1} y={lampAt(L).y - 3} width={2} height={6} fill={C.crystal} />
+            <rect x={lampAt(L).x - 0.5} y={lampAt(L).y - 1.5} width={1} height={2} fill={C.crystalCore} />
           </g>
           {/* The float glows, and so does its reflection on the water. */}
           <ellipse class="float-reflect" cx={f.x} cy={f.y + 4} rx={4} ry={1.6} fill="url(#pond-glow-warm)" />
           <circle class="float-glow" cx={f.x} cy={f.y} r={8} fill="url(#pond-glow-warm)" />
           <circle cx={f.x} cy={f.y - 0.5} r={0.9} fill={C.crystalCore} />
         </svg>
-      <PondMood time={time} weather={weather} />
+      <PondMood time={time} weather={weather} layout={L} />
       {children}
     </div>
   );
@@ -306,10 +299,9 @@ function band(p: RodPose, t: number, half: number): { x1: number; y1: number; x2
  * and box are drawn with the rod (dimmed with TaniBot at night); the crystal and its light are in
  * `.pond-lights` (never dimmed). From the hand up to about head height.
  */
-const LAMP = { x: BOT_AT.x - 17, y: BOT_AT.y - 33 };
-function LampStaff() {
-  const x = LAMP.x;
-  const y = LAMP.y;
+const lampAt = (L: PondLayout) => ({ x: L.bot.x - 17, y: L.bot.y - 33 });
+function LampStaff({ L }: { L: PondLayout }) {
+  const { x, y } = lampAt(L);
   return (
     <g class="pond-lamp" shape-rendering="crispEdges">
       {/* grip: from the box down to just below the hand */}
@@ -376,4 +368,4 @@ function Rod({ pose, spin }: { pose: RodPose; spin: number }) {
 }
 
 /** CSS position (percent of the scene) of a pond grid point. */
-export const pondAt = (x: number, y: number) => ({ left: `${(x / POND_W) * 100}%`, top: `${(y / POND_H) * 100}%` });
+export const pondAt = (x: number, y: number, L: PondLayout = WIDE) => ({ left: `${(x / L.w) * 100}%`, top: `${(y / L.h) * 100}%` });

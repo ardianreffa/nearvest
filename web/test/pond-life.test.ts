@@ -210,4 +210,42 @@ describe('fishing pond life', () => {
     assert.deepEqual(moodMix('dusk'), { dusk: 1, night: 0 });
     assert.deepEqual(moodMix('morning'), { dusk: 0, night: 0 });
   });
+  it('the phone pond: ducks, jumping fish and frogs in the right places; the controls stay below the lake', async () => {
+    const { PHONE, layoutFor } = await import('../src/art/pond-layouts.ts');
+    assert.equal(layoutFor(390, 844).key, 'phone');
+    assert.equal(layoutFor(390, 664).key, 'phone');
+    assert.equal(layoutFor(1280, 800).key, 'wide');
+    for (const p of PHONE.duckStarts) assert.ok(swimmable(p, [], PHONE), `duck start ${p.x},${p.y}`);
+    for (const p of PHONE.frogSpots) assert.ok(!swimmable(p, [], PHONE), `lily pad ${p.x},${p.y}`);
+    assert.ok(swimmable(PHONE.float, [], PHONE), 'the float is on open water');
+    assert.ok(!swimmable(PHONE.bot, [], PHONE) && !swimmable(PHONE.bucket, [], PHONE), 'TaniBot and the bucket stand on the dock');
+    // Ducks on the phone lake: on the water, never touching, away from the line.
+    const r = seeded(21);
+    const zone: FishingZone = { tip: { x: 128, y: 237 }, float: PHONE.float };
+    let ds: DuckMove[] = PHONE.duckStarts.map((p) => still(p, 0));
+    let t = 0;
+    for (let step = 0; step < 3000; step++) {
+      t += 250;
+      for (let i = 0; i < ds.length; i++) {
+        const flee = mustFlee(ds[i], t, zone);
+        if (!flee && t < ds[i].start + ds[i].dur + 1000) continue;
+        const next = planDuck(ds, i, t, r, { zone, flee, layout: PHONE });
+        if (next) ds = ds.map((m, j) => (j === i ? next : m));
+      }
+      const at = ds.map((m) => duckAt(m, t));
+      for (const p of at) assert.ok(swimmable(p, [], PHONE), `phone duck on the water (${p.x}, ${p.y})`);
+      for (let i = 0; i < at.length; i++) for (let j = i + 1; j < at.length; j++) assert.ok(Math.hypot(at[i].x - at[j].x, at[i].y - at[j].y) >= DUCK_GAP - 0.01);
+    }
+    for (let i = 0; i < 500; i++) {
+      const j = pickJump(r, { layout: PHONE, zone });
+      assert.ok(j && swimmable(j, [], PHONE) && PHONE.frogSpots.every((f) => Math.hypot(f.x - j.x, f.y - j.y) >= 28));
+    }
+    // Controls below the lake: 390x844 and 390x664 (iPhone Safari).
+    for (const [W, H] of [[390, 844], [390, 664]]) {
+      const f = pondFit(W, H, PHONE);
+      assert.equal(f.mode, 'phone');
+      assert.ok(H - (f.top + PHONE.lakeBottom * (f.w / PHONE.w)) >= 199, `room under the lake at ${W}x${H}`);
+      assert.ok(f.w <= W + 0.01);
+    }
+  });
 });

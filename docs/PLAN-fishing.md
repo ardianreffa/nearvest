@@ -363,3 +363,16 @@ light and the rain darkening stay code tints.
 4. The pond's top bar shows the PANEN balance (gold PANEN coin), counting up with "+N" after a catch.
 5. Village HUD: the PANEN balance next to the profile box with the round gold PANEN coin
    (`web/src/art/panen-coin.tsx`: a P with a vertical stroke); the square PANEN chip is gone.
+
+## 15. The phone pond (Ardian 2026-11-12) — BUILT 2026-11-12 (committed locally, not pushed)
+
+Ardian's ChatGPT phone pictures (day / dusk / night, a new upright composition) are used on upright
+phones; laptops keep the 16:9 pond. Two layouts in `web/src/art/pond-layouts.ts` (WIDE, PHONE): every
+place (dock end + TaniBot, rod angles, float, lily pads + frogs, the ducks' water map, waterfall steps,
+lips and foam, tree crown, bucket, fireflies, glints, rain rings, waves, the lake's lowest row) per
+layout. Things in the phone picture are about 1.4 times bigger, so the phone scene's grid is the
+picture / 1.4 (343 x 609): sprites keep their size. On the phone a lily pad sits just up-right of the
+dock's end, so the phone rod rests low and swings back down-left (never over a pad; unit test). Fit:
+across the width at the top, smaller when needed so at least 200 px stay free below the lake for the
+controls (390x664: 316 px wide). Tests: `web/test/rod-pose.test.ts`, `web/test/pond-life.test.ts`
+(phone), `tools/fishing-test.mjs` and `tools/pond-mood-test.mjs` at 390x844 / 390x664.

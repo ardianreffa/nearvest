@@ -7,7 +7,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { api, ApiError, type CatchView, type FishingView, type GameState } from './api';
 import { CatchIcon } from './art/catch-icons';
-import { FLOAT_AT, PondScene, pondAt } from './art/pond';
+import { PondScene, pondAt } from './art/pond';
+import { layoutFor } from './art/pond-layouts';
 import { CAST_MS, REEL_MS } from './art/rod-pose';
 import { moodMix, nextMood, pondFit, pondSounds, pondTime, pondWeather, type Box, type PondMood as PondMoodState } from './pond-life-plan';
 import { villageHour } from './share';
@@ -22,14 +23,14 @@ import { Sprite } from './sprites';
 import { Coin, formatPanen } from './ui';
 import { PanenCoin } from './art/panen-coin';
 
-/** Gold sparkles around the leaping Golden Arowana (pond grid points). */
+/** Gold sparkles around the leaping Golden Arowana (grid px from the float). */
 const SPARKS = [
-  [220, 112],
-  [282, 108],
-  [250, 96],
-  [292, 150],
-  [208, 160],
-  [270, 178],
+  [-30, -30],
+  [32, -34],
+  [0, -46],
+  [42, 8],
+  [-42, 18],
+  [20, 36],
 ];
 /** Splash drops (grid px from the float): a normal fish. */
 const DROPS = [
@@ -89,10 +90,16 @@ export function FishingWindow({
   // Full screen (package 3): the pond fills the screen like the village. Cover when that crops at most
   // 12% (laptops), else the whole pond fits the width with a blurred copy around it (phones upright).
   const screen = useRef<HTMLDivElement>(null);
-  const [fit, setFit] = useState(() => pondFit(window.innerWidth, window.innerHeight));
+  // Upright phones get the phone pictures (art/pond-layouts.ts), everything else the 16:9 pond.
+  const [L, setL] = useState(() => layoutFor(window.innerWidth, window.innerHeight));
+  const [fit, setFit] = useState(() => pondFit(window.innerWidth, window.innerHeight, layoutFor(window.innerWidth, window.innerHeight)));
   const [avoid, setAvoid] = useState<Box[]>([]);
   useLayoutEffect(() => {
-    const onResize = () => setFit(pondFit(window.innerWidth, window.innerHeight));
+    const onResize = () => {
+      const l = layoutFor(window.innerWidth, window.innerHeight);
+      setL(l);
+      setFit(pondFit(window.innerWidth, window.innerHeight, l));
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -100,7 +107,7 @@ export function FishingWindow({
   useLayoutEffect(() => {
     const el = screen.current;
     if (!el) return;
-    const k = fit.w / 480;
+    const k = fit.w / L.w;
     const boxes = [...el.querySelectorAll<HTMLElement>('[data-pond-avoid]')].map((p): Box => {
       const r = p.getBoundingClientRect();
       return [(r.left - fit.left) / k, (r.top - fit.top) / k, r.width / k, r.height / k];
@@ -262,42 +269,41 @@ export function FishingWindow({
       aria-label="Fishing pond"
       data-fit={fit.mode}
       // Upright phones: the panel gets exactly the room under the pond (it scrolls inside, never covers it).
-      style={{ '--pond-free': `${Math.max(160, window.innerHeight - fit.top - fit.h - 24)}px` }}
+      style={{ '--pond-free': `${Math.max(160, window.innerHeight - fit.top - (fit.mode === 'phone' ? L.lakeBottom * (fit.w / L.w) : fit.h) - 24)}px` }}
     >
-      {(['', '-dusk', '-night'] as const).map((t) => (
+      {(['day', 'dusk', 'night'] as const).map((t) => (
         <img
           key={t}
           class="pond-backfill"
-          src={`/assets/bg/fishing-pond${t}.png`}
-          style={{ opacity: t === '' ? 1 : t === '-dusk' ? mix.dusk : mix.night }}
+          src={L.pics[t]}
+          style={{ opacity: t === 'day' ? 1 : t === 'dusk' ? mix.dusk : mix.night }}
           alt=""
           aria-hidden="true"
           draggable={false}
         />
-      ))}
-      <div class="pond-stage" style={{ left: `${fit.left}px`, top: `${fit.top}px`, width: `${fit.w}px`, height: `${fit.h}px` }}>
-        <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} mix={mix} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
+      ))}      <div class="pond-stage" style={{ left: `${fit.left}px`, top: `${fit.top}px`, width: `${fit.w}px`, height: `${fit.h}px` }}>
+        <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} mix={mix} layout={L} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
         {phase.k === 'bite' && (
-            <span class="pond-bang" style={pondAt(FLOAT_AT.x, FLOAT_AT.y - 10)} aria-hidden="true">
+            <span class="pond-bang" style={pondAt(L.float.x, L.float.y - 10, L)} aria-hidden="true">
               !
             </span>
           )}
           {tier && tier !== 'junk' && (
-            <span class={`pond-splash splash-${tier}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
+            <span class={`pond-splash splash-${tier}`} style={pondAt(L.float.x, L.float.y, L)} aria-hidden="true">
               {(tier === 'item' ? ITEM_GLINTS : tier === 'gourami' || tier === 'legend' ? CONFETTI : DROPS).map(([dx, dy], i) => (
                 <i key={i} style={{ '--dx': dx, '--dy': dy, animationDelay: `${(i % 4) * 40}ms` }} />
               ))}
             </span>
           )}
-          {tier === 'junk' && <span class="pond-plop" style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true" />}
+          {tier === 'junk' && <span class="pond-plop" style={pondAt(L.float.x, L.float.y, L)} aria-hidden="true" />}
           {c?.moment === 'golden_arowana' &&
             SPARKS.map(([x, y], i) => (
-              <span key={i} class="pond-spark" style={{ ...pondAt(x, y), animationDelay: `${200 + i * 120}ms` }} aria-hidden="true">
+              <span key={i} class="pond-spark" style={{ ...pondAt(L.float.x + x, L.float.y + y, L), animationDelay: `${200 + i * 120}ms` }} aria-hidden="true">
                 <Sprite name="sparkle" scale={2} />
               </span>
             ))}
           {c && (
-            <span class={`pond-catch tier-${tier}${c.released ? ' released' : ''}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
+            <span class={`pond-catch tier-${tier}${c.released ? ' released' : ''}`} style={pondAt(L.float.x, L.float.y, L)} aria-hidden="true">
               <CatchIcon id={c.catch} scale={2} />
             </span>
           )}

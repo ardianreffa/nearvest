@@ -9,7 +9,7 @@
 // - Ducks swim slowly anywhere on the lake (never on land, rocks or pads), never bump into each other
 //   and keep away from the float and the line while fishing; at night they sleep (still, "zzz").
 
-import { WATER_CELL, WATER_MASK } from './art/pond-sprites.ts';
+import { WIDE, type PondLayout } from './art/pond-layouts.ts';
 import type { WeatherLook } from './weather';
 
 export type PondTime = 'morning' | 'day' | 'dusk' | 'night';
@@ -76,23 +76,10 @@ export const ducksAsleep = (time: PondTime) => time === 'night';
 
 // ---------- Frogs ----------
 
-/** Lily pads a frog can sit on (pond grid px: the frog's middle). */
-export const FROG_SPOTS: Pt[] = [
-  { x: 149, y: 74 },
-  { x: 176, y: 73 },
-  { x: 307, y: 53 },
-  { x: 446, y: 85 },
-  { x: 104, y: 192 },
-  { x: 89, y: 178 },
-  { x: 127, y: 189 },
-];
-/** The four frogs: where each starts and the pads it may hop between (neighbours only). */
-export const FROGS: { start: number; pads: number[] }[] = [
-  { start: 0, pads: [0, 1] },
-  { start: 2, pads: [2] },
-  { start: 3, pads: [3] },
-  { start: 4, pads: [4, 5, 6] },
-];
+/** Lily pads a frog can sit on (grid px: the frog's middle) and the four frogs (start pad, the pads it
+ * may hop between): per layout (art/pond-layouts.ts); these are the 16:9 pond's. */
+export const FROG_SPOTS: Pt[] = WIDE.frogSpots;
+export const FROGS: { start: number; pads: number[] }[] = WIDE.frogs;
 export interface FrogState {
   spot: number;
   /** Facing in 90 degree steps (0 = head up). */
@@ -100,12 +87,13 @@ export interface FrogState {
   /** Counts hops (restarts the hop animation). */
   hops: number;
 }
-export const startFrogs = (rand: () => number): FrogState[] => FROGS.map((f) => ({ spot: f.start, dir: Math.floor(rand() * 4) as FrogState['dir'], hops: 0 }));
+export const startFrogs = (rand: () => number, L: PondLayout = WIDE): FrogState[] =>
+  L.frogs.map((f) => ({ spot: f.start, dir: Math.floor(rand() * 4) as FrogState['dir'], hops: 0 }));
 
 /** One tick (about every 1.5 s): a frog hops in place now and then, and sometimes to another pad. */
-export function frogTick(f: FrogState, i: number, rand: () => number): FrogState {
+export function frogTick(f: FrogState, i: number, rand: () => number, L: PondLayout = WIDE): FrogState {
   if (rand() > 0.16) return f;
-  const pads = FROGS[i].pads;
+  const pads = L.frogs[i].pads;
   const others = pads.filter((p) => p !== f.spot);
   const move = others.length > 0 && rand() < 0.3;
   return {
@@ -137,13 +125,9 @@ export const DUCK_SPEED = 4;
 export const DUCK_FLEE_SPEED = 10;
 /** The closest two ducks' middles ever get (a duck is 19 px long). */
 export const DUCK_GAP = 24;
-export const DUCK_STARTS: Pt[] = [
-  { x: 430, y: 118 },
-  { x: 404, y: 150 },
-  { x: 446, y: 176 },
-];
+export const DUCK_STARTS: Pt[] = WIDE.duckStarts;
 /** The waterfall's foam at the foot of the fall: no swimming there. */
-export const WATERFALL_FOOT: Box = [366, 44, 54, 30];
+export const WATERFALL_FOOT: Box = WIDE.waterfallFoot;
 
 /** Where the duck is at `now`. */
 export function duckAt(m: DuckMove, now: number): Pt {
@@ -155,9 +139,9 @@ export const still = (at: Pt, now: number): DuckMove => ({ from: at, to: at, sta
 const inBox = (p: Pt, [x, y, w, h]: Box, pad = 0) => p.x > x - pad && p.x < x + w + pad && p.y > y - pad && p.y < y + h + pad;
 
 /** Only water under the whole duck (WATER_MASK), not the waterfall's foot, not under a panel. */
-export function swimmable(p: Pt, avoid: Box[] = []): boolean {
-  const row = WATER_MASK[Math.floor(p.y / WATER_CELL)];
-  return !!row && row[Math.floor(p.x / WATER_CELL)] === '#' && !inBox(p, WATERFALL_FOOT) && !avoid.some((b) => inBox(p, b, 12));
+export function swimmable(p: Pt, avoid: Box[] = [], L: PondLayout = WIDE): boolean {
+  const row = L.water.mask[Math.floor(p.y / L.water.cell)];
+  return !!row && row[Math.floor(p.x / L.water.cell)] === '#' && !inBox(p, L.waterfallFoot) && !avoid.some((b) => inBox(p, b, 12));
 }
 
 /** Shortest distance between segments ab and cd. */
@@ -187,9 +171,9 @@ export function inZone(a: Pt, b: Pt, z: FishingZone | null): boolean {
 }
 
 /** A paddle that stays on the water (sampled every half pixel, so no corner of a cell is skipped) and out of the fishing zone. */
-export function pathOk(a: Pt, b: Pt, avoid: Box[], zone: FishingZone | null): boolean {
+export function pathOk(a: Pt, b: Pt, avoid: Box[], zone: FishingZone | null, L: PondLayout = WIDE): boolean {
   const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) * 2));
-  for (let i = 0; i <= n; i++) if (!swimmable({ x: a.x + ((b.x - a.x) * i) / n, y: a.y + ((b.y - a.y) * i) / n }, avoid)) return false;
+  for (let i = 0; i <= n; i++) if (!swimmable({ x: a.x + ((b.x - a.x) * i) / n, y: a.y + ((b.y - a.y) * i) / n }, avoid, L)) return false;
   return !inZone(a, b, zone);
 }
 
@@ -203,8 +187,9 @@ export function planDuck(
   i: number,
   now: number,
   rand: () => number,
-  opts: { avoid?: Box[]; zone?: FishingZone | null; flee?: boolean } = {},
+  opts: { avoid?: Box[]; zone?: FishingZone | null; flee?: boolean; layout?: PondLayout } = {},
 ): DuckMove | null {
+  const L = opts.layout ?? WIDE;
   const avoid = opts.avoid ?? [];
   const zone = opts.zone ?? null;
   const at = duckAt(ducks[i], now);
@@ -213,7 +198,7 @@ export function planDuck(
     const ang = rand() * Math.PI * 2;
     const far = 15 + rand() * 75;
     const to = { x: Math.round(at.x + Math.cos(ang) * far), y: Math.round(at.y + Math.sin(ang) * far * 0.7) };
-    if (!pathOk(at, to, avoid, opts.flee ? null : zone)) continue;
+    if (!pathOk(at, to, avoid, opts.flee ? null : zone, L)) continue;
     if (opts.flee && inZone(to, to, zone)) continue;
     if (others.some(([p, q]) => segDist(at, to, p, q) < DUCK_GAP)) continue;
     const speed = opts.flee ? DUCK_FLEE_SPEED : DUCK_SPEED;
@@ -229,20 +214,34 @@ export const mustFlee = (m: DuckMove, now: number, zone: FishingZone | null) => 
  * Boxes [x, y, w, h] the rod, line, float, "!", catch and sparkles must never touch: every lily pad a
  * frog can sit on. (The ducks keep away from the line and the float themselves: planDuck.)
  */
-export const CRITTERS: [number, number, number, number][] = FROG_SPOTS.map((p): [number, number, number, number] => [p.x - 7, p.y - 7, 14, 14]);
+export const crittersOf = (L: PondLayout): Box[] => L.frogSpots.map((p): Box => [p.x - 7, p.y - 7, 14, 14]);
+export const CRITTERS: Box[] = crittersOf(WIDE);
 
 // ---------- Full screen (package 3) ----------
 
 export interface PondFit {
-  /** cover = fills the screen (crops at most 12%); fit = the whole pond, blurred copy around it. */
-  mode: 'cover' | 'fit';
+  /**
+   * cover = fills the screen (crops at most 12%); fit = the whole 16:9 pond, blurred copy around it;
+   * phone = the phone pictures across the width, at the top, the controls below the lake.
+   */
+  mode: 'cover' | 'fit' | 'phone';
   left: number;
   top: number;
   w: number;
   h: number;
 }
-/** Where the 480 x 270 pond goes on a W x H screen (CSS px). Upright phones keep it in the upper part. */
-export function pondFit(W: number, H: number): PondFit {
+/** Room the phone's controls need under the lake (CSS px). */
+export const PHONE_PANEL_MIN = 200;
+/**
+ * Where the pond goes on a W x H screen (CSS px). With the phone layout: across the width at the top,
+ * smaller if needed so at least PHONE_PANEL_MIN px stay free below the lake for the controls.
+ */
+export function pondFit(W: number, H: number, L: PondLayout = WIDE): PondFit {
+  if (L.key === 'phone') {
+    const k = Math.min(W / L.w, (H - PHONE_PANEL_MIN) / L.lakeBottom);
+    const w = L.w * k;
+    return { mode: 'phone', left: (W - w) / 2, top: 0, w, h: L.h * k };
+  }
   const ck = Math.max(W / 480, H / 270);
   const crop = 1 - Math.min(W / (480 * ck), H / (270 * ck));
   if (crop <= 0.12) {
@@ -294,12 +293,13 @@ export interface Jump {
  * A spot for a fish to jump: on open water (the ducks' water map: never on pads or the bank), far
  * from the float and the line while fishing, from every duck and every lily pad, not under a panel.
  */
-export function pickJump(rand: () => number, opts: { ducks?: Pt[]; zone?: FishingZone | null; avoid?: Box[] } = {}): Jump | null {
-  for (let k = 0; k < 30; k++) {
-    const p = { x: Math.round(40 + rand() * 420), y: Math.round(60 + rand() * 200) };
-    if (!swimmable(p, opts.avoid ?? [])) continue;
+export function pickJump(rand: () => number, opts: { ducks?: Pt[]; zone?: FishingZone | null; avoid?: Box[]; layout?: PondLayout } = {}): Jump | null {
+  const L = opts.layout ?? WIDE;
+  for (let k = 0; k < 40; k++) {
+    const p = { x: Math.round(20 + rand() * (L.w - 40)), y: Math.round(20 + rand() * (L.h - 40)) };
+    if (!swimmable(p, opts.avoid ?? [], L)) continue;
     if ((opts.ducks ?? []).some((d) => Math.hypot(d.x - p.x, d.y - p.y) < 36)) continue;
-    if (FROG_SPOTS.some((f) => Math.hypot(f.x - p.x, f.y - p.y) < 28)) continue;
+    if (L.frogSpots.some((f) => Math.hypot(f.x - p.x, f.y - p.y) < 28)) continue;
     const z = opts.zone;
     if (z && (segDist(p, p, z.float, z.float) < 56 || segDist(p, p, z.tip, z.float) < 34)) continue;
     let r = rand() * JUMP_WEIGHTS.reduce((s, [, w]) => s + w, 0);

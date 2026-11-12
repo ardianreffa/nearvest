@@ -70,7 +70,7 @@ const look = () =>
       fireflies: document.querySelectorAll('.pond-firefly').length,
       bucket: document.querySelectorAll('.pond-bucket rect').length,
       lights: !!document.querySelector('.pond-lights') && Number(getComputedStyle(document.querySelector('.pond-lights')).opacity) > 0.99 && !!document.querySelector('.pond-lamp'),
-      tree: [...document.querySelectorAll('.pond-tree img')].every((i) => i.complete && i.naturalWidth === 80) && document.querySelectorAll('.pond-tree img').length >= 1,
+      tree: [...document.querySelectorAll('.pond-tree img')].every((i) => i.complete && i.naturalWidth > 40) && document.querySelectorAll('.pond-tree img').length >= 1,
       trees: document.querySelectorAll('.pond-tree img').length,
       treeAnim: document.querySelector('.pond-tree') && getComputedStyle(document.querySelector('.pond-tree')).animationName,
       sound: document.documentElement.dataset.pondSound ?? '',

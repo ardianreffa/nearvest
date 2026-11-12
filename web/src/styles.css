@@ -14449,7 +14449,8 @@ html.duel-open .duel-bg .backdrop * {
 
 /* Upright phones: the panel takes the space under the pond. */
 @media (max-width: 1023px) and (orientation: portrait) {
-  .pond-screen[data-fit='fit'] .pond-panel {
+  .pond-screen[data-fit='fit'] .pond-panel,
+  .pond-screen[data-fit='phone'] .pond-panel {
     max-height: var(--pond-free, 52%);
   }
 }
@@ -15030,8 +15031,8 @@ html.duel-open .duel-bg .backdrop * {
 .pond-fall {
   position: absolute;
   pointer-events: none;
-  -webkit-mask-image: url('/assets/bg/fishing-fall-mask.png');
-  mask-image: url('/assets/bg/fishing-fall-mask.png');
+  -webkit-mask-image: var(--fall-mask, url('/assets/bg/fishing-fall-mask.png'));
+  mask-image: var(--fall-mask, url('/assets/bg/fishing-fall-mask.png'));
   -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
 }

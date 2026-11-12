@@ -90,4 +90,21 @@ describe('fishing rod pose', () => {
         assert.ok(!inCritter({ x: p.float.x, y: p.float.y - p.lift * 10 }), `${ph} ${ms}: float`);
       }
   });
+  it('the phone pond: the rod, line and float never touch a lily pad there either; the line is on the tip', async () => {
+    const { PHONE } = await import('../src/art/pond-layouts.ts');
+    const { crittersOf } = await import('../src/pond-life-plan.ts');
+    const boxes = crittersOf(PHONE);
+    const hit = (p: Pt) => boxes.some(([x, y, w, h]) => p.x > x - 1 && p.x < x + w + 1 && p.y > y - 1 && p.y < y + h + 1);
+    for (const ph of PHASES)
+      for (let ms = 0; ms <= 1500; ms += 10) {
+        const p = rodPose(ph, ms, false, PHONE);
+        assert.deepEqual(p.butt, PHONE.hands);
+        for (let t = 0; t <= 1; t += 0.05) {
+          assert.ok(!hit(qAt(p.butt, p.ctrl, p.tip, t)), `${ph} ${ms}: rod`);
+          assert.ok(!hit(qAt(p.tip, p.line, p.float, t)), `${ph} ${ms}: line`);
+        }
+        assert.ok(!hit({ x: p.float.x, y: p.float.y - p.lift * 10 }), `${ph} ${ms}: float`);
+      }
+    assert.deepEqual(rodPose('wait', Infinity, false, PHONE).float, PHONE.float);
+  });
 });
