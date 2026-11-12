@@ -376,8 +376,9 @@ export const V3_WEB: Village = {
   fishing: {
     rod: [77, 93, 6.5, 9],
     bucket: [76, 97.5, 4, 5],
-    // Centred on the ridge (x 65), as wide as the "1 VS 1" screen (15.5 x 7.5), top just below the pin.
-    holo: [57.25, 57.5, 15.5, 9.16],
+    // As wide as the "1 VS 1" screen (15.5 x 7.5), top just below the pin; 3 px right of the ridge's
+    // middle (x 65) since Fishing package 3 (Ardian, 2026-11-12).
+    holo: [60.25, 57.5, 15.5, 9.16],
     spot: { box: [51, 57, 40, 36], pin: [66, 57] },
   },
 };
@@ -445,8 +446,9 @@ export const V3_PHONE: Village = {
   fishing: {
     rod: [40, 117.8, 3.25, 4.5],
     bucket: [39.5, 120, 2, 2.5],
-    // Centred on the ridge (x 32), as wide as the phone's "1 VS 1" screen (9.9 x 4.8), below the pin.
-    holo: [27.05, 89, 9.9, 5.85],
+    // As wide as the phone's "1 VS 1" screen (9.9 x 4.8), below the pin; 2 px right of the ridge's
+    // middle (x 32) since Fishing package 3 (Ardian, 2026-11-12).
+    holo: [29.05, 89, 9.9, 5.85],
     spot: { box: [29, 89, 20, 28], pin: [32, 89] },
   },
 };
