@@ -14627,6 +14627,46 @@ html.duel-open .duel-bg .backdrop * {
   filter: brightness(0.62) saturate(0.85);
 }
 
+/* Fireflies (night, not in the rain): a soft glow that blinks and drifts slowly. */
+.pond-fireflies {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pond-firefly {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: color-mix(in srgb, var(--gold-300) 70%, var(--mint-300));
+  box-shadow:
+    0 0 4px 1px color-mix(in srgb, var(--gold-300) 80%, transparent),
+    0 0 10px 3px color-mix(in srgb, var(--mint-300) 35%, transparent);
+  animation:
+    firefly-drift 7s ease-in-out infinite alternate,
+    firefly-blink 2.6s ease-in-out infinite;
+}
+
+@keyframes firefly-drift {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(calc(var(--fx) * var(--pk, 1) * 1px), calc(var(--fy) * var(--pk, 1) * 1px));
+  }
+}
+
+@keyframes firefly-blink {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  45%,
+  60% {
+    opacity: 1;
+  }
+}
+
 .pond-rain {
   position: absolute;
   inset: 0;
@@ -15286,6 +15326,7 @@ html.duel-open .duel-bg .backdrop * {
   .pond-tree,
   .pond-glint,
   .lake-wave,
+  .pond-firefly,
   .rain-ring,
   .frog-hop,
   .duck-bob,

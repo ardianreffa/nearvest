@@ -270,10 +270,35 @@ export function PondLife({
   );
 }
 
+/** Fireflies at night (not in the rain): near the bushes and the banks, grid px + their drift. */
+const FIREFLIES = [
+  [24, 160, 6, -4],
+  [50, 206, -5, -6],
+  [94, 238, 7, -3],
+  [150, 236, -6, -5],
+  [178, 30, 5, 4],
+  [238, 24, -7, 3],
+  [348, 22, 6, 5],
+  [464, 112, -5, 6],
+  [468, 196, -6, -4],
+  [118, 48, 4, 6],
+];
+
 /** The village clock and the rain over everything (above TaniBot and the rod, under the "!" and the catch). */
 export function PondMood({ time, weather }: { time: PondTime; weather: PondWeather }) {
   return (
     <>
+      {time === 'night' && weather !== 'rain' && (
+        <div class="pond-fireflies" aria-hidden="true">
+          {FIREFLIES.map(([x, y, dx, dy], i) => (
+            <i
+              key={i}
+              class="pond-firefly"
+              style={{ left: `${(x / 480) * 100}%`, top: `${(y / 270) * 100}%`, '--fx': String(dx), '--fy': String(dy), animationDelay: `${-i * 0.9}s, ${-i * 0.53}s` }}
+            />
+          ))}
+        </div>
+      )}
       {/* Dusk and night come from Ardian's pictures now (pond.tsx); only the morning light and rain are tints. */}
       <div class={`pond-tint tint-${time === 'dusk' || time === 'night' ? 'picture' : time}`} aria-hidden="true" />
       {weather === 'rain' && (
