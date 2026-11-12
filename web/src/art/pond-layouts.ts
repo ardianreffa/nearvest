@@ -18,6 +18,11 @@ export interface PondLayout {
   w: number;
   h: number;
   pics: { day: string; dusk: string; night: string };
+  /**
+   * Phones only (package 7): more of the picture's own ground for screens taller than the picture
+   * (tools/pixelize/pond_ground.py): picture px tall, starting `over` px above the picture's bottom.
+   */
+  ground?: { pics: { day: string; dusk: string; night: string }; h: number; over: number };
   /** The big tree's crown layer (grid box) and its pictures. */
   tree: { box: Box; pics: { day: string; dusk: string; night: string } };
   /** The waterfall: box (grid), mask + textures, the steps (grid polygons, slant, loop s), lips, foam. */
@@ -160,6 +165,11 @@ export const PHONE: PondLayout = {
   w: 343,
   h: 609,
   pics: { day: '/assets/bg/fishing-pond-phone.png', dusk: '/assets/bg/fishing-pond-phone-dusk.png', night: '/assets/bg/fishing-pond-phone-night.png' },
+  ground: {
+    pics: { day: '/assets/bg/fishing-pond-phone-ground.png', dusk: '/assets/bg/fishing-pond-phone-dusk-ground.png', night: '/assets/bg/fishing-pond-phone-night-ground.png' },
+    h: 336,
+    over: 16,
+  },
   tree: {
     box: [0, g(86), g(113), g(121)],
     pics: { day: '/assets/bg/fishing-pond-phone-tree.png', dusk: '/assets/bg/fishing-pond-phone-tree-dusk.png', night: '/assets/bg/fishing-pond-phone-tree-night.png' },
@@ -197,10 +207,11 @@ export const PHONE: PondLayout = {
   hands: { x: 66, y: 232 },
   float: { x: 215, y: 330 },
   rodLen: 62,
-  // A lily pad sits just up-right of the dock's end here, so the rod never points up there: it rests
-  // low over the water, swings back down-left over the dock and land, and casts low (checked in
-  // web/test/rod-pose.test.ts: nothing touches a pad at any moment).
-  angles: { rest: -35, back: -120, forward: 2, wait: -5, reel: 0 },
+  // Package 7 (Ardian): the same rod swing as on laptops (raised at rest, back over the shoulder, a
+  // forward cast, the line curving out, plunk, a soft sag). The lily pad just up-right of the dock's
+  // end is in the rod's reach, so no frog sits on it any more (frogs[0] stays on the pad next to it):
+  // the rod may pass over that empty pad, never over a frog (web/test/rod-pose.test.ts).
+  angles: WIDE.angles,
   bucket: { x: 26, y: 245 },
   frogSpots: [
     { x: g(158), y: g(293) },
@@ -212,7 +223,7 @@ export const PHONE: PondLayout = {
     { x: g(91), y: g(537) },
   ],
   frogs: [
-    { start: 0, pads: [0, 1] },
+    { start: 1, pads: [1] },
     { start: 2, pads: [2] },
     { start: 3, pads: [3] },
     { start: 4, pads: [4, 5, 6] },

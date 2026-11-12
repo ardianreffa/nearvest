@@ -240,12 +240,15 @@ describe('fishing pond life', () => {
       const j = pickJump(r, { layout: PHONE, zone });
       assert.ok(j && swimmable(j, [], PHONE) && PHONE.frogSpots.every((f) => Math.hypot(f.x - j.x, f.y - j.y) >= 28));
     }
-    // Controls below the lake: 390x844 and 390x664 (iPhone Safari).
-    for (const [W, H] of [[390, 844], [390, 664]]) {
+    // Full screen, no blur (package 7): the whole width, from the top (or a little above it), the
+    // controls below the lake: 390x844, 390x664 (iPhone Safari) and 430x932.
+    for (const [W, H] of [[390, 844], [390, 664], [430, 932]]) {
       const f = pondFit(W, H, PHONE);
       assert.equal(f.mode, 'phone');
-      assert.ok(H - (f.top + PHONE.lakeBottom * (f.w / PHONE.w)) >= 199, `room under the lake at ${W}x${H}`);
-      assert.ok(f.w <= W + 0.01);
+      assert.equal(f.left, 0);
+      assert.equal(f.w, W);
+      assert.ok(f.top <= 0 && f.top >= -60 * (W / PHONE.w) - 0.01, `top ${f.top}`);
+      assert.ok(H - (f.top + PHONE.lakeBottom * (f.w / PHONE.w)) >= 149, `room under the lake at ${W}x${H}`);
     }
   });
 });

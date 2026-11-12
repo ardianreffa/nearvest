@@ -212,9 +212,11 @@ export const mustFlee = (m: DuckMove, now: number, zone: FishingZone | null) => 
 
 /**
  * Boxes [x, y, w, h] the rod, line, float, "!", catch and sparkles must never touch: every lily pad a
- * frog can sit on. (The ducks keep away from the line and the float themselves: planDuck.)
+ * frog can sit on (a pad no frog uses is just part of the picture). (The ducks keep away from the line
+ * and the float themselves: planDuck.)
  */
-export const crittersOf = (L: PondLayout): Box[] => L.frogSpots.map((p): Box => [p.x - 7, p.y - 7, 14, 14]);
+export const crittersOf = (L: PondLayout): Box[] =>
+  [...new Set(L.frogs.flatMap((f) => [f.start, ...f.pads]))].map((i): Box => [L.frogSpots[i].x - 7, L.frogSpots[i].y - 7, 14, 14]);
 export const CRITTERS: Box[] = crittersOf(WIDE);
 
 // ---------- Full screen (package 3) ----------
@@ -230,17 +232,21 @@ export interface PondFit {
   w: number;
   h: number;
 }
-/** Room the phone's controls need under the lake (CSS px). */
-export const PHONE_PANEL_MIN = 200;
+/** Room the phone's (compact, package 7) controls need under the lake (CSS px). */
+export const PHONE_PANEL_MIN = 150;
+/** At most this much (grid px) of the phone picture's top (jungle above the lake) may go off screen. */
+export const PHONE_TOP_CROP = 60;
 /**
- * Where the pond goes on a W x H screen (CSS px). With the phone layout: across the width at the top,
- * smaller if needed so at least PHONE_PANEL_MIN px stay free below the lake for the controls.
+ * Where the pond goes on a W x H screen (CSS px). With the phone layout (package 7, Ardian): ALWAYS the
+ * full width, no blurred copy. If the lake would come too low for the controls, the picture moves up
+ * (its jungle top goes off screen, at most PHONE_TOP_CROP grid px); a screen taller than the picture
+ * gets more of the picture's own ground below it (art/pond-layouts.ts ground, under the panel).
  */
 export function pondFit(W: number, H: number, L: PondLayout = WIDE): PondFit {
   if (L.key === 'phone') {
-    const k = Math.min(W / L.w, (H - PHONE_PANEL_MIN) / L.lakeBottom);
-    const w = L.w * k;
-    return { mode: 'phone', left: (W - w) / 2, top: 0, w, h: L.h * k };
+    const k = W / L.w;
+    const top = Math.max(-PHONE_TOP_CROP * k, Math.min(0, H - PHONE_PANEL_MIN - L.lakeBottom * k));
+    return { mode: 'phone', left: 0, top, w: W, h: L.h * k };
   }
   const ck = Math.max(W / 480, H / 270);
   const crop = 1 - Math.min(W / (480 * ck), H / (270 * ck));

@@ -269,9 +269,29 @@ export function FishingWindow({
       aria-label="Fishing pond"
       data-fit={fit.mode}
       // Upright phones: the panel gets exactly the room under the pond (it scrolls inside, never covers it).
-      style={{ '--pond-free': `${Math.max(160, window.innerHeight - fit.top - (fit.mode === 'phone' ? L.lakeBottom * (fit.w / L.w) : fit.h) - 24)}px` }}
+      style={{ '--pond-free': `${Math.max(120, window.innerHeight - fit.top - (fit.mode === 'phone' ? L.lakeBottom * (fit.w / L.w) : fit.h) - 16)}px` }}
     >
-      {(['day', 'dusk', 'night'] as const).map((t) => (
+      {/* Upright phones (package 7): no blurred copy; the picture's own ground continues below it. */}
+      {fit.mode === 'phone' && L.ground
+        ? (['day', 'dusk', 'night'] as const).map((t) => (
+            <img
+              key={`g${t}`}
+              class="pond-ground pond-fade"
+              src={L.ground!.pics[t]}
+              style={{
+                left: `${fit.left}px`,
+                top: `${fit.top + fit.h - L.ground!.over * (fit.w / 480)}px`,
+                width: `${fit.w}px`,
+                height: `${L.ground!.h * (fit.w / 480)}px`,
+                opacity: t === 'day' ? 1 : t === 'dusk' ? mix.dusk : mix.night,
+              }}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+            />
+          ))
+        : null}
+      {fit.mode !== 'phone' && (['day', 'dusk', 'night'] as const).map((t) => (
         <img
           key={t}
           class="pond-backfill"
@@ -334,14 +354,20 @@ export function FishingWindow({
 
       <section class="pond-panel" data-pond-avoid>
         <div class="pond-panel-body">
-          <p class="fish-status" aria-live="polite">
-            {phase.k === 'ready' && (left > 0 ? 'Tap Cast line, then wait for the float to dip.' : `Come back at 07:00 WIB (in ${untilText(nextIn)}).`)}
-            {phase.k === 'casting' && 'Casting...'}
-            {phase.k === 'wait' && (early ? 'Wait for the bite! Watch the float.' : 'Waiting for a bite...')}
-            {phase.k === 'bite' && <b>A bite! Tap Reel in!</b>}
-            {phase.k === 'reeling' && 'Reeling in...'}
-            {phase.k === 'result' && left === 0 && `That was your last cast today. Come back at 07:00 WIB (in ${untilText(nextIn)}).`}
-          </p>
+          {/* No casts left (package 7): one short, clear line instead of the hint. */}
+          {left === 0 && (phase.k === 'ready' || phase.k === 'result') ? (
+            <p class="fish-status fish-done" aria-live="polite">
+              Come back at 07:00 WIB (in {untilText(nextIn)})
+            </p>
+          ) : (
+            <p class="fish-status" aria-live="polite">
+              {phase.k === 'ready' && 'Tap Cast line, then wait for the float to dip.'}
+              {phase.k === 'casting' && 'Casting...'}
+              {phase.k === 'wait' && (early ? 'Wait for the bite! Watch the float.' : 'Waiting for a bite...')}
+              {phase.k === 'bite' && <b>A bite! Tap Reel in!</b>}
+              {phase.k === 'reeling' && 'Reeling in...'}
+            </p>
+          )}
 
           {c && (
             <div class={`fish-result kind-${c.kind} tier-${tier}${tier === 'legend' ? ' legend' : ''}`}>
@@ -366,12 +392,14 @@ export function FishingWindow({
           )}
 
         </div>
-        <div class="pond-actions">{primary}</div>
-        {view && (
-          <button class="link-btn fish-list-open" onClick={() => setListOpen(true)}>
-            + What can I catch?
-          </button>
-        )}
+        <div class="pond-actions">
+          {primary}
+          {view && (
+            <button class="link-btn fish-list-open" onClick={() => setListOpen(true)}>
+              What can I catch?
+            </button>
+          )}
+        </div>
       </section>
 
       {listOpen && view && (

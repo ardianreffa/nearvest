@@ -107,4 +107,15 @@ describe('fishing rod pose', () => {
       }
     assert.deepEqual(rodPose('wait', Infinity, false, PHONE).float, PHONE.float);
   });
+  it('the phone pond casts like the laptop pond (package 7): the same angles, so the same swing', async () => {
+    const { PHONE, WIDE } = await import('../src/art/pond-layouts.ts');
+    assert.deepEqual(PHONE.angles, WIDE.angles);
+    for (let ms = 0; ms <= CAST_MS; ms += 50) {
+      const a = rodPose('casting', ms, false, PHONE);
+      const b = rodPose('casting', ms, false, WIDE);
+      // Seen from each one's hands: the rod's tip is in the same place at the same moment.
+      assert.ok(dist({ x: a.tip.x - PHONE.hands.x, y: a.tip.y - PHONE.hands.y }, { x: b.tip.x - WIDE.hands.x, y: b.tip.y - WIDE.hands.y }) < 0.01, `${ms}`);
+      assert.equal(a.lift.toFixed(3), b.lift.toFixed(3));
+    }
+  });
 });

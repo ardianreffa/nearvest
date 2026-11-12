@@ -76,6 +76,27 @@ export function rodAt(angle: number, bend = 0, G: RodGeo = WIDE_ROD): { butt: Pt
   return { butt: HANDS, ctrl, tip };
 }
 
+/** How much a waiting line sags, as a share of its length. */
+const WAIT_SAG = 0.14;
+/**
+ * The control point of a line from a to b that sags by `amount` (grid px) at right angles to the line,
+ * toward the screen's lower side: it curves softly whether the line runs flat (laptop pond) or steeply
+ * down (phone pond). (Package 7: a plain "down" offset left the steep phone line almost straight.)
+ */
+function sag(a: Pt, b: Pt, amount: number): Pt {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const n = Math.hypot(dx, dy) || 1;
+  let px = -dy / n;
+  let py = dx / n;
+  if (py < 0) {
+    px = -px;
+    py = -py;
+  }
+  const m = mid(a, b);
+  return { x: m.x + px * amount, y: m.y + py * amount };
+}
+
 /** Where the float hangs under the tip when it is not in the water. */
 const hang = (tip: Pt): Pt => ({ x: tip.x + 2, y: tip.y + 7 });
 
@@ -92,8 +113,7 @@ export function rodPose(phase: RodPhase, ms: number, still = false, G: RodGeo = 
   if (phase === 'reeling' && !still) return reelPose(ms, G);
   if (phase === 'wait' || phase === 'casting') {
     const r = rodAt(A_WAIT, 0, G);
-    const m = mid(r.tip, FLOAT_AT);
-    return { ...r, bend: 0, float: FLOAT_AT, line: { x: m.x - 4, y: m.y + 16 }, lift: 0, inWater: true };
+    return { ...r, bend: 0, float: FLOAT_AT, line: sag(r.tip, FLOAT_AT, Math.hypot(FLOAT_AT.x - r.tip.x, FLOAT_AT.y - r.tip.y) * WAIT_SAG), lift: 0, inWater: true };
   }
   if (phase === 'bite') {
     const tremble = still ? 0 : Math.sin(ms / 38) * 2.2 + Math.sin(ms / 91) * 1.2;
@@ -136,10 +156,11 @@ function castPose(ms: number, G: RodGeo): RodPose {
   const p = (ms - CAST_RELEASE_MS) / (CAST_MS - CAST_RELEASE_MS);
   const from = releasedAt(G);
   const f = { x: lerp(from.x, FLOAT_AT.x, easeOut(p)), y: lerp(from.y, FLOAT_AT.y, easeOut(p)) };
-  const m = mid(r.tip, f);
-  // The line bows out to the lower side (away from the frog above the path), then settles into the sag.
-  const bow = 10 + 14 * Math.sin(Math.PI * p);
-  return { ...r, bend, float: f, line: { x: m.x - 2, y: m.y + bow }, lift: Math.sin(Math.PI * p), inWater: false };
+  // The line bows out to the lower side (away from the frog above the path), then settles into the sag;
+  // a longer line bows more (the phone pond's cast is longer and steeper: package 7).
+  const len = Math.hypot(f.x - r.tip.x, f.y - r.tip.y);
+  const bow = (10 + 14 * Math.sin(Math.PI * p)) * Math.min(1.6, Math.max(0.8, len / 119));
+  return { ...r, bend, float: f, line: sag(r.tip, f, bow), lift: Math.sin(Math.PI * p), inWater: false };
 }
 
 /** Where the float is when it leaves the tip (the last trailing point of the forward swing). */

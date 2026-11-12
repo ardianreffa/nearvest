@@ -14280,6 +14280,14 @@ html.duel-open .duel-bg .backdrop * {
   position: absolute;
 }
 
+/* Upright phones (package 7): the picture's own ground below the picture (pond_ground.py), no blur. */
+.pond-ground {
+  position: absolute;
+  image-rendering: pixelated;
+  pointer-events: none;
+  user-select: none;
+}
+
 .pond-screen .pond {
   border: 0;
 }
@@ -14436,6 +14444,8 @@ html.duel-open .duel-bg .backdrop * {
 
 .pond-actions {
   display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .pond-actions .btn {
@@ -14443,8 +14453,26 @@ html.duel-open .duel-bg .backdrop * {
   min-height: 52px;
 }
 
-.fish-list-open {
-  align-self: center;
+/* "What can I catch?" is a small link next to the button (package 7). */
+.pond-actions .fish-list-open {
+  flex: none;
+  max-width: 34%;
+  font-size: var(--fs-sm);
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* No casts left: one clear notice line. */
+.fish-status.fish-done {
+  min-height: 0;
+  padding: 6px 8px;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--gold-300) 55%, var(--paper-light));
+  border: 2px solid var(--gold-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Upright phones: the panel takes the space under the pond. */
@@ -14455,17 +14483,30 @@ html.duel-open .duel-bg .backdrop * {
   }
 }
 
-/* Phones (package 6, Ardian's iPhone test): a compact panel and catch card that never cover the lake:
-   a small icon, the name and the reward on one line, the note in small text under it. */
+/* Phones (package 6, compacter in package 7, Ardian): the panel never covers the lake. The catch card
+   is one row (small icon, name, reward) plus one short line; the hint is one line; "What can I
+   catch?" is a small link next to the button. */
 @media (max-width: 1023px) {
   .pond-panel {
     gap: 6px;
     padding: 8px 10px;
   }
 
+  .pond-panel-body {
+    gap: 6px;
+  }
+
   .pond-panel .fish-status {
     min-height: 0;
     font-size: var(--fs-sm) !important;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pond-panel .fish-status.fish-done {
+    padding: 4px 8px;
   }
 
   .pond-actions .btn {
@@ -14475,19 +14516,21 @@ html.duel-open .duel-bg .backdrop * {
   .pond-panel .fish-result {
     align-items: center;
     gap: 8px;
-    padding: 6px 8px;
+    padding: 4px 8px;
   }
 
   .pond-panel .fish-result-icon {
-    min-width: 48px;
-    width: 48px;
-    height: 40px;
+    min-width: 32px;
+    width: 32px;
+    height: 28px;
     padding: 0;
+    border-width: 0;
+    background: none;
   }
 
   .pond-panel .fish-result-icon svg {
-    max-width: 44px;
-    max-height: 36px;
+    max-width: 32px;
+    max-height: 28px;
     width: auto;
     height: auto;
   }
@@ -14496,11 +14539,13 @@ html.duel-open .duel-bg .backdrop * {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 2px 8px;
+    gap: 0 8px;
+    min-width: 0;
   }
 
   .pond-panel .fish-result-text h3 {
     margin: 0 !important;
+    font-size: var(--fs-body);
   }
 
   .pond-panel .fish-chips {
@@ -14512,18 +14557,20 @@ html.duel-open .duel-bg .backdrop * {
     margin: 0 !important;
     font-size: var(--fs-sm) !important;
     line-height: 1.3;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .pond-panel .fish-result-text .fish-line {
-    -webkit-line-clamp: 3;
+  /* One short line: the bottle's message instead of "A message in a bottle!", no Season line (the
+     chip already shows what you received; the full note is in "What can I catch?"). */
+  .pond-panel .fish-note:has(+ .fish-line),
+  .pond-panel .fish-season {
+    display: none;
   }
 
-  .fish-list-open {
-    min-height: 32px;
+  .pond-actions .fish-list-open {
+    min-height: 40px;
   }
 }
 
