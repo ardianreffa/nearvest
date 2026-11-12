@@ -166,19 +166,20 @@ def gourami():
 
 
 def golden_arowana():
-    g = G(35, 14)
-    g.poly([(20, 3.6), (26, 2), (27, 4), (20, 4)], 'Y')    # dorsal fin near the tail
-    g.poly([(18, 8.4), (26, 8), (27, 10), (19, 10)], 'Y')  # anal fin near the tail
-    g.ellipse(28.5, 6, 3, 3.6, 'Y')                    # rounded tail
+    g = G(35, 15)
+    g.poly([(19, 4.2), (25, 1.2), (27, 2.5), (26, 4.6)], 'Z')    # dorsal fin near the tail
+    g.poly([(17, 9.4), (26, 9), (27, 12), (19, 11.5)], 'Z')      # anal fin near the tail
+    g.poly([(26, 6.8), (32, 2.5), (33.5, 6.8), (32, 11)], 'Z')   # tail fan
     # long slender body; flat back, the lower jaw rises steeply to the snout (mouth faces up)
-    g.poly([(3, 3), (9, 3.2), (25, 3.6), (28, 6), (25, 8.4), (9, 9), (6, 8)], 'y')
-    scales(g, 'y', 'K', 'z', 8, 25, 4, 8)
-    g.recolor(lambda x, y, ch: 'Y' if ch == 'y' and y >= 8 else None)
+    g.poly([(2, 3.2), (9, 3.4), (25, 4.4), (28, 6.8), (25, 9.2), (10, 10.2), (6, 8.8)], 'y')
+    scales(g, 'y', 'K', 'z', 10, 25, 4, 9)
+    g.recolor(lambda x, y, ch: 'Y' if ch == 'y' and (y >= 9 or x <= 8 and y >= 7) else None)
+    g.recolor(lambda x, y, ch: 'K' if ch == 'Z' and (x >= 32 or y in (2, 12)) else None)  # fin edges
     g.outline()
-    g.put(6, 4, 'w'); g.put(6, 5, 'k')                 # eye
-    g.line(4, 4, 7, 7, 'K')                            # the long up-turned mouth line
-    g.put(1, 1, 'Y'); g.put(2, 2, 'Y')                 # 2 small barbels at the chin tip, pointing forward-up
-    g.put(0, 3, 'Y'); g.put(1, 3, 'Y')
+    g.line(9, 4, 9, 8, 'K', only_on='yYz')             # gill cover
+    g.put(5, 4, 'w'); g.put(6, 4, 'w'); g.put(6, 5, 'k'); g.put(5, 5, 'w')  # big eye
+    g.line(2, 4, 6, 8, 'K', only_on='yY')              # the long up-turned mouth line
+    g.line(1, 3, 0, 1, 'Z'); g.line(2, 3, 2, 1, 'Z')   # 2 small barbels at the chin tip, pointing up
     return g.rows()
 
 

@@ -27,6 +27,7 @@ export const FISH_PALETTE: Record<string, string> = {
   M: '#2f86d6',
   // golden arowana: gold shades (y / Y from PALETTE), dark-gold scale edges, bright shine
   K: '#9a6a12',
+  Z: '#e0901f', // fins
   z: '#fff1a8',
   // junk
   t: '#8d8f94', // stone, can rim
@@ -111,16 +112,19 @@ export const CATCH_GRIDS: Partial<Record<FishingCatchId, string[]>> = {
     '...............UU........',
   ],
   golden_arowana: [
-    '.Y......................kk..k...',
-    '..YkkkkkkkkkkkkkkkkkkkkkYYkkYkk.',
-    'YYkyyyyyyyyyyyyyyyyyyYYYYYYYYYYk',
-    '...kKywyKzyKKzyKKzyKKzyKKzYYYYYk',
-    '...kyKkyyKKyyKKyyKKyyKKyyKyYYYYk',
-    '....kyKyyKKzyKKzyKKzyKKzyKyYYYYk',
-    '.....kyKKyyKKyyKKyyKKyyKKyYYYYYk',
-    '......kYKzYKKzYKKzYKKzYYYYYYYYYk',
-    '.......kkkkkkkkkkkkYYYYYYYYkYkk.',
-    '...................kkkkkkkk.k...',
+    '........................k.........',
+    'Z.Z...................kkZkk.......',
+    'Z.Zkkkkkkkk.........kkKKKKKk...k..',
+    '.ZZyyyyyyyykkkkkkkkkZZZZZZZk.kkZk.',
+    '..kyywwyyKyKKzyKKzyKKzyKKZk.kZZZKk',
+    '...kywkyyKKyyKKyyKKyyKKyyKkkZZZZKk',
+    '...kKyyyyKKzyKKzyKKzyKKzyKyyZZZZKk',
+    '....kKYYYKyKKyyKKyyKKyyKKyyZZZZZKk',
+    '.....kKYYKyKKzyKKzyKKzyKKzkkZZZZKk',
+    '......kkYYKYYKKYYKKYZZZZZZk.kkZZKk',
+    '........kkkkkkkkkkZZZZZZZZk...kZk.',
+    '..................kZZZZZZZZk...k..',
+    '...................kkkkkkkk.......',
   ],
   stone: [
     '...kkkkk...',
