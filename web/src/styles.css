@@ -14145,6 +14145,10 @@ html.duel-open .duel-bg .backdrop * {
 }
 
 /* The fishing pond's wipe: a dark water band. */
+.visit-wipe.wipe-arena .visit-wipe-text {
+  background: color-mix(in srgb, var(--purple-700) 92%, transparent);
+}
+
 .visit-wipe.wipe-water .visit-wipe-text {
   background: color-mix(in srgb, var(--cyan-700) 92%, transparent);
 }
@@ -15964,5 +15968,234 @@ html.pond-open .hud * {
 
   .pond-zzz {
     opacity: 1;
+  }
+}
+
+/* ---------- Arena duel FULL SCREEN (2026-11-12, Ardian) ----------
+   Like the fishing pond: the arena fills the screen (the game's DuelBackdrop, screen-sized, no blur),
+   a slim title bar, names + life bars on top, the TaniBots on the ring, a compact dock at the bottom
+   (turn line, clock, Gold Durian, Rock / Paper / Scissors, or the result). */
+.duel-backdrop.full {
+  padding: 0;
+  background: var(--ink);
+}
+
+.duel.match.full {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  box-sizing: border-box;
+  padding: 0 0 env(safe-area-inset-bottom);
+  gap: 0;
+  overflow: hidden;
+  border: 0;
+  background: var(--ink);
+}
+
+.duel.match.full .duel-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: calc(6px + env(safe-area-inset-top)) 12px 6px;
+  background: color-mix(in srgb, var(--hud) 92%, transparent);
+  border-bottom: 2px solid var(--soil-700);
+}
+
+.duel.match.full .duel-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: var(--fs-h3);
+  color: var(--gold-500);
+}
+
+.duel.match.full .fight-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  padding: 10px 12px 0;
+}
+
+/* The TaniBots stand at the bottom of the arena, whatever the screen's height. */
+.duel.match.full .fight-floor {
+  margin-top: auto;
+  flex: none;
+}
+
+.duel.match.full > .match-info,
+.duel.match.full > .match-controls,
+.duel.match.full > .match-invite,
+.duel.match.full > .duel-result {
+  flex: none;
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--hud);
+}
+
+.duel.match.full > .match-info {
+  border-top: 2px solid var(--soil-700);
+}
+
+.duel.match.full > .match-controls {
+  padding-bottom: 12px;
+}
+
+.duel.match.full .match-leave {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 8;
+  width: min(420px, calc(100% - 32px));
+  transform: translate(-50%, -50%);
+}
+
+/* Laptops: the dock's content keeps a readable width in the middle. */
+.duel.match.full.wide > .match-info,
+.duel.match.full.wide > .match-controls,
+.duel.match.full.wide > .match-invite,
+.duel.match.full.wide > .duel-result {
+  padding-inline: max(20px, calc((100% - 880px) / 2));
+}
+
+/* Big laptop screens: larger names, bars and buttons. */
+@media (min-width: 1500px) and (min-height: 1000px) {
+  .duel.match.full .fighter-hud {
+    font-size: var(--fs-h3);
+  }
+
+  .duel.match.full.wide .rps-row {
+    grid-template-columns: repeat(3, 220px);
+  }
+
+  .duel.match.full.wide .rps-btn {
+    font-size: var(--fs-body);
+  }
+
+  .duel.match.full .match-info {
+    font-size: var(--fs-h3);
+  }
+}
+
+/* Phones: a compact dock, so the TaniBots keep their room. */
+@media (max-width: 1023px) {
+  .duel.match.full .match-why {
+    min-height: 0;
+    font-size: var(--fs-sm);
+  }
+
+  .duel.match.full .match-bonus {
+    display: none;
+  }
+}
+
+/* The opening show before turn 1: both TaniBots run in from the sides, "VS", then "FIGHT!". */
+.fight-floor.intro .fighter.me {
+  animation: duel-in-left 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+.fight-floor.intro .fighter.them {
+  animation: duel-in-right 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes duel-in-left {
+  from {
+    translate: -60vw 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+@keyframes duel-in-right {
+  from {
+    translate: 60vw 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+.duel-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.duel-intro span {
+  grid-area: 1 / 1;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--fs-hero);
+  line-height: 1;
+  color: var(--gold-500);
+  text-shadow:
+    4px 4px 0 var(--soil-700),
+    8px 8px 0 var(--ink);
+  opacity: 0;
+}
+
+.duel-intro-vs {
+  animation: duel-intro-vs 1.8s steps(6) both;
+}
+
+.duel-intro-fight {
+  color: var(--mint-500) !important;
+  animation: duel-intro-fight 1.8s steps(6) both;
+}
+
+@keyframes duel-intro-vs {
+  0%,
+  25% {
+    opacity: 0;
+    transform: scale(2.2);
+  }
+  38%,
+  58% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  66%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes duel-intro-fight {
+  0%,
+  62% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  74%,
+  92% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+@media (max-width: 1023px) {
+  .duel-intro span {
+    font-size: var(--fs-h1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fight-floor.intro .fighter,
+  .duel-intro span {
+    animation: none;
   }
 }

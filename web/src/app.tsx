@@ -31,7 +31,7 @@ import { friendAddNotice } from './friends-logic';
 import { usePresence } from './presence';
 import { PanenCoin } from './art/panen-coin';
 import { useVisitWipe } from './visit-wipe';
-import { BACK_TEXT, POND_BACK_TEXT, POND_TEXT, visitingText, WIPE_WAIT_MAX_MS } from './visit-wipe-plan';
+import { ARENA_BACK_TEXT, ARENA_TEXT, BACK_TEXT, POND_BACK_TEXT, POND_TEXT, visitingText, WIPE_WAIT_MAX_MS } from './visit-wipe-plan';
 import { SPECIES_NAME as SPECIES_LABEL } from './ui';
 import { burnAt, coinsToBalance, floatText, FxLayer } from './fx';
 import { CheckinBanner, Garden, type Choice } from './garden';
@@ -997,8 +997,16 @@ export function App() {
   /** Arena v2: opens a match (new or resumed) on the turn-based duel screen. */
   const openMatch = (m: MatchView) => {
     duelOnScreen.current = true;
-    setArenaOpen(false);
-    setMatch(m);
+    // The arena's pixel squares (2026-11-12); the duel opens under the full cover.
+    wipe.run(
+      ARENA_TEXT,
+      () => {
+        setArenaOpen(false);
+        setMatch(m);
+      },
+      'up',
+      'arena',
+    );
   };
   const resumeMatch = async (id: number) => {
     try {
@@ -1398,7 +1406,7 @@ export function App() {
           season={state.season}
           fraction={DUEL_TIME_LOCK ?? 1 - Math.max(0, state.clock.msUntilNextDay - elapsed) / state.clock.dayLengthMs}
           onDone={(s) => applyState(s)}
-          onClose={() => (closeDuel(), void refresh())}
+          onClose={() => wipe.run(ARENA_BACK_TEXT, () => (closeDuel(), void refresh()), 'down', 'arena')}
         />
       )}
       {shopSetup && config && (

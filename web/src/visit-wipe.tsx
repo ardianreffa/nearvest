@@ -14,6 +14,7 @@ import {
   seededRandom,
   sparkleNotes,
   WATER_COLORS,
+  ARENA_COLORS,
   WIPE_COLORS,
   type WipePalette,
   WIPE_COVER_MS,
@@ -78,7 +79,7 @@ function PixelWipe({ job, onDone }: { job: Job; onDone: () => void }) {
     const cols = Math.ceil(cv.width / cell);
     const rows = Math.ceil(cv.height / cell);
     const cells = wipeCells(cols, rows, seededRandom(job.id));
-    const colors = (job.palette === 'water' ? WATER_COLORS : WIPE_COLORS).map((c) => token(c.token));
+    const colors = (job.palette === 'water' ? WATER_COLORS : job.palette === 'arena' ? ARENA_COLORS : WIPE_COLORS).map((c) => token(c.token));
     const fadeMs = WIPE_FADE_MS;
 
     let raf = 0;

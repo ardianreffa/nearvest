@@ -40,7 +40,8 @@ import { playGoldDurian, playSound } from './audio';
 import { confetti } from './fx';
 import { PUBLIC_SITE } from './referral';
 import { postUrl } from './share';
-import { GoldDurian, UiIcon } from './sprites';
+import { GoldDurian, Sprite, UiIcon } from './sprites';
+import { useFullscreen } from './fullscreen';
 
 const KO_MS = 1300;
 const CELEBRATE_MS = 1400;
@@ -167,6 +168,9 @@ const devClock = () => (import.meta.env.DEV ? (window as unknown as { __clockNow
  * The v2 duel screen. `initial` is the match from the server (new or resumed). `onDone` gets the
  * game state once the match is over (prize, XP, duels left).
  */
+/** The opening show's length (CSS .duel-intro). */
+const INTRO_MS = 1800;
+
 export function MatchScreen({
   initial,
   wide,
@@ -205,8 +209,22 @@ export function MatchScreen({
   const [sending, setSending] = useState<ArenaPick | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
+  // Laptops: the browser fullscreen button, as at the pond (2026-11-12).
+  const fullscreen = useFullscreen();
+  // The opening show before turn 1 (2026-11-12): both TaniBots run in from the sides, "VS", then
+  // "FIGHT!" (~1.8 s). Only a picture on top: the turn clock and the buttons are not held up.
+  const [introAt, setIntroAt] = useState(0);
+  const introShown = useRef(false);
   const [, setTick] = useState('');
   const mRef = useRef(m);
+  useEffect(() => {
+    if (introShown.current || reduced || m.status !== 'playing' || m.turns.length > 0) return;
+    introShown.current = true;
+    setIntroAt(Date.now());
+    const t = window.setTimeout(() => setIntroAt(0), INTRO_MS);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [m.status, m.turns.length]);
   mRef.current = m;
   const asking = useRef(false);
 
@@ -386,7 +404,8 @@ export function MatchScreen({
           : '';
   // The Gold Durian button follows the bar on screen (it fills when the hit lands).
   const ctl = controls({ ...m, skill: { c: skill[0], d: skill[1] } }, !!sending || !!anim);
-  const scale = wide ? 4 : 2;
+  // Full screen (2026-11-12): taller laptop screens get bigger TaniBots (whole, even pixel scales).
+  const scale = wide ? Math.max(4, 2 * Math.floor(window.innerHeight / 380)) : 2;
   const reward = matchReward(m);
   const job = m.prize > 0 && m.you === 'challenger' ? activity.find((a) => a.note === 'arena' && a.createdAt >= m.at - 2000) : undefined;
   const txUrl = m.txUrl ?? job?.explorerUrl ?? null;
@@ -397,10 +416,17 @@ export function MatchScreen({
   const clockNow = clock && devClock() !== undefined ? clock.startsAt + devClock()! : now();
 
   return (
-    <div class="dialog-backdrop duel-backdrop" role="presentation">
-      <div class={`duel match panel${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={`Arena duel: ${me.name} vs ${foe}`}>
+    <div class="dialog-backdrop duel-backdrop full" role="presentation">
+      {/* Full screen like the fishing pond (2026-11-12): the arena fills the screen, names and life
+          bars on top, a compact dock at the bottom (turn clock, Gold Durian, Rock / Paper / Scissors). */}
+      <div class={`duel match panel full${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={`Arena duel: ${me.name} vs ${foe}`}>
         <header class="panel-head duel-head">
           <h2>FRUIT FIGHT</h2>
+          {fullscreen.supported && wide && (
+            <button class="icon-btn duel-fullscreen" onClick={fullscreen.toggle} aria-label={fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'} title={fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'}>
+              <Sprite name={fullscreen.active ? 'fullscreenExit' : 'fullscreen'} scale={3} />
+            </button>
+          )}
           {anim && !done && (
             <button class="btn btn-small duel-skip" onClick={skip}>
               Skip
@@ -426,7 +452,7 @@ export function MatchScreen({
             {/* Their TaniBot's name AND its title (its look comes from the title). */}
             <FighterHud side={{ ...them, name: foe }} hp={hp[1]} right skill={{ n: skill[1], max: m.skillMax }} />
           </div>
-          <div class="fight-floor" style={`--bot-w:${58 * scale}px;--bot-h:${64 * scale}px`}>
+          <div class={`fight-floor${introAt ? ' intro' : ''}`} style={`--bot-w:${58 * scale}px;--bot-h:${64 * scale}px`}>
             <Fighter side={me} right={false} scale={scale} state={pose('me')} hard={heavy(frame)} pick={bubble('me')} flash={flash} />
             {!reduced && frame?.hit && !frame.hit.gold && frame.phase === 'flight' && (
               <FlyingFruit fruit={frame.hit.fruit} from={frame.hit.from} ms={flightMs(frame.hit.fruit)} hitKey={`${anim!.i}-${frame.hit.index}`} big={wide} />
@@ -441,6 +467,12 @@ export function MatchScreen({
             {gold && frame && (frame.phase === 'meteor' || frame.phase === 'impact') && <GoldFloorFx key={`gold-${anim!.i}-${frame.hit!.index}-${frame.phase}`} frame={frame} wide={wide} reduced={reduced} />}
             <Fighter side={them} right scale={scale} state={pose('them')} hard={heavy(frame)} pick={bubble('them')} flash={flash} />
           </div>
+          {introAt > 0 && !anim && (
+            <div class="duel-intro" key={introAt} aria-hidden="true">
+              <span class="duel-intro-vs">VS</span>
+              <span class="duel-intro-fight">FIGHT!</span>
+            </div>
+          )}
           {banner && (
             <div class="fight-banner turn-banner" key={`banner-${anim?.i}`}>
               {banner}

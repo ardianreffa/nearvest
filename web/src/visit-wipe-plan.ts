@@ -28,7 +28,16 @@ export const WATER_COLORS = [
   { token: '--cyan-300', weight: 24 },
   { token: '--leaf-500', weight: 12 },
 ] as const;
-export type WipePalette = 'leaf' | 'water';
+/** The Arena's colours (2026-11-12): purple, gold, the soil of the ring. */
+export const ARENA_COLORS = [
+  { token: '--purple-700', weight: 34 },
+  { token: '--purple-500', weight: 28 },
+  { token: '--gold-500', weight: 22 },
+  { token: '--soil-700', weight: 16 },
+] as const;
+export type WipePalette = 'leaf' | 'water' | 'arena';
+export const ARENA_TEXT = 'To the arena';
+export const ARENA_BACK_TEXT = 'Back to the village';
 export const POND_TEXT = 'To the fishing pond';
 export const POND_BACK_TEXT = 'Back to the village';
 
