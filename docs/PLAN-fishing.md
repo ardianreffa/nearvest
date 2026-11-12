@@ -330,3 +330,13 @@ light and the rain darkening stay code tints.
 8. Season proof: `FAKE_SEASON=3` (local fake chain only) + `tools/fishing-season-test.mjs`: Carp 5 ->
    1.25 PANEN on the card, the list shows the amounts after the Season rule with "Season 3: rewards 25%".
 9. Reduced motion: everything still (no jumps, no flowing water, no blinking). Few particles.
+
+## 13. Package 5 (last before release, Ardian 2026-11-12) — BUILT 2026-11-12 (committed locally, not pushed)
+
+1. Waterfall follows the real path down the rock steps: one layer per step (clip polygon + water mask),
+   texture sliding along that step's slant (skew), spray on each lip, foam spreading at the foot; the
+   dusk / night textures skip darker rock pixels (no specks).
+2. Birds: four kinds (whistler, bulbul, warbler, dove) with tunes and vibrato, sometimes answering,
+   louder; same times as before (more often by day).
+3. The fish bucket is a galvanised metal pail with a wire handle.
+4. TaniBot's lamp is a short torch (bamboo grip, lantern box with a mint crystal, leaf on the cap).
