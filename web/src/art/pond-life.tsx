@@ -25,12 +25,15 @@ import {
   type PondWeather,
   type Pt,
 } from '../pond-life-plan';
+import { PALETTE } from '../sprites';
+import { FISH_PALETTE } from './catch-grids';
+import { FISH_BUCKET } from './pond-bucket';
 import { DUCK_DRAKE, DUCK_DRAKE_ASLEEP, DUCK_HEN, DUCK_HEN_ASLEEP, FROG, POND_LIFE_PALETTE } from './pond-sprites';
 
 const TICK_MS = 1500;
 
 /** Pixel rows as SVG rects in grid units, centred on (0, 0). */
-function Sprite({ rows }: { rows: string[] }) {
+function Sprite({ rows, palette = POND_LIFE_PALETTE }: { rows: string[]; palette?: Record<string, string> }) {
   const w = rows[0].length;
   const h = rows.length;
   const out = [];
@@ -45,7 +48,7 @@ function Sprite({ rows }: { rows: string[] }) {
       }
       let e = x + 1;
       while (e < w && r[e] === ch) e++;
-      out.push(<rect key={`${x}-${y}`} x={x - w / 2} y={y - h / 2} width={e - x} height={1} fill={POND_LIFE_PALETTE[ch]} />);
+      out.push(<rect key={`${x}-${y}`} x={x - w / 2} y={y - h / 2} width={e - x} height={1} fill={palette[ch]} />);
       x = e;
     }
   }
@@ -82,6 +85,10 @@ const RAIN_RINGS = [
 ];
 
 const rand = () => Math.random();
+
+/** The fish bucket's middle on the dock (grid px), left of TaniBot (who stands at x 62). */
+const BUCKET_AT = { x: 35, y: 120 };
+const BUCKET_PALETTE = { ...PALETTE, ...FISH_PALETTE };
 
 /**
  * Falling leaves as small pixel leaves (package 3: they were plain squares): `b` = blade (the time's
@@ -209,6 +216,10 @@ export function PondLife({
             ))}
           </g>
         )}
+        {/* The wooden fish bucket on the dock, behind TaniBot (package 4). */}
+        <g class="pond-bucket" transform={`translate(${BUCKET_AT.x} ${BUCKET_AT.y}) scale(0.7)`}>
+          <Sprite rows={FISH_BUCKET} palette={BUCKET_PALETTE} />
+        </g>
         {frogs.map((f, i) => {
           const p = FROG_SPOTS[f.spot];
           return (

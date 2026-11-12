@@ -68,6 +68,7 @@ const look = () =>
       rain: document.querySelectorAll('.pond-rain .wx-rain-layer').length,
       rings: document.querySelectorAll('.rain-ring').length,
       fireflies: document.querySelectorAll('.pond-firefly').length,
+      bucket: document.querySelectorAll('.pond-bucket rect').length,
       lights: !!document.querySelector('.pond-lights .float-glow') && !!document.querySelector('.pond-lamp') && !!document.querySelector('.lamp-halo'),
       tree: [...document.querySelectorAll('.pond-tree img')].every((i) => i.complete && i.naturalWidth === 80) && document.querySelectorAll('.pond-tree img').length >= 1,
       trees: document.querySelectorAll('.pond-tree img').length,
@@ -118,6 +119,7 @@ for (const L of LOOKS) {
   const a = await look();
   check(a.time === L.time && a.weather === L.weather, `${L.q}: pond time ${a.time}, weather ${a.weather}`);
   check(a.frogs.length === 4 && a.ducks.length === 3, `${L.q}: 4 frogs, 3 ducks`);
+  check(a.bucket > 100, `${L.q}: the fish bucket stands on the dock (${a.bucket} pixel runs)`);
   check(a.tree && a.treeAnim === 'pond-sway', `${L.q}: the big tree sways (${a.treeAnim})`);
   check(a.leaves.length === 5 && a.leafShape.every((x) => +x.split(':')[0] >= 12 && x.split(':')[1] === '2'), `${L.q}: 5 falling pixel leaves with blade + stem (${a.leafShape.join(' ')})`);
   leafColors[L.time] ??= a.leaves[0];
