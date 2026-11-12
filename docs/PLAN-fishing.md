@@ -311,3 +311,22 @@ ducks, so no cleaning was needed. Cross-fade on the village clock like the villa
 hours as `skyMix`); the tree crown layer has dusk / night versions; the code-drawn animals, TaniBot,
 the rod and the water effects are dimmed a little at dusk / night to match (CSS filter). The morning
 light and the rain darkening stay code tints.
+
+## 12. Package 4 (Ardian's test, 2026-11-12) — BUILT 2026-11-12 (committed locally, not pushed)
+
+1. Waterfall remade: the picture's own waterfall colours flow down inside the falling water's mask
+   (`tools/pixelize/pond_fall.py`: mask from the day picture, one texture per day / dusk / night picture,
+   faded with `pondMix`), soft foam at the foot (white; warm at dusk, blue at night).
+2. Faint waves spread slowly from the waterfall over the lake, masked to the water
+   (`fishing-pond-water.png` from `tools/pixelize/pond_clean.py`).
+3. Fireflies on clear nights by the bushes and banks (none in the rain).
+4. Jungle birds (code sounds): clear mornings and days, a few at dusk, none at night or in the rain.
+5. Night and rain: the float glows (light + reflection); TaniBot holds a bamboo lamp staff (leaf
+   holder, glowing crystal; own design) in its left hand, lighting the dock. Not by day.
+6. A wooden bucket of fish (our Tilapia, Catfish, Carp, Gourami icons) on the dock behind TaniBot
+   (`tools/pixelize/bucket.py`).
+7. Now and then (7-16 s) a random fish jumps out and back in with rings, drops and a small splash
+   sound; never near the float, line, ducks or pads; Golden Arowana 2%.
+8. Season proof: `FAKE_SEASON=3` (local fake chain only) + `tools/fishing-season-test.mjs`: Carp 5 ->
+   1.25 PANEN on the card, the list shows the amounts after the Season rule with "Season 3: rewards 25%".
+9. Reduced motion: everything still (no jumps, no flowing water, no blinking). Few particles.

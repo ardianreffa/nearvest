@@ -193,6 +193,7 @@ const r0 = await look();
 await pg.waitForTimeout(6000);
 const r1 = await look();
 check(JSON.stringify(r0.frogs) === JSON.stringify(r1.frogs) && JSON.stringify(r0.ducks) === JSON.stringify(r1.ducks), 'reduced motion: frogs and ducks stay still');
+check(!(await pg.locator('.pond-jump').count()) && (await pg.evaluate(() => [...document.querySelectorAll('.fall-flow, .fall-foam, .lake-wave, .lamp-halo, .float-glow, .pond-firefly')].every((e) => getComputedStyle(e).animationName === 'none'))), 'reduced motion: no jumping fish, the waterfall, foam, waves and lights stand still');
 check(r1.leaves.length === 0 && r1.treeAnim === 'none', `reduced motion: no leaves, the tree is still (${r1.treeAnim})`);
 await pg.screenshot({ path: `${out}/pond-${tag}-reduced.png` });
 
