@@ -518,7 +518,7 @@ try {
             await new Promise(r => setTimeout(r, 150));
             b.click();
             await new Promise(r => setTimeout(r, 250));
-            const bub = document.querySelector('.info-bubble');
+            const bub = document.querySelector('.help-popup');
             if (!bub) return 'NO BUBBLE (' + b.getAttribute('aria-label') + ')';
             const q = bub.getBoundingClientRect();
             const inside = q.left >= 0 && q.top >= 0 && q.right <= innerWidth && q.bottom <= innerHeight;
@@ -527,11 +527,11 @@ try {
             return b.getAttribute('aria-label').replace('What is ', '').replace('?', '') + ': ' + words + ' words' + (inside ? '' : ' OUTSIDE-SCREEN');
           })()`);
           if (i === 0) await screenshot(`info-${where}`);
-          await evaluate(`document.querySelector('.info-bubble-x')?.click()`);
+          await evaluate(`document.querySelector('.help-popup .info-close')?.click()`);
           await sleep(150);
           out.push(r);
         }
-        console.log(`info in ${where} (${n}):`, out.join(' | ') || 'none', '| bubble left open:', await evaluate(`!!document.querySelector('.info-bubble')`));
+        console.log(`info in ${where} (${n}):`, out.join(' | ') || 'none', '| bubble left open:', await evaluate(`!!document.querySelector('.help-popup')`));
       };
       await checkAll('garden');
       if (MOBILE) {
@@ -556,7 +556,7 @@ try {
       await sleep(200);
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
       await sleep(200);
-      console.log('Esc closes the bubble:', await evaluate(`!document.querySelector('.info-bubble')`));
+      console.log('Esc closes the bubble:', await evaluate(`!document.querySelector('.help-popup')`));
     });
     throw Object.assign(new Error('info done'), { done: true });
   }

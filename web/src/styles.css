@@ -3723,6 +3723,33 @@ input:focus-visible {
   flex-direction: column;
 }
 
+/* The "?" help and the "i" info popups (2026-11-12): centred, wide (phones: the screen's width minus
+   a 16 px margin), the whole text readable at body size, never squeezed at an edge. */
+.dialog-backdrop .help-popup {
+  width: min(480px, calc(100vw - 32px));
+  max-width: none;
+}
+
+.help-popup .info-body {
+  font-size: var(--fs-body);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.help-popup .info-body p {
+  margin: 0;
+}
+
+.help-popup .panel-head h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A help / info popup over a dialog or a full-screen scene stays on top. */
+.dialog-backdrop:has(> .help-popup) {
+  z-index: 60;
+}
+
 .info-dialog .panel-head {
   display: flex;
   justify-content: space-between;

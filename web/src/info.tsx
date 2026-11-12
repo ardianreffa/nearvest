@@ -1,10 +1,10 @@
 // Small (i) buttons next to anything that can confuse a player. Tap / click = a short English
-// explanation in a bubble (1-2 sentences) that can be closed with its x, Esc or a tap anywhere
-// else. One bubble at a time. The bubble is fixed to the screen and kept inside it, so it also
-// works inside scrolling panels and dialogs on phones. Texts live in INFO (one place to edit).
+// explanation (1-2 sentences) in a centred popup with "Got it" (the same popup as the "?" help).
+// Texts live in INFO (one place to edit).
 
 import { createPortal } from "preact/compat";
-import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useState } from "preact/hooks";
+import { Modal } from "./help";
 
 export const INFO = {
   addBudget:
@@ -43,101 +43,33 @@ export const INFO = {
 
 export type InfoKey = keyof typeof INFO;
 
-let closeOpen: (() => void) | null = null;
-
+/**
+ * The "i" button (2026-11-12, Ardian's iPhone test: the old bubble next to the button came out small
+ * and squeezed at the screen's edge in the seed row). A tap opens the same centred popup as the plot
+ * panel's "?" help: wide (phones: the screen's width minus a margin), the whole text readable, a
+ * "Got it" button; Esc or a tap outside closes it. Rendered on document.body, so a panel with a
+ * transform or a scrolling box never moves or clips it. The tap never reaches what the button sits in
+ * (a seed card, a shop row).
+ */
 export function Info({ k, label, text }: { k: InfoKey; label?: string; /** Overrides the fixed text (e.g. today's weather). */ text?: string }) {
   const [open, setOpen] = useState(false);
-  const btn = useRef<HTMLButtonElement>(null);
-  const bubble = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{
-    left: number;
-    top: number;
-    below: boolean;
-  } | null>(null);
-
-  const close = () => setOpen(false);
   const toggle = (e: Event) => {
     e.stopPropagation();
     e.preventDefault();
-    if (open) return close();
-    closeOpen?.();
-    closeOpen = close;
     setOpen(true);
   };
-
-  // Place the bubble next to the button, inside the screen (above when there is no room below).
-  useLayoutEffect(() => {
-    if (!open || !btn.current || !bubble.current) return;
-    const b = btn.current.getBoundingClientRect();
-    const w = bubble.current.offsetWidth;
-    const h = bubble.current.offsetHeight;
-    const left = Math.min(
-      Math.max(8, b.left + b.width / 2 - w / 2),
-      window.innerWidth - w - 8,
-    );
-    const below = b.bottom + 8 + h <= window.innerHeight - 8;
-    setPos({
-      left,
-      top: below ? b.bottom + 8 : Math.max(8, b.top - 8 - h),
-      below,
-    });
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: Event) => {
-      const t = e.target as Node;
-      if (!bubble.current?.contains(t) && !btn.current?.contains(t)) close();
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
-    const onMove = () => close();
-    document.addEventListener("pointerdown", onDown, true);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onMove);
-    document.addEventListener("scroll", onMove, true);
-    return () => {
-      document.removeEventListener("pointerdown", onDown, true);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onMove);
-      document.removeEventListener("scroll", onMove, true);
-      if (closeOpen === close) closeOpen = null;
-    };
-  }, [open]);
-
+  const title = label ? label.replace(/^the /i, "").replace(/^./, (c) => c.toUpperCase()) : "Info";
   return (
     <>
-      <button
-        ref={btn}
-        type="button"
-        class={`info-i${open ? " open" : ""}`}
-        onClick={toggle}
-        aria-label={`What is ${label ?? "this"}?`}
-        aria-expanded={open}
-      >
+      <button type="button" class={`info-i${open ? " open" : ""}`} onClick={toggle} aria-label={`What is ${label ?? "this"}?`} aria-expanded={open}>
         i
       </button>
       {open &&
-        // On document.body: a HUD panel with a transform would otherwise move a fixed bubble.
         createPortal(
-          <div
-            ref={bubble}
-            class={`info-bubble${pos?.below === false ? " above" : ""}`}
-            role="tooltip"
-            style={
-              pos
-                ? { left: `${pos.left}px`, top: `${pos.top}px` }
-                : { visibility: "hidden", left: 0, top: 0 }
-            }
-          >
-            <p>{text ?? INFO[k]}</p>
-            <button
-              type="button"
-              class="info-bubble-x"
-              onClick={close}
-              aria-label="Close"
-            >
-              ×
-            </button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <Modal title={title} onClose={() => setOpen(false)} closeLabel="Got it" class="help-popup info-popup">
+              <p>{text ?? INFO[k]}</p>
+            </Modal>
           </div>,
           document.body,
         )}

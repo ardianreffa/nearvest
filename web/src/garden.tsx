@@ -9,6 +9,7 @@ import { bgVersion, villageFor } from './art/village';
 import { seasonPayout } from './qty';
 import { Info } from './info';
 import { Modal } from './help';
+import { createPortal } from 'preact/compat';
 import { GardenScene, WATER_FX_MS, type ActionKind, type Immersive, type SceneFx } from './scene';
 import { Sprite } from './sprites';
 import {
@@ -501,10 +502,13 @@ function SeedRow({ children, arrows = false }: { children: preact.ComponentChild
  * seemed to do nothing).
  */
 function HelpPopup({ title, text, onClose }: { title: string; text: string; onClose: () => void }) {
-  return (
+  // On document.body: inside the plot panel (a transform and a clipping box) the popup came out
+  // small and cut off at the edge on iPhone.
+  return createPortal(
     <Modal title={title} onClose={onClose} closeLabel="Got it" class="help-popup">
       <p>{text}</p>
-    </Modal>
+    </Modal>,
+    document.body,
   );
 }
 
