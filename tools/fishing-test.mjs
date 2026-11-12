@@ -67,7 +67,7 @@ async function fits(what) {
     return {
       screen: rect('.pond-screen'),
       fit: document.querySelector('.pond-screen')?.dataset.fit,
-      pond: rect('.pond-band'),
+      pond: rect('.pond'),
       panel: rect('.pond-panel'),
       top: rect('.pond-hud-top'),
       btns: [...document.querySelectorAll('.pond-screen .pond-actions .btn, .pond-back')].map((b) => b.getBoundingClientRect()).map((b) => ({ h: b.height, l: b.left, r: b.right, b: b.bottom })),
@@ -91,7 +91,7 @@ async function fits(what) {
 /** The line, float, "!", the catch, sparkles and TaniBot never touch a frog or a duck (art/pond.tsx CRITTERS). */
 async function clearOfCritters(what) {
   const hits = await pg.evaluate(() => {
-    const pond = document.querySelector('.pond-band');
+    const pond = document.querySelector('.pond');
     if (!pond) return ['no pond'];
     const pr = pond.getBoundingClientRect();
     const [gw, gh] = pond.dataset.grid.split('x').map(Number);

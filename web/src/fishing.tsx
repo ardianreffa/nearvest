@@ -8,7 +8,6 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preac
 import { api, ApiError, type CatchView, type FishingView, type GameState } from './api';
 import { CatchIcon } from './art/catch-icons';
 import { FLOAT_AT, PondScene, pondAt } from './art/pond';
-import { tallPond } from './art/pond-tall';
 import { CAST_MS, REEL_MS } from './art/rod-pose';
 import { moodMix, nextMood, pondFit, pondSounds, pondTime, pondWeather, type Box, type PondMood as PondMoodState } from './pond-life-plan';
 import { villageHour } from './share';
@@ -90,12 +89,10 @@ export function FishingWindow({
   // Full screen (package 3): the pond fills the screen like the village. Cover when that crops at most
   // 12% (laptops), else the whole pond fits the width with a blurred copy around it (phones upright).
   const screen = useRef<HTMLDivElement>(null);
-  // Upright phones use the upright picture when it is installed (art/pond-tall.ts).
-  const tall = tallPond();
-  const [fit, setFit] = useState(() => pondFit(window.innerWidth, window.innerHeight, tall));
+  const [fit, setFit] = useState(() => pondFit(window.innerWidth, window.innerHeight));
   const [avoid, setAvoid] = useState<Box[]>([]);
   useLayoutEffect(() => {
-    const onResize = () => setFit(pondFit(window.innerWidth, window.innerHeight, tall));
+    const onResize = () => setFit(pondFit(window.innerWidth, window.innerHeight));
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -106,7 +103,7 @@ export function FishingWindow({
     const k = fit.w / 480;
     const boxes = [...el.querySelectorAll<HTMLElement>('[data-pond-avoid]')].map((p): Box => {
       const r = p.getBoundingClientRect();
-      return [(r.left - fit.left) / k, (r.top - fit.top - fit.bandTop) / k, r.width / k, r.height / k];
+      return [(r.left - fit.left) / k, (r.top - fit.top) / k, r.width / k, r.height / k];
     });
     const key = (b: Box[]) => b.map((x) => x.map(Math.round).join(',')).join(';');
     setAvoid((old) => (key(old) === key(boxes) ? old : boxes));
@@ -265,7 +262,7 @@ export function FishingWindow({
       aria-label="Fishing pond"
       data-fit={fit.mode}
       // Upright phones: the panel gets exactly the room under the pond (it scrolls inside, never covers it).
-      style={{ '--pond-free': `${Math.max(160, window.innerHeight - fit.top - (fit.mode === 'tall' ? fit.bandTop + 270 * (fit.w / 480) : fit.h) - 24)}px` }}
+      style={{ '--pond-free': `${Math.max(160, window.innerHeight - fit.top - fit.h - 24)}px` }}
     >
       {(['', '-dusk', '-night'] as const).map((t) => (
         <img
@@ -279,7 +276,7 @@ export function FishingWindow({
         />
       ))}
       <div class="pond-stage" style={{ left: `${fit.left}px`, top: `${fit.top}px`, width: `${fit.w}px`, height: `${fit.h}px` }}>
-        <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} mix={mix} tall={fit.mode === 'tall' ? tall : null} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
+        <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} mix={mix} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
         {phase.k === 'bite' && (
             <span class="pond-bang" style={pondAt(FLOAT_AT.x, FLOAT_AT.y - 10)} aria-hidden="true">
               !

@@ -234,40 +234,26 @@ export const CRITTERS: [number, number, number, number][] = FROG_SPOTS.map((p): 
 // ---------- Full screen (package 3) ----------
 
 export interface PondFit {
-  /**
-   * cover = fills the screen (crops at most 12%); fit = the whole pond, blurred copy around it;
-   * tall = the upright picture across the width (package 6), the 16:9 scene in its middle band.
-   */
-  mode: 'cover' | 'fit' | 'tall';
+  /** cover = fills the screen (crops at most 12%); fit = the whole pond, blurred copy around it. */
+  mode: 'cover' | 'fit';
   left: number;
   top: number;
   w: number;
   h: number;
-  /** Where the 16:9 scene starts inside the stage (CSS px; 0 unless tall). */
-  bandTop: number;
 }
-/**
- * Where the pond goes on a W x H screen (CSS px). Upright phones: the upright picture when there is one
- * (`tall`: its height and the 16:9 band's top in grid px), else the 16:9 pond in the upper part.
- */
-export function pondFit(W: number, H: number, tall: { h: number; band: number } | null = null): PondFit {
-  if (tall && W < H) {
-    const k = Math.min(W / 480, H / tall.h);
-    const w = 480 * k;
-    const h = tall.h * k;
-    return { mode: 'tall', left: (W - w) / 2, top: (H - h) / 2, w, h, bandTop: tall.band * k };
-  }
+/** Where the 480 x 270 pond goes on a W x H screen (CSS px). Upright phones keep it in the upper part. */
+export function pondFit(W: number, H: number): PondFit {
   const ck = Math.max(W / 480, H / 270);
   const crop = 1 - Math.min(W / (480 * ck), H / (270 * ck));
   if (crop <= 0.12) {
     const w = 480 * ck;
     const h = 270 * ck;
-    return { mode: 'cover', left: (W - w) / 2, top: (H - h) / 2, w, h, bandTop: 0 };
+    return { mode: 'cover', left: (W - w) / 2, top: (H - h) / 2, w, h };
   }
   const k = Math.min(W / 480, H / 270);
   const w = 480 * k;
   const h = 270 * k;
-  return { mode: 'fit', left: (W - w) / 2, top: W < H ? Math.max(72, Math.round((H - h) * 0.3)) : (H - h) / 2, w, h, bandTop: 0 };
+  return { mode: 'fit', left: (W - w) / 2, top: W < H ? Math.max(72, Math.round((H - h) * 0.3)) : (H - h) / 2, w, h };
 }
 
 // ---------- Dusk and night pictures (Ardian's ChatGPT pond, 2026-11-12) ----------

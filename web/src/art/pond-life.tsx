@@ -348,9 +348,7 @@ const FIREFLIES = [
 ];
 
 /** The village clock and the rain over everything (above TaniBot and the rod, under the "!" and the catch). */
-export function PondMood({ time, weather, band = null }: { time: PondTime; weather: PondWeather; band?: { top: number; h: number } | null }) {
-  // Fireflies are placed in the 16:9 scene's grid; in the upright picture that scene is a band.
-  const fy = (y: number) => (band ? ((band.top + y) / band.h) * 100 : (y / 270) * 100);
+export function PondMood({ time, weather }: { time: PondTime; weather: PondWeather }) {
   return (
     <>
       {time === 'night' && weather !== 'rain' && (
@@ -359,7 +357,7 @@ export function PondMood({ time, weather, band = null }: { time: PondTime; weath
             <i
               key={i}
               class="pond-firefly"
-              style={{ left: `${(x / 480) * 100}%`, top: `${fy(y)}%`, '--fx': String(dx), '--fy': String(dy), animationDelay: `${-i * 0.9}s, ${-i * 0.53}s` }}
+              style={{ left: `${(x / 480) * 100}%`, top: `${(y / 270) * 100}%`, '--fx': String(dx), '--fy': String(dy), animationDelay: `${-i * 0.9}s, ${-i * 0.53}s` }}
             />
           ))}
         </div>

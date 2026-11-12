@@ -210,13 +210,4 @@ describe('fishing pond life', () => {
     assert.deepEqual(moodMix('dusk'), { dusk: 1, night: 0 });
     assert.deepEqual(moodMix('morning'), { dusk: 0, night: 0 });
   });
-  it('upright phones with the upright picture: across the width, the 16:9 scene in its band', () => {
-    const t = pondFit(390, 844, { h: 853, band: 292 });
-    assert.equal(t.mode, 'tall');
-    assert.equal(Math.round(t.w), 390);
-    assert.ok(Math.abs(t.bandTop - 292 * (390 / 480)) < 0.01);
-    assert.ok(t.top >= 0 && t.top + t.h <= 844 + 0.01, 'the whole picture shows');
-    assert.equal(pondFit(1280, 800, { h: 853, band: 292 }).mode, 'cover', 'laptops keep the 16:9 pond');
-    assert.equal(pondFit(390, 844, null).mode, 'fit', 'no upright picture yet: as before');
-  });
 });
