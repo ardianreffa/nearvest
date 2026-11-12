@@ -4,7 +4,7 @@
 
 import { Pixels } from '../sprites';
 
-const COIN = [
+export const PANEN_COIN_ROWS = [
   '....kkkkk....',
   '..kkYYYYYkk..',
   '.kYzyyKyyyYk.',
@@ -19,9 +19,9 @@ const COIN = [
   '..kkYYYYYkk..',
   '....kkkkk....',
 ];
-const PALETTE = { k: '#1b1b2f', Y: '#c9971f', y: '#f5c542', K: '#7a4f12', z: '#fff1a8' };
+export const PANEN_COIN_PALETTE = { k: '#1b1b2f', Y: '#c9971f', y: '#f5c542', K: '#7a4f12', z: '#fff1a8' };
 
 /** `scale` = screen px per art pixel (the coin is 13 x 13). */
 export function PanenCoin({ scale = 2 }: { scale?: number }) {
-  return <Pixels rows={COIN} palette={PALETTE} scale={scale} class="panen-coin" title="PANEN" />;
+  return <Pixels rows={PANEN_COIN_ROWS} palette={PANEN_COIN_PALETTE} scale={scale} class="panen-coin" title="PANEN" />;
 }

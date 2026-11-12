@@ -8,7 +8,9 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { GameState, Quality, Species } from './api';
 import { botSprite, TIER_TITLE, tierOf, type Tier } from './art/tanibot';
 import { AVATARS, type AvatarId } from './art/avatars';
-import { PALETTE } from './sprites';
+import { PALETTE, SPRITES } from './sprites';
+import { AROWANA_BIG, AROWANA_PALETTE } from './art/arowana-big';
+import { PANEN_COIN_PALETTE, PANEN_COIN_ROWS } from './art/panen-coin';
 import { CATCH_GRIDS, FISH_PALETTE } from './art/catch-grids';
 import { treePalette, treeRows } from './art/trees';
 import { hourOf, lockedFraction, phaseOf } from './art/backdrop';
@@ -474,6 +476,54 @@ const FONT = {
   },
 };
 
+/** A title badge (original pixel art): a mint / leaf ribbon over a gold medal with a star. */
+const BADGE = [
+  '..kkk....kkk..',
+  '..kmmk..kLLk..',
+  '..kmmmkkLLLk..',
+  '...kmmmLLLk...',
+  '...kkmmLLkk...',
+  '...kkkkkkkk...',
+  '..kYYyyyyYYk..',
+  '.kYyyyzyyyyYk.',
+  'kYyyyzzzyyyyYk',
+  'kYyzzzzzzzyyYk',
+  'kYyyzzzzzyyyYk',
+  'kYyyzzzzzyyyYk',
+  'kYyzzyyyzzyyYk',
+  '.kYyyyyyyyyYk.',
+  '..kYYyyyyYYk..',
+  '...kkkkkkkk...',
+];
+const BADGE_PALETTE: Record<string, string> = { k: '#1b1b2f', m: '#00ec97', L: '#2e7d4f', Y: '#c9971f', y: '#f5c542', z: '#fff1a8' };
+
+/** The picture of a moment for the card's right column (existing sprites, their own palettes). */
+function trophyOf(m: Moment, s: GameState): { rows: string[]; palette: Record<string, string>; glow?: `--${string}`; max?: number } | null {
+  const sprite = (name: keyof typeof SPRITES) => ({ rows: SPRITES[name] as unknown as string[], palette: PALETTE });
+  switch (m.kind) {
+    case 'first_harvest':
+      return { ...sprite((m.species ?? 'mango') as 'mango' | 'rambutan' | 'durian'), max: 12 };
+    case 'first_gold':
+      return { ...sprite((m.species ?? 'mango') as 'mango' | 'rambutan' | 'durian'), glow: '--gold-300', max: 10 };
+    case 'big_durian':
+      return { ...sprite('durian'), glow: m.quality === 'gold' ? '--gold-300' : '--purple-300', max: 10 };
+    case 'golden_arowana':
+      return { rows: AROWANA_BIG, palette: AROWANA_PALETTE, glow: '--gold-300', max: 8 };
+    case 'streak7':
+      return { rows: PANEN_COIN_ROWS, palette: PANEN_COIN_PALETTE, glow: '--gold-300', max: 12 };
+    case 'eruption':
+      return { ...sprite('fire'), glow: '--red-500', max: 10 };
+    case 'evolved':
+    case 'title':
+    case 'legend':
+    case 'profile':
+      // The title badge: a ribbon and a gold star medal (Legend: in a gold glow).
+      return { rows: BADGE, palette: BADGE_PALETTE, glow: m.kind === 'legend' ? '--gold-300' : '--mint-300', max: 6 };
+    default:
+      return null;
+  }
+}
+
 export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
   canvas.width = CARD_W;
@@ -606,28 +656,6 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
     }
   } else if (m.kind === 'streak7') {
     drawCalendar(ctx, M, GROUND - 250);
-  } else if (m.kind === 'golden_arowana') {
-    // The fish leaping beside TaniBot, in a gold glow with a few sparkles (pixel art, its own palette).
-    const rows = CATCH_GRIDS.golden_arowana!;
-    // The long, slender fish (about 32 x 10 art px since package 1, 2026-11-12).
-    // F = 6 keeps it left of TaniBot's hat and body (it was hidden behind TaniBot at a bigger size).
-    const F = 6;
-    const fx = M - 24;
-    const fy = GROUND - 200;
-    const cx = fx + (rows[0].length * F) / 2;
-    const cy = fy + (rows.length * F) / 2;
-    const glow = ctx.createRadialGradient(cx, cy, 10, cx, cy, 150);
-    glow.addColorStop(0, tokenAlpha('--gold-300', 0.8));
-    glow.addColorStop(1, tokenAlpha('--gold-300', 0));
-    ctx.fillStyle = glow;
-    ctx.fillRect(cx - 160, cy - 140, 320, 280);
-    drawRows(ctx, rows, { ...PALETTE, ...FISH_PALETTE }, fx, fy, F);
-    ctx.fillStyle = token('--gold-300');
-    const fw = rows[0].length * F;
-    for (const [x, y] of [[fx - 6, fy - 36], [fx + fw * 0.55, fy - 40], [fx + fw * 0.3, fy + 96], [fx + fw - 30, fy + 84]]) {
-      ctx.fillRect(x, y + 6, 18, 6);
-      ctx.fillRect(x + 6, y, 6, 18);
-    }
   }
 
   // Tier aura behind TaniBot. Legend: a circle of light big enough to hold the whole robot.
@@ -679,11 +707,18 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   ctx.font = `700 64px ${FONT.title}`;
   ctx.fillText('NEARVEST', left, M - 4);
   ctx.fillStyle = token('--gold-500');
+  // Three headline lines (e.g. "NEW TITLE: ORCHARD MASTER") use a smaller size, so the moment's
+  // picture keeps room under the text (2026-11-12).
   ctx.font = `700 48px ${FONT.title}`;
+  let headSize = 48;
+  if (wrap(ctx, headline.toUpperCase(), width).length > 2) {
+    headSize = 40;
+    ctx.font = `700 40px ${FONT.title}`;
+  }
   let y = M + 88;
   for (const line of wrap(ctx, headline.toUpperCase(), width)) {
     ctx.fillText(line, left, y);
-    y += 58;
+    y += headSize + 10;
   }
   ctx.fillStyle = token('--paper-light');
   ctx.font = `32px ${FONT.ui}`;
@@ -691,6 +726,31 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   for (const line of wrap(ctx, sub, width)) {
     ctx.fillText(line, left, y);
     y += 40;
+  }
+  // The moment's own picture in the empty space under the text (2026-11-12, Ardian): sharp pixels
+  // (a whole-number scale), centred in the free box, never over the text or the footer lines.
+  const trophy = trophyOf(m, s);
+  if (trophy) {
+    const boxTop = y + 8;
+    const boxBottom = CARD_H - M - 66;
+    const tw = trophy.rows[0].length;
+    const th = trophy.rows.length;
+    const k = Math.min(trophy.max ?? 16, Math.floor(width / tw), Math.floor((boxBottom - boxTop) / th));
+    if (k >= 2) {
+      const tx = Math.round(left + (width - tw * k) / 2);
+      const ty = Math.round(boxTop + (boxBottom - boxTop - th * k) / 2);
+      if (trophy.glow) {
+        const cx = tx + (tw * k) / 2;
+        const cy = ty + (th * k) / 2;
+        const r = Math.max(tw, th) * k * 0.7;
+        const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, r);
+        g.addColorStop(0, tokenAlpha(trophy.glow, 0.55));
+        g.addColorStop(1, tokenAlpha(trophy.glow, 0));
+        ctx.fillStyle = g;
+        ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+      }
+      drawRows(ctx, trophy.rows, trophy.palette, tx, ty, k);
+    }
   }
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = token('--mint-300');
