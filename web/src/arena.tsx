@@ -326,7 +326,7 @@ export function Fighter({
   return (
     <div class={`fighter ${right ? 'them' : 'me'} ${state}${hard ? ' hard' : ''} tier-${tier}`}>
       {pick && <PickBubble pick={pick.pick} pop={pick.pop} />}
-      <BotDrones tier={tier} scale={Math.max(1, scale)} shadow={Math.round(TANIBOT_H * scale * 0.36)} parked={state === 'ko'} />
+      <BotDrones tier={tier} scale={Math.max(1, scale)} shadow={Math.round(TANIBOT_H * scale * 0.36)} />
       {state === 'charging' && (
         // The Gold Durian charge: a growing gold aura, small sparks, gold motes drawn in.
         <span class="gold-charge" aria-hidden="true">
@@ -342,23 +342,18 @@ export function Fighter({
       {/* A new element (key) when the flash goes on and off and at K.O. / win: iPhone Safari could keep
           the removed white filter painted on the animated TaniBot (the winner stayed white on "YOU WIN!"),
           a fresh element never carries it. */}
-      <div key={fighterArtKey(state, flash)} class={`fighter-art${state === 'ko' ? ' asleep' : ''}${flash && state === 'hit' ? ' flash' : ''}`}>
-        <TaniBot tier={tier} scale={scale} effects={state !== 'ko'} />
+      {/* Both fighters are always awake with their title's full look (Ardian 2026-11-13), also the
+          loser at K.O. (it only staggers under spinning stars; the garden's ON / OFF never matters here). */}
+      <div key={fighterArtKey(state, flash)} class={`fighter-art${flash && state === 'hit' ? ' flash' : ''}`}>
+        <TaniBot tier={tier} scale={scale} effects />
       </div>
-      {state === 'hit' && (
+      {(state === 'hit' || state === 'ko') && (
         <span class="ko-stars" aria-hidden="true">
           <span class="ko-stars-ring">
             <i />
             <i />
             <i />
           </span>
-        </span>
-      )}
-      {state === 'ko' && (
-        <span class="bot-zzz fighter-zzz" aria-hidden="true">
-          <i>z</i>
-          <i>z</i>
-          <i>z</i>
         </span>
       )}
       <span class="fighter-shadow" aria-hidden="true" />
