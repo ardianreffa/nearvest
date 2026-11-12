@@ -3,7 +3,7 @@
 // first tap/click. Music and sound effects are switched on/off separately and
 // each choice is remembered in localStorage.
 
-import { ARENA_LOOP, ARENA_LOOP_STEPS, midiHz, STEP_S, type MusicNote } from './arena-music-plan';
+import { ARENA_LOOP, ARENA_LOOP_STEPS, midiHz, STEP_S, type MusicNote } from './arena-music-plan.ts';
 
 export type SoundName =
   | 'click'
