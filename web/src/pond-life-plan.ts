@@ -315,3 +315,42 @@ export function pickJump(rand: () => number, opts: { ducks?: Pt[]; zone?: Fishin
   }
   return null;
 }
+
+// ---------- Calm changes of time and weather (package 6) ----------
+//
+// Ardian's live test: in demo mode a village day lasts one minute, so the pond jumped day -> dusk ->
+// night every few seconds (on every state poll), the pictures popping in without a fade. Now the pond
+// shows one "mood" (its picture: day / dusk / night, and clear / rain) that fades over POND_FADE_MS
+// (CSS) and, in demo mode, holds each mood at least POND_HOLD_DEMO_MS before it may change.
+
+export const POND_FADE_MS = 4000;
+export const POND_HOLD_DEMO_MS = 20_000;
+export interface PondMood {
+  time: PondTime;
+  weather: PondWeather;
+  /** When the picture (day / dusk / night) last changed, and when the weather last changed. */
+  timeSince: number;
+  weatherSince: number;
+}
+/** Which picture a time of day uses (the morning uses the day picture with a soft light). */
+export const pictureOf = (t: PondTime): 'day' | 'dusk' | 'night' => (t === 'morning' ? 'day' : t);
+/** The mood to show now, given what the village says (`want`) and how long the current one has held. */
+export function nextMood(cur: PondMood | null, want: { time: PondTime; weather: PondWeather }, now: number, demo: boolean): PondMood {
+  if (!cur) return { ...want, timeSince: now, weatherSince: now };
+  const hold = demo ? POND_HOLD_DEMO_MS : 0;
+  let { time, weather, timeSince, weatherSince } = cur;
+  if (want.time !== time && (pictureOf(want.time) === pictureOf(time) || now - timeSince >= hold)) {
+    if (pictureOf(want.time) !== pictureOf(time)) timeSince = now;
+    time = want.time;
+  }
+  if (want.weather !== weather && now - weatherSince >= hold) {
+    weather = want.weather;
+    weatherSince = now;
+  }
+  return time === cur.time && weather === cur.weather ? cur : { time, weather, timeSince, weatherSince };
+}
+/** The pictures' shares for a mood (the change itself fades in CSS). */
+export function moodMix(time: PondTime): { dusk: number; night: number } {
+  const p = pictureOf(time);
+  return { dusk: p === 'dusk' ? 1 : 0, night: p === 'night' ? 1 : 0 };
+}

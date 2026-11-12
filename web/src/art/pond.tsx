@@ -105,10 +105,9 @@ function Waterfall({ mix, k }: { mix: { dusk: number; night: number }; k: number
     <>
       {FALL_STEPS.map((st, i) => (
         <div key={i} class="pond-fall" data-step={i} aria-hidden="true" style={{ ...box, clipPath: `polygon(${st.pts.map(pct).join(', ')})` }}>
-          {layers.map(
-            ([t, o]) =>
-              o > 0 && <i key={t} class={`fall-flow fall-${t}`} style={{ opacity: o, transform: `skewX(${st.skew}deg)`, animationDuration: `${st.s}s` }} />,
-          )}
+          {layers.map(([t, o]) => (
+            <i key={t} class={`fall-flow fall-${t} pond-fade`} style={{ opacity: o, transform: `skewX(${st.skew}deg)`, animationDuration: `${st.s}s` }} />
+          ))}
         </div>
       ))}
       {FALL_LIPS.map(([x, y, w], i) => (
@@ -214,8 +213,9 @@ export function PondScene({
     >
       <img class="pond-img" src="/assets/bg/fishing-pond.png" alt="" width={POND_W} height={POND_H} draggable={false} />
       {/* Ardian's dusk and night pictures over the day one, faded in by the village clock. */}
-      {mix.dusk > 0 && <img class="pond-img pond-img-dusk" src="/assets/bg/fishing-pond-dusk.png" alt="" style={{ opacity: mix.dusk }} draggable={false} />}
-      {mix.night > 0 && <img class="pond-img pond-img-night" src="/assets/bg/fishing-pond-night.png" alt="" style={{ opacity: mix.night }} draggable={false} />}
+      {/* Always there (loaded once), faded in and out by CSS: no popping when the time changes. */}
+      <img class="pond-img pond-img-dusk pond-fade" src="/assets/bg/fishing-pond-dusk.png" alt="" style={{ opacity: mix.dusk }} draggable={false} />
+      <img class="pond-img pond-img-night pond-fade" src="/assets/bg/fishing-pond-night.png" alt="" style={{ opacity: mix.night }} draggable={false} />
       <Waterfall mix={mix} k={k} />
       <PondLife mix={mix} time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? FISHING_ZONE : null} avoid={avoid} />
       <svg class="pond-svg" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
@@ -235,7 +235,9 @@ export function PondScene({
       )}
       <svg class="pond-svg pond-rod-layer" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
         {/* In front of TaniBot: the rod from its hands out over the water, then the line and the float. */}
-        {dark && <LampStaff />}
+        <g class="pond-fade" style={{ opacity: dark ? 1 : 0 }}>
+          <LampStaff />
+        </g>
         <Rod pose={pose} spin={phase === 'reeling' ? ms : 0} />
         <path class="pond-line" d={`M${pose.tip.x} ${pose.tip.y} Q${pose.line.x} ${pose.line.y} ${f.x} ${f.y}`} fill="none" stroke={C.line} stroke-width={0.9} />
         <g class="pond-float-at" transform={`translate(${f.x} ${f.y}) scale(${fs})`}>
@@ -248,8 +250,7 @@ export function PondScene({
           </g>
         </g>
       </svg>
-      {dark && (
-        <svg class="pond-lights" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
+      <svg class="pond-lights pond-fade" style={{ opacity: dark ? 1 : 0 }} viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
           <defs>
             <radialGradient id="pond-glow-warm">
               <stop offset="0" style={{ stopColor: 'var(--gold-300)', stopOpacity: 0.9 }} />
@@ -274,7 +275,6 @@ export function PondScene({
           <circle class="float-glow" cx={f.x} cy={f.y} r={8} fill="url(#pond-glow-warm)" />
           <circle cx={f.x} cy={f.y - 0.5} r={0.9} fill={C.crystalCore} />
         </svg>
-      )}
       <PondMood time={time} weather={weather} />
       {children}
     </div>

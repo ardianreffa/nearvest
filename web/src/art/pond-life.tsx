@@ -221,8 +221,8 @@ export function PondLife({
     <>
       <div class="pond-tree">
         <img src="/assets/bg/fishing-pond-tree.png" alt="" draggable={false} />
-        {mix.dusk > 0 && <img src="/assets/bg/fishing-pond-tree-dusk.png" alt="" style={{ opacity: mix.dusk }} draggable={false} />}
-        {mix.night > 0 && <img src="/assets/bg/fishing-pond-tree-night.png" alt="" style={{ opacity: mix.night }} draggable={false} />}
+        <img class="pond-fade" src="/assets/bg/fishing-pond-tree-dusk.png" alt="" style={{ opacity: mix.dusk }} draggable={false} />
+        <img class="pond-fade" src="/assets/bg/fishing-pond-tree-night.png" alt="" style={{ opacity: mix.night }} draggable={false} />
       </div>
       <svg class="pond-svg pond-life" viewBox="0 0 480 270" aria-hidden="true">
         <g class="pond-glints" fill="var(--paper-light)">
@@ -364,12 +364,11 @@ export function PondMood({ time, weather }: { time: PondTime; weather: PondWeath
       )}
       {/* Dusk and night come from Ardian's pictures now (pond.tsx); only the morning light and rain are tints. */}
       <div class={`pond-tint tint-${time === 'dusk' || time === 'night' ? 'picture' : time}`} aria-hidden="true" />
-      {weather === 'rain' && (
-        <div class="pond-rain" aria-hidden="true">
-          <i class="wx-rain-layer far" />
-          <i class="wx-rain-layer near" />
-        </div>
-      )}
+      {/* The rain fades in and out (package 6: it popped). */}
+      <div class="pond-rain pond-fade" style={{ opacity: weather === 'rain' ? 1 : 0 }} aria-hidden="true">
+        <i class="wx-rain-layer far" />
+        <i class="wx-rain-layer near" />
+      </div>
     </>
   );
 }

@@ -22,7 +22,10 @@ import {
   FROGS,
   frogTick,
   LEAF_COLORS,
+  moodMix,
+  nextMood,
   pickJump,
+  POND_HOLD_DEMO_MS,
   pondFit,
   pondMix,
   pondSounds,
@@ -184,5 +187,27 @@ describe('fishing pond life', () => {
     const aro = (count.get('golden_arowana') ?? 0) / 4000;
     assert.ok(aro > 0 && aro < 0.04, `Golden Arowana very rare (${aro})`);
     for (const f of ['tilapia', 'catfish', 'carp', 'gourami']) assert.ok((count.get(f) ?? 0) > 400, f);
+  });
+  it('calm changes: demo mode holds each picture and weather 20 s; normal mode follows at once (the change fades in CSS)', () => {
+    let m = nextMood(null, { time: 'day', weather: 'clear' }, 0, true);
+    // Demo: the village rushes day -> dusk -> night -> dusk -> day within a minute.
+    const seq: [number, 'day' | 'dusk' | 'night' | 'morning'][] = [[6000, 'dusk'], [14000, 'night'], [19000, 'night'], [21000, 'night'], [30000, 'night'], [41000, 'night'], [45000, 'day']];
+    const shown: string[] = [];
+    for (const [t, want] of seq) {
+      m = nextMood(m, { time: want, weather: t > 10000 ? 'rain' : 'clear' }, t, true);
+      shown.push(`${t / 1000}:${m.time}/${m.weather}`);
+    }
+    assert.deepEqual(shown, ['6:day/clear', '14:day/clear', '19:day/clear', '21:night/rain', '30:night/rain', '41:night/rain', '45:day/rain']);
+    // Normal mode: at once.
+    let n = nextMood(null, { time: 'day', weather: 'clear' }, 0, false);
+    n = nextMood(n, { time: 'dusk', weather: 'rain' }, 1000, false);
+    assert.deepEqual([n.time, n.weather], ['dusk', 'rain']);
+    // Morning <-> day share the day picture: no hold needed.
+    let d = nextMood(null, { time: 'morning', weather: 'clear' }, 0, true);
+    d = nextMood(d, { time: 'day', weather: 'clear' }, 1000, true);
+    assert.equal(d.time, 'day');
+    assert.equal(POND_HOLD_DEMO_MS, 20000);
+    assert.deepEqual(moodMix('dusk'), { dusk: 1, night: 0 });
+    assert.deepEqual(moodMix('morning'), { dusk: 0, night: 0 });
   });
 });

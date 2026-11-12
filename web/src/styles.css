@@ -14360,6 +14360,32 @@ html.duel-open .duel-bg .backdrop * {
   transform-origin: 50% 100%;
 }
 
+/* Calm changes (package 6): pictures, lights and rain fade over 4 s instead of popping; the dimming
+   of the animals at dusk / night follows the same fade. */
+.pond-fade {
+  transition: opacity 4s ease-in-out;
+}
+
+.pond-life,
+.pond-bot,
+.pond-svg,
+.pond-tint {
+  transition:
+    filter 4s ease-in-out,
+    background 4s ease-in-out,
+    opacity 4s ease-in-out;
+}
+
+.pond-rain-rings {
+  animation: pond-fade-in 3s ease-in-out both;
+}
+
+@keyframes pond-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 /* The pond's life (art/pond-life.tsx, Fishing package 2): the tree's crown sways, glints drift, frogs
    hop, ducks paddle (the timer sets where to; CSS moves them there), leaves fall, the village clock
    tints everything, rain falls and rings the water. Few elements, only transforms / opacity move. */
@@ -15477,6 +15503,16 @@ html.duel-open .duel-bg .backdrop * {
   .pond-splash,
   .pond-plop {
     display: none;
+  }
+
+  .pond-fade,
+  .pond-life,
+  .pond-bot,
+  .pond-svg,
+  .pond-tint,
+  .pond-rain-rings {
+    transition: none !important;
+    animation-duration: 0s !important;
   }
 
   /* The pond's life stands still. */

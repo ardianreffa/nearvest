@@ -9,7 +9,7 @@ import { api, ApiError, type CatchView, type FishingView, type GameState } from 
 import { CatchIcon } from './art/catch-icons';
 import { FLOAT_AT, PondScene, pondAt } from './art/pond';
 import { CAST_MS, REEL_MS } from './art/rod-pose';
-import { pondFit, pondMix, pondSounds, pondTime, pondWeather, type Box } from './pond-life-plan';
+import { moodMix, nextMood, pondFit, pondSounds, pondTime, pondWeather, type Box, type PondMood as PondMoodState } from './pond-life-plan';
 import { villageHour } from './share';
 import { lookOf } from './weather';
 import { TaniBot } from './art/tanibot';
@@ -118,16 +118,18 @@ export function FishingWindow({
   const castAt = useRef(0);
   const alive = useRef(true);
   useEffect(() => () => void (alive.current = false), []);
-  // The pond follows the village clock and weather (rain only; never ash), checked every 30 s.
+  // The pond follows the village clock and weather (rain only; never ash), checked every 5 s; it
+  // changes calmly (pond-life-plan.ts nextMood: fades, and in demo mode each mood holds 20 s).
   const [, setClockTick] = useState(0);
   useEffect(() => {
-    const id = window.setInterval(() => setClockTick((n) => n + 1), 30_000);
+    const id = window.setInterval(() => setClockTick((n) => n + 1), 5_000);
     return () => window.clearInterval(id);
   }, []);
-  const hour = villageHour(state);
-  const time = pondTime(hour);
-  const mix = pondMix(hour);
-  const weather = pondWeather(lookOf(state.weather));
+  const want = { time: pondTime(villageHour(state)), weather: pondWeather(lookOf(state.weather)) };
+  const moodRef = useRef<PondMoodState | null>(null);
+  moodRef.current = nextMood(moodRef.current, want, Date.now(), !!state.player.demo);
+  const { time, weather } = moodRef.current;
+  const mix = moodMix(time);
   // The pond's own background sounds while the window is open (the garden's loop pauses, app.tsx).
   useEffect(() => {
     setPondAmbience(pondSounds(time, weather));
@@ -261,7 +263,17 @@ export function FishingWindow({
       // Upright phones: the panel gets exactly the room under the pond (it scrolls inside, never covers it).
       style={{ '--pond-free': `${Math.max(160, window.innerHeight - fit.top - fit.h - 24)}px` }}
     >
-      <img class="pond-backfill" src={`/assets/bg/fishing-pond${mix.night >= 0.5 ? '-night' : mix.dusk >= 0.5 ? '-dusk' : ''}.png`} alt="" aria-hidden="true" draggable={false} />
+      {(['', '-dusk', '-night'] as const).map((t) => (
+        <img
+          key={t}
+          class="pond-backfill"
+          src={`/assets/bg/fishing-pond${t}.png`}
+          style={{ opacity: t === '' ? 1 : t === '-dusk' ? mix.dusk : mix.night }}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+        />
+      ))}
       <div class="pond-stage" style={{ left: `${fit.left}px`, top: `${fit.top}px`, width: `${fit.w}px`, height: `${fit.h}px` }}>
         <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} mix={mix} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
         {phase.k === 'bite' && (
