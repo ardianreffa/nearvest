@@ -14312,6 +14312,79 @@ html.duel-open .duel-bg .backdrop * {
   color: var(--paper-light);
 }
 
+.fish-casts-short {
+  display: none;
+}
+
+/* The PANEN balance at the pond (package 6): it counts up when a catch pays, a "+N" rises. */
+.pond-balance {
+  position: relative;
+  margin-left: auto;
+  color: var(--gold-300);
+  font-size: var(--fs-body);
+}
+
+.pond-balance b {
+  font-weight: normal;
+}
+
+.pond-balance.bump {
+  animation: bump 0.4s steps(2);
+}
+
+.pond-gain {
+  position: absolute;
+  right: 6px;
+  bottom: 100%;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--gold-300);
+  text-shadow:
+    1px 1px 0 var(--ink),
+    -1px -1px 0 var(--ink);
+  pointer-events: none;
+  animation: pond-gain 1.6s ease-out both;
+}
+
+@keyframes pond-gain {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+}
+
+@media (max-width: 1023px) {
+  .fish-casts-long {
+    display: none;
+  }
+
+  .fish-casts-short {
+    display: inline;
+  }
+
+  .pond-hud-top .pond-chip {
+    padding: 6px 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pond-balance.bump,
+  .pond-gain {
+    animation: none !important;
+  }
+
+  .pond-gain {
+    display: none;
+  }
+}
+
 .pond-chip {
   display: inline-flex;
   align-items: center;

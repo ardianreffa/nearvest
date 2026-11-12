@@ -20,7 +20,8 @@ import { Modal } from './help';
 import { judgeDeviceId } from './judge';
 import { castsLeftText, catchNote, catchReward, catchTier, rewardChips, seasonNote, startPhase, untilText, type FishPhase } from './fishing-logic';
 import { Sprite } from './sprites';
-import { Coin } from './ui';
+import { Coin, formatPanen } from './ui';
+import { PanenCoin } from './art/panen-coin';
 
 /** Gold sparkles around the leaping Golden Arowana (pond grid points). */
 const SPARKS = [
@@ -310,13 +311,17 @@ export function FishingWindow({
         <button class="btn pond-back" onClick={onClose} aria-label="Back to the village">
           ← Village
         </button>
+        <PondBalance balance={state.player.balance} />
         <div class="pond-chip fish-casts" aria-label={castsLeftText({ left, max })}>
           <span class="fish-pips" aria-hidden="true">
             {Array.from({ length: max }, (_, i) => (
               <i key={i} class={i < left ? 'on' : ''} />
             ))}
           </span>
-          <span>{castsLeftText({ left, max })}</span>
+          <span class="fish-casts-long">{castsLeftText({ left, max })}</span>
+          <span class="fish-casts-short" aria-hidden="true">
+            {left}/{max}
+          </span>
         </div>
       </header>
 
@@ -381,6 +386,46 @@ export function FishingWindow({
             </p>
           </div>
         </Modal>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The PANEN balance at the pond (package 6): the round gold PANEN coin and the number; when a catch
+ * pays, the number counts up (~0.9 s) and a small "+N" rises (reduced motion: it just changes).
+ */
+function PondBalance({ balance }: { balance: number }) {
+  const [shown, setShown] = useState(balance);
+  const [gain, setGain] = useState<{ n: number; id: number } | null>(null);
+  const from = useRef(balance);
+  useEffect(() => {
+    const start = from.current;
+    from.current = balance;
+    if (balance === start) return;
+    if (balance > start) setGain({ n: balance - start, id: Date.now() });
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setShown(balance);
+      return;
+    }
+    const t0 = performance.now();
+    let raf = 0;
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / 900);
+      setShown(start + (balance - start) * (1 - (1 - p) ** 3));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [balance]);
+  return (
+    <div class={`pond-chip pond-balance${gain ? ' bump' : ''}`} key={gain?.id} aria-label={`${formatPanen(balance)} PANEN`}>
+      <PanenCoin scale={2} />
+      <b>{formatPanen(Math.round(shown * 100) / 100)}</b>
+      {gain && (
+        <span class="pond-gain" aria-hidden="true">
+          +{formatPanen(gain.n)}
+        </span>
       )}
     </div>
   );
