@@ -14412,10 +14412,10 @@ html.duel-open .duel-bg .backdrop * {
 .pond-leaf {
   position: absolute;
   top: -4%;
-  width: 4px;
-  height: 3px;
+  display: block;
+  line-height: 0;
   opacity: 0;
-  box-shadow: 1px 1px 0 color-mix(in srgb, var(--ink) 30%, transparent);
+  filter: drop-shadow(1px 1px 0 color-mix(in srgb, var(--ink) 30%, transparent));
   animation: pond-leaf 12s linear infinite;
 }
 
@@ -14428,17 +14428,17 @@ html.duel-open .duel-bg .backdrop * {
     opacity: 1;
   }
   35% {
-    transform: translate(calc(var(--drift) * 0.4cqw), 40cqh) rotate(90deg);
+    transform: translate(calc(var(--drift) * 0.4cqw), 40cqh) rotate(50deg);
   }
   65% {
-    transform: translate(calc(var(--drift) * 0.2cqw), 72cqh) rotate(200deg);
+    transform: translate(calc(var(--drift) * 0.2cqw), 72cqh) rotate(-20deg);
   }
   92% {
     opacity: 0.9;
   }
   100% {
     opacity: 0;
-    transform: translate(calc(var(--drift) * 1cqw), 108cqh) rotate(320deg);
+    transform: translate(calc(var(--drift) * 1cqw), 108cqh) rotate(70deg);
   }
 }
 

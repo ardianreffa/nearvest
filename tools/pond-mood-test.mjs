@@ -61,7 +61,8 @@ const look = () =>
       ducks: [...document.querySelectorAll('.pond-duck')].map((e) => tr(e)),
       asleep: document.querySelectorAll('.pond-duck.asleep').length,
       zzz: document.querySelectorAll('.pond-zzz').length,
-      leaves: [...document.querySelectorAll('.pond-leaf')].map((e) => getComputedStyle(e).backgroundColor),
+      leaves: [...document.querySelectorAll('.pond-leaf')].map((e) => getComputedStyle(e.querySelector('rect')).fill),
+      leafShape: [...document.querySelectorAll('.pond-leaf')].map((e) => `${e.querySelectorAll('rect').length}:${new Set([...e.querySelectorAll('rect')].map((r) => getComputedStyle(r).fill)).size}`),
       tint: document.querySelector('.pond-tint')?.className,
       rain: document.querySelectorAll('.pond-rain .wx-rain-layer').length,
       rings: document.querySelectorAll('.rain-ring').length,
@@ -107,7 +108,7 @@ for (const L of LOOKS) {
   check(a.time === L.time && a.weather === L.weather, `${L.q}: pond time ${a.time}, weather ${a.weather}`);
   check(a.frogs.length === 4 && a.ducks.length === 3, `${L.q}: 4 frogs, 3 ducks`);
   check(a.tree && a.treeAnim === 'pond-sway', `${L.q}: the big tree sways (${a.treeAnim})`);
-  check(a.leaves.length === 5, `${L.q}: 5 falling leaves`);
+  check(a.leaves.length === 5 && a.leafShape.every((x) => +x.split(':')[0] >= 12 && x.split(':')[1] === '2'), `${L.q}: 5 falling pixel leaves with blade + stem (${a.leafShape.join(' ')})`);
   leafColors[L.time] ??= a.leaves[0];
   check(L.time === 'day' ? !/tint-(dusk|night)/.test(a.tint) : a.tint.includes(`tint-${L.time}`), `${L.q}: tint (${a.tint})`);
   check(L.weather === 'rain' ? a.rain === 2 && a.rings === 8 : a.rain === 0 && a.rings === 0, `${L.q}: rain layers ${a.rain}, rings ${a.rings}`);

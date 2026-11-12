@@ -88,6 +88,28 @@ const RAIN_RINGS = [
 
 const rand = () => Math.random();
 
+/**
+ * Falling leaves as small pixel leaves (package 3: they were plain squares): `b` = blade (the time's
+ * colour), `v` = vein and `s` = stem (the same colour, darker). Three shapes.
+ */
+const LEAF_ART = [
+  ['...bbb.', '.bbbbbb', 'svvvvvb', '.bbbbbb', '...bbb.'],
+  ['..bbbb', '.bbbvb', '.bbvbb', 'bbvbb.', '.vbb..', 's.....'],
+  ['..b..', '.bbb.', '.bvb.', 'bbvbb', '.bvb.', '..s..'],
+];
+function LeafArt({ rows, color }: { rows: string[]; color: string }) {
+  const w = rows[0].length;
+  const h = rows.length;
+  const dark = `color-mix(in srgb, var(${color}) 55%, var(--ink))`;
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: `calc(${w} * var(--pk, 1) * 1px)`, height: `calc(${h} * var(--pk, 1) * 1px)` }} shape-rendering="crispEdges">
+      {rows.flatMap((r, y) =>
+        [...r].map((ch, x) => (ch === '.' ? null : <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} style={{ fill: ch === 'b' ? `var(${color})` : dark }} />)),
+      )}
+    </svg>
+  );
+}
+
 export function PondLife({ time, weather, still }: { time: PondTime; weather: PondWeather; still: boolean }) {
   const [frogs, setFrogs] = useState<FrogState[]>(() => startFrogs(rand));
   const [ducks, setDucks] = useState<Duck[]>(() => DUCK_STARTS.map((at, i) => ({ at, dur: 0, right: i === 1, restUntil: 0 })));
@@ -186,7 +208,7 @@ export function PondLife({ time, weather, still }: { time: PondTime; weather: Po
       {!still && (
         <div class="pond-leaves" aria-hidden="true">
           {leaves.map((l, i) => (
-            <i
+            <span
               key={i}
               class="pond-leaf"
               style={{
@@ -194,9 +216,10 @@ export function PondLife({ time, weather, still }: { time: PondTime; weather: Po
                 animationDelay: `${l.delay}s`,
                 animationDuration: `${l.dur}s`,
                 '--drift': String(l.drift),
-                background: `var(${i % 2 ? leafA : leafB})`,
               }}
-            />
+            >
+              <LeafArt rows={LEAF_ART[i % LEAF_ART.length]} color={i % 2 ? leafA : leafB} />
+            </span>
           ))}
         </div>
       )}
