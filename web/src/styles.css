@@ -14574,6 +14574,24 @@ html.duel-open .duel-bg .backdrop * {
   transform-origin: 50% 100%;
 }
 
+/* TaniBot's torch (package 7): drawn in TaniBot's own sprite grid inside its box, so it breathes
+   with TaniBot (same animation, same origin); the grip is behind the body (gripped in the fist), the
+   crystal and its glow in front and never dimmed at night. */
+.pond-bot-body {
+  position: relative;
+}
+
+.held-lamp {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  animation: bot-breathe 3.2s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
 /* Calm changes (package 6): pictures, lights and rain fade over 4 s instead of popping; the dimming
    of the animals at dusk / night follows the same fade. */
 .pond-fade {
@@ -14581,7 +14599,7 @@ html.duel-open .duel-bg .backdrop * {
 }
 
 .pond-life,
-.pond-bot,
+.pond-bot-body,
 .pond-svg,
 .pond-tint {
   transition:
@@ -14658,7 +14676,7 @@ html.duel-open .duel-bg .backdrop * {
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
-  animation: lake-wave 16s linear infinite;
+  animation: lake-wave var(--wave-s, 16s) linear infinite;
 }
 
 /* A wave grows from the waterfall's foot over the whole lake, faint, fading as it travels. */
@@ -14668,10 +14686,10 @@ html.duel-open .duel-bg .backdrop * {
     transform: scale(0.06);
   }
   10% {
-    opacity: 0.45;
+    opacity: var(--wave-peak, 0.45);
   }
   70% {
-    opacity: 0.18;
+    opacity: calc(var(--wave-peak, 0.45) * 0.4);
   }
   100% {
     opacity: 0;
@@ -14848,21 +14866,20 @@ html.duel-open .duel-bg .backdrop * {
   pointer-events: none;
 }
 
-.pond-tint.tint-morning {
-  background: color-mix(in srgb, var(--gold-300) 26%, transparent);
-  mix-blend-mode: soft-light;
-}
+/* Package 7 (Ardian saw a white "fog" on the pond): the morning had a gold soft-light veil over
+   the whole picture (05:00-10:00 on the village clock), which washed every colour out evenly. It was
+   not meant as fog and is gone: the morning shows the day picture as it is. */
 
 /* Dusk and night: Ardian's ChatGPT pictures (pond.tsx). The code-drawn animals, TaniBot, the rod and
    the water effects are dimmed to match them. */
 .pond-dusk .pond-life,
-.pond-dusk .pond-bot,
+.pond-dusk .pond-bot-body,
 .pond-dusk .pond-svg {
   filter: sepia(0.2) brightness(0.92);
 }
 
 .pond-night .pond-life,
-.pond-night .pond-bot,
+.pond-night .pond-bot-body,
 .pond-night .pond-svg {
   filter: brightness(0.62) saturate(0.85);
 }
@@ -15076,7 +15093,7 @@ html.duel-open .duel-bg .backdrop * {
   border-radius: 50%;
   pointer-events: none;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--foam, var(--paper-light)) 80%, transparent), transparent);
-  animation: fall-lip 0.7s steps(3) infinite;
+  animation: fall-lip 1s steps(3) infinite;
 }
 
 @keyframes fall-lip {
@@ -15089,27 +15106,25 @@ html.duel-open .duel-bg .backdrop * {
   }
 }
 
-/* Foam spreading out from the foot over the pool. */
+/* Foam rings spreading out from the foot over the pool (package 7: SVG rings inside the water mask,
+   their back half fading toward the fall, so they never cross the rocks or the falling water). */
 .fall-spread {
-  position: absolute;
-  width: calc(2 * var(--r));
-  height: var(--r);
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  pointer-events: none;
-  border: 2px solid color-mix(in srgb, var(--foam, var(--paper-light)) 70%, transparent);
+  stroke: var(--foam, var(--paper-light));
+  stroke-width: 1;
   opacity: 0;
-  animation: fall-spread 2.7s ease-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fall-spread 3.8s ease-out infinite;
 }
 
 @keyframes fall-spread {
   0% {
-    opacity: 0.8;
-    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0.7;
+    transform: scale(0.4);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(2.4);
+    transform: scale(2.2);
   }
 }
 
@@ -15121,7 +15136,7 @@ html.duel-open .duel-bg .backdrop * {
   border-radius: 50%;
   pointer-events: none;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--foam, var(--paper-light)) 85%, transparent), transparent);
-  animation: fall-foam 1.6s ease-in-out infinite;
+  animation: fall-foam 2.2s ease-in-out infinite;
 }
 
 .pond-dusk .fall-lip,
@@ -15198,6 +15213,21 @@ html.duel-open .duel-bg .backdrop * {
   transform: translate(-50%, -50%);
   filter: drop-shadow(3px 4px 0 color-mix(in srgb, var(--ink) 45%, transparent));
   animation: pond-jump 0.8s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* Package 7: the whole catch show (catch, splash, sparkles) fades out once it has played. */
+.pond-result-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: pond-result-gone 0.6s ease-in 2.4s forwards;
+}
+
+@keyframes pond-result-gone {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
 }
 
 /* The result per tier (fishing-logic.ts catchTier): junk wobbles out with a small plop ring; a fish
@@ -15722,6 +15752,7 @@ html.duel-open .duel-bg .backdrop * {
   .pond-fade,
   .pond-life,
   .pond-bot,
+  .pond-bot-body,
   .pond-svg,
   .pond-tint,
   .pond-rain-rings {
@@ -15729,7 +15760,13 @@ html.duel-open .duel-bg .backdrop * {
     animation-duration: 0s !important;
   }
 
+  /* The catch still leaves the lake (no movement, it just goes). */
+  .pond-result-fx {
+    animation: pond-result-gone 0.01s 2.4s forwards !important;
+  }
+
   /* The pond's life stands still. */
+  .held-lamp,
   .pond-tree,
   .pond-glint,
   .lake-wave,

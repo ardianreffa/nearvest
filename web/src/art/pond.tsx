@@ -68,8 +68,11 @@ const C = {
  * water's slant there (a skewed layer), a little faster on each lower step. White spray flickers on each
  * step's lip, and foam spreads out at the foot. Day / dusk / night textures fade like the pictures.
  */
+/** Package 7 (Ardian): the water flows a little slower (every step, lips and foam). */
+const FALL_SLOW = 1.4;
+
 function Waterfall({ mix, k, L }: { mix: { dusk: number; night: number }; k: number; L: PondLayout }) {
-  const { box: FALL_BOX, steps: FALL_STEPS, lips: FALL_LIPS, foam: FOAM_PUFFS, spread } = L.fall;
+  const { box: FALL_BOX, steps: FALL_STEPS, lips: FALL_LIPS, foam: FOAM_PUFFS } = L.fall;
   const layers: [string, number][] = [
     ['day', 1],
     ['dusk', mix.dusk],
@@ -93,7 +96,7 @@ function Waterfall({ mix, k, L }: { mix: { dusk: number; night: number }; k: num
             <i
               key={t}
               class={`fall-flow fall-${t} pond-fade`}
-              style={{ opacity: o, transform: `skewX(${st.skew}deg)`, animationDuration: `${st.s}s`, backgroundImage: `url('${L.fall.tex[t as 'day' | 'dusk' | 'night']}')` }}
+              style={{ opacity: o, transform: `skewX(${st.skew}deg)`, animationDuration: `${(st.s * FALL_SLOW).toFixed(2)}s`, backgroundImage: `url('${L.fall.tex[t as 'day' | 'dusk' | 'night']}')` }}
             />
           ))}
         </div>
@@ -103,9 +106,6 @@ function Waterfall({ mix, k, L }: { mix: { dusk: number; night: number }; k: num
       ))}
       {FOAM_PUFFS.map(([x, y, r], i) => (
         <i key={i} class="fall-foam" style={{ ...pondAt(x, y, L), '--r': `${r * k}px`, animationDelay: `${-i * 0.37}s` }} aria-hidden="true" />
-      ))}
-      {[0, 1, 2].map((i) => (
-        <i key={`s${i}`} class="fall-spread" style={{ ...pondAt(spread[0], spread[1], L), '--r': `${12 * k}px`, animationDelay: `${-i * 0.9}s` }} aria-hidden="true" />
       ))}
     </>
   );
@@ -223,14 +223,19 @@ export function PondScene({
       {bot && (
         <div class="pond-bot" style={{ ...pondAt(L.bot.x, L.bot.y, L), '--bot-k': String((k * BOT_H) / 64) }}>
           {/* An own box for the size and the facing: TaniBot's idle animation sets its own transform. */}
-          <div class="pond-bot-in">{bot}</div>
+          <div class="pond-bot-in">
+            <div class="pond-bot-body">
+              {/* The torch's bamboo grip and box BEHIND TaniBot: its own hand pixels cover the grip, so
+                  it is gripped in the fist (package 7: the lamp floated beside it). */}
+              <HeldLamp part="body" on={dark} />
+              {bot}
+            </div>
+            <HeldLamp part="glow" on={dark} />
+          </div>
         </div>
       )}
       <svg class="pond-svg pond-rod-layer" viewBox={`0 0 ${L.w} ${L.h}`} aria-hidden="true">
         {/* In front of TaniBot: the rod from its hands out over the water, then the line and the float. */}
-        <g class="pond-fade" style={{ opacity: dark ? 1 : 0 }}>
-          <LampStaff L={L} />
-        </g>
         <Rod pose={pose} spin={phase === 'reeling' ? ms : 0} />
         <path class="pond-line" d={`M${pose.tip.x} ${pose.tip.y} Q${pose.line.x} ${pose.line.y} ${f.x} ${f.y}`} fill="none" stroke={C.line} stroke-width={0.9} />
         <g class="pond-float-at" transform={`translate(${f.x} ${f.y}) scale(${fs})`}>
@@ -255,14 +260,8 @@ export function PondScene({
               <stop offset="1" style={{ stopColor: 'var(--cyan-300)', stopOpacity: 0 }} />
             </radialGradient>
           </defs>
-          {/* The lamp's light around TaniBot on the dock, its halo, and the crystal itself. */}
+          {/* The lamp's light on the dock around TaniBot (the crystal and its halo move with TaniBot: HeldLamp). */}
           <ellipse class="lamp-pool" cx={lampAt(L).x + 6} cy={L.bot.y - 2} rx={30} ry={13} fill="url(#pond-glow-mint)" />
-          <circle class="lamp-halo" cx={lampAt(L).x} cy={lampAt(L).y} r={12} fill="url(#pond-glow-mint)" />
-          <g shape-rendering="crispEdges">
-            <rect x={lampAt(L).x - 2} y={lampAt(L).y - 2} width={4} height={4} fill={C.crystal} />
-            <rect x={lampAt(L).x - 1} y={lampAt(L).y - 3} width={2} height={6} fill={C.crystal} />
-            <rect x={lampAt(L).x - 0.5} y={lampAt(L).y - 1.5} width={1} height={2} fill={C.crystalCore} />
-          </g>
           {/* The float glows, and so does its reflection on the water. */}
           <ellipse class="float-reflect" cx={f.x} cy={f.y + 4} rx={4} ry={1.6} fill="url(#pond-glow-warm)" />
           <circle class="float-glow" cx={f.x} cy={f.y} r={8} fill="url(#pond-glow-warm)" />
@@ -293,36 +292,58 @@ function band(p: RodPose, t: number, half: number): { x1: number; y1: number; x2
 }
 
 /**
- * TaniBot's night lamp (package 4; a SHORT torch since package 5, own design): held in its left hand
- * (the side away from the rod), a short bamboo grip with one node, a small dark lantern box with
- * rivets on its corners and a glowing mint crystal inside, a tiny leaf on top (solarpunk). The grip
- * and box are drawn with the rod (dimmed with TaniBot at night); the crystal and its light are in
- * `.pond-lights` (never dimmed). From the hand up to about head height.
+ * TaniBot's night lamp (package 4; a short torch since package 5, own design; package 7: really HELD).
+ * Drawn in TaniBot's own 58 x 64 sprite grid, inside its mirrored box, so it moves with TaniBot's
+ * breathing and fits every tier (they share the original's body outline). The bamboo grip runs through
+ * the fist on the side away from the rod (sprite px LAMP_HAND; the body is drawn over it there, so the
+ * fingers wrap the grip), leaning outward; on top a small dark lantern box with corner rivets and a tiny
+ * leaf (solarpunk). part "body" = grip + box (dimmed with TaniBot at night); part "glow" = the mint
+ * crystal and its halo (never dimmed).
  */
-const lampAt = (L: PondLayout) => ({ x: L.bot.x - 17, y: L.bot.y - 33 });
-function LampStaff({ L }: { L: PondLayout }) {
-  const { x, y } = lampAt(L);
+export const LAMP_HAND: Pt = { x: 43, y: 50 };
+const LAMP_TILT = 30;
+/** The lantern box's middle in the sprite grid (the grip is 19 sprite px from the fist to the box). */
+export const LAMP_BOX: Pt = {
+  x: LAMP_HAND.x + Math.sin((LAMP_TILT * Math.PI) / 180) * 19,
+  y: LAMP_HAND.y - Math.cos((LAMP_TILT * Math.PI) / 180) * 19,
+};
+/** The lantern's middle in pond grid px (TaniBot is mirrored and BOT_H / 64 grid px per sprite px). */
+const lampAt = (L: PondLayout) => ({ x: L.bot.x - (LAMP_BOX.x + 0.5 - 29) * (BOT_H / 64), y: L.bot.y - (64 - LAMP_BOX.y - 0.5) * (BOT_H / 64) });
+function HeldLamp({ part, on }: { part: 'body' | 'glow'; on: boolean }) {
+  const { x, y } = LAMP_HAND;
   return (
-    <g class="pond-lamp" shape-rendering="crispEdges">
-      {/* grip: from the box down to just below the hand */}
-      <rect x={x - 1.5} y={y + 3.5} width={3} height={14} fill={C.rodDark} />
-      <rect x={x - 0.75} y={y + 3.5} width={1.5} height={13.2} fill={C.bamboo} />
-      <rect x={x - 1} y={y + 10} width={2} height={0.8} fill={C.node} />
-      {/* the lantern box: dark frame, corner rivets (the crystal glows inside, .pond-lights) */}
-      <rect x={x - 4} y={y - 4} width={8} height={8} fill={C.rodDark} />
-      <rect x={x - 3} y={y - 3} width={6} height={6} fill={C.lampGlass} />
-      {[
-        [-4, -4],
-        [3, -4],
-        [-4, 3],
-        [3, 3],
-      ].map(([dx, dy]) => (
-        <rect key={`${dx}${dy}`} x={x + dx} y={y + dy} width={1} height={1} fill={C.reel} />
-      ))}
-      <rect x={x - 2} y={y - 5} width={4} height={1} fill={C.rodDark} />
-      {/* a tiny leaf on the cap */}
-      <path d={`M${x} ${y - 5} q 1 -3 4 -3 q -1 3 -4 3 z`} fill={C.leaf} stroke={C.rodDark} stroke-width={0.35} />
-    </g>
+    <svg class={`held-lamp held-lamp-${part} pond-fade`} style={{ opacity: on ? 1 : 0 }} viewBox="0 0 58 64" aria-hidden="true">
+      <g transform={`rotate(${LAMP_TILT} ${x + 0.5} ${y + 0.5})`} shape-rendering="crispEdges">
+        {part === 'body' ? (
+          <>
+            {/* grip: from just below the fist up to the box */}
+            <rect x={x - 1} y={y - 15} width={3} height={22} fill={C.rodDark} />
+            <rect x={x} y={y - 15} width={1} height={21} fill={C.bamboo} />
+            <rect x={x - 0.5} y={y - 9} width={2} height={1} fill={C.node} />
+            {/* the lantern box: dark frame, corner rivets, the glass (the crystal glows in part "glow") */}
+            <rect x={x - 4} y={y - 23} width={9} height={9} fill={C.rodDark} />
+            <rect x={x - 3} y={y - 22} width={7} height={7} fill={C.lampGlass} />
+            {[
+              [-4, -23],
+              [4, -23],
+              [-4, -15],
+              [4, -15],
+            ].map(([dx, dy]) => (
+              <rect key={`${dx}${dy}`} x={x + dx} y={y + dy} width={1} height={1} fill={C.reel} />
+            ))}
+            <rect x={x - 2} y={y - 24} width={5} height={1} fill={C.rodDark} />
+            <path d={`M${x + 0.5} ${y - 24} q 1 -3 4 -3 q -1 3 -4 3 z`} fill={C.leaf} stroke={C.rodDark} stroke-width={0.35} />
+          </>
+        ) : (
+          <>
+            <circle class="lamp-halo" cx={x + 0.5} cy={y - 18.5} r={13} fill="url(#pond-glow-mint)" />
+            <rect x={x - 1.5} y={y - 21} width={4} height={5} fill={C.crystal} />
+            <rect x={x - 0.5} y={y - 22} width={2} height={7} fill={C.crystal} />
+            <rect x={x} y={y - 20} width={1} height={2} fill={C.crystalCore} />
+          </>
+        )}
+      </g>
+    </svg>
   );
 }
 

@@ -64,8 +64,22 @@ interface Duck {
   right: boolean;
 }
 
-/** Waves leave the waterfall's foot one after another (seconds: animation delays of a 16 s loop). */
-const WAVES = [0, -4, -8, -12];
+/** Waves leave the waterfall's foot one after another (animation delays, in loops). */
+const WAVES = [0, -0.25, -0.5, -0.75];
+
+/**
+ * The fade of the rings' back half: a gradient along the line from the waterfall's middle through the
+ * foot, hidden behind the foot (toward the fall), fully shown a little in front of it.
+ */
+export function ringFade(L: PondLayout): { x1: number; y1: number; x2: number; y2: number } {
+  const [sx, sy] = L.fall.spread;
+  const cx = L.fall.box.x + L.fall.box.w / 2;
+  const cy = L.fall.box.y + L.fall.box.h / 2;
+  const n = Math.hypot(sx - cx, sy - cy) || 1;
+  const vx = (sx - cx) / n;
+  const vy = (sy - cy) / n;
+  return { x1: sx - vx * 4, y1: sy - vy * 4, x2: sx + vx * 18, y2: sy + vy * 18 };
+}
 
 const rand = () => Math.random();
 
@@ -217,16 +231,31 @@ export function PondLife({
             <rect key={i} class="pond-glint" x={x} y={y} width={w} height={1} style={{ animationDelay: `${-i * 1.3}s` }} />
           ))}
         </g>
-        {/* Small waves spreading slowly from the waterfall over the whole lake (only on the water). */}
+        {/* Waves spreading from the waterfall's foot (only on the water). Package 7 (Ardian): their back
+            half, toward the waterfall and its rocks, fades out, so no ring is ever drawn over a rock or
+            the falling water; on phones they stay small and near the foot. */}
         <defs>
-          <mask id="pond-water-mask" maskUnits="userSpaceOnUse" x={0} y={0} width={L.w} height={L.h}>
+          <mask id={`pond-water-mask-${L.key}`} maskUnits="userSpaceOnUse" x={0} y={0} width={L.w} height={L.h}>
             <image href={L.waves.mask} x={0} y={0} width={L.w} height={L.h} preserveAspectRatio="none" />
           </mask>
+          <linearGradient id={`pond-ring-fade-${L.key}`} gradientUnits="userSpaceOnUse" {...ringFade(L)}>
+            <stop offset={0} style={{ stopColor: 'var(--paper-light)', stopOpacity: 0 }} />
+            <stop offset={1} style={{ stopColor: 'var(--paper-light)', stopOpacity: 1 }} />
+          </linearGradient>
+          <mask id={`pond-front-mask-${L.key}`} maskUnits="userSpaceOnUse" x={0} y={0} width={L.w} height={L.h}>
+            <rect x={0} y={0} width={L.w} height={L.h} fill={`url(#pond-ring-fade-${L.key})`} />
+          </mask>
         </defs>
-        <g class="pond-waves" mask="url(#pond-water-mask)" fill="none" stroke="var(--paper-light)">
-          {WAVES.map((d, i) => (
-            <ellipse key={i} class="lake-wave" cx={L.waves.x} cy={L.waves.y} rx={L.waves.rx} ry={L.waves.ry} vector-effect="non-scaling-stroke" style={{ animationDelay: `${d}s` }} />
-          ))}
+        <g class="pond-waves" mask={`url(#pond-water-mask-${L.key})`} fill="none" stroke="var(--paper-light)" style={{ '--wave-s': `${L.waves.s}s`, '--wave-peak': String(L.waves.peak) }}>
+          <g mask={`url(#pond-front-mask-${L.key})`}>
+            {WAVES.map((d, i) => (
+              <ellipse key={i} class="lake-wave" cx={L.waves.x} cy={L.waves.y} rx={L.waves.rx} ry={L.waves.ry} vector-effect="non-scaling-stroke" style={{ animationDelay: `${d * L.waves.s}s` }} />
+            ))}
+            {/* Foam rings right at the foot (were HTML rings drawn over the rocks). */}
+            {[0, 1, 2].map((i) => (
+              <ellipse key={`s${i}`} class="fall-spread" cx={L.fall.spread[0]} cy={L.fall.spread[1]} rx={12} ry={6} style={{ animationDelay: `${-i * 1.15}s` }} />
+            ))}
+          </g>
         </g>
         {weather === 'rain' && (
           <g class="pond-rain-rings" fill="none" stroke="var(--cyan-300)" stroke-width={0.8}>

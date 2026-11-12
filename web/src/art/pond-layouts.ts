@@ -32,8 +32,12 @@ export interface PondLayout {
   };
   /** Where ducks never swim (the waterfall's foot). */
   waterfallFoot: Box;
-  /** Waves spread from here over the lake (grid), as big as this, masked to the water picture. */
-  waves: { x: number; y: number; rx: number; ry: number; mask: string };
+  /**
+   * Waves spread from here over the lake (grid), as big as this, masked to the water picture; one wave
+   * takes `s` seconds and is at most `peak` opaque. Their back half (toward the waterfall and its rocks)
+   * fades out (package 7).
+   */
+  waves: { x: number; y: number; rx: number; ry: number; mask: string; s: number; peak: number };
   /** TaniBot's feet, its hands, the float, the rod's length and its angles (degrees). */
   bot: Pt;
   hands: Pt;
@@ -84,7 +88,7 @@ export const WIDE: PondLayout = {
     spread: [389, 58],
   },
   waterfallFoot: [366, 44, 54, 30],
-  waves: { x: 392, y: 64, rx: 300, ry: 130, mask: '/assets/bg/fishing-pond-water.png' },
+  waves: { x: 392, y: 64, rx: 300, ry: 130, mask: '/assets/bg/fishing-pond-water.png', s: 16, peak: 0.45 },
   bot: { x: 62, y: 130 },
   hands: { x: 75, y: 107 },
   float: { x: 250, y: 142 },
@@ -185,7 +189,9 @@ export const PHONE: PondLayout = {
     spread: gp(395, 268),
   },
   waterfallFoot: [g(360), g(240), g(70), g(40)],
-  waves: { x: g(395), y: g(270), rx: 300, ry: 320, mask: '/assets/bg/fishing-pond-phone-water.png' },
+  // Package 7 (Ardian): the big oval crossing the whole lake was ugly; small, faint, quick rings near
+  // the waterfall's foot only.
+  waves: { x: g(395), y: g(270), rx: 46, ry: 22, mask: '/assets/bg/fishing-pond-phone-water.png', s: 5, peak: 0.3 },
   // The dock reaches x 92, rows 330..365 (picture px): TaniBot stands near its end.
   bot: { x: 53, y: 255 },
   hands: { x: 66, y: 232 },

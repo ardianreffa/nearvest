@@ -288,24 +288,28 @@ export function FishingWindow({
               !
             </span>
           )}
-          {tier && tier !== 'junk' && (
-            <span class={`pond-splash splash-${tier}`} style={pondAt(L.float.x, L.float.y, L)} aria-hidden="true">
-              {(tier === 'item' ? ITEM_GLINTS : tier === 'gourami' || tier === 'legend' ? CONFETTI : DROPS).map(([dx, dy], i) => (
-                <i key={i} style={{ '--dx': dx, '--dy': dy, animationDelay: `${(i % 4) * 40}ms` }} />
-              ))}
-            </span>
-          )}
-          {tier === 'junk' && <span class="pond-plop" style={pondAt(L.float.x, L.float.y, L)} aria-hidden="true" />}
-          {c?.moment === 'golden_arowana' &&
-            SPARKS.map(([x, y], i) => (
-              <span key={i} class="pond-spark" style={{ ...pondAt(L.float.x + x, L.float.y + y, L), animationDelay: `${200 + i * 120}ms` }} aria-hidden="true">
-                <Sprite name="sparkle" scale={2} />
-              </span>
-            ))}
+          {/* The catch's show at the float (package 7): it fades away once it has played, so no fish
+              (or boot, or seed) is left floating in the lake. */}
           {c && (
-            <span class={`pond-catch tier-${tier}${c.released ? ' released' : ''}`} style={pondAt(L.float.x, L.float.y, L)} aria-hidden="true">
-              <CatchIcon id={c.catch} scale={2} />
-            </span>
+            <div class="pond-result-fx" key={since}>
+              {tier !== 'junk' && (
+                <span class={`pond-splash splash-${tier}`} style={pondAt(L.float.x, L.float.y, L)} aria-hidden="true">
+                  {(tier === 'item' ? ITEM_GLINTS : tier === 'gourami' || tier === 'legend' ? CONFETTI : DROPS).map(([dx, dy], i) => (
+                    <i key={i} style={{ '--dx': dx, '--dy': dy, animationDelay: `${(i % 4) * 40}ms` }} />
+                  ))}
+                </span>
+              )}
+              {tier === 'junk' && <span class="pond-plop" style={pondAt(L.float.x, L.float.y, L)} aria-hidden="true" />}
+              {c.moment === 'golden_arowana' &&
+                SPARKS.map(([x, y], i) => (
+                  <span key={i} class="pond-spark" style={{ ...pondAt(L.float.x + x, L.float.y + y, L), animationDelay: `${200 + i * 120}ms` }} aria-hidden="true">
+                    <Sprite name="sparkle" scale={2} />
+                  </span>
+                ))}
+              <span class={`pond-catch tier-${tier}${c.released ? ' released' : ''}`} style={pondAt(L.float.x, L.float.y, L)} aria-hidden="true">
+                <CatchIcon id={c.catch} scale={2} />
+              </span>
+            </div>
           )}
         </PondScene>
       </div>
