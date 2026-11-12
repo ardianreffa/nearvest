@@ -376,3 +376,39 @@ dock's end, so the phone rod rests low and swings back down-left (never over a p
 across the width at the top, smaller when needed so at least 200 px stay free below the lake for the
 controls (390x664: 316 px wide). Tests: `web/test/rod-pose.test.ts`, `web/test/pond-life.test.ts`
 (phone), `tools/fishing-test.mjs` and `tools/pond-mood-test.mjs` at 390x844 / 390x664.
+
+## 16. Package 7 (Ardian 2026-11-12, last before the release) — BUILT 2026-11-12 (committed locally, not pushed)
+
+Day / dusk / night changes were checked by Ardian and are unchanged.
+
+- **Rings at the waterfall:** the waves and the foam rings are SVG ellipses inside the lake's water
+  mask, and a gradient along the line from the fall's middle through its foot hides their back half
+  (`ringFade` in `art/pond-life.tsx`): no ring over a rock or the falling water. Phones: small (46 x 22
+  grid px), faint (0.3), quick (5 s) rings near the foot only (`waves` in `pond-layouts.ts`).
+- **Waterfall** 1.4x slower (`FALL_SLOW`), lips and foam too.
+- **White "fog":** measured layer by layer (each overlay hidden in turn): the morning tint, a gold
+  soft-light veil over the whole pond from 05:00 to 10:00, washed every colour out evenly (+5
+  brightness). Not meant as fog: removed. Rain only darkens (multiply); no other layer whitens.
+- **Torch held:** drawn in TaniBot's own 58 x 64 sprite grid inside its box (`HeldLamp`, `LAMP_HAND`
+  = the fist away from the rod): the grip runs behind the body, so the fist covers it; it breathes
+  with TaniBot (same animation); the crystal's glow is never dimmed. Same for every tier.
+- **Catch leaves the lake:** the catch, splash and sparkles are one `.pond-result-fx` that fades out
+  2.4 s after the result (also with reduced motion).
+- **Phones full screen:** `pondFit` phone = full width always; the picture moves up (at most 72 grid
+  px of jungle off screen, `PHONE_TOP_CROP`) when the controls need room (`PHONE_PANEL_MIN` 165);
+  below the picture its own ground continues (`tools/pixelize/pond_ground.py`, quilted wavy seams,
+  drawn over the picture's last 16 rows) with the same rain / tint (`.pond-ground-mood`). No blur.
+- **Compact phone panel:** catch card = small icon, name, reward chip + one short line; the hint is
+  one line; "What can I catch?" is a small link next to the button; after the last cast the card's
+  line is "Come back at 07:00 WIB (in ...)" and the button "No casts left".
+- **Same cast on phones:** the phone rod uses the laptop's angles; the lily pad in the rod's reach
+  has no frog any more (frogs[0] sits on the pad next to it; `crittersOf` = pads frogs use). Lines
+  sag at right angles to themselves (`sag` in `rod-pose.ts`), so the steep phone line curves too.
+- **HUD:** village clock (`clockText`, AM / PM), the village weather chip, laptop fullscreen button
+  (`useFullscreen`, hidden on phones like the village).
+- **Sounds:** ducks quack audibly (not at night), frogs ribbit at 400-600 Hz (the old ~100 Hz croak
+  is below what phone speakers play), louder jump splash, waterfall / rain / birds softer, crickets
+  louder. Dev builds log every pond sound (`window.__pondLog`) and its level (`__pondLevel`);
+  `tools/pond-sound-test.mjs` listens 30 s per time / weather and checks what is heard and how loud
+  over the waterfall (1.4x to 6x).
+
