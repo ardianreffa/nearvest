@@ -22,10 +22,12 @@ const place = (art: ArenaArt, [x, y, w, h]: Box) => ({ left: pct(x, art.w), top:
  * stage's top) so its TaniBots stand on the ring. Without it (the landing page) the picture follows
  * the fight floor as before.
  */
-export function DuelBackdrop({ fraction, wide, onFeet }: { fraction: number; wide: boolean; onFeet?: (feet: number) => void }) {
+export function DuelBackdrop({ fraction, wide, onFeet, hold = false }: { fraction: number; wide: boolean; onFeet?: (feet: number) => void; /** Never move DOWN (the K.O. dock is shorter); only up for a taller panel. */ hold?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number; feet: number; dock: number } | null>(null);
   const full = !!onFeet;
+  const holdRef = useRef(hold);
+  holdRef.current = hold;
   useLayoutEffect(() => {
     const el = ref.current;
     const stage = el?.parentElement;
@@ -38,7 +40,11 @@ export function DuelBackdrop({ fraction, wide, onFeet }: { fraction: number; wid
       const d = dockEl()?.getBoundingClientRect();
       const dock = d && d.height ? Math.round(d.top - s.top) : s.height;
       const feet = full ? 0 : floor ? floor.getBoundingClientRect().bottom - 6 - s.top : s.height * 0.85;
-      setSize((o) => (o && o.w === s.width && o.h === s.height && o.feet === feet && o.dock === dock ? o : { w: s.width, h: s.height, feet, dock }));
+      setSize((o) => {
+        // Held (K.O. / result): the dock's top may only move up, so nothing drops when the panel shrinks.
+        const d = o && holdRef.current && o.w === s.width && o.h === s.height ? Math.min(o.dock, dock) : dock;
+        return o && o.w === s.width && o.h === s.height && o.feet === feet && o.dock === d ? o : { w: s.width, h: s.height, feet, dock: d };
+      });
     };
     measure();
     const ro = new ResizeObserver(measure);

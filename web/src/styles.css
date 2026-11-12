@@ -16664,9 +16664,11 @@ html.pond-open .hud * {
   }
 }
 
-/* K.O.: the buttons keep their room (hidden) until the result shows. */
-.match-dock-panel > .match-controls.gone {
-  visibility: hidden;
+/* The dock never leaves the screen: at most the screen minus the title bar; its content scrolls
+   inside in the (rare) case that it does not fit. */
+.match-dock-panel {
+  max-height: calc(100dvh - 76px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
 }
 
 /* The result panel is taller than the buttons: the arena and the TaniBots glide up once. */
@@ -16702,4 +16704,10 @@ html.pond-open .hud * {
 .match-dock-panel .match-why {
   height: calc(2 * 1.35em + 2px);
   line-height: 1.35;
+}
+
+/* "VS / FIGHT!" sits in the open arena above the TaniBots' feet line, never behind the dock
+   (short laptop windows). */
+.duel.match.full .fight-stage.has-feet .duel-intro {
+  bottom: calc(100% - var(--feet));
 }

@@ -215,16 +215,19 @@ export function MatchScreen({
   // "FIGHT!" (~1.8 s). Only a picture on top: the turn clock and the buttons are not held up.
   const [introAt, setIntroAt] = useState(0);
   const introShown = useRef(false);
+  const introTimer = useRef<number>();
   const [, setTick] = useState('');
   const mRef = useRef(m);
   useEffect(() => {
     if (introShown.current || reduced || m.status !== 'playing' || m.turns.length > 0) return;
     introShown.current = true;
     setIntroAt(Date.now());
-    const t = window.setTimeout(() => setIntroAt(0), INTRO_MS);
-    return () => window.clearTimeout(t);
+    // Not cleared when the first turn comes quickly (that left "VS / FIGHT!" on screen after every
+    // turn); only when the duel closes.
+    introTimer.current = window.setTimeout(() => setIntroAt(0), INTRO_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [m.status, m.turns.length]);
+  useEffect(() => () => window.clearTimeout(introTimer.current), []);
   mRef.current = m;
   const asking = useRef(false);
 
@@ -452,7 +455,7 @@ export function MatchScreen({
         </header>
 
         <div class={`fight-stage with-village${shake}${reduced ? ' still' : ''}${gold ? ' gold-on' : ''}${feet === null ? '' : ' has-feet'}${settled ? ' settled' : ''}`} style={feet === null ? undefined : { '--feet': `${feet}px` }}>
-          <DuelBackdrop fraction={fraction} wide={wide} onFeet={setFeet} />
+          <DuelBackdrop fraction={fraction} wide={wide} onFeet={setFeet} hold={over} />
           {gold && frame && <GoldStageFx frame={frame} reduced={reduced} />}
           <div class="fight-hud">
             <FighterHud side={me} hp={hp[0]} right={false} skill={{ n: skill[0], max: m.skillMax }} />
@@ -546,9 +549,10 @@ export function MatchScreen({
           </div>
         )}
 
-        {/* During K.O. the buttons stay in place, hidden, so the dock (and the TaniBots above it) do not jump. */}
-        {!done && m.status !== 'invite' && (
-          <div class={`match-controls${over ? ' gone' : ''}`} aria-hidden={over} inert={over}>
+        {/* At K.O. the buttons go and the dock shrinks to its text; the arena and TaniBots hold their
+            place (DuelBackdrop hold), they only move up for the taller result panel. */}
+        {!over && m.status !== 'invite' && (
+          <div class="match-controls">
             {/* The timer's row is always there (hidden between turns), so the dock never changes height. */}
             {idle && clock ? (
               <TurnTimer clock={clock} now={clockNow} />
