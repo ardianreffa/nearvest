@@ -15136,11 +15136,29 @@ html.duel-open .duel-bg .backdrop * {
   pointer-events: none;
 }
 
+/* Package 7b: the Fishing window's rain covers the screen (not the oversized pond picture) and its
+   drops need no will-change (the running animation already gives them their own small layer). */
+.pond-rain-screen .wx-rain-layer {
+  will-change: auto;
+}
+
+/* Rain darkens the day a little: a plain see-through layer (package 7b: no multiply blend, which
+   made the GPU redraw the whole pond picture under it on every frame of the rain). */
 .pond-rain-on .pond-tint.tint-day,
 .pond-rain-on .pond-tint.tint-morning {
-  background: color-mix(in srgb, var(--hud) 40%, var(--cyan-700));
-  opacity: 0.3;
-  mix-blend-mode: multiply;
+  background: color-mix(in srgb, var(--hud) 70%, var(--cyan-700));
+  opacity: 0.26;
+}
+
+/* While the pond is open, the village behind it is covered: it neither draws nor animates. */
+html.pond-open .backdrop,
+html.pond-open .hud {
+  visibility: hidden;
+}
+
+html.pond-open .backdrop *,
+html.pond-open .hud * {
+  animation-play-state: paused;
 }
 
 /* The waterfall (art/pond.tsx Waterfall, package 4): the picture's own waterfall colours slide down

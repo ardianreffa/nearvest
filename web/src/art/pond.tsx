@@ -146,9 +146,12 @@ export function PondScene({
   avoid = [],
   mix = { dusk: 0, night: 0 },
   layout: L = WIDE,
+  rain = true,
   bot,
   children,
 }: {
+  /** false = the caller draws the rain over the whole screen (the Fishing window, package 7b). */
+  rain?: boolean;
   phase: PondPhase;
   since?: number;
   /** The village clock and weather (pond-life-plan.ts: rain only, never ash). */
@@ -267,7 +270,7 @@ export function PondScene({
           <circle class="float-glow" cx={f.x} cy={f.y} r={8} fill="url(#pond-glow-warm)" />
           <circle cx={f.x} cy={f.y - 0.5} r={0.9} fill={C.crystalCore} />
         </svg>
-      <PondMood time={time} weather={weather} layout={L} />
+      <PondMood time={time} weather={weather} layout={L} rain={rain} />
       {children}
     </div>
   );

@@ -65,9 +65,11 @@ const look = () =>
       leafShape: [...document.querySelectorAll('.pond-leaf')].map((e) => `${e.querySelectorAll('rect').length}:${new Set([...e.querySelectorAll('rect')].map((r) => getComputedStyle(r).fill)).size}`),
       tint: document.querySelector('.pond-tint')?.className,
       pics: ['dusk', 'night'].map((t) => { const i = document.querySelector(`.pond-img-${t}`); return i && i.complete && i.naturalWidth === 480 ? Number(getComputedStyle(i).opacity) : 0; }),
-      rain: document.querySelector('.pond .pond-rain') && Number(getComputedStyle(document.querySelector('.pond .pond-rain')).opacity) > 0.99 ? document.querySelectorAll('.pond .pond-rain .wx-rain-layer').length : 0,
-      // Phones (package 7): the same rain over the picture's ground below the pond.
-      groundRain: document.querySelector('.pond-ground-mood .pond-rain') && Number(getComputedStyle(document.querySelector('.pond-ground-mood .pond-rain')).opacity) > 0.99 ? document.querySelectorAll('.pond-ground-mood .wx-rain-layer').length : 0,
+      // Package 7b: ONE rain layer over the whole screen (never inside the oversized pond picture).
+      rain: document.querySelector('.pond-rain-screen') && Number(getComputedStyle(document.querySelector('.pond-rain-screen')).opacity) > 0.99 ? document.querySelectorAll('.pond-rain-screen .wx-rain-layer').length : 0,
+      rainInPond: document.querySelectorAll('.pond .pond-rain, .pond-ground-mood .pond-rain').length,
+      rainBox: (() => { const e = document.querySelector('.pond-rain-screen'); if (!e) return ''; const b = e.getBoundingClientRect(); return `${Math.round(b.left)},${Math.round(b.top)},${Math.round(b.width)},${Math.round(b.height)}`; })(),
+      villageHidden: [...document.querySelectorAll('.backdrop')].every((e) => getComputedStyle(e).visibility === 'hidden'),
       ground: document.querySelectorAll('.pond-ground').length,
       blur: document.querySelectorAll('.pond-backfill').length,
       rings: document.querySelectorAll('.rain-ring').length,
@@ -134,9 +136,11 @@ for (const L of LOOKS) {
   leafColors[L.time] ??= a.leaves[0];
   check(JSON.stringify(a.pics) === JSON.stringify(L.time === 'dusk' ? [1, 0] : L.time === 'night' ? [0, 1] : [0, 0]) && !/tint-(dusk|night)|pond-glow/.test(a.tint), `${L.q}: ${L.time === 'day' ? 'day picture only' : `Ardian's ${L.time} picture`} (dusk ${a.pics[0]}, night ${a.pics[1]}), no code tint`);
   check(L.weather === 'rain' ? a.rain === 2 && a.rings === 8 : a.rain === 0 && a.rings === 0, `${L.q}: rain layers ${a.rain}, rings ${a.rings}`);
+  check(a.rainInPond === 0 && (L.weather === 'rain' ? a.rainBox === `0,0,${W},${H}` : !a.rainBox), `${L.q}: the rain is one screen-sized layer (${a.rainBox || 'none'}), none inside the pond`);
+  check(a.villageHidden, `${L.q}: the village behind the pond is hidden while the pond is open`);
   if (phone) {
     check(a.ground === 3 && a.blur === 0, `${L.q}: phone: the picture's own ground below it, no blurred copy (${a.ground} ground, ${a.blur} blur)`);
-    check(a.groundRain === (L.weather === 'rain' ? 2 : 0), `${L.q}: phone: the same rain over that ground (${a.groundRain})`);
+
   }
   const night = L.time === 'night';
   check(a.lights === (night || L.weather === 'rain'), `${L.q}: ${night || L.weather === 'rain' ? 'the float glows and TaniBot holds its lamp' : 'no lamp by day'} (${a.lights})`);
@@ -185,6 +189,7 @@ for (const L of LOOKS) {
     check(a1.every((t, i) => t !== a2[i]), `waterfall water, foam, lake waves and glints move (${a1.map((t, i) => (t !== a2[i] ? 'moved' : 'STILL')).join(', ')})`);
   }
   await closePond(L.q);
+  check(await pg.evaluate(() => [...document.querySelectorAll('.backdrop')].some((e) => getComputedStyle(e).visibility === 'visible') && !document.documentElement.classList.contains('pond-open')), `${L.q}: the village shows again after leaving`);
   check(!(await look()).sound, `${L.q}: pond sounds stop after leaving`);
   if (first) {
     await pg.waitForTimeout(2500);

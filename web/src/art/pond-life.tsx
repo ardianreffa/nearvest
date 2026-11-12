@@ -352,7 +352,20 @@ export function PondLife({
 
 
 /** The village clock and the rain over everything (above TaniBot and the rod, under the "!" and the catch). */
-export function PondMood({ time, weather, layout: L = WIDE, fireflies = true }: { time: PondTime; weather: PondWeather; layout?: PondLayout; fireflies?: boolean }) {
+export function PondMood({
+  time,
+  weather,
+  layout: L = WIDE,
+  fireflies = true,
+  rain = true,
+}: {
+  time: PondTime;
+  weather: PondWeather;
+  layout?: PondLayout;
+  fireflies?: boolean;
+  /** false = the rain is drawn elsewhere (the Fishing window: one screen-sized rain layer, PondRain). */
+  rain?: boolean;
+}) {
   return (
     <>
       {fireflies && time === 'night' && weather !== 'rain' && (
@@ -368,11 +381,37 @@ export function PondMood({ time, weather, layout: L = WIDE, fireflies = true }: 
       )}
       {/* Dusk and night come from Ardian's pictures now (pond.tsx); only the morning light and rain are tints. */}
       <div class={`pond-tint tint-${time === 'dusk' || time === 'night' ? 'picture' : time}`} aria-hidden="true" />
-      {/* The rain fades in and out (package 6: it popped). */}
-      <div class="pond-rain pond-fade" style={{ opacity: weather === 'rain' ? 1 : 0 }} aria-hidden="true">
-        <i class="wx-rain-layer far" />
-        <i class="wx-rain-layer near" />
-      </div>
+      {rain && <PondRain on={weather === 'rain'} />}
     </>
+  );
+}
+
+/**
+ * The rain's falling drops; they fade in and out (package 6: it popped). Package 7b (Ardian's laptop
+ * glitch in the rain): the Fishing window draws ONE of these over the whole screen (`screen`), never
+ * inside the oversized pond picture: there each drop layer became a ~10000 x 5700 px GPU layer on a
+ * Retina screen, and Chrome then dropped tiles of the pond picture (its top band went blank). Only
+ * mounted while it rains or fades, so a clear pond keeps no moving layers.
+ */
+export function PondRain({ on, screen = false }: { on: boolean; screen?: boolean }) {
+  const [shown, setShown] = useState(on);
+  useEffect(() => {
+    if (on) return setShown(true);
+    const t = window.setTimeout(() => setShown(false), 4500);
+    return () => window.clearTimeout(t);
+  }, [on]);
+  // Raining when the pond opens: there at once; it fades only when the weather changes.
+  const [vis, setVis] = useState(on);
+  useEffect(() => {
+    // Mount at 0, then fade to 1 (the CSS transition needs one frame at 0).
+    const id = requestAnimationFrame(() => setVis(on));
+    return () => cancelAnimationFrame(id);
+  }, [on, shown]);
+  if (!shown) return null;
+  return (
+    <div class={`pond-rain pond-fade${screen ? ' pond-rain-screen' : ''}`} style={{ opacity: vis ? 1 : 0 }} aria-hidden="true">
+      <i class="wx-rain-layer far" />
+      <i class="wx-rain-layer near" />
+    </div>
   );
 }

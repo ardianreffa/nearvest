@@ -8,7 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'preac
 import { api, ApiError, type CatchView, type FishingView, type GameState } from './api';
 import { CatchIcon } from './art/catch-icons';
 import { PondScene, pondAt } from './art/pond';
-import { PondMood } from './art/pond-life';
+import { PondMood, PondRain } from './art/pond-life';
 import { layoutFor } from './art/pond-layouts';
 import { CAST_MS, REEL_MS } from './art/rod-pose';
 import { moodMix, nextMood, pondFit, pondSounds, pondTime, pondWeather, type Box, type PondMood as PondMoodState } from './pond-life-plan';
@@ -148,6 +148,13 @@ export function FishingWindow({
     setPondAmbience(pondSounds(time, weather));
   }, [time, weather]);
   // Tandur's music and ambient loop are silent at the pond and come back when it closes.
+  // The village behind the pond is covered: it stops drawing (and animating) while the pond is open,
+  // so the GPU keeps only one scene (package 7b: on a Retina laptop in the rain the village's moving
+  // layers plus the pond's made Chrome drop tiles of the pond picture).
+  useEffect(() => {
+    document.documentElement.classList.add('pond-open');
+    return () => document.documentElement.classList.remove('pond-open');
+  }, []);
   useEffect(() => {
     setPondMode(true);
     return () => {
@@ -287,7 +294,7 @@ export function FishingWindow({
           draggable={false}
         />
       ))}      <div class="pond-stage" style={{ left: `${fit.left}px`, top: `${fit.top}px`, width: `${fit.w}px`, height: `${fit.h}px` }}>
-        <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} mix={mix} layout={L} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
+        <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} mix={mix} layout={L} rain={false} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
         {phase.k === 'bite' && (
             <span class="pond-bang" style={pondAt(L.float.x, L.float.y - 10, L)} aria-hidden="true">
               !
@@ -347,9 +354,12 @@ export function FishingWindow({
           style={{ left: `${fit.left}px`, top: `${fit.top + fit.h - L.ground.over * (fit.w / 480)}px`, width: `${fit.w}px`, height: `${L.ground.h * (fit.w / 480)}px` }}
           aria-hidden="true"
         >
-          <PondMood time={time} weather={weather} layout={L} fireflies={false} />
+          <PondMood time={time} weather={weather} layout={L} fireflies={false} rain={false} />
         </div>
       )}
+      {/* The rain over the whole screen (package 7b): one screen-sized layer above the pond and its
+          ground, under the top bar and the panel. */}
+      <PondRain on={weather === 'rain'} screen />
       <header class="pond-hud-top" data-pond-avoid>
         <button class="btn pond-back" onClick={onClose} aria-label="Back to the village">
           ← Village
