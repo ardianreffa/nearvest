@@ -216,6 +216,9 @@ export function FishLoop() {
     <div class="lp-fish" ref={ref} data-phase={phase}>
       <Card tilt={-1.5} back="/assets/bg/fishing-pond-night.png">
         <div class="lp-fish-scene">
+          {/* Off screen: just the picture (the pond's life timers stop with it). */}
+          {!inView && <img class="lp-fish-still" src={L.pics.day} alt="" draggable={false} />}
+          {inView && (
           <PondScene phase={phase} since={since.current} time="day" weather="clear" layout={L} bot={<TaniBot tier="farmer" scale={1} effects={false} />}>
             {phase === 'bite' && (
               <span class="pond-bang" style={pondAt(L.float.x, L.float.y - 10, L)} aria-hidden="true">
@@ -233,6 +236,7 @@ export function FishLoop() {
               </div>
             )}
           </PondScene>
+          )}
         </div>
       </Card>
     </div>

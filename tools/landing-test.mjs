@@ -34,12 +34,12 @@ for (const [eng, w, h] of runs) {
     await pg.evaluate(() => window.scrollTo(0, 0));
     await pg.waitForTimeout(200);
   }
-  const firstY = await pg.evaluate(() => Math.round(document.getElementById('panen').getBoundingClientRect().top + scrollY));
+  const firstY = await pg.evaluate(() => Math.round(document.getElementById('judges').getBoundingClientRect().top + scrollY));
   if (w < 500) await pg.tap('.lp-how'); else await pg.click('.lp-how');
   await pg.waitForTimeout(1100);
   const y = await pg.evaluate(() => scrollY);
-  const top = await pg.evaluate(() => Math.round(document.getElementById('panen').getBoundingClientRect().top));
-  check(Math.abs(top) <= 1, `${tag}: click scrolled to the first section ($PANEN) (scrollY ${y}, section start ${firstY}, section top now ${top})`);
+  const top = await pg.evaluate(() => Math.round(document.getElementById('judges').getBoundingClientRect().top));
+  check(Math.abs(top) <= 1, `${tag}: click scrolled to the first section (For judges) (scrollY ${y}, section start ${firstY}, section top now ${top})`);
   check(!(await visible()), `${tag}: button hidden after scrolling down`);
   await pg.screenshot({ path: `${out}/L-after-click-${eng}-${w}.png` });
   await pg.evaluate(() => window.scrollTo(0, 1500));
@@ -58,13 +58,13 @@ for (const [eng, w, h] of runs) {
   // a second click works too
   if (w < 500) await pg.tap('.lp-how'); else await pg.click('.lp-how');
   await pg.waitForTimeout(1100);
-  check(Math.abs(await pg.evaluate(() => Math.round(document.getElementById('panen').getBoundingClientRect().top))) <= 1, `${tag}: second click scrolls too`);
+  check(Math.abs(await pg.evaluate(() => Math.round(document.getElementById('judges').getBoundingClientRect().top))) <= 1, `${tag}: second click scrolls too`);
   // reduced motion: a jump
   await pg.emulateMedia({ reducedMotion: 'reduce' });
   await pg.evaluate(() => window.scrollTo(0, 0)); await pg.waitForTimeout(300);
   if (w < 500) await pg.tap('.lp-how'); else await pg.click('.lp-how');
   await pg.waitForTimeout(150);
-  check(Math.abs(await pg.evaluate(() => Math.round(document.getElementById('panen').getBoundingClientRect().top))) <= 1, `${tag}: reduced motion jumps straight there`);
+  check(Math.abs(await pg.evaluate(() => Math.round(document.getElementById('judges').getBoundingClientRect().top))) <= 1, `${tag}: reduced motion jumps straight there`);
   await browser.close();
 }
 console.log(fails ? `${fails} FAILED` : 'ALL OK');

@@ -493,6 +493,107 @@
 
 /* ===================== Redesign 2026-11-12: section looks ===================== */
 
+/* Off screen: CSS animations pause (landing.tsx usePauseOffscreen). */
+.lp-paused,
+.lp-paused * {
+  animation-play-state: paused !important;
+}
+
+/* "For judges": a paper box right under the hero. */
+.lp-judges {
+  position: relative;
+  padding: 40px 24px 88px;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.lp-judges-inner {
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  padding: 18px 20px;
+  background: var(--paper-light);
+  border: 4px solid var(--soil-700);
+  box-shadow: 6px 6px 0 color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
+.lp-judges-title {
+  margin: 0 0 8px;
+  font-family: var(--font-title);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: var(--fs-h2);
+  color: var(--gold-700);
+}
+
+.lp-judges-line {
+  margin: 0 0 14px;
+  font-family: var(--font-body);
+  font-size: var(--fs-h3);
+  line-height: 1.45;
+}
+
+.lp-judges-line b {
+  font-weight: 400;
+  color: var(--purple-700);
+}
+
+.lp-judges-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.lp-judges-go {
+  min-height: 52px;
+  padding: 0 28px;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-h3);
+  text-decoration: none;
+}
+
+.lp-judges-proof {
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+.lp-judges-proof a {
+  color: var(--cyan-700);
+}
+
+/* The hackathon track of a section: a small stepped label above its title. */
+.lp-track {
+  display: inline-block;
+  margin: 0 0 10px;
+  padding: 3px 10px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--ink);
+  background: var(--mint-300);
+  border: 2px solid var(--ink);
+}
+
+.lp-track.track-memecoins {
+  background: var(--gold-300);
+}
+
+.lp-track.track-nfts {
+  background: var(--purple-300);
+}
+
+.lp-track.track-agents {
+  background: var(--cyan-300);
+}
+
+.lp-fish-still {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  image-rendering: pixelated;
+}
+
 /* $PANEN: an arcade night: faint scanlines, a big pixel title with a stepped drop shadow. */
 #panen {
   background:
@@ -976,6 +1077,27 @@
 }
 
 @media (max-width: 1023px) {
+  .lp-judges {
+    padding: 24px 16px 72px;
+  }
+
+  .lp-judges-line {
+    font-size: var(--fs-body);
+  }
+
+  .lp-judges-go {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .lp-screen-text {
+    text-align: center;
+  }
+
+  .lp-screen-text .lp-points {
+    text-align: left;
+  }
+
   .lp-screen-text h2.lp-big-title {
     font-size: var(--fs-h1);
   }

@@ -90,7 +90,7 @@ function Hero() {
         <span class="lp-cta-note">Sign in with Google or a NEAR wallet. No fees, testnet.</span>
         <span class="lp-cta-note lp-device-note">Plays on phones and laptops. For the best view, use Chrome on a laptop.</span>
       </div>
-      <Motif kind="tumpal" to="--hud" id="m-hero" />
+      <Motif kind="tumpal" to="--paper" id="m-hero" />
     </header>
   );
 }
@@ -102,6 +102,7 @@ function Screen({
   next,
   motif,
   title,
+  track,
   bigTitle,
   art,
   children,
@@ -111,6 +112,8 @@ function Screen({
   next?: `--${string}`;
   motif?: MotifKind;
   title: string;
+  /** The hackathon track this section belongs to (a small label above the title). */
+  track?: 'Games' | 'Memecoins' | 'NFTs' | 'Agents';
   /** A big pixel display title (e.g. "$PANEN") instead of the normal one. */
   bigTitle?: boolean;
   art?: preact.ComponentChildren;
@@ -121,6 +124,7 @@ function Screen({
       <div class="lp-screen-inner">
         {art && <div class="lp-screen-art">{art}</div>}
         <div class="lp-screen-text">
+          {track && <span class={`lp-track track-${track.toLowerCase()}`}>Track: {track}</span>}
           <h2 class={bigTitle ? 'lp-big-title' : undefined} data-text={title}>
             {title}
           </h2>
@@ -191,6 +195,20 @@ function useReveal() {
   }, []);
 }
 
+/**
+ * Sections off screen pause their CSS animations (.lp-paused), to save phone batteries; the game
+ * scene loops (landing-scenes.tsx) stop by themselves when off screen.
+ */
+function usePauseOffscreen() {
+  useEffect(() => {
+    if (typeof IntersectionObserver !== 'function') return;
+    const els = [...document.querySelectorAll('.lp-hero, .lp-screen, .lp-judges')];
+    const io = new IntersectionObserver((entries) => entries.forEach((e) => e.target.classList.toggle('lp-paused', !e.isIntersecting)), { rootMargin: '80px 0px' });
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  }, []);
+}
+
 /** The page is at the very top (the hero fully in view). */
 const atTop = () => window.scrollY <= 8;
 
@@ -242,13 +260,13 @@ function HowItWorks() {
   }, []);
   const go = (e: Event) => {
     e.preventDefault();
-    const target = document.getElementById('panen');
+    const target = document.getElementById('judges');
     if (!target) return;
     scrollToY(Math.round(target.getBoundingClientRect().top + window.scrollY));
   };
   const gone = !top;
   return (
-    <a class={`btn btn-small lp-how${gone ? ' gone' : ''}`} href="#panen" onClick={go} aria-hidden={gone} tabIndex={gone ? -1 : 0}>
+    <a class={`btn btn-small lp-how${gone ? ' gone' : ''}`} href="#judges" onClick={go} aria-hidden={gone} tabIndex={gone ? -1 : 0}>
       See how it works <span class="lp-how-arrow" aria-hidden="true">↓</span>
     </a>
   );
@@ -269,6 +287,9 @@ function FloatingPlay() {
     });
     io.observe(cta);
     if (end) io.observe(end);
+    // Also hidden while the judges box's own button is on screen.
+    const judges = document.querySelector('.lp-judges-go');
+    if (judges) io.observe(judges);
     return () => io.disconnect();
   }, []);
   return (
@@ -280,13 +301,44 @@ function FloatingPlay() {
 
 function Landing() {
   useReveal();
+  usePauseOffscreen();
   const narrow = useNarrow();
   const treeScale = narrow ? 2 : 4;
   return (
     <>
       <Hero />
       <main class="lp-main">
-        <Screen id="panen" tone="hud" next="--leaf-500" motif="kawung" title="$PANEN" bigTitle art={<PanenMedal scale={narrow ? 10 : 18} />}>
+        <section class="lp-judges" id="judges">
+          <div class="lp-judges-inner">
+            <h2 class="lp-judges-title">For judges</h2>
+            <p class="lp-judges-line">
+              <b>Try as Judge</b> (no sign-in, ~3 min): harvest → sell to Mr. Darto → buy in the Shop (burn) → TaniBot Log → Village Stats
+            </p>
+            <div class="lp-judges-row">
+              <a class="btn btn-gold lp-judges-go" href={JUDGE}>
+                Try as Judge
+              </a>
+              <span class="lp-judges-proof">
+                On-chain proof (NEAR testnet):{' '}
+                <a href={`${EXPLORER}/token/panen.nearvest.testnet`} target="_blank" rel="noreferrer">
+                  panen.nearvest.testnet
+                </a>{' '}
+                ·{' '}
+                <a href={`${EXPLORER}/nft-token/pohon.nearvest.testnet`} target="_blank" rel="noreferrer">
+                  pohon.nearvest.testnet
+                </a>{' '}
+                ·{' '}
+                <a href={`${EXPLORER}/address/nearvest.testnet`} target="_blank" rel="noreferrer">
+                  nearvest.testnet
+                </a>
+              </span>
+            </div>
+          </div>
+          <Motif kind="kawung" to="--hud" id="m-judges" />
+        </section>
+
+        <Screen id="panen"
+          track="Memecoins" tone="hud" next="--leaf-500" motif="mendung" title="$PANEN" bigTitle art={<PanenMedal scale={narrow ? 10 : 18} />}>
           <Points
             items={[
               ['sprout', <><b>Earn it</b> by harvesting and selling fruit to Mr. Darto, by fishing and by winning duels.</>],
@@ -300,7 +352,8 @@ function Landing() {
           <p class="lp-small-note">Testnet token, no monetary value.</p>
         </Screen>
 
-        <Screen id="grow" tone="leaf" next="--purple-700" motif="mendung" title="Grow, harvest, earn" art={<GrowLoop scale={narrow ? 2 : 3} />}>
+        <Screen id="grow"
+          track="Games" tone="leaf" next="--soil-500" motif="parang" title="Grow, harvest, earn" art={<GrowLoop scale={narrow ? 2 : 3} />}>
           <Points
             items={[
               ['seedPacket', <><b>Plant</b> a seed: a Tree NFT is born.</>],
@@ -310,31 +363,36 @@ function Landing() {
           />
         </Screen>
 
-        <Screen id="duel" tone="purple" next="--cyan-700" motif="tumpal" title="1 VS 1" art={<DuelLoop scale={narrow ? 1 : 2} />}>
+        <Screen
+          id="tanibot"
+          track="Agents"
+          tone="soil"
+          next="--leaf-700"
+          motif="tumpal"
+          title="TaniBot, your AI farmer"
+          art={
+            <Card tilt={2} back="/assets/bg/bg-shop.png" class="lp-bot-card">
+              <div class="lp-bot-stand">
+                <TaniBot tier="farmer" scale={narrow ? 1 : 4} effects={false} />
+              </div>
+            </Card>
+          }
+        >
           <Points
             items={[
-              ['bolt', <><b>Challenge another farmer</b>, live or against their TaniBot.</>],
-              ['durian', <><b>Best fruit hits hardest</b>: your garden's trees are your weapons.</>],
-              ['lock', <><b>No token wagering</b>: nobody loses PANEN.</>],
-              ['coin', <>The winner's <b>reward comes from the game</b> (a few duels a day).</>],
-            ]}
-          />
-        </Screen>
-
-        <Screen id="fishing" tone="cyan" next="--leaf-700" motif="parang" title="Fishing" art={<FishLoop />}>
-          <Points
-            items={[
-              ['fish', <><b>Cast, wait for the bite, reel in</b> at the jungle pond.</>],
-              ['coin', <>Mr. Darto <b>buys your fish</b> on the spot: +PANEN.</>],
-              ['sparkle', <>Rare finds: seeds, Fertilizer, the <b>Golden Arowana</b>. 5 casts a day.</>],
+              ['bolt', <>Its <b>own NEAR wallet</b>: a sub-account just for your bot.</>],
+              ['coin', <>You give it a <b>budget</b>; the PANEN contract enforces its <b>daily spending limit</b>.</>],
+              ['droplet', <>It waters, harvests and sells <b>while you sleep</b>.</>],
+              ['seedPacket', <>Every action is in its <b>Log</b>, with a link to the transaction.</>],
             ]}
           />
         </Screen>
 
         <Screen
           id="trees"
+          track="NFTs"
           tone="forest"
-          next="--soil-500"
+          next="--purple-700"
           motif="kawung"
           title="Your tree is a living NFT"
           art={
@@ -367,26 +425,25 @@ function Landing() {
           />
         </Screen>
 
-        <Screen
-          id="tanibot"
-          tone="soil"
-          next="--gold-700"
-          motif="mendung"
-          title="TaniBot, your AI farmer"
-          art={
-            <Card tilt={2} back="/assets/bg/bg-shop.png" class="lp-bot-card">
-              <div class="lp-bot-stand">
-                <TaniBot tier="farmer" scale={narrow ? 1 : 4} effects={false} />
-              </div>
-            </Card>
-          }
-        >
+        <Screen id="duel"
+          track="Games" tone="purple" next="--cyan-700" motif="mendung" title="1 VS 1" art={<DuelLoop scale={narrow ? 1 : 2} />}>
           <Points
             items={[
-              ['bolt', <>Its <b>own NEAR wallet</b>: a sub-account just for your bot.</>],
-              ['coin', <>You give it a <b>budget</b>; the PANEN contract enforces its <b>daily spending limit</b>.</>],
-              ['droplet', <>It waters, harvests and sells <b>while you sleep</b>.</>],
-              ['seedPacket', <>Every action is in its <b>Log</b>, with a link to the transaction.</>],
+              ['bolt', <><b>Challenge another farmer</b>, live or against their TaniBot.</>],
+              ['durian', <><b>Best fruit hits hardest</b>: your garden's trees are your weapons.</>],
+              ['lock', <><b>No token wagering</b>: nobody loses PANEN.</>],
+              ['coin', <>The winner's <b>reward comes from the game</b> (a few duels a day).</>],
+            ]}
+          />
+        </Screen>
+
+        <Screen id="fishing"
+          track="Games" tone="cyan" next="--gold-700" motif="parang" title="Fishing" art={<FishLoop />}>
+          <Points
+            items={[
+              ['fish', <><b>Cast, wait for the bite, reel in</b> at the jungle pond.</>],
+              ['coin', <>Mr. Darto <b>buys your fish</b> on the spot: +PANEN.</>],
+              ['sparkle', <>Rare finds: seeds, Fertilizer, the <b>Golden Arowana</b>. 5 casts a day.</>],
             ]}
           />
         </Screen>
@@ -395,7 +452,7 @@ function Landing() {
           id="own"
           tone="gold"
           next="--soil-700"
-          motif="parang"
+          motif="tumpal"
           title="Play first, own later"
           art={
             <div class="lp-own">
@@ -414,7 +471,7 @@ function Landing() {
           />
         </Screen>
 
-        <Screen id="near" tone="soil-dark" next="--ink" motif="tumpal" title="Built on NEAR">
+        <Screen id="near" tone="soil-dark" next="--ink" motif="kawung" title="Built on NEAR">
           <Points
             items={[
               ['coin', <><b>$PANEN</b>: NEP-141 fungible token.</>],
@@ -440,7 +497,7 @@ function Landing() {
                 Try as Judge
               </a>
             </div>
-            <p class="lp-end-note">Built for the NEAR Hackathon. Testnet: tokens have no real value.</p>
+            <p class="lp-end-note">Built solo by Ardian Reffa with Claude Code · Pixel art AI-generated (ChatGPT) and code-drawn · Runs on NEAR testnet</p>
             <nav class="lp-end-links">
               <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> ·{' '}
               <a href="https://x.com/intent/post?text=I%20found%20NEARvest%3A%20a%20pixel%20farming%20game%20where%20your%20tree%20is%20a%20living%20NFT.%20%40NEARProtocol%20%23NEARHackathon%20https%3A%2F%2Fnearvest-six.vercel.app" target="_blank" rel="noreferrer">
