@@ -412,3 +412,11 @@ Day / dusk / night changes were checked by Ardian and are unchanged.
   `tools/pond-sound-test.mjs` listens 30 s per time / weather and checks what is heard and how loud
   over the waterfall (1.4x to 6x).
 
+- **Rain glitch on Retina laptops (7b):** in the rain the pond picture's top band went blank now and
+  then (Ardian's full-screen recordings). Chrome's layer tree at 1800x1169@2 showed the pond's two
+  rain-drop layers at ~10000 x 5700 device px each inside the oversized pond, plus the covered
+  village still animating its own rain: 219 M GPU px (clear: 103 M), so Chrome dropped tiles of the
+  picture. Now the Fishing window draws one screen-sized rain (`PondRain screen`), the rain tint is a
+  plain see-through layer (no multiply), and `html.pond-open` hides and pauses the village: 65 M px.
+  Report: `screenshots/fishing-rain-glitch/layers-before-after.txt` (headless screenshots cannot show
+  the dropped tiles; `tools/pond-mood-test.mjs` checks the screen-sized rain and the hidden village).
