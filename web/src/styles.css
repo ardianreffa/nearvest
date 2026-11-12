@@ -10844,8 +10844,8 @@ html.page-locked body {
 
 /* Golden Arowana (fishing): the fish leaps out in an arc and lands in the middle, in a gold glow. */
 .mfx-arowana {
-  width: 180px;
-  height: 120px;
+  width: 200px;
+  height: 90px;
 }
 
 .mfx-leap {
@@ -14532,7 +14532,7 @@ html.duel-open .duel-bg .backdrop * {
   margin: 6px 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
   gap: 4px;
   text-align: left;
 }
@@ -14561,7 +14561,7 @@ html.duel-open .duel-bg .backdrop * {
   flex: none;
   display: grid;
   place-items: center;
-  width: 40px;
+  width: 64px;
 }
 
 .fish-list-name {

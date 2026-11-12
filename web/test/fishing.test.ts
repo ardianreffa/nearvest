@@ -68,7 +68,7 @@ describe('fishing window', () => {
 
   it('catch icons: every grid is a clean rectangle and uses only known colours', () => {
     const known = new Set(['.', 'k', 'w', 'y', 'Y', ...Object.keys(FISH_PALETTE)]);
-    const ids = ['tilapia', 'catfish', 'carp', 'gourami', 'golden_arowana', 'stone', 'driftwood', 'fish_bone', 'old_boot', 'bottle', 'chest'] as const;
+    const ids = ['tilapia', 'catfish', 'carp', 'gourami', 'golden_arowana', 'stone', 'driftwood', 'fish_bone', 'old_boot', 'rusty_can', 'bottle', 'chest'] as const;
     for (const id of ids) {
       const g = CATCH_GRIDS[id]!;
       assert.ok(g, id);

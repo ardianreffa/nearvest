@@ -163,7 +163,7 @@ export function FishingWindow({
           ))}
         {c && (
           <span class={`pond-catch${c.released ? ' released' : ''}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
-            <CatchIcon id={c.catch} scale={3} />
+            <CatchIcon id={c.catch} scale={2} />
           </span>
         )}
       </PondScene>
@@ -180,7 +180,7 @@ export function FishingWindow({
       {c && (
         <div class={`fish-result kind-${c.kind}${c.catch === 'golden_arowana' && !c.released ? ' legend' : ''}`}>
           <span class="fish-result-icon">
-            <CatchIcon id={c.catch} scale={4} />
+            <CatchIcon id={c.catch} scale={4} fitW={100} />
           </span>
           <div class="fish-result-text">
             <h3>{c.released ? `${c.name} (released)` : c.name}</h3>
@@ -218,7 +218,7 @@ export function FishingWindow({
               {view.catches.map((x) => (
                 <li key={x.id}>
                   <span class="fish-list-icon">
-                    <CatchIcon id={x.id} scale={2} />
+                    <CatchIcon id={x.id} scale={2} fitW={64} />
                   </span>
                   <span class="fish-list-name">{x.name}</span>
                   <span class="fish-list-reward">

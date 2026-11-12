@@ -7,10 +7,15 @@ import type { FishingCatchId } from '../api';
 import { Pixels, Sprite } from '../sprites';
 import { CATCH_GRIDS, FISH_PALETTE } from './catch-grids';
 
-/** A catch's icon; `scale` = screen px per art pixel. */
-export function CatchIcon({ id, scale = 3 }: { id: FishingCatchId; scale?: number }) {
+/**
+ * A catch's icon; `scale` = screen px per art pixel. `fitW` (screen px): long fish (Golden Arowana,
+ * Catfish) step down to a smaller whole scale so they stay inside that width.
+ */
+export function CatchIcon({ id, scale = 3, fitW }: { id: FishingCatchId; scale?: number; fitW?: number }) {
   if (id === 'mango_seed') return <Sprite name="seedPacket" scale={scale + 1} />;
   if (id === 'fertilizer') return <Sprite name="fertilizer" scale={scale + 1} />;
-  return <Pixels rows={CATCH_GRIDS[id]!} palette={FISH_PALETTE} scale={scale} title={undefined} />;
+  const rows = CATCH_GRIDS[id]!;
+  const k = fitW ? Math.min(scale, Math.max(1, Math.floor(fitW / rows[0].length))) : scale;
+  return <Pixels rows={rows} palette={FISH_PALETTE} scale={k} title={undefined} />;
 }
 

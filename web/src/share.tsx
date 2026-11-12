@@ -609,9 +609,10 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
   } else if (m.kind === 'golden_arowana') {
     // The fish leaping beside TaniBot, in a gold glow with a few sparkles (pixel art, its own palette).
     const rows = CATCH_GRIDS.golden_arowana!;
-    const F = 12;
-    const fx = M + 6;
-    const fy = GROUND - 300;
+    // The long, slender fish (about 32 x 10 art px since package 1, 2026-11-12).
+    const F = 11;
+    const fx = M;
+    const fy = GROUND - 290;
     const cx = fx + (rows[0].length * F) / 2;
     const cy = fy + (rows.length * F) / 2;
     const glow = ctx.createRadialGradient(cx, cy, 10, cx, cy, 190);
@@ -621,7 +622,8 @@ export async function drawCard(m: Moment, s: GameState): Promise<HTMLCanvasEleme
     ctx.fillRect(cx - 200, cy - 200, 400, 400);
     drawRows(ctx, rows, { ...PALETTE, ...FISH_PALETTE }, fx, fy, F);
     ctx.fillStyle = token('--gold-300');
-    for (const [x, y] of [[fx - 20, fy - 10], [fx + 190, fy - 30], [fx + 120, fy + 120], [fx + 220, fy + 70]]) {
+    const fw = rows[0].length * F;
+    for (const [x, y] of [[fx - 10, fy - 40], [fx + fw * 0.55, fy - 46], [fx + fw * 0.3, fy + 130], [fx + fw - 10, fy + 110]]) {
       ctx.fillRect(x, y + 6, 18, 6);
       ctx.fillRect(x + 6, y, 6, 18);
     }

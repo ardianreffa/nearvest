@@ -755,6 +755,7 @@ export type FishingCatchId =
   | 'driftwood'
   | 'fish_bone'
   | 'old_boot'
+  | 'rusty_can'
   | 'mango_seed'
   | 'fertilizer'
   | 'bottle'

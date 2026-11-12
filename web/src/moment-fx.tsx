@@ -164,7 +164,7 @@ export function MomentFxLayer() {
       {m.kind === 'golden_arowana' && (
         <div class="mfx-center mfx-arowana">
           <span class="mfx-leap">
-            <CatchIcon id="golden_arowana" scale={8} />
+            <CatchIcon id="golden_arowana" scale={6} />
           </span>
         </div>
       )}
