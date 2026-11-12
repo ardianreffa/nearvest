@@ -1,5 +1,5 @@
-// The fishing corner at the left-hand hut of the v3 village (village.ts `fishing`), a "Soon" place:
-//   - one small set on the grass in front of the porch: the woven fish basket with the rod standing
+// The fishing corner at the left-hand hut of the v3 village (village.ts `fishing`):
+//   - (removed 2026-11-13, Ardian) one small set on the grass in front of the porch: the woven fish basket with the rod standing
 //     in it, tip to the right (away from the hut), the line and float hanging over the grass. Both
 //     are Ardian's ChatGPT image (docs/art-source/fishing-props.png, cut with
 //     tools/pixelize/cutout.py --alpha at the hut's own pixel size); the float is its own layer
@@ -56,14 +56,8 @@ export function FishingProps({ v, f }: { v: Village; f: FishingCorner }) {
   const at = (b: [number, number, number, number]) => boxIn(v, ...b);
   return (
     <>
-      <span class="fish-prop fish-rod" style={at(f.rod)}>
-        <img src="/assets/fishing/rod.png" alt="" />
-        <img class="fish-float" src="/assets/fishing/float.png" alt="" />
-      </span>
-      {/* In front of the rod: the handle stands inside the basket. */}
-      <span class="fish-prop fish-bucket" style={at(f.bucket)}>
-        <img src="/assets/fishing/bucket.png" alt="" />
-      </span>
+      {/* The rod-and-basket set on the grass was removed (Ardian 2026-11-13: at village size it read
+          as a small dark object under the stairs); only the roof sign stays. */}
       <FishSign style={at(f.holo)} />
     </>
   );
