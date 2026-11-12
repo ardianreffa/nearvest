@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CatchView } from '../src/api.ts';
 import { CATCH_GRIDS, FISH_PALETTE } from '../src/art/catch-grids.ts';
-import { autoCatchToShow, autoNotice, castsLeftText, catchNote, catchTier, rewardChips, startPhase, untilText } from '../src/fishing-logic.ts';
+import { autoCatchToShow, autoNotice, castsLeftText, catchNote, catchReward, catchTier, seasonNote, rewardChips, startPhase, untilText } from '../src/fishing-logic.ts';
 
 const NOW = 1_800_000_000_000;
 const c = (o: Partial<CatchView> = {}): CatchView => ({
@@ -85,5 +85,18 @@ describe('fishing window', () => {
     assert.equal(catchTier(c({ catch: 'gourami' })), 'gourami');
     assert.equal(catchTier(c({ catch: 'golden_arowana' })), 'legend');
     for (const id of ['mango_seed', 'fertilizer', 'bottle', 'chest'] as const) assert.equal(catchTier(c({ kind: 'item', catch: id })), 'item', id);
+  });
+  it('honest PANEN: the list shows what you receive after the Season rule, with a Season note', () => {
+    const s1 = { number: 1, divisor: 1, rewardPercent: 100 };
+    const s3 = { number: 3, divisor: 4, rewardPercent: 25 };
+    assert.equal(seasonNote(s1), null);
+    assert.equal(seasonNote(s3), 'Season 3: rewards 25%');
+    assert.equal(seasonNote({ number: 4, divisor: 8, rewardPercent: 12.5 }), 'Season 4: rewards 12.5%');
+    const chest = { min: 10, max: 15 };
+    assert.equal(catchReward({ id: 'carp', kind: 'fish', panenNow: 1.25 }, chest, s3), '1.25 PANEN');
+    assert.equal(catchReward({ id: 'chest', kind: 'item', panenNow: 0 }, chest, s3), '2.5-3.75 PANEN');
+    assert.equal(catchReward({ id: 'chest', kind: 'item', panenNow: 0 }, chest, s1), '10-15 PANEN');
+    assert.equal(catchReward({ id: 'rusty_can', kind: 'junk', panenNow: 0 }, chest, s3), '1 XP');
+    assert.match(catchNote(c()), /Mr\. Darto bought it on the spot/);
   });
 });

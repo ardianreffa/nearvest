@@ -40,7 +40,7 @@ export function catchNote(c: CatchView): string {
   if (c.catch === 'chest') return 'A small chest full of PANEN!';
   if (c.catch === 'golden_arowana') return 'The legendary fish of Tandur!';
   if (c.kind === 'junk') return 'Junk! Better luck next cast.';
-  return 'Mr. Darto buys it on the spot.';
+  return 'Mr. Darto bought it on the spot and paid you right away.';
 }
 
 /** Reward chips: "+3 PANEN", "+1 XP" (only what was really given). */
@@ -80,4 +80,26 @@ export function catchTier(c: Pick<CatchView, 'kind' | 'catch' | 'released'>): Ca
   if (c.catch === 'golden_arowana') return 'legend';
   if (c.catch === 'gourami') return 'gourami';
   return 'fish';
+}
+
+type Season = { number: number; divisor: number; rewardPercent: number };
+
+/** "Season 3: rewards 25%" (only when the Season rule lowers rewards), like the Market's sell note. */
+export function seasonNote(season: Season | undefined): string | null {
+  return season && season.divisor > 1 ? `Season ${season.number}: rewards ${formatNum(season.rewardPercent)}%` : null;
+}
+
+/** What a catch in "What can I catch?" really pays now (after the Season rule), e.g. "2.5 PANEN", "3-3.75 PANEN". */
+export function catchReward(
+  x: { id: string; kind: string; panenNow: number },
+  chest: { min: number; max: number },
+  season: Season | undefined,
+): string {
+  const d = season?.divisor ?? 1;
+  if (x.kind === 'fish') return `${formatNum(x.panenNow)} PANEN`;
+  if (x.id === 'chest') return `${formatNum(chest.min / d)}-${formatNum(chest.max / d)} PANEN`;
+  if (x.kind === 'junk') return '1 XP';
+  if (x.id === 'bottle') return '5 XP';
+  if (x.id === 'mango_seed') return 'Seed';
+  return 'Item';
 }

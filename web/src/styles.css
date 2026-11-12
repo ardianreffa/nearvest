@@ -15047,6 +15047,13 @@ html.duel-open .duel-bg .backdrop * {
   min-width: 0;
 }
 
+.fish-list-note {
+  margin: 4px 0 0 !important;
+  font-family: var(--font-body);
+  font-size: var(--fs-sm) !important;
+  color: var(--ink-soft);
+}
+
 .fish-list-icon {
   flex: none;
   display: grid;

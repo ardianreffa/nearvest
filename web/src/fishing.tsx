@@ -17,7 +17,7 @@ import { tierOf } from './art/tiers';
 import { playFishing, playSound, setPondAmbience, setPondMode } from './audio';
 import { Modal } from './help';
 import { judgeDeviceId } from './judge';
-import { castsLeftText, catchNote, catchTier, rewardChips, startPhase, untilText, type FishPhase } from './fishing-logic';
+import { castsLeftText, catchNote, catchReward, catchTier, rewardChips, seasonNote, startPhase, untilText, type FishPhase } from './fishing-logic';
 import { Sprite } from './sprites';
 import { Coin } from './ui';
 
@@ -280,7 +280,7 @@ export function FishingWindow({
                 </span>
               ))}
             </div>
-            {c.panen > 0 && state.season.divisor > 1 && <p class="fish-season">Season {state.season.number}: rewards are {state.season.rewardPercent}% now.</p>}
+            {c.panen > 0 && seasonNote(state.season) && <p class="fish-season">{seasonNote(state.season)}. This is what you received.</p>}
           </div>
         </div>
       )}
@@ -308,11 +308,16 @@ export function FishingWindow({
                   </span>
                   <span class="fish-list-name">{x.name}</span>
                   <span class="fish-list-reward">
-                    {x.kind === 'fish' ? `${x.panenNow} PANEN` : x.id === 'chest' ? `${view.chest.min}-${view.chest.max} PANEN` : x.kind === 'junk' ? '1 XP' : x.id === 'bottle' ? '5 XP' : x.id === 'mango_seed' ? 'Seed' : 'Item'}
+                    {catchReward(x, view.chest, state.season)}
                   </span>
                 </li>
               ))}
             </ul>
+          )}
+          {listOpen && (
+            <p class="fish-list-note">
+              Fish are bought on the spot by Mr. Darto. The amounts are what you receive{seasonNote(state.season) ? ` (${seasonNote(state.season)})` : ''}.
+            </p>
           )}
         </div>
       )}
