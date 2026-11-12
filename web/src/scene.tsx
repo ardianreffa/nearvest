@@ -52,6 +52,9 @@ const LANE_PHONE: Lane = { left: 0, width: 100, botOffset: 6 };
  */
 const LANE_PHONE3: Lane = { left: 0, width: 100, botOffset: 50 / 3 };
 
+/** v3 phones: TaniBot 25% bigger than before (1.25 -> 1.5625, Ardian 2026-11-13: it looked small). */
+const PHONE_BOT_SCALE = 1.5625;
+
 /** Horizontal center of a plot in % of the scene (or stage) width. */
 function plotCenter(plot: number, lane: Lane): number {
   return lane.left + (lane.width / 3) * (plot + 0.5);
@@ -127,7 +130,7 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   // closed, at home and on a visit); its 58 px size on phones (on the grass in front of the
   // selected plot).
   const botScale = phone
-    ? village?.moundArt ? 1.25 : 1
+    ? village?.moundArt ? PHONE_BOT_SCALE : 1
     : immersive
       ? immersive.botScale ?? Math.max(1, Math.round(immersive.k / (v2 ? 3 : 2)))
       : big ? 2 : 1;
