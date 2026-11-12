@@ -356,10 +356,10 @@ light and the rain darkening stay code tints.
    screen recording on the Desktop could not be opened: macOS blocks the Desktop folder for the
    terminal; reproduced in a demo garden instead.)
 2. Phones: compact panel and catch card (small icon, name + reward on one line, short note).
-3. Upright phone pond ready: `web/src/art/pond-tall.ts` (`TALL_POND`, null until the picture comes),
-   the 16:9 scene drawn in the picture's middle band, controls on the land below.
-   `tools/pixelize/pond_tall.py` measures the band (STOP if a part is off by more than 1 px) and prints
-   the config. Dev: `?tallpond=test` uses a stand-in picture (`fishing-pond-tall-test.png`, git-ignored).
+3. Upright phone pond: the first idea (the 16:9 scene in the middle band of an extended picture) was
+   reverted (Ardian: no code extension). Ardian's ChatGPT phone picture (941x1672) is a NEW composition
+   (dock, pads, waterfall elsewhere; checked: nothing lines up with the 16:9 picture), so the phone pond
+   will get its own measured layout once the matching dusk and night versions are ready.
 4. The pond's top bar shows the PANEN balance (gold PANEN coin), counting up with "+N" after a catch.
 5. Village HUD: the PANEN balance next to the profile box with the round gold PANEN coin
    (`web/src/art/panen-coin.tsx`: a P with a vertical stroke); the square PANEN chip is gone.
