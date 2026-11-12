@@ -13850,15 +13850,20 @@ html.page-locked body {
 
 /* The lava glows a little at night (dusk: a hint), breathing slowly. */
 .arena-lava {
-  background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--red-500) 70%, transparent), color-mix(in srgb, var(--gold-500) 30%, transparent) 45%, transparent 70%);
+  /* Soft round glow (Ardian 2026-11-13): sized to the box's CLOSEST side, so it fades to fully
+     transparent before any edge (no square), in a box twice as big as the crater; it breathes
+     with opacity (a filter on a blended layer showed the box). */
+  --glow: calc(var(--night) * 0.85 + var(--dusk) * 0.35);
+  scale: 2 1.6;
+  background: radial-gradient(closest-side ellipse at 50% 40%, color-mix(in srgb, var(--red-500) 60%, transparent), color-mix(in srgb, var(--gold-500) 25%, transparent) 45%, color-mix(in srgb, var(--red-500) 8%, transparent) 75%, transparent 100%);
   mix-blend-mode: screen;
-  opacity: calc(var(--night) * 0.85 + var(--dusk) * 0.35);
+  opacity: var(--glow);
   animation: arena-lava 3.2s ease-in-out infinite;
 }
 
 @keyframes arena-lava {
   50% {
-    filter: brightness(1.5);
+    opacity: calc(var(--glow) * 0.65);
   }
 }
 
@@ -13894,42 +13899,43 @@ html.page-locked body {
 
 /* Lanterns: a warm green glow that flickers softly; stronger at night. */
 .arena-lamp {
-  border-radius: 40%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--gold-300) 60%, transparent), color-mix(in srgb, var(--mint-500) 25%, transparent) 50%, transparent 72%);
+  --glow: calc(0.35 + var(--night) * 0.45 + var(--dusk) * 0.25);
+  background: radial-gradient(closest-side circle, color-mix(in srgb, var(--gold-300) 55%, transparent), color-mix(in srgb, var(--mint-500) 20%, transparent) 50%, color-mix(in srgb, var(--gold-300) 6%, transparent) 80%, transparent 100%);
   mix-blend-mode: screen;
-  transform: scale(1.6);
-  opacity: calc(0.35 + var(--night) * 0.45 + var(--dusk) * 0.25);
+  transform: scale(1.8);
+  opacity: var(--glow);
   animation: arena-flicker 2.6s steps(1, end) infinite;
 }
 
 /* Neon boxes on the pillars: a mint glow that pulses softly. */
 .arena-neon {
-  background: radial-gradient(circle, color-mix(in srgb, var(--mint-300) 70%, transparent), transparent 70%);
+  --glow: calc(0.3 + var(--night) * 0.5 + var(--dusk) * 0.2);
+  background: radial-gradient(closest-side circle, color-mix(in srgb, var(--mint-300) 65%, transparent), color-mix(in srgb, var(--mint-300) 8%, transparent) 75%, transparent 100%);
   mix-blend-mode: screen;
   transform: scale(2);
-  opacity: calc(0.3 + var(--night) * 0.5 + var(--dusk) * 0.2);
+  opacity: var(--glow);
   animation: arena-neon 2.2s ease-in-out infinite;
 }
 
 @keyframes arena-flicker {
   0%,
   100% {
-    filter: brightness(1);
+    opacity: var(--glow);
   }
   37% {
-    filter: brightness(0.75);
+    opacity: calc(var(--glow) * 0.75);
   }
   41% {
-    filter: brightness(1.15);
+    opacity: min(1, calc(var(--glow) * 1.15));
   }
   72% {
-    filter: brightness(0.9);
+    opacity: calc(var(--glow) * 0.9);
   }
 }
 
 @keyframes arena-neon {
   50% {
-    filter: brightness(0.6);
+    opacity: calc(var(--glow) * 0.6);
   }
 }
 
