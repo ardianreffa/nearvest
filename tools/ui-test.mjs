@@ -749,6 +749,26 @@ try {
       if (/WHITE/.test(r)) throw new Error(`TaniBot still white ${label}: ${r}`);
     };
     const unfreeze = () => evaluate(`(delete window.__turnT, true)`);
+    // Full-screen duel layout (Ardian 2026-11-12): the arena picture reaches the bottom (no plain colour
+    // block), the dock floats over the floor and covers no TaniBot, name, life bar or big centre text;
+    // Gold Durian + Rock / Paper / Scissors in one row, at least 44 px high on phones.
+    const layout = async (label) => {
+      const r = await evaluate(`(() => { const d = document.querySelector('.duel.match'); if (!d) return 'no match screen';
+        const R = (e) => e.getBoundingClientRect(); const hit = (a, b) => a.width && b.width && a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+        const dock = d.querySelector('.match-dock-panel'); const dr = dock ? R(dock) : null;
+        const stage = R(d.querySelector('.fight-stage'));
+        const art = d.querySelector('.duel-bg .arena-art'); const ar = art ? R(art) : null; const fill = d.querySelector('.arena-fill'); const fr = fill ? R(fill) : null;
+        const bottom = Math.max(ar ? ar.bottom : 0, fr ? fr.bottom : 0);
+        const k = art ? R(art).width / 480 : null;
+        const covers = dr ? [...d.querySelectorAll('.fighter .tanibot, .fighter-hud, .hp-bar, .fight-ko, .gold-title, .duel-intro span, .turn-banner, .pick-bubble')].filter(e => { const b = R(e); return getComputedStyle(e).visibility !== 'hidden' && +getComputedStyle(e).opacity > 0 && hit(b, dr); }).map(e => e.className.split(' ')[0]) : [];
+        const btns = [...d.querySelectorAll('.match-controls:not(.gone) .gold-durian-btn, .match-controls:not(.gone) .rps-btn')].map(R);
+        const feet = [...d.querySelectorAll('.fighter .tanibot')].map(e => Math.round(R(e).bottom));
+        return JSON.stringify({ dock: dr ? Math.round(dr.top) + '-' + Math.round(dr.bottom) : 'none', feet, artBottom: Math.round(bottom), stageBottom: Math.round(stage.bottom), reachesBottom: bottom >= stage.bottom - 0.5, scale: k && Math.round(k * 1000) / 1000,
+          buttons: btns.length ? btns.length + ' in ' + new Set(btns.map(b => Math.round(b.top))).size + ' row(s), ' + Math.round(Math.min(...btns.map(b => b.height))) + '-' + Math.round(Math.max(...btns.map(b => b.height))) + ' px high' : 'none',
+          dockCovers: covers.join(', ') || 'nothing', sideways: document.documentElement.scrollWidth > innerWidth }); })()`);
+      console.log(`layout ${label}:`, r);
+      if (/"dockCovers":"(?!nothing)/.test(r)) console.log(`LAYOUT PROBLEM ${label}: the dock covers something`);
+    };
     // Turn timing (web/src/arena-turn.ts turnTimes): reveal 700, wind-up 300, then the flight (mango 450 ... durian 850).
     const play = async (pick, botPick) => {
       lock(botPick);
@@ -789,11 +809,34 @@ try {
         return 'me: ' + t('.duel.match .fighter.me .tanibot') + ' || them: ' + t('.duel.match .fighter.them .tanibot') + ' || HUD titles: ' + [...document.querySelectorAll('.duel.match .fighter-name span')].map(e => e.innerText).join(' / '); })()`));
       console.log('buttons:', await evaluate(box('.rps-row')), '| Gold Durian button:', await evaluate(box('.gold-durian-btn')), '| panel:', await evaluate(box('.duel.match')));
       await screenshot('match-buttons');
+      await layout(`buttons`);
       console.log('arena behind the duel:', await evaluate(`(() => { const b = document.querySelector('.duel-bg'); if (!b) return 'none'; const art = b.querySelector('.arena-art'); if (!art) return 'no picture'; const a = art.getBoundingClientRect(); const ring = b.querySelector('.arena-ring').getBoundingClientRect(); const st = b.getBoundingClientRect();
         const feet = [...document.querySelectorAll('.duel.match .fighter')].map(f => Math.round(f.getBoundingClientRect().bottom)); const img = [...art.querySelectorAll('img')].map(i => i.getAttribute('src').split('/').pop() + ' ' + (+getComputedStyle(i).opacity).toFixed(2));
         return JSON.stringify({ covers: a.left <= st.left + 0.5 && a.top <= st.top + 0.5 && a.right >= st.right - 0.5 && a.bottom >= st.bottom - 0.5, ringMiddleY: Math.round(ring.top + ring.height / 2), ringX: [Math.round(ring.left), Math.round(ring.right)], feet, fighterX: [...document.querySelectorAll('.duel.match .fighter')].map(f => { const r = f.getBoundingClientRect(); return Math.round(r.left + r.width / 2); }), images: img }); })()`));
     });
     console.log('arena animations running:', await evaluate(`document.querySelector('.duel-bg') ? document.querySelector('.duel-bg').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length : 'no arena'`));
+    // LOSE=1: the TaniBot wins every turn (its locked pick beats ours), Skip each turn, until YOU LOSE.
+    if (process.env.LOSE) {
+      await step('LOSE=1: the TaniBot wins every turn until the result', async () => {
+        const BEATS = { rock: 'paper', paper: 'scissors', scissors: 'rock' };
+        for (let t = 0; t < 30 && !(await evaluate(`!!document.querySelector('.duel-result')`)); t++) {
+          if (await evaluate(ready)) {
+            await play('rock', BEATS.rock);
+            if (t === 1) { await sleep(900); await screenshot('lose-mid-turn'); await layout('lose mid-turn'); }
+          }
+          await sleep(500);
+          await evaluate(`document.querySelector('.duel-skip')?.click()`);
+          if (await evaluate(`!!document.querySelector('.fight-ko')`)) { await sleep(300); await screenshot('lose-ko'); await layout('lose K.O.'); await sleep(2500); }
+        }
+        await waitFor(`!!document.querySelector('.duel-result')`, 'result', 20000);
+        await sleep(1200);
+        console.log('result:', await evaluate(info));
+        await screenshot('lose-result');
+        await layout('lose result');
+      });
+      db.close();
+      throw Object.assign(new Error('match done'), { done: true });
+    }
     // FIRST_ONLY=1: only the opening screen (e.g. the village at dusk / night).
     if (process.env.FIRST_ONLY) {
       db.close();
@@ -891,6 +934,7 @@ try {
       await sleep(800);
       console.log(`${who} Gold Durian, charge:`, await evaluate(info), '| aura', await evaluate(`!!document.querySelector('.fighter.charging .charge-aura')`), '| title', await evaluate(`document.querySelector('.gold-title')?.innerText ?? 'none'`));
       await screenshot(`match-${who}-gold-charge`);
+      await layout(`gold ${who}`);
       // The meteor's CSS animation runs from the moment it appears: wait for its slow-motion end.
       await freeze(700 + 900 + 850, 850);
       console.log(`${who} Gold Durian, meteor:`, await evaluate(`(() => { const m = document.querySelector('.gold-meteor'); return m ? 'meteor ' + JSON.stringify(m.getBoundingClientRect()) : 'no meteor'; })()`));
@@ -944,11 +988,13 @@ try {
       await sleep(250);
       console.log('K.O.:', await evaluate(info), '| K.O. font:', await evaluate(`getComputedStyle(document.querySelector('.fight-ko')).fontFamily`));
       await screenshot('match-ko');
+      await layout(`K.O.`);
       await notWhite('at K.O.!');
       await waitFor(`!!document.querySelector('.duel-result')`, 'result', 10000);
       await sleep(600);
       console.log('result:', await evaluate(info));
       await screenshot('match-result');
+      await layout(`result`);
       await notWhite('at the result');
       console.log('result panel:', await evaluate(box('.duel-actions')));
     });

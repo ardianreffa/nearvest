@@ -406,6 +406,16 @@ export function MatchScreen({
   const ctl = controls({ ...m, skill: { c: skill[0], d: skill[1] } }, !!sending || !!anim);
   // Full screen (2026-11-12): taller laptop screens get bigger TaniBots (whole, even pixel scales).
   const scale = wide ? Math.max(4, 2 * Math.floor(window.innerHeight / 380)) : 2;
+  // The TaniBots' feet line (px from the stage's top), from the arena picture: they stand on its ring,
+  // above the floating dock (art/duel-backdrop.tsx arenaFullFit).
+  const [feet, setFeet] = useState<number | null>(null);
+  // Glides (result panel) only after the first placement, never from the first frame.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (feet === null || settled) return;
+    const id = requestAnimationFrame(() => setSettled(true));
+    return () => cancelAnimationFrame(id);
+  }, [feet]);
   const reward = matchReward(m);
   const job = m.prize > 0 && m.you === 'challenger' ? activity.find((a) => a.note === 'arena' && a.createdAt >= m.at - 2000) : undefined;
   const txUrl = m.txUrl ?? job?.explorerUrl ?? null;
@@ -441,8 +451,8 @@ export function MatchScreen({
           </button>
         </header>
 
-        <div class={`fight-stage with-village${shake}${reduced ? ' still' : ''}${gold ? ' gold-on' : ''}`}>
-          <DuelBackdrop fraction={fraction} wide={wide} />
+        <div class={`fight-stage with-village${shake}${reduced ? ' still' : ''}${gold ? ' gold-on' : ''}${feet === null ? '' : ' has-feet'}${settled ? ' settled' : ''}`} style={feet === null ? undefined : { '--feet': `${feet}px` }}>
+          <DuelBackdrop fraction={fraction} wide={wide} onFeet={setFeet} />
           {gold && frame && <GoldStageFx frame={frame} reduced={reduced} />}
           <div class="fight-hud">
             <FighterHud side={me} hp={hp[0]} right={false} skill={{ n: skill[0], max: m.skillMax }} />
@@ -488,6 +498,10 @@ export function MatchScreen({
           )}
         </div>
 
+        {/* The dock floats over the arena's floor in a see-through panel (Ardian 2026-11-12): turn text
+            and buttons, the invite, or the result. Its height never changes between turns. */}
+        <div class="match-dock">
+        <div class={`match-dock-panel${done ? ' is-result' : ''}`}>
         {!done && m.status === 'invite' && (
           <div class="match-invite" role="status" aria-live="polite">
             <p class="match-invite-line">
@@ -532,8 +546,9 @@ export function MatchScreen({
           </div>
         )}
 
-        {!over && m.status !== 'invite' && (
-          <div class="match-controls">
+        {/* During K.O. the buttons stay in place, hidden, so the dock (and the TaniBots above it) do not jump. */}
+        {!done && m.status !== 'invite' && (
+          <div class={`match-controls${over ? ' gone' : ''}`} aria-hidden={over} inert={over}>
             {/* The timer's row is always there (hidden between turns), so the dock never changes height. */}
             {idle && clock ? (
               <TurnTimer clock={clock} now={clockNow} />
@@ -549,8 +564,9 @@ export function MatchScreen({
               onClick={() => pick('gold')}
               aria-label={ctl.goldLit ? 'Throw the Gold Durian' : `Gold Durian: win ${m.skillMax} turns to fill the skill bar (${ctl.skill})`}
             >
-              <GoldDurian scale={3} class="gold-durian-icon" />
-              <span>{ctl.goldLit ? 'GOLD DURIAN!' : `Gold Durian ${ctl.skill}`}</span>
+              <GoldDurian scale={wide ? 3 : 2} class="gold-durian-icon" />
+              {/* Laptops: one line; phones: two short lines, so all four buttons fit in one row. */}
+              <span class="gd-label">{ctl.goldLit ? <><span>GOLD</span> <span>DURIAN!</span></> : <><span>Gold Durian</span> <span>{ctl.skill}</span></>}</span>
             </button>
             <div class="rps-row" role="group" aria-label="Your move">
               {(['rock', 'paper', 'scissors'] as Rps[]).map((p) => (
@@ -603,6 +619,8 @@ export function MatchScreen({
             </div>
           </div>
         )}
+        </div>
+        </div>
 
         {leaving && (
           // A popup in the middle of the screen over a dark veil (2026-11-12, Ardian's iPhone test).

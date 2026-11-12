@@ -9,95 +9,52 @@
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { skyMix } from './backdrop';
 
-type Box = [number, number, number, number]; // x, y, w, h in image pixels
+import { arenaFit, arenaFullFit, ARENA_PHONE, ARENA_WEB, type ArenaArt, type Box } from './arena-fit';
 
-/** One arena picture: its size and the places the animations sit on (measured on arena-*-day.png). */
-export interface ArenaArt {
-  key: 'web' | 'phone';
-  w: number;
-  h: number;
-  src: (light: 'day' | 'dusk' | 'night') => string;
-  /** The ring's middle: the TaniBots' feet stand on this row. */
-  ring: { cx: number; cy: number; rx: number; ry: number };
-  crater: [number, number];
-  lava: Box;
-  lanterns: Box[];
-  neon: Box[];
-}
-
-export const ARENA_WEB: ArenaArt = {
-  key: 'web',
-  w: 480,
-  h: 270,
-  src: (light) => `/assets/bg/arena-web-${light}.png`,
-  ring: { cx: 240, cy: 206, rx: 158, ry: 16 },
-  crater: [233, 37],
-  lava: [200, 38, 71, 31],
-  lanterns: [
-    [56, 45, 39, 54],
-    [387, 45, 36, 55],
-  ],
-  neon: [
-    [51, 154, 10, 15],
-    [143, 159, 10, 10],
-    [327, 158, 11, 11],
-    [420, 154, 9, 15],
-  ],
-};
-
-export const ARENA_PHONE: ArenaArt = {
-  key: 'phone',
-  w: 480,
-  h: 720,
-  src: (light) => `/assets/bg/arena-phone-${light}.png`,
-  ring: { cx: 240, cy: 465, rx: 210, ry: 38 },
-  crater: [241, 134],
-  lava: [181, 136, 128, 61],
-  lanterns: [
-    [45, 122, 47, 78],
-    [390, 120, 49, 80],
-  ],
-  neon: [
-    [47, 347, 14, 32],
-    [131, 357, 18, 22],
-    [330, 355, 19, 29],
-    [423, 347, 15, 32],
-  ],
-};
-
-/**
- * Scale and offset of the picture for a stage of w x h CSS px whose feet line is `feet` px from the
- * stage's top: the ring's middle row on the feet line, the picture covers the stage, centred.
- */
-export function arenaFit(art: ArenaArt, w: number, h: number, feet: number) {
-  const k = Math.max(w / art.w, feet / art.ring.cy, h / art.h);
-  return { k, left: (w - art.w * k) / 2, top: feet - art.ring.cy * k };
-}
+export { arenaFit, arenaFullFit, ARENA_PHONE, ARENA_WEB, FEET_ABOVE_DOCK, type ArenaArt } from './arena-fit';
 
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 const place = (art: ArenaArt, [x, y, w, h]: Box) => ({ left: pct(x, art.w), top: pct(y, art.h), width: pct(w, art.w), height: pct(h, art.h) });
 
-export function DuelBackdrop({ fraction, wide }: { fraction: number; wide: boolean }) {
+/**
+ * `onFeet` (the full-screen duel): the picture reaches the stage's bottom under the floating dock
+ * (`.match-dock-panel` in the same duel), and the duel is told where the feet line is (px from the
+ * stage's top) so its TaniBots stand on the ring. Without it (the landing page) the picture follows
+ * the fight floor as before.
+ */
+export function DuelBackdrop({ fraction, wide, onFeet }: { fraction: number; wide: boolean; onFeet?: (feet: number) => void }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<{ w: number; h: number; feet: number } | null>(null);
+  const [size, setSize] = useState<{ w: number; h: number; feet: number; dock: number } | null>(null);
+  const full = !!onFeet;
   useLayoutEffect(() => {
     const el = ref.current;
     const stage = el?.parentElement;
     if (!el || !stage) return;
+    const dockEl = () => (full ? (el.closest('.duel')?.querySelector<HTMLElement>('.match-dock-panel') ?? null) : null);
     const measure = () => {
       // The TaniBots stand 6 px above the bottom of the fight floor (.fighter { bottom: 6px }).
       const floor = stage.querySelector('.fight-floor');
       const s = el.getBoundingClientRect();
-      const feet = floor ? floor.getBoundingClientRect().bottom - 6 - s.top : s.height * 0.85;
-      setSize((o) => (o && o.w === s.width && o.h === s.height && o.feet === feet ? o : { w: s.width, h: s.height, feet }));
+      const d = dockEl()?.getBoundingClientRect();
+      const dock = d && d.height ? Math.round(d.top - s.top) : s.height;
+      const feet = full ? 0 : floor ? floor.getBoundingClientRect().bottom - 6 - s.top : s.height * 0.85;
+      setSize((o) => (o && o.w === s.width && o.h === s.height && o.feet === feet && o.dock === dock ? o : { w: s.width, h: s.height, feet, dock }));
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
+    // The dock's own size (its content changes from the buttons to the result at the end).
+    const d = dockEl();
+    if (d) ro.observe(d);
     return () => ro.disconnect();
-  }, []);
+  }, [full]);
   const art = wide ? ARENA_WEB : ARENA_PHONE;
-  const fit = size ? arenaFit(art, size.w, size.h, size.feet) : null;
+  const fitFull = size && full ? arenaFullFit(art, size.w, size.h, size.dock, wide) : null;
+  const fit = fitFull ?? (size ? arenaFit(art, size.w, size.h, size.feet) : null);
+  const feetPx = fitFull ? Math.round(fitFull.feet) : null;
+  useLayoutEffect(() => {
+    if (feetPx !== null) onFeet?.(feetPx);
+  }, [feetPx]);
   const { night, dusk } = skyMix(fraction);
   const r = art.ring;
   return (
@@ -120,7 +77,45 @@ export function DuelBackdrop({ fraction, wide }: { fraction: number; wide: boole
           <i class="arena-ring" style={place(art, [r.cx - r.rx, r.cy - r.ry, 2 * r.rx, 2 * r.ry])} />
         </div>
       )}
+      {fitFull && fitFull.fill > 0 && <ArenaFloorFill art={art} fit={fitFull} />}
       <i class="duel-bg-top" />
+    </div>
+  );
+}
+
+/**
+ * More arena floor below the picture (phones, tall laptop windows): the picture's own stone rows
+ * (`floor.band`) repeated, then its front edge with the bushes at the very bottom, the same way the
+ * garden's lawn repeats the village's bush rows. Day / dusk / night like the picture.
+ */
+function ArenaFloorFill({ art, fit }: { art: ArenaArt; fit: ReturnType<typeof arenaFullFit> }) {
+  const { k, left, top, fill } = fit;
+  const [b0, b1] = art.floor.band;
+  const cut = art.floor.cut;
+  const bandH = (b1 - b0) * k;
+  const strips = Math.ceil(fill / bandH);
+  const size = `${art.w * k}px ${art.h * k}px`;
+  const rows = (from: number, y: number, h: number, key: string, light: 'day' | 'dusk' | 'night') => (
+    <i
+      key={key}
+      style={{
+        top: `${y}px`,
+        height: `${h}px`,
+        backgroundImage: `url(${art.src(light)})`,
+        backgroundSize: size,
+        backgroundPosition: `0 ${-from * k}px`,
+      }}
+    />
+  );
+  return (
+    <div class="arena-fill" style={{ left: `${left}px`, top: `${top + cut * k}px`, width: `${art.w * k}px`, height: `${fill + (art.h - cut) * k}px` }}>
+      {(['day', 'dusk', 'night'] as const).map((light) => (
+        <div key={light} class={`arena-fill-layer${light === 'dusk' ? ' arena-dusk' : light === 'night' ? ' arena-night' : ''}`}>
+          {/* Repeated floor rows; the last strip is cut by the box (its bushes cover the seam). */}
+          {Array.from({ length: strips }, (_, i) => rows(b0, Math.floor(i * bandH), Math.ceil(bandH) + 1, `b${i}`, light))}
+          {rows(cut, Math.round(fill), Math.ceil((art.h - cut) * k), 'edge', light)}
+        </div>
+      ))}
     </div>
   );
 }

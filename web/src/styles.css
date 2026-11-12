@@ -9260,7 +9260,8 @@ li b,
 .share-card,
 .checkin,
 .calendar .cal-day,
-.sheet-help {
+.sheet-help,
+.match-dock-panel {
   --n: 2px;
   border-radius: 0 !important;
   corner-shape: square;
@@ -12299,7 +12300,7 @@ html.page-locked body {
   overflow: visible;
 }
 
-.duel.match.full > .duel-result {
+.match-dock-panel > .duel-result {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -16218,22 +16219,14 @@ html.pond-open .hud * {
   flex: none;
 }
 
-.duel.match.full > .match-info,
-.duel.match.full > .match-controls,
-.duel.match.full > .match-invite,
-.duel.match.full > .duel-result {
+.match-dock-panel > .match-info,
+.match-dock-panel > .match-controls,
+.match-dock-panel > .match-invite,
+.match-dock-panel > .duel-result {
   flex: none;
   margin: 0;
-  padding: 8px 12px;
-  background: var(--hud);
-}
-
-.duel.match.full > .match-info {
-  border-top: 2px solid var(--soil-700);
-}
-
-.duel.match.full > .match-controls {
-  padding-bottom: 12px;
+  padding: 0;
+  background: none;
 }
 
 .duel.match.full .match-leave-veil {
@@ -16277,13 +16270,6 @@ html.pond-open .hud * {
   min-height: 44px;
 }
 
-/* Laptops: the dock's content keeps a readable width in the middle. */
-.duel.match.full.wide > .match-info,
-.duel.match.full.wide > .match-controls,
-.duel.match.full.wide > .match-invite,
-.duel.match.full.wide > .duel-result {
-  padding-inline: max(20px, calc((100% - 880px) / 2));
-}
 
 /* Big laptop screens: larger names, bars and buttons. */
 @media (min-width: 1500px) and (min-height: 1000px) {
@@ -16430,7 +16416,7 @@ html.pond-open .hud * {
   visibility: hidden;
 }
 
-.duel.match.full > .match-info {
+.match-dock-panel > .match-info {
   flex: none;
   height: auto;
 }
@@ -16520,4 +16506,194 @@ html.pond-open .hud * {
   .duel.match.full .turn-banner {
     animation: none;
   }
+}
+
+/* ---------- The duel's dock floats over the arena (Ardian 2026-11-12) ----------
+   No plain colour block under the arena any more: the picture reaches the bottom of the screen (its
+   own floor rows fill the rest, art/duel-backdrop.tsx arenaFullFit / ArenaFloorFill) and the turn
+   text and buttons sit on its floor in a see-through ink panel with stepped pixel corners. The
+   TaniBots stand on the ring ABOVE the panel (--feet, from the picture); the panel keeps one height
+   between turns, so nothing moves while the duel plays. */
+.duel.match.full {
+  padding-bottom: 0;
+}
+
+.duel.match.full .fight-stage {
+  padding-bottom: 0;
+}
+
+.duel.match.full .fight-floor {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(100% - var(--feet, 100%) - 6px);
+  margin: 0;
+}
+
+.arena-fill,
+.arena-fill-layer {
+  position: absolute;
+}
+
+.arena-fill {
+  overflow: hidden;
+}
+
+.arena-fill-layer {
+  inset: 0;
+}
+
+.arena-fill-layer > i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: block;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.duel.match.full > .match-dock {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 12px calc(12px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.match-dock-panel {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(100%, 880px);
+  box-sizing: border-box;
+  padding: 10px 14px 12px;
+  color: var(--paper-light);
+  background: color-mix(in srgb, var(--ink) 60%, transparent);
+  border: 4px solid color-mix(in srgb, var(--ink) 75%, transparent);
+}
+
+.match-dock-panel:empty {
+  display: none;
+}
+
+.match-dock-panel .match-info {
+  text-shadow: 1px 1px 0 var(--ink);
+}
+
+/* Gold Durian + Rock / Paper / Scissors in ONE row (the turn clock above them, full width). */
+.match-dock-panel > .match-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+}
+
+.match-dock-panel > .match-controls > .turn-timer,
+.match-dock-panel > .match-controls > .match-error {
+  grid-column: 1 / -1;
+}
+
+.match-dock-panel .rps-row {
+  display: contents;
+}
+
+.duel.match.full .match-dock-panel .gold-durian-btn,
+.duel.match.full .match-dock-panel .rps-btn {
+  min-width: 0;
+  min-height: 52px;
+  margin: 0;
+  align-self: stretch;
+}
+
+.match-dock-panel .rps-btn {
+  flex-direction: row;
+  justify-content: center;
+  gap: 8px;
+}
+
+.match-dock-panel .gd-label > span {
+  white-space: nowrap;
+}
+
+/* Phones: smaller buttons, still easy to press (at least 44 px high; all four the same size). */
+@media (max-width: 1023px) {
+  .duel.match.full > .match-dock {
+    padding: 0 8px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .match-dock-panel {
+    gap: 4px;
+    padding: 8px 10px 10px;
+  }
+
+  .match-dock-panel > .match-controls {
+    gap: 6px;
+  }
+
+  .duel.match.full .match-dock-panel .gold-durian-btn,
+  .duel.match.full .match-dock-panel .rps-btn {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    height: 56px;
+    min-height: 56px;
+    padding: 2px;
+    font-size: var(--fs-xs);
+    line-height: 1.1;
+  }
+
+  .match-dock-panel .gd-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .match-dock-panel .turn-secs {
+    font-size: var(--fs-h3);
+  }
+}
+
+/* K.O.: the buttons keep their room (hidden) until the result shows. */
+.match-dock-panel > .match-controls.gone {
+  visibility: hidden;
+}
+
+/* The result panel is taller than the buttons: the arena and the TaniBots glide up once. */
+.duel.match.full .fight-stage:not(.has-feet) .fight-floor {
+  visibility: hidden;
+}
+
+.duel.match.full .fight-stage.settled .fight-floor,
+.duel.match.full .fight-stage.settled .arena-art,
+.duel.match.full .fight-stage.settled .arena-fill {
+  transition:
+    bottom 350ms ease-out,
+    top 350ms ease-out,
+    height 350ms ease-out;
+}
+
+/* Light, readable text on the dark see-through dock. */
+.match-dock-panel .muted,
+.match-dock-panel .duel-tx.muted {
+  color: var(--paper);
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .duel.match.full .fight-stage.settled .fight-floor,
+  .duel.match.full .fight-stage.settled .arena-art,
+  .duel.match.full .fight-stage.settled .arena-fill {
+    transition: none;
+  }
+}
+
+/* The two "Last turn" lines never lose the bottom of their letters on the dock. */
+.match-dock-panel .match-why {
+  height: calc(2 * 1.35em + 2px);
+  line-height: 1.35;
 }
