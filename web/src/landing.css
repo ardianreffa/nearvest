@@ -229,8 +229,9 @@
   display: block;
 }
 
-/* The stepped pixel border: absolutely at the bottom of its section, in the next one's colour. */
-.lp-dither {
+/* The section border: an Indonesian textile motif as pixel art (landing-motif.tsx), at the bottom of
+   its section, in the next section's colour. */
+.lp-motif {
   position: absolute;
   left: 0;
   bottom: 0;
@@ -244,7 +245,8 @@
 .lp-screen {
   position: relative;
   min-height: 100dvh;
-  height: 100dvh;
+  /* At least one screen; a section with more to say (phones) may grow (2026-11-12). */
+  height: auto;
   box-sizing: border-box;
   display: grid;
   place-items: center;
@@ -272,6 +274,18 @@
 
 .tone-cyan {
   background: var(--cyan-700);
+}
+
+.tone-forest {
+  background: var(--leaf-700);
+}
+
+.tone-gold {
+  background: var(--gold-700);
+}
+
+.tone-soil-dark {
+  background: var(--soil-700);
 }
 
 .lp-near-note {
@@ -304,6 +318,7 @@
 .lp-screen-art {
   display: grid;
   place-items: center;
+  width: 100%;
 }
 
 .lp-screen-text h2 {
@@ -474,6 +489,509 @@
 
 .lp-end-links a {
   color: var(--mint-300);
+}
+
+/* ===================== Redesign 2026-11-12: section looks ===================== */
+
+/* $PANEN: an arcade night: faint scanlines, a big pixel title with a stepped drop shadow. */
+#panen {
+  background:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--cyan-500) 6%, transparent) 0 2px, transparent 2px 6px),
+    var(--hud);
+}
+
+.lp-screen-text h2.lp-big-title {
+  margin: 0 0 18px;
+  font-size: var(--fs-hero);
+  line-height: 1;
+  color: var(--gold-500);
+  letter-spacing: 2px;
+  text-shadow:
+    4px 4px 0 var(--soil-700),
+    8px 8px 0 var(--ink),
+    0 0 28px color-mix(in srgb, var(--gold-500) 35%, transparent);
+}
+
+/* The PANEN medal: the coin in a big round gold ring; it turns slowly (a flip on its vertical axis). */
+.lp-medal {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(360px, 70vw);
+  aspect-ratio: 1;
+}
+
+.lp-medal-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--gold-300) 30%, transparent) 0 48%, transparent 49%),
+    radial-gradient(circle, transparent 0 58%, var(--gold-700) 59% 62%, var(--gold-500) 63% 70%, var(--gold-700) 71% 73%, transparent 74%);
+  filter: drop-shadow(0 8px 0 var(--ink));
+}
+
+.lp-medal-coin {
+  position: relative;
+  line-height: 0;
+  animation: lp-coin-turn 4.8s ease-in-out infinite;
+}
+
+@keyframes lp-coin-turn {
+  0%,
+  40%,
+  100% {
+    transform: scaleX(1);
+  }
+  60% {
+    transform: scaleX(0.08);
+  }
+  80% {
+    transform: scaleX(1);
+  }
+}
+
+.lp-mainnet {
+  margin: 14px 0 0;
+  padding: 6px 10px;
+  font-family: var(--font-body);
+  font-size: var(--fs-body);
+  color: var(--paper-light);
+  border-left: 4px solid var(--mint-500);
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
+}
+
+.lp-small-note {
+  margin: 8px 0 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--cyan-300);
+}
+
+/* "Screenshot" cards: a thick paper-white frame, a hard shadow, slightly tilted; one more behind. */
+.lp-card-stack {
+  position: relative;
+  width: min(520px, 100%);
+}
+
+.lp-card {
+  position: relative;
+  padding: 8px;
+  background: var(--paper-light);
+  box-shadow: 8px 8px 0 color-mix(in srgb, var(--ink) 55%, transparent);
+  transform: rotate(var(--tilt, -2deg));
+}
+
+.lp-card-back {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-clip: content-box;
+  image-rendering: pixelated;
+  opacity: 0.85;
+}
+
+/* Grow, harvest, earn: a garden check pattern behind the card. */
+#grow {
+  background:
+    conic-gradient(color-mix(in srgb, var(--leaf-300) 14%, transparent) 25%, transparent 0 50%, color-mix(in srgb, var(--leaf-300) 14%, transparent) 0 75%, transparent 0) 0 0 / 32px 32px,
+    var(--leaf-500);
+}
+
+.lp-grow,
+.lp-duel,
+.lp-fish {
+  width: min(520px, 100%);
+}
+
+.lp-grow-scene,
+.lp-duel-scene {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center bottom;
+  image-rendering: pixelated;
+}
+
+.lp-grow-plot {
+  position: absolute;
+  left: 10%;
+  bottom: 6%;
+  width: 34%;
+  height: 70%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.lp-grow-soil {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 14px;
+  background: var(--soil-500);
+  border: 3px solid var(--soil-700);
+}
+
+.lp-grow-tree {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 8px;
+  line-height: 0;
+  transform-origin: 50% 100%;
+  animation: lp-pop 0.5s steps(4) both;
+}
+
+.lp-grow-seed {
+  position: absolute;
+  bottom: 18px;
+  line-height: 0;
+  animation: lp-drop 0.7s ease-in both;
+}
+
+.lp-grow-fruit {
+  position: absolute;
+  bottom: 50%;
+  left: 40%;
+  z-index: 2;
+  line-height: 0;
+  animation: lp-fruit-go 0.9s ease-in both;
+}
+
+.lp-grow-darto {
+  position: absolute;
+  right: 10%;
+  bottom: 4%;
+  line-height: 0;
+}
+
+.lp-grow-coin {
+  position: absolute;
+  left: 30%;
+  top: 0;
+  line-height: 0;
+  animation: lp-coin-fly 0.9s ease-in both;
+}
+
+.lp-grow-balance {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  color: var(--gold-300);
+  background: color-mix(in srgb, var(--hud) 88%, transparent);
+  border: 2px solid var(--soil-700);
+}
+
+.lp-grow-balance.bump {
+  animation: lp-bump 0.4s steps(2) 0.9s both;
+}
+
+.lp-grow-label,
+.lp-ko,
+.lp-prize {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--paper-light);
+  background: color-mix(in srgb, var(--ink) 75%, transparent);
+}
+
+@keyframes lp-pop {
+  from {
+    transform: scale(0.4);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes lp-drop {
+  from {
+    transform: translateY(-80px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes lp-fruit-go {
+  to {
+    transform: translate(260%, 60%);
+    opacity: 0;
+  }
+}
+
+@keyframes lp-coin-fly {
+  0% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(120%, -360%);
+    opacity: 0;
+  }
+}
+
+@keyframes lp-bump {
+  50% {
+    transform: scale(1.15);
+  }
+}
+
+/* 1 VS 1: a fight poster: speed lines behind the card, VS badge, life bars. */
+#duel {
+  background:
+    repeating-linear-gradient(-30deg, color-mix(in srgb, var(--purple-500) 22%, transparent) 0 10px, transparent 10px 30px),
+    var(--purple-700);
+}
+
+.lp-duel-bars {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+}
+
+.lp-bar {
+  flex: 1;
+  height: 12px;
+  background: var(--ink);
+  border: 2px solid var(--paper-light);
+}
+
+.lp-bar i {
+  display: block;
+  height: 100%;
+  background: var(--mint-500);
+  transition: width 0.4s steps(4);
+}
+
+.lp-bar.right {
+  transform: scaleX(-1);
+}
+
+.lp-vs {
+  font-family: var(--font-title);
+  font-size: var(--fs-h3);
+  color: var(--gold-500);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.lp-duel-bot {
+  position: absolute;
+  bottom: 14%;
+  line-height: 0;
+}
+
+.lp-duel-bot.left {
+  left: 14%;
+}
+
+.lp-duel-bot.right {
+  right: 14%;
+}
+
+.lp-face-right {
+  transform: scaleX(-1);
+}
+
+.lp-duel-bot.hit {
+  animation: lp-shake 0.3s steps(3) 0.55s both;
+}
+
+.lp-duel-bot.ko {
+  filter: saturate(0.5) brightness(0.8);
+}
+
+.lp-zzz {
+  position: absolute;
+  top: -14px;
+  right: -6px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--paper-light);
+}
+
+.lp-throw {
+  position: absolute;
+  bottom: 36%;
+  line-height: 0;
+  z-index: 2;
+}
+
+.lp-throw.to-right {
+  left: 26%;
+  animation: lp-arc-right 0.65s ease-in-out both;
+}
+
+.lp-throw.to-left {
+  right: 26%;
+  animation: lp-arc-left 0.65s ease-in-out both;
+}
+
+@keyframes lp-arc-right {
+  0% {
+    transform: translate(0, 0) rotate(0);
+  }
+  50% {
+    transform: translate(90%, -120%) rotate(180deg);
+  }
+  100% {
+    transform: translate(180%, 0) rotate(360deg);
+    opacity: 0.2;
+  }
+}
+
+@keyframes lp-arc-left {
+  0% {
+    transform: translate(0, 0) rotate(0);
+  }
+  50% {
+    transform: translate(-90%, -120%) rotate(-180deg);
+  }
+  100% {
+    transform: translate(-180%, 0) rotate(-360deg);
+    opacity: 0.2;
+  }
+}
+
+@keyframes lp-shake {
+  33% {
+    transform: translateX(-4px);
+  }
+  66% {
+    transform: translateX(4px);
+  }
+}
+
+.lp-ko {
+  left: 50%;
+  top: 40%;
+  bottom: auto;
+  transform: translateX(-50%);
+  font-family: var(--font-title);
+  font-size: var(--fs-h2);
+  color: var(--gold-500);
+  background: none;
+  text-shadow: 3px 3px 0 var(--ink);
+}
+
+.lp-prize {
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gold-300);
+}
+
+/* Fishing: horizontal water bands behind the card. */
+#fishing {
+  background:
+    repeating-linear-gradient(180deg, color-mix(in srgb, var(--cyan-500) 14%, transparent) 0 4px, transparent 4px 24px),
+    var(--cyan-700);
+}
+
+.lp-fish-scene .pond {
+  border: 0;
+}
+
+.lp-fish-gain {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  color: var(--gold-300);
+  background: color-mix(in srgb, var(--hud) 85%, transparent);
+  animation: lp-gain 1.6s ease-out both;
+}
+
+@keyframes lp-gain {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -130%);
+  }
+}
+
+/* Old sections in the new style: the trees and TaniBot sit on their cards. */
+.lp-tree-card .lp-card {
+  background: var(--paper-light);
+}
+
+.lp-tree-card .lp-tree-row,
+.lp-bot-card .lp-bot-stand {
+  padding: 18px 12px 12px;
+  background: linear-gradient(var(--cyan-300), var(--leaf-300) 70%, var(--leaf-500));
+}
+
+#tanibot {
+  background:
+    linear-gradient(color-mix(in srgb, var(--soil-300) 18%, transparent) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, color-mix(in srgb, var(--soil-300) 18%, transparent) 1px, transparent 1px) 0 0 / 24px 24px,
+    var(--soil-500);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-medal-coin,
+  .lp-grow-tree,
+  .lp-grow-seed,
+  .lp-grow-fruit,
+  .lp-grow-coin,
+  .lp-grow-balance.bump,
+  .lp-duel-bot.hit,
+  .lp-throw,
+  .lp-fish-gain {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .lp-screen-text h2.lp-big-title {
+    font-size: var(--fs-h1);
+  }
+
+  .lp-medal {
+    width: min(200px, 52vw);
+  }
+
+  .lp-card {
+    padding: 5px;
+    box-shadow: 5px 5px 0 color-mix(in srgb, var(--ink) 55%, transparent);
+  }
+
+  .lp-mainnet {
+    font-size: var(--fs-sm);
+  }
 }
 
 /* Floating "Play for free" (after the hero): top right on laptops, bottom centre on phones. */

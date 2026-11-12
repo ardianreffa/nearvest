@@ -1,8 +1,12 @@
-// The landing page at / (the game itself is at /play). Full-screen sections like a game site:
-// the hero (the game's own village at midday with all its animations), then one screen each for
-// the Living Tree NFT, TaniBot, $PANEN, "Play first, own later" and the closing call. Each
-// section has its own palette colour; the borders are stepped pixel dithers (Dither). A floating
-// "Play for free" appears once the hero is scrolled away. Still with prefers-reduced-motion.
+// The landing page at / (the game itself is at /play). Full-screen sections like a game site
+// (redesigned 2026-11-12, Ardian): the hero (the game's own village at midday), then $PANEN (a big
+// pixel title and the PANEN coin turning in its medal), "Grow, harvest, earn" (a loop made of the
+// game's sprites), "1 VS 1" (two TaniBots on the Tandur Arena), "Fishing" (the real pond scene),
+// the Living Tree NFT, TaniBot, "Play first, own later", "Built on NEAR" and the closing call. Each
+// section has its own look; the borders are Indonesian textile motifs as pixel art (landing-motif.tsx:
+// tumpal, kawung, mega mendung, parang). Design tokens only (sprites keep their pixel palettes). Only
+// features that exist are claimed. Still with prefers-reduced-motion. A floating "Play for free"
+// appears once the hero is scrolled away.
 // A signed-in player (or an old link with game options such as ?record=1) goes straight to /play
 // (inline script in index.html, before anything loads). "Try as Judge" opens /play?judge=1, which
 // makes the judge garden right away, exactly like the button on the sign-in page.
@@ -14,13 +18,14 @@ import './styles.css';
 import './landing.css';
 import { API_URL } from './api';
 import { installChunkReload } from './chunk-reload';
-import { DARTO_IDLE, DARTO_PALETTE } from './art/darto-sprite';
 import { Backdrop } from './art/backdrop';
 import { V3_PHONE, V3_WEB } from './art/village';
 import { Avatar } from './art/avatars';
 import { TaniBot } from './art/tanibot';
 import { TreePixels } from './art/trees';
-import { Pixels, Sprite, type SpriteName } from './sprites';
+import { Sprite, type SpriteName } from './sprites';
+import { Motif, type MotifKind } from './landing-motif';
+import { Card, DuelLoop, FishLoop, GrowLoop, PanenMedal } from './landing-scenes';
 import { parseRef, readRef, withRef } from './referral';
 
 /** An invite (?ref=) goes with every link to /play (index.html's script also kept it in localStorage). */
@@ -85,51 +90,44 @@ function Hero() {
         <span class="lp-cta-note">Sign in with Google or a NEAR wallet. No fees, testnet.</span>
         <span class="lp-cta-note lp-device-note">Plays on phones and laptops. For the best view, use Chrome on a laptop.</span>
       </div>
-      <Dither to="--leaf-500" id="d0" />
+      <Motif kind="tumpal" to="--hud" id="m-hero" />
     </header>
   );
 }
 
-/**
- * The stepped pixel border at the bottom of a section: three rows of 8 px squares in the next
- * section's colour, 25% -> 50% -> 75% filled (an ordered dither), then the next section starts.
- */
-function Dither({ to, id }: { to: `--${string}`; id: string }) {
-  const sq = 8;
-  return (
-    <svg class="lp-dither" style={{ color: `var(${to})` }} aria-hidden="true" height={sq * 6} preserveAspectRatio="none">
-      <defs>
-        <pattern id={`${id}-25`} width={sq * 2} height={sq * 2} patternUnits="userSpaceOnUse">
-          <rect width={sq} height={sq} fill="currentColor" />
-        </pattern>
-        <pattern id={`${id}-50`} width={sq * 2} height={sq * 2} patternUnits="userSpaceOnUse">
-          <rect width={sq} height={sq} fill="currentColor" />
-          <rect x={sq} y={sq} width={sq} height={sq} fill="currentColor" />
-        </pattern>
-        <pattern id={`${id}-75`} width={sq * 2} height={sq * 2} patternUnits="userSpaceOnUse">
-          <rect width={sq * 2} height={sq} fill="currentColor" />
-          <rect x={sq} y={sq} width={sq} height={sq} fill="currentColor" />
-        </pattern>
-      </defs>
-      <rect y={0} width="100%" height={sq * 2} fill={`url(#${id}-25)`} />
-      <rect y={sq * 2} width="100%" height={sq * 2} fill={`url(#${id}-50)`} />
-      <rect y={sq * 4} width="100%" height={sq * 2} fill={`url(#${id}-75)`} />
-    </svg>
-  );
-}
-
-/** One full-screen section: its colour, the art, the title and the points (all within one screen). */
-function Screen({ id, tone, next, title, art, children }: { id: string; tone: string; next?: `--${string}`; title: string; art?: preact.ComponentChildren; children: preact.ComponentChildren }) {
+/** One full-screen section: its colour and look, the art, the title and the points (one screen). */
+function Screen({
+  id,
+  tone,
+  next,
+  motif,
+  title,
+  bigTitle,
+  art,
+  children,
+}: {
+  id: string;
+  tone: string;
+  next?: `--${string}`;
+  motif?: MotifKind;
+  title: string;
+  /** A big pixel display title (e.g. "$PANEN") instead of the normal one. */
+  bigTitle?: boolean;
+  art?: preact.ComponentChildren;
+  children: preact.ComponentChildren;
+}) {
   return (
     <section class={`lp-screen tone-${tone}`} id={id}>
       <div class="lp-screen-inner">
         {art && <div class="lp-screen-art">{art}</div>}
         <div class="lp-screen-text">
-          <h2>{title}</h2>
+          <h2 class={bigTitle ? 'lp-big-title' : undefined} data-text={title}>
+            {title}
+          </h2>
           {children}
         </div>
       </div>
-      {next && <Dither to={next} id={`d-${id}`} />}
+      {next && motif && <Motif kind={motif} to={next} id={`m-${id}`} />}
     </section>
   );
 }
@@ -244,13 +242,13 @@ function HowItWorks() {
   }, []);
   const go = (e: Event) => {
     e.preventDefault();
-    const target = document.getElementById('trees');
+    const target = document.getElementById('panen');
     if (!target) return;
     scrollToY(Math.round(target.getBoundingClientRect().top + window.scrollY));
   };
   const gone = !top;
   return (
-    <a class={`btn btn-small lp-how${gone ? ' gone' : ''}`} href="#trees" onClick={go} aria-hidden={gone} tabIndex={gone ? -1 : 0}>
+    <a class={`btn btn-small lp-how${gone ? ' gone' : ''}`} href="#panen" onClick={go} aria-hidden={gone} tabIndex={gone ? -1 : 0}>
       See how it works <span class="lp-how-arrow" aria-hidden="true">↓</span>
     </a>
   );
@@ -288,27 +286,75 @@ function Landing() {
     <>
       <Hero />
       <main class="lp-main">
+        <Screen id="panen" tone="hud" next="--leaf-500" motif="kawung" title="$PANEN" bigTitle art={<PanenMedal scale={narrow ? 10 : 18} />}>
+          <Points
+            items={[
+              ['sprout', <><b>Earn it</b> by harvesting and selling fruit to Mr. Darto, by fishing and by winning duels.</>],
+              ['fire', <><b>Spend it</b> in the Shop: every PANEN spent there is <b>burned</b> forever.</>],
+              ['coin', <><b>Fair launch:</b> 0% team, no pre-mint. Only farming makes new PANEN.</>],
+              ['sparkle', <><b>Halving every Season:</b> rewards halve as more PANEN exists.</>],
+            ]}
+          />
+          <LiveStats />
+          <p class="lp-mainnet">Mainnet plan: a $PANEN/NEAR pair on a NEAR DEX (planned, after legal advice).</p>
+          <p class="lp-small-note">Testnet token, no monetary value.</p>
+        </Screen>
+
+        <Screen id="grow" tone="leaf" next="--purple-700" motif="mendung" title="Grow, harvest, earn" art={<GrowLoop scale={narrow ? 2 : 3} />}>
+          <Points
+            items={[
+              ['seedPacket', <><b>Plant</b> a seed: a Tree NFT is born.</>],
+              ['droplet', <><b>Water</b> it and watch it grow and fruit.</>],
+              ['mango', <><b>Harvest</b> and <b>sell</b> to Mr. Darto: PANEN lands in your balance (after the Season rule).</>],
+            ]}
+          />
+        </Screen>
+
+        <Screen id="duel" tone="purple" next="--cyan-700" motif="tumpal" title="1 VS 1" art={<DuelLoop scale={narrow ? 1 : 2} />}>
+          <Points
+            items={[
+              ['bolt', <><b>Challenge another farmer</b>, live or against their TaniBot.</>],
+              ['durian', <><b>Best fruit hits hardest</b>: your garden's trees are your weapons.</>],
+              ['lock', <><b>No token wagering</b>: nobody loses PANEN.</>],
+              ['coin', <>The winner's <b>reward comes from the game</b> (a few duels a day).</>],
+            ]}
+          />
+        </Screen>
+
+        <Screen id="fishing" tone="cyan" next="--leaf-700" motif="parang" title="Fishing" art={<FishLoop />}>
+          <Points
+            items={[
+              ['fish', <><b>Cast, wait for the bite, reel in</b> at the jungle pond.</>],
+              ['coin', <>Mr. Darto <b>buys your fish</b> on the spot: +PANEN.</>],
+              ['sparkle', <>Rare finds: seeds, Fertilizer, the <b>Golden Arowana</b>. 5 casts a day.</>],
+            ]}
+          />
+        </Screen>
+
         <Screen
           id="trees"
-          tone="leaf"
+          tone="forest"
           next="--soil-500"
+          motif="kawung"
           title="Your tree is a living NFT"
           art={
-            <div class="lp-tree-row">
-              {(
-                [
-                  ['sprout', 'Sprout', 'common'],
-                  ['tree', 'Tree', 'rare'],
-                  ['fruiting', 'Fruiting', 'gold'],
-                  ['old', 'Memorial', 'common'],
-                ] as const
-              ).map(([stage, label, q], i) => (
-                <figure key={stage}>
-                  <TreePixels species={i === 2 ? 'durian' : 'mango'} stage={stage} quality={q} scale={treeScale} seed={i + 1} />
-                  <figcaption>{label}</figcaption>
-                </figure>
-              ))}
-            </div>
+            <Card tilt={-2} back="/assets/bg/village3-web-dusk.png" class="lp-tree-card">
+              <div class="lp-tree-row">
+                {(
+                  [
+                    ['sprout', 'Sprout', 'common'],
+                    ['tree', 'Tree', 'rare'],
+                    ['fruiting', 'Fruiting', 'gold'],
+                    ['old', 'Memorial', 'common'],
+                  ] as const
+                ).map(([stage, label, q], i) => (
+                  <figure key={stage}>
+                    <TreePixels species={i === 2 ? 'durian' : 'mango'} stage={stage} quality={q} scale={treeScale} seed={i + 1} />
+                    <figcaption>{label}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            </Card>
           }
         >
           <Points
@@ -324,12 +370,15 @@ function Landing() {
         <Screen
           id="tanibot"
           tone="soil"
-          next="--hud"
+          next="--gold-700"
+          motif="mendung"
           title="TaniBot, your AI farmer"
           art={
-            <div class="lp-bot-stand">
-              <TaniBot tier="farmer" scale={narrow ? 1 : 4} effects={false} />
-            </div>
+            <Card tilt={2} back="/assets/bg/bg-shop.png" class="lp-bot-card">
+              <div class="lp-bot-stand">
+                <TaniBot tier="farmer" scale={narrow ? 1 : 4} effects={false} />
+              </div>
+            </Card>
           }
         >
           <Points
@@ -343,34 +392,10 @@ function Landing() {
         </Screen>
 
         <Screen
-          id="panen"
-          tone="hud"
-          next="--purple-700"
-          title="$PANEN"
-          art={
-            <div class="lp-panen">
-              <Pixels rows={DARTO_IDLE} palette={DARTO_PALETTE} scale={narrow ? 2 : 4} class="lp-darto" />
-              <span class="lp-coins">
-                <Sprite name="coin" scale={narrow ? 4 : 8} />
-                <Sprite name="fire" scale={narrow ? 4 : 8} />
-              </span>
-            </div>
-          }
-        >
-          <Points
-            items={[
-              ['coin', <><b>Fair launch:</b> 0% team, no pre-mint. Earned only by farming.</>],
-              ['sparkle', <><b>Seasons:</b> harvest rewards halve as more PANEN exists.</>],
-              ['fire', <><b>Burn:</b> every PANEN spent in the Shop is burned forever.</>],
-            ]}
-          />
-          <LiveStats />
-        </Screen>
-
-        <Screen
           id="own"
-          tone="purple"
-          next="--cyan-700"
+          tone="gold"
+          next="--soil-700"
+          motif="parang"
           title="Play first, own later"
           art={
             <div class="lp-own">
@@ -389,7 +414,7 @@ function Landing() {
           />
         </Screen>
 
-        <Screen id="near" tone="cyan" next="--ink" title="Built on NEAR">
+        <Screen id="near" tone="soil-dark" next="--ink" motif="tumpal" title="Built on NEAR">
           <Points
             items={[
               ['coin', <><b>$PANEN</b>: NEP-141 fungible token.</>],
