@@ -594,15 +594,18 @@ export function MatchScreen({
         )}
 
         {leaving && (
+          // A popup in the middle of the screen over a dark veil (2026-11-12, Ardian's iPhone test).
+          <div class="match-leave-veil" role="presentation">
           <div class="match-leave" role="alertdialog" aria-label="Leave the duel?">
+            <h3 class="match-leave-title">Leave the duel?</h3>
             {isLive ? (
               <p>
-                Leave the duel? {them.name} waits 20 s for you. If you do not come back in time, {them.name} wins
+                {them.name} waits 20 s for you. If you do not come back in time, {them.name} wins
                 {m.turns.length === 0 ? ' (before the first turn ends, the duel is simply cancelled).' : '.'}
               </p>
             ) : (
               <p>
-                Leave the duel? It keeps going without you: every turn you miss (10 s) the TaniBot hits you. Come back soon (Arena window: Continue), or you lose without a
+                It keeps going without you: every turn you miss (10 s) the TaniBot hits you. Come back soon (Arena window: Continue), or you lose without a
                 prize.
               </p>
             )}
@@ -614,6 +617,7 @@ export function MatchScreen({
                 Leave
               </button>
             </div>
+          </div>
           </div>
         )}
       </div>
