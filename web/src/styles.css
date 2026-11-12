@@ -14413,25 +14413,29 @@ html.duel-open .duel-bg .backdrop * {
   }
 }
 
-.lake-ripple {
-  opacity: 0.45;
+.lake-wave {
+  stroke-width: 1px;
+  opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
-  animation: lake-ripple 6.4s ease-out infinite;
+  animation: lake-wave 16s linear infinite;
 }
 
-@keyframes lake-ripple {
+/* A wave grows from the waterfall's foot over the whole lake, faint, fading as it travels. */
+@keyframes lake-wave {
   0% {
     opacity: 0;
-    transform: scale(0.4);
+    transform: scale(0.06);
   }
-  15% {
-    opacity: 0.8;
+  10% {
+    opacity: 0.45;
   }
-  70%,
+  70% {
+    opacity: 0.18;
+  }
   100% {
     opacity: 0;
-    transform: scale(3.2);
+    transform: scale(1);
   }
 }
 
@@ -15281,7 +15285,7 @@ html.duel-open .duel-bg .backdrop * {
   /* The pond's life stands still. */
   .pond-tree,
   .pond-glint,
-  .lake-ripple,
+  .lake-wave,
   .rain-ring,
   .frog-hop,
   .duck-bob,

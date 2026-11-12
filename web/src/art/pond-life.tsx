@@ -67,13 +67,8 @@ const GLINTS = [
   [196, 112, 4],
   [318, 160, 3],
 ];
-/** Slow round ripples spreading on the open water (grid px), now and then. */
-const LAKE_RIPPLES = [
-  [204, 214],
-  [332, 200],
-  [296, 112],
-  [372, 236],
-];
+/** Waves leave the waterfall's foot one after another (seconds: animation delays of a 16 s loop). */
+const WAVES = [0, -4, -8, -12];
 /** Where rain drops ring the water (grid px). */
 const RAIN_RINGS = [
   [214, 120],
@@ -196,9 +191,15 @@ export function PondLife({
             <rect key={i} class="pond-glint" x={x} y={y} width={w} height={1} style={{ animationDelay: `${-i * 1.3}s` }} />
           ))}
         </g>
-        <g class="pond-ripples" fill="none" stroke="var(--paper-light)" stroke-width={0.8}>
-          {LAKE_RIPPLES.map(([x, y], i) => (
-            <ellipse key={i} class="lake-ripple" cx={x} cy={y} rx={4} ry={1.6} style={{ animationDelay: `${-i * 1.6}s` }} />
+        {/* Small waves spreading slowly from the waterfall over the whole lake (only on the water). */}
+        <defs>
+          <mask id="pond-water-mask" maskUnits="userSpaceOnUse" x={0} y={0} width={480} height={270}>
+            <image href="/assets/bg/fishing-pond-water.png" x={0} y={0} width={480} height={270} preserveAspectRatio="none" />
+          </mask>
+        </defs>
+        <g class="pond-waves" mask="url(#pond-water-mask)" fill="none" stroke="var(--paper-light)">
+          {WAVES.map((d, i) => (
+            <ellipse key={i} class="lake-wave" cx={392} cy={64} rx={300} ry={130} vector-effect="non-scaling-stroke" style={{ animationDelay: `${d}s` }} />
           ))}
         </g>
         {weather === 'rain' && (

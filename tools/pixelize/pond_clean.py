@@ -6,7 +6,9 @@
 # shapes (like the catch icons, tools/pixelize/catch_icons.py) into web/src/art/pond-sprites.ts; they
 # swim and hop in code (art/pond-life.tsx).
 # The big tree's leaves (top left) are copied to their own see-through layer that sways in CSS.
-# Usage: python3 -I tools/pixelize/pond_clean.py <pixelized bg.png> <out.png> <out pond-sprites.ts> <out tree.png>
+# Optional 5th output: the lake's water as a mask (white = water, see-through = land / rocks / pads),
+# for the waves that spread over the lake (package 4).
+# Usage: python3 -I tools/pixelize/pond_clean.py <pixelized bg.png> <out.png> <out pond-sprites.ts> <out tree.png> [<out water.png>]
 # (bg.png = pixelize.py docs/art-source/fishing-pond.png 270 <dir> --keep-bg --hq --colors 96).
 # Standard library only.
 import sys, os
@@ -68,6 +70,8 @@ def solid_in(x0, y0, x1, y1):
     if x0 < 0 or y0 < 0 or x1 > w or y1 > h:
         return 1
     return pre[y1][x1] - pre[y0][x1] - pre[y1][x0] + pre[y0][x0]
+if len(sys.argv) > 5:
+    write_png(sys.argv[5], w, h, [[(255, 255, 255, 255) if passable[y][x] else (0, 0, 0, 0) for x in range(w)] for y in range(h)])
 mask = []
 for cy in range(h // CELL):
     row = ''
