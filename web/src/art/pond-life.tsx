@@ -67,6 +67,13 @@ const GLINTS = [
   [196, 112, 4],
   [318, 160, 3],
 ];
+/** Slow round ripples spreading on the open water (grid px), now and then. */
+const LAKE_RIPPLES = [
+  [204, 214],
+  [332, 200],
+  [296, 112],
+  [372, 236],
+];
 /** Where rain drops ring the water (grid px). */
 const RAIN_RINGS = [
   [214, 120],
@@ -130,6 +137,11 @@ export function PondLife({ time, weather, still }: { time: PondTime; weather: Po
         <g class="pond-glints" fill="var(--paper-light)">
           {GLINTS.map(([x, y, w], i) => (
             <rect key={i} class="pond-glint" x={x} y={y} width={w} height={1} style={{ animationDelay: `${-i * 1.3}s` }} />
+          ))}
+        </g>
+        <g class="pond-ripples" fill="none" stroke="var(--paper-light)" stroke-width={0.8}>
+          {LAKE_RIPPLES.map(([x, y], i) => (
+            <ellipse key={i} class="lake-ripple" cx={x} cy={y} rx={4} ry={1.6} style={{ animationDelay: `${-i * 1.6}s` }} />
           ))}
         </g>
         {weather === 'rain' && (

@@ -48,25 +48,66 @@ const C = {
   floatDark: '#1b1b2f',
   ripple: '#a8f1fb',
   foam: '#fffaf0',
-  fall: '#d9f8ff',
+  fallDark: '#22a8c8',
 };
 
-/** Streaks running down the waterfall and the foam at its foot (image grid). */
-const FALL_STREAKS = [
-  [388, 20],
-  [393, 28],
-  [398, 18],
-  [402, 30],
-  [416, 2],
-  [421, 6],
+/**
+ * The waterfall (Fishing package 3: the old thin pale streaks did not show on the white water).
+ * Each falling sheet is clipped to its place in the picture and filled with columns of bright and
+ * dark dashes; the whole group slides down one dash period per loop (seamless), so the water is
+ * clearly seen flowing. Foam puffs flicker at the foot and rings spread out over the pool.
+ */
+const FALLS: { clip: [number, number, number, number]; x0: number; x1: number }[] = [
+  { clip: [384, 16, 21, 39], x0: 384, x1: 405 },
+  { clip: [411, 0, 18, 14], x0: 411, x1: 429 },
 ];
-const FOAM = [
-  [384, 52, 3],
-  [390, 55, 4],
-  [397, 51, 3],
-  [403, 56, 3],
-  [393, 59, 2],
+const FALL_PERIOD = 8;
+const FOAM_PUFFS = [
+  [382, 54, 3],
+  [388, 57, 4],
+  [395, 55, 3.5],
+  [401, 58, 3],
+  [392, 51, 2.5],
+  [399, 52, 2],
 ];
+
+function Waterfall() {
+  return (
+    <g class="pond-fall" aria-hidden="true">
+      <defs>
+        {FALLS.map((f, i) => (
+          <clipPath key={i} id={`pond-fall-${i}`}>
+            <rect x={f.clip[0]} y={f.clip[1]} width={f.clip[2]} height={f.clip[3]} />
+          </clipPath>
+        ))}
+      </defs>
+      {FALLS.map((f, i) => {
+        const dashes = [];
+        for (let x = f.x0; x < f.x1; x += 2)
+          for (let y = f.clip[1] - FALL_PERIOD * 2; y < f.clip[1] + f.clip[3]; y += FALL_PERIOD) {
+            const off = ((x * 5) % FALL_PERIOD) - FALL_PERIOD / 2;
+            dashes.push(<rect key={`w${x}-${y}`} x={x} y={y + off} width={1.4} height={3} fill={C.foam} />);
+            dashes.push(<rect key={`d${x}-${y}`} x={x + 1} y={y + off + 4} width={1} height={2} fill={C.fallDark} />);
+          }
+        return (
+          <g key={i} clip-path={`url(#pond-fall-${i})`}>
+            <g class="fall-flow" shape-rendering="crispEdges" style={{ animationDelay: `${-i * 0.2}s` }}>
+              {dashes}
+            </g>
+          </g>
+        );
+      })}
+      {FOAM_PUFFS.map(([x, y, r], i) => (
+        <ellipse key={i} class="fall-foam" cx={x} cy={y} rx={r} ry={r * 0.6} fill={C.foam} style={{ animationDelay: `${-i * 0.17}s` }} />
+      ))}
+      <g fill="none" stroke={C.foam} stroke-width={0.9}>
+        {[0, 1, 2].map((i) => (
+          <ellipse key={i} class="fall-ring" cx={392} cy={63} rx={10} ry={3} style={{ animationDelay: `${-i * 0.8}s` }} />
+        ))}
+      </g>
+    </g>
+  );
+}
 
 export type PondPhase = 'ready' | 'casting' | 'wait' | 'bite' | 'reeling' | 'result';
 
@@ -150,14 +191,7 @@ export function PondScene({
       <img class="pond-img" src="/assets/bg/fishing-pond.png" alt="" width={POND_W} height={POND_H} draggable={false} />
       <PondLife time={time} weather={weather} still={still} />
       <svg class="pond-svg" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
-        <g class="pond-fall" shape-rendering="crispEdges">
-          {FALL_STREAKS.map(([x, y], i) => (
-            <rect key={i} class="fall-streak" x={x} y={y} width={1} height={5} fill={C.fall} style={{ animationDelay: `${-i * 0.23}s` }} />
-          ))}
-          {FOAM.map(([x, y, w], i) => (
-            <rect key={i} class="fall-foam" x={x} y={y} width={w} height={1} fill={C.foam} style={{ animationDelay: `${-i * 0.31}s` }} />
-          ))}
-        </g>
+        <Waterfall />
         {pose.inWater && (
           <g class="pond-rings" fill="none" stroke={C.ripple} stroke-width={1}>
             <circle class="ring ring-a" cx={FLOAT_AT.x} cy={FLOAT_AT.y} r={6} />

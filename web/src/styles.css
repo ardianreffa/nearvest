@@ -14272,21 +14272,44 @@ html.duel-open .duel-bg .backdrop * {
 
 .pond-glint {
   opacity: 0.5;
-  animation: pond-glint 7s linear infinite;
+  animation: pond-shimmer 7s linear infinite;
 }
 
-@keyframes pond-glint {
+/* (Own name: "pond-glint" is the item glints' animation; the clash froze these in package 2.) */
+@keyframes pond-shimmer {
   0% {
     opacity: 0;
     transform: translateX(0);
   }
   30%,
   70% {
-    opacity: 0.7;
+    opacity: 0.85;
   }
   100% {
     opacity: 0;
     transform: translateX(-10px);
+  }
+}
+
+.lake-ripple {
+  opacity: 0.45;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lake-ripple 6.4s ease-out infinite;
+}
+
+@keyframes lake-ripple {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  15% {
+    opacity: 0.8;
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(3.2);
   }
 }
 
@@ -14467,40 +14490,57 @@ html.duel-open .duel-bg .backdrop * {
   mix-blend-mode: multiply;
 }
 
-/* The waterfall: light streaks run down, foam flickers at its foot. */
-.fall-streak {
-  animation: fall-run 0.9s linear infinite;
+/* The waterfall (art/pond.tsx Waterfall): the dashes slide down one period (8 grid px) per loop,
+   foam puffs flicker at the foot, rings spread over the pool. */
+.fall-flow {
+  animation: fall-flow 0.5s linear infinite;
+}
+
+@keyframes fall-flow {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(8px);
+  }
 }
 
 .fall-foam {
-  animation: fall-foam 1.2s steps(3) infinite;
-}
-
-@keyframes fall-run {
-  0% {
-    transform: translateY(-6px);
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(18px);
-    opacity: 0;
-  }
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: fall-foam 0.9s steps(3) infinite;
 }
 
 @keyframes fall-foam {
   0%,
   100% {
-    opacity: 0.2;
+    opacity: 0.5;
+    transform: scale(0.7);
   }
   50% {
     opacity: 1;
+    transform: scale(1.15);
   }
 }
 
-/* The float from above: bobbing = a slow pulse; the bite = it is pulled under (shrinks, fades). */
+.fall-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0.4;
+  animation: fall-ring 2.4s ease-out infinite;
+}
+
+@keyframes fall-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.8);
+  }
+}
+
 .pond-wait .pond-float {
   animation: pond-bob 1.4s steps(2) infinite;
 }
@@ -15053,8 +15093,9 @@ html.duel-open .duel-bg .backdrop * {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fall-streak,
+  .fall-flow,
   .fall-foam,
+  .fall-ring,
   .pond-float,
   .pond-rings .ring,
   .pond-bang,
@@ -15079,6 +15120,7 @@ html.duel-open .duel-bg .backdrop * {
   /* The pond's life stands still. */
   .pond-tree,
   .pond-glint,
+  .lake-ripple,
   .rain-ring,
   .frog-hop,
   .duck-bob,
