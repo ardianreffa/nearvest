@@ -34,7 +34,7 @@ export function useToasts() {
 type Rect = { top: number; bottom: number; left: number; right: number; width: number };
 
 /** Where the strip may go: below the HUD, left of an open side menu; around an open window. */
-function placeStrip(h: number, alert = false): { top: number; left: number; width: number } | null {
+function placeStrip(h: number, alert = false, chain = false): { top: number; left: number; width: number } | null {
   const W = window.innerWidth;
   const H = window.innerHeight;
   const safeTop = 6;
@@ -50,6 +50,23 @@ function placeStrip(h: number, alert = false): { top: number; left: number; widt
     if (dialog.top - safeTop - 6 >= h) return { top: Math.max(safeTop, dialog.top - h - 8), left: Math.round((W - Math.min(440, W - 24)) / 2), width: Math.min(440, W - 24) };
     if (H - dialog.bottom - 6 >= h + 6) return { top: dialog.bottom + 8, left: Math.round((W - Math.min(440, W - 24)) / 2), width: Math.min(440, W - 24) };
     return null;
+  }
+  // Phones, garden (Ardian 2026-11-12): transaction notices ("On NEAR: ...") sit at the bottom, right
+  // above the plot panel, so the sky, the mountain and the place pins stay clear. Never over TaniBot,
+  // its ON/OFF chip, its bubbles or a pin: then it slides a little onto the panel's top edge.
+  if (chain && W < 1024) {
+    const sheet = [...document.querySelectorAll('.garden-sheet')].map((e) => e.getBoundingClientRect()).find((r) => r.height);
+    if (sheet) {
+      const w = Math.min(440, W - 24);
+      const l = Math.round((W - w) / 2);
+      const avoid = [...document.querySelectorAll('.bot-spot .tanibot, .bot-status, .bot-hint, .place-pin, .coach-float .coach')]
+        .map((e) => e.getBoundingClientRect())
+        .filter((r) => r.width && r.height);
+      const clear = (top: number) => !avoid.some((r) => l < r.right && r.left < l + w && top < r.bottom && r.top < top + h);
+      const above = Math.round(sheet.top - h - 4);
+      for (const top of [above, Math.round(sheet.top - h / 2), Math.round(sheet.top + 2)]) if (top >= safeTop && clear(top)) return { top, left: l, width: w };
+      return { top: Math.round(sheet.top + 2), left: l, width: w };
+    }
   }
   // Below the top HUD (phone: the top bar and the chips row; laptop: the status capsules). If that
   // spot would cover TaniBot, a plot or a panel (short gardens, phones held sideways), the very top
@@ -77,7 +94,7 @@ export function ToastStrip({ shown, dismiss, setHidden }: { shown: Shown | null;
   useLayoutEffect(() => {
     if (!shown) return;
     const update = () => setPos((p) => {
-      const next = placeStrip(el.current?.offsetHeight || 30, !!shown && (isAlert(shown.toast.kind) || !!shown.toast.actions?.length));
+      const next = placeStrip(el.current?.offsetHeight || 30, !!shown && (isAlert(shown.toast.kind) || !!shown.toast.actions?.length), shown?.toast.kind === 'chain');
       return p && next && p.top === next.top && p.left === next.left && p.width === next.width ? p : next;
     });
     update();

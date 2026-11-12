@@ -58,10 +58,16 @@ const STEPS: Record<JudgeStep, { title: string; doText: string; see: string; go:
 };
 
 /** Small chip in the status row: "Judge tour 2/5". */
-export function JudgeTourChip({ state, onOpen }: { state: GameState; onOpen: () => void }) {
+export function JudgeTourChip({ state, onOpen, compact = false }: { state: GameState; onOpen: () => void; /** Phones: a finished tour is a small check-mark chip. */ compact?: boolean }) {
   const tour = state.judgeTour;
   if (!tour) return null;
   const done = tour.filter((t) => t.done).length;
+  if (compact && done === tour.length)
+    return (
+      <button class="chip chip-judge done chip-judge-mini" onClick={onOpen} title="Judge tour done (5/5): open it again" aria-label={`Judge tour done, ${done} of ${tour.length}`}>
+        <span aria-hidden="true">✓</span>
+      </button>
+    );
   return (
     <button class={`chip chip-judge${done === tour.length ? ' done' : ''}`} onClick={onOpen} title="Judge tour: try every feature in 5 steps">
       Judge tour <b>{done}/{tour.length}</b>

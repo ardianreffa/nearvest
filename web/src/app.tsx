@@ -50,7 +50,7 @@ import { dotsFor, fruitSnap, LOCAL_NONE, markMarketSeen, markSeen, marketNew, re
 import { InvitePanel, InviteWindow, VisitorsPanel } from './invite';
 import { clearRef, freshIds, keepRefFromUrl, readRef, withoutRef } from './referral';
 import { predict } from './optimistic';
-import { Info } from './info';
+import { Info, InfoChip } from './info';
 import { ToastStrip, useToasts } from './toast';
 import { seasonPayout } from './qty';
 import { Avatar } from './art/avatars';
@@ -1233,7 +1233,7 @@ export function App() {
   const nextIn = formatDuration(state.clock.msUntilNextDay - elapsed);
   /** Player status chips under the profile: check-in, farm day, weather. */
   const chips = (
-    <div class="hud-chips">
+    <div class={`hud-chips${wide ? '' : ' hud-chips-phone'}`}>
       <button
         class={`chip chip-checkin ${state.checkin.available ? 'ready' : 'done'}`}
         onClick={() => (playSound('click'), setInfo('checkin'))}
@@ -1247,26 +1247,51 @@ export function App() {
           <span>{state.checkin.available ? 'Check in' : nextIn}</span>
         </span>
       </button>
-      {/* Day chip and its (i) are one unit that never splits when the row wraps: on narrow
-          screens (Safari's text is a little wider) the (i) used to drop to the next line alone. */}
-      <span class="chip-day-group">
-        <span class="chip chip-day" title={`Next farm day in ${nextIn}`}>
-          Day {state.clock.farmDay}
-          {p.demo && <span class="chip-demo">Demo</span>}
-        </span>
-        {p.demo && <Info k="demo" label="Demo mode" />}
-      </span>
-      {/* Village weather (servers before the weather release send none: no chip). */}
-      {state.weather && (
-        <span class="chip-day-group chip-weather-group">
-          <span class={`chip chip-weather wx-${lookOf(state.weather)}`} title={lookText(state.weather)}>
-            <Sprite name={WEATHER_ICON[lookOf(state.weather)]} scale={2} />
-            {LOOK_LABEL[lookOf(state.weather)]}
+      {wide ? (
+        <>
+          {/* Day chip and its (i) are one unit that never splits when the row wraps: on narrow
+              screens (Safari's text is a little wider) the (i) used to drop to the next line alone. */}
+          <span class="chip-day-group">
+            <span class="chip chip-day" title={`Next farm day in ${nextIn}`}>
+              Day {state.clock.farmDay}
+              {p.demo && <span class="chip-demo">Demo</span>}
+            </span>
+            {p.demo && <Info k="demo" label="Demo mode" />}
           </span>
-          <Info k="weather" label="the weather" text={lookText(state.weather)} />
-        </span>
+          {/* Village weather (servers before the weather release send none: no chip). */}
+          {state.weather && (
+            <span class="chip-day-group chip-weather-group">
+              <span class={`chip chip-weather wx-${lookOf(state.weather)}`} title={lookText(state.weather)}>
+                <Sprite name={WEATHER_ICON[lookOf(state.weather)]} scale={2} />
+                {LOOK_LABEL[lookOf(state.weather)]}
+              </span>
+              <Info k="weather" label="the weather" text={lookText(state.weather)} />
+            </span>
+          )}
+        </>
+      ) : (
+        <>
+          {/* Phones (Ardian 2026-11-12): one compact row; the Day and weather chips open their
+              info popup themselves (no separate (i)). */}
+          {p.demo ? (
+            <InfoChip k="demo" label="Demo mode" class="chip chip-day chip-tap" title={`Next farm day in ${nextIn}`}>
+              Day {state.clock.farmDay}
+              <span class="chip-demo">Demo</span>
+            </InfoChip>
+          ) : (
+            <span class="chip chip-day" title={`Next farm day in ${nextIn}`}>
+              Day {state.clock.farmDay}
+            </span>
+          )}
+          {state.weather && (
+            <InfoChip k="weather" label="the weather" text={lookText(state.weather)} class={`chip chip-weather chip-tap wx-${lookOf(state.weather)}`} title={lookText(state.weather)}>
+              <Sprite name={WEATHER_ICON[lookOf(state.weather)]} scale={2} />
+              {LOOK_LABEL[lookOf(state.weather)]}
+            </InfoChip>
+          )}
+        </>
       )}
-      {!visiting && <JudgeTourChip state={state} onOpen={() => (playSound('click'), setInfo('judge'))} />}
+      {!visiting && <JudgeTourChip state={state} compact={!wide} onOpen={() => (playSound('click'), setInfo('judge'))} />}
     </div>
   );
   const notices = (

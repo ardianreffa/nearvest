@@ -106,7 +106,7 @@ function visibleArea(host: HTMLElement): Rect {
   const scene = (host.closest('.scene') ?? host).getBoundingClientRect();
   const safeTop = safeAreaTop();
   let top = Math.max(scene.top, safeTop);
-  for (const el of document.querySelectorAll('.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys, .coach-float')) {
+  for (const el of document.querySelectorAll('.hud-top .hud-capsule, .hud-top .hud-chips, .hud-sys, .phone-hud .hud-capsule, .phone-hud .hud-panen, .phone-hud > .hud-chips, .coach-float')) {
     const r = el.getBoundingClientRect();
     if (r.height && r.bottom > top && r.top < scene.top + scene.height / 3) top = Math.max(top, r.bottom);
   }

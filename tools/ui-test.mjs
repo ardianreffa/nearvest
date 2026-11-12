@@ -2094,6 +2094,151 @@ try {
     });
     throw { done: true };
   }
+  if (name.startsWith('--hud=') || name.startsWith('--botgap=')) {
+    // --hud=<user>: the top HUD (phones: one row of chips) for every weather look, a 5-digit farm day, a
+    //   judge garden with the tour done and not done, and a transaction notice ("On NEAR: ..."): where
+    //   the chips, (i), pins and the notice sit, what is cut off or covered. HUD_DAY=<n> sets the farm day.
+    // --botgap=<user>: TaniBot's spot and facing while plots are picked in turn (it stays in a gap next
+    //   to the picked plot; it only walks when the plot is not next to it).
+    // Fake-chain server; FAKE_DB=<its sqlite>; API_URL default http://127.0.0.1:8788.
+    const hud = name.startsWith('--hud=');
+    const user = name.slice(hud ? '--hud='.length : '--botgap='.length);
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    if (!process.env.FAKE_DB) throw new Error('--hud / --botgap need FAKE_DB=<the fake-chain server sqlite>');
+    const { DatabaseSync } = await import('node:sqlite');
+    const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return res.json();
+    };
+    const ready = async (token) => {
+      let st = await call('GET', '/api/me', token);
+      for (let i = 0; i < 40 && st.player?.accountStatus !== 'ready'; i++) (await sleep(300), (st = await call('GET', '/api/me', token)));
+      return st;
+    };
+    const { token } = await call('POST', '/auth/dev', null, { username: user });
+    let st = await call('GET', '/api/me', token);
+    if (st.error) st = await call('POST', '/api/player', token, { name: user, demo: true });
+    st = await ready(token);
+    db.prepare('UPDATE players SET tutorial_step = 100 WHERE name = ?').run(user);
+    if (!st.plots[0].tree) {
+      await call('POST', '/api/checkin', token);
+      st = await call('GET', '/api/me', token);
+      for (const plot of [0, 1]) {
+        const seed = (await call('GET', '/api/me', token)).seeds[0];
+        if (seed) await call('POST', '/api/plant', token, { plot, seedId: seed.id });
+      }
+    }
+    const day = Number(process.env.HUD_DAY ?? 12345);
+    const dayMs = 60_000;
+    db.prepare('UPDATE players SET created_at = ? WHERE name = ?').run(Date.now() - (day - 1) * dayMs, user);
+    const base = new URL(UI_URL);
+    const open = async (tok, params = '') => {
+      await evaluate(`(localStorage.setItem('nearvest.token', ${JSON.stringify(tok)}), localStorage.setItem('nearvest.drawer', 'open'), true)`);
+      const u = new URL(base); for (const [k, v] of new URLSearchParams(params)) u.searchParams.set(k, v);
+      await send('Page.navigate', { url: u.toString() });
+      await waitFor(`!!document.querySelector('.bot-click')`, 'garden');
+      await sleep(400);
+      for (let i = 0; i < 4; i++) {
+        // Share cards, the judge tour and other windows that open on their own: Later / Close.
+        await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close, .dialog-backdrop .modal-close').forEach(b => b.click())`);
+        await evaluate(`[...document.querySelectorAll('.dialog-backdrop button')].filter(b => /^(Later|Close|Got it)$/.test(b.innerText.trim())).forEach(b => b.click())`);
+        await sleep(500);
+      }
+      await sleep(600);
+    };
+    const report = `(() => {
+      const R = (e) => e.getBoundingClientRect();
+      const hit = (a, b) => a.width && b.width && a.left < b.right - 0.5 && b.left < a.right - 0.5 && a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5;
+      const hudEls = [...document.querySelectorAll('.phone-hud > *, .phone-hud .topbar > *, .hud-left, .hud-top .hud-capsule, .hud-sys')].filter(e => R(e).height);
+      const hudBottom = Math.round(Math.max(0, ...hudEls.map(e => R(e).bottom)));
+      const chips = [...document.querySelectorAll('.hud-chips > *')];
+      const rows = new Set(chips.map(c => Math.round(R(c).top))).size;
+      const leaves = [...document.querySelectorAll('.hud-chips .chip, .hud-chips .info-i')];
+      const cut = leaves.filter(c => c.scrollWidth > c.clientWidth + 1 || R(c).right > innerWidth + 0.5 || R(c).left < -0.5).map(c => c.innerText.replace(/\\n/g, ' ') || c.className);
+      const overl = [];
+      for (let i = 0; i < leaves.length; i++) for (let j = i + 1; j < leaves.length; j++) if (!leaves[i].contains(leaves[j]) && !leaves[j].contains(leaves[i]) && hit(R(leaves[i]), R(leaves[j]))) overl.push(leaves[i].innerText.trim() + ' x ' + (leaves[j].innerText.trim() || leaves[j].className));
+      const pins = [...document.querySelectorAll('.place-pin')].filter(p => R(p).width);
+      const underHud = pins.filter(p => hudEls.some(h => hit(R(p), R(h)))).map(p => p.innerText.replace(/\\n/g, ' '));
+      const toast = [...document.querySelectorAll('.toasts > .toast')].find(t => getComputedStyle(t).visibility !== 'hidden');
+      let t = null;
+      if (toast) {
+        const tr = R(toast);
+        const covers = ['.place-pin', '.bot-spot .tanibot', '.bot-status', '.plot-art', '.garden-sheet', '.tabs', '.hud-chips', '.topbar'].filter(s => [...document.querySelectorAll(s)].some(e => hit(tr, R(e))));
+        t = { text: toast.innerText.replace(/\\n/g, ' '), top: Math.round(tr.top), bottom: Math.round(tr.bottom), covers: covers.join(', ') || 'nothing', link: toast.tagName === 'A' };
+      }
+      const row = document.querySelector('.hud-chips');
+      const room = row ? Math.round(R(row.parentElement).right - parseFloat(getComputedStyle(row.parentElement).paddingRight) - Math.max(...chips.map(c => R(c).right))) : null;
+      return JSON.stringify({ hudBottom, chipRows: rows, roomLeftPx: room, chips: chips.map(c => c.innerText.replace(/\\n/g, ' ').trim()), infoButtons: document.querySelectorAll('.hud-chips .info-i').length, cut, overlaps: overl, pinsUnderHud: underHud, toast: t, sideways: document.documentElement.scrollWidth > innerWidth });
+    })()`;
+    try {
+    if (hud) {
+      for (const wx of ['eruption', 'volcanic', 'rain', 'drought', 'warning', 'clear']) {
+        await step(`HUD, weather ${wx}, day ${day}`, async () => {
+          await open(token, `weather=${wx}&time=day`);
+          console.log('hud:', await evaluate(report));
+          await screenshot(`hud-${wx}`);
+        });
+      }
+      await step('tap the Day chip and the weather chip (phones: they open the popup themselves)', async () => {
+        await open(token, 'weather=volcanic&time=day');
+        for (const sel of ['.hud-chips .chip-day', '.hud-chips .chip-weather']) {
+          const r = await evaluate(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return 'missing'; const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()`);
+          if (r === 'missing') { console.log(sel, 'missing'); continue; }
+          await realClick(r[0], r[1]); await sleep(500);
+          const pop = await evaluate(`(() => { const d = document.querySelector('.info-popup'); return d ? d.innerText.replace(/\\n/g, ' ').slice(0, 90) : 'no popup'; })()`);
+          console.log(`tap ${sel}:`, pop);
+          if (pop !== 'no popup') { await screenshot('tap-' + sel.split('.').pop()); await clickText('Got it'); await sleep(300); }
+        }
+      });
+      await step('transaction notice ("On NEAR: ...")', async () => {
+        await open(token, 'weather=clear&time=day');
+        await sleep(1200);
+        await call('POST', '/api/checkin', token);
+        await call('POST', '/api/shop/buy', token, { item: 'fertilizer', qty: 1 });
+        await waitFor(`!![...document.querySelectorAll('.toasts > .toast')].find(t => t.classList.contains('toast-chain') && getComputedStyle(t).visibility !== 'hidden')`, 'chain notice', 25000);
+        await sleep(350);
+        console.log('notice:', await evaluate(report));
+        await screenshot('hud-tx');
+        const t0 = Date.now();
+        await waitFor(`![...document.querySelectorAll('.toasts > .toast-chain')].length`, 'notice gone', 15000);
+        console.log('notice gone after about', Math.round((Date.now() - t0) / 100) / 10 + 3.5 - 3.5, 's after the screenshot');
+      });
+      for (const [label, dev, done] of [['tour done', 'hudJudgeDoneAAAAAAAA', true], ['tour not done', 'hudJudgeOpenBBBBBBBB', false]]) {
+        await step(`judge garden, ${label}`, async () => {
+          const r = await call('POST', '/auth/judge', null, { deviceId: dev });
+          const pid = db.prepare('SELECT id FROM players WHERE name = ?').get(r.player.player.name)?.id ?? db.prepare("SELECT p.id FROM players p JOIN sessions s ON s.user_id = p.user_id ORDER BY s.rowid DESC LIMIT 1").get().id;
+          db.prepare('DELETE FROM judge_steps WHERE player_id = ?').run(pid);
+          const steps = done ? ['harvest', 'sell', 'shop', 'tanibot', 'village'] : ['harvest', 'sell'];
+          for (const s of steps) db.prepare('INSERT INTO judge_steps (player_id, step, job_id, created_at) VALUES (?, ?, NULL, ?)').run(pid, s, Date.now());
+          db.prepare('UPDATE players SET created_at = ? WHERE id = ?').run(Date.now() - (day - 1) * dayMs, pid);
+          await open(r.token, 'weather=volcanic&time=day');
+          await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close, .dialog-backdrop .modal-close').forEach(b => b.click())`);
+          await sleep(600);
+          console.log('hud:', await evaluate(report));
+          await screenshot(`judge-${done ? 'done' : 'open'}`);
+        });
+      }
+    } else {
+      const spot = `(() => { const b = document.querySelector('.bot-spot'); const t = b.querySelector('.tanibot').getBoundingClientRect(); return JSON.stringify({ left: b.style.left, face: (b.className.match(/face-(left|right)/) || [])[1], moving: b.classList.contains('moving'), x: Math.round(t.left + t.width / 2) }); })()`;
+      await step('TaniBot picks plots in turn', async () => {
+        await open(token, 'time=day&weather=clear');
+        const plots = await evaluate(`document.querySelectorAll('.plot').length`);
+        const order = [0, 2, 1, 0, 1, 2, 0, 1, 0].filter((p) => p < plots);
+        let prev = null;
+        for (const p of order) {
+          await evaluate(`document.querySelectorAll('.plot')[${p}].click()`);
+          await sleep(1400);
+          const s = JSON.parse(await evaluate(spot));
+          console.log(`plot ${p + 1}: TaniBot at ${s.left} (x ${s.x}px), faces ${s.face}${prev && prev.left === s.left ? ' (stayed)' : prev ? ' (walked)' : ''}`);
+          prev = s;
+          await screenshot(`botgap-plot${p + 1}`);
+        }
+      });
+    }
+    } finally { db.close(); }
+    throw { done: true };
+  }
   if (name.startsWith('--scene=')) {
     await step('garden scene (EXISTING dev garden; add ?time=day|dusk|night to UI_URL)', async () => {
       await typeInto('#dev-user', name.slice('--scene='.length));

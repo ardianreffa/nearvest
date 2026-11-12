@@ -2,6 +2,7 @@
 // explanation (1-2 sentences) in a centred popup with "Got it" (the same popup as the "?" help).
 // Texts live in INFO (one place to edit).
 
+import type { ComponentChildren } from "preact";
 import { createPortal } from "preact/compat";
 import { useState } from "preact/hooks";
 import { Modal } from "./help";
@@ -52,6 +53,33 @@ export type InfoKey = keyof typeof INFO;
  * (a seed card, a shop row).
  */
 export function Info({ k, label, text }: { k: InfoKey; label?: string; /** Overrides the fixed text (e.g. today's weather). */ text?: string }) {
+  return (
+    <InfoChip k={k} label={label} text={text} class="info-i">
+      i
+    </InfoChip>
+  );
+}
+
+/**
+ * Any button that opens the same centred info popup as the (i): phones tap the Day chip or the
+ * weather chip itself (no separate (i) next to them, Ardian 2026-11-12).
+ */
+export function InfoChip({
+  k,
+  label,
+  text,
+  class: cls,
+  title: hover,
+  children,
+}: {
+  k: InfoKey;
+  label?: string;
+  /** Overrides the fixed text (e.g. today's weather). */
+  text?: string;
+  class: string;
+  title?: string;
+  children: ComponentChildren;
+}) {
   const [open, setOpen] = useState(false);
   const toggle = (e: Event) => {
     e.stopPropagation();
@@ -61,8 +89,8 @@ export function Info({ k, label, text }: { k: InfoKey; label?: string; /** Overr
   const title = label ? label.replace(/^the /i, "").replace(/^./, (c) => c.toUpperCase()) : "Info";
   return (
     <>
-      <button type="button" class={`info-i${open ? " open" : ""}`} onClick={toggle} aria-label={`What is ${label ?? "this"}?`} aria-expanded={open}>
-        i
+      <button type="button" class={`${cls}${open ? " open" : ""}`} onClick={toggle} aria-label={cls === "info-i" ? `What is ${label ?? "this"}?` : undefined} aria-expanded={open} title={hover}>
+        {children}
       </button>
       {open &&
         createPortal(

@@ -10249,6 +10249,43 @@ html.page-locked body {
   margin: var(--space) 0;
 }
 
+/* Phones (Ardian 2026-11-12): Check in, Day + Demo and the weather in ONE row across the whole
+   HUD (every weather word and a 5-digit day fit at 390 px). The Day and weather chips open their
+   info popup themselves (no separate (i)). A finished judge tour is a small check chip at the
+   row's end; an open tour still takes its own line under the row. Laptops are unchanged. */
+.phone-hud > .hud-chips.hud-chips-phone {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-chips-phone > .chip {
+  flex: none;
+  width: auto;
+  gap: 4px;
+  padding: 0 6px;
+}
+
+.hud-chips-phone > .chip-judge:not(.chip-judge-mini) {
+  padding: 0 10px;
+}
+
+.hud-chips-phone > .chip-tap {
+  cursor: var(--cur-hand);
+}
+
+.hud-chips-phone .chip-demo {
+  padding: 3px 4px;
+}
+
+.hud-chips-phone > .chip-judge-mini {
+  width: 30px;
+  padding: 0;
+  justify-content: center;
+}
+
 /* The PANEN balance next to the profile box (package 6): the round gold PANEN coin and the number,
    on a dark HUD capsule (the square gold chip is gone). */
 .hud-who-row {
