@@ -7212,6 +7212,67 @@ button.chip:focus-visible {
   animation: tut-glow 1.2s ease-in-out infinite;
 }
 
+/* The guided tutorial (2026-11-12): the current target (found by TutorialPointer) glows, a pixel
+   arrow bounces above it, and the other buttons and places are dimmed (still usable: never locked). */
+.tut-target {
+  position: relative;
+  z-index: 1;
+  animation: tut-glow 1.2s ease-in-out infinite;
+}
+
+.shell[data-tut]:not([data-tut='welcome']) :is(.btn, .tab, .place-pin, .icon-btn, .chip, .rail button):not(.tut-target):not(.coach *):not(.dialog-backdrop *):not(.pond-screen *):not(.duel *) {
+  opacity: 0.5;
+  transition: opacity 0.3s;
+}
+
+.tut-arrow {
+  position: fixed;
+  z-index: 45;
+  width: 27px;
+  height: 27px;
+  margin: -34px 0 0 -13px;
+  pointer-events: none;
+  color: var(--gold-500);
+  filter: drop-shadow(2px 2px 0 var(--ink));
+  animation: tut-arrow 0.8s steps(2) infinite;
+}
+
+.tut-arrow svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+  stroke: var(--ink);
+  stroke-width: 0.6;
+  paint-order: stroke;
+}
+
+@keyframes tut-arrow {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* TaniBot's last words after the welcome banner. */
+.tutorial-done {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tutorial-done p {
+  margin: 0;
+  font-size: var(--fs-body);
+  line-height: 1.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tut-target,
+  .tut-arrow {
+    animation: none;
+  }
+}
+
 @keyframes tut-glow {
   0%,
   100% {

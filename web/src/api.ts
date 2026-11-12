@@ -372,7 +372,7 @@ export interface GameState {
   judgeTour: { step: JudgeStep; done: boolean; txStatus: 'pending' | 'done' | 'failed' | null; txUrl: string | null }[] | null;
 }
 
-export type TutorialStep = 'welcome' | 'plant' | 'water' | 'buy_fertilizer' | 'fertilize' | 'checkin' | 'harvest' | 'sell' | 'tanibot';
+export type TutorialStep = 'welcome' | 'plant' | 'water' | 'buy_fertilizer' | 'fertilize' | 'checkin' | 'harvest' | 'sell' | 'tanibot' | 'fishing' | 'arena';
 
 export type JudgeStep = 'harvest' | 'sell' | 'shop' | 'tanibot' | 'village';
 

@@ -74,6 +74,8 @@ interface Playing {
   id: number;
   m: Moment;
   still: boolean;
+  /** A banner of its own (the end of the tutorial), instead of the moment's. */
+  banner?: { top: string; main: string };
 }
 
 let nextId = 1;
@@ -93,6 +95,23 @@ export function playMomentFx(m: Moment): number {
   const p: Playing = { id: nextId++, m, still };
   for (const l of listeners) l(p);
   const runs = still ? REDUCED_MS : ms;
+  window.setTimeout(() => {
+    for (const l of listeners) l(null);
+  }, runs);
+  return runs;
+}
+
+/**
+ * The end of the tutorial (2026-11-12): a big banner "Welcome to Tandur!", confetti and the Legend
+ * fanfare, like the moments (no share card, no prize). Returns how long it runs (ms).
+ */
+export function playWelcomeFx(): number {
+  const still = reduced();
+  playSound('momentLegend');
+  if (!still) confetti(64);
+  const p: Playing = { id: nextId++, m: { kind: 'title' }, still, banner: { top: 'Welcome to', main: 'Tandur!' } };
+  for (const l of listeners) l(p);
+  const runs = still ? REDUCED_MS : MOMENT_FX_MS.legend;
   window.setTimeout(() => {
     for (const l of listeners) l(null);
   }, runs);
@@ -128,7 +147,7 @@ export function MomentFxLayer() {
   }, []);
   if (!p) return null;
   const { m, still } = p;
-  const b = banner(m);
+  const b = p.banner ?? banner(m);
   return (
     <div key={p.id} class={`mfx mfx-${m.kind}${still ? ' still' : ''}`} aria-hidden="true">
       {(m.kind === 'first_gold' || m.kind === 'golden_arowana') && !still && <i class="mfx-shine" />}

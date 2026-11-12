@@ -362,7 +362,7 @@ export function CheckinBanner({ state, act, ask, busy, elapsed = 0 }: { state: G
           );
         })}
       </div>
-      <button class="btn btn-mint" disabled={!c.available || busy} onClick={() => void checkin()}>
+      <button class="btn btn-mint checkin-claim" disabled={!c.available || busy} onClick={() => void checkin()}>
         {c.available ? `Check in · day ${c.nextCalendarDay}` : `✓ Checked in · streak ${c.streak} · next in ${formatDuration(state.clock.msUntilNextDay - elapsed)}`}
       </button>
       <p class="checkin-note">

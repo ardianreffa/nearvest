@@ -44,7 +44,8 @@ import { Profile } from './profile';
 import { TaniBotWindow } from './tanibot';
 import { GoogleButton, pendingGoogleRedirect, takeGoogleRedirect } from './google';
 import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
-import { Coach } from './tutorial';
+import { Coach, TUTORIAL_DONE_LINE, TutorialPointer } from './tutorial';
+import { playWelcomeFx } from './moment-fx';
 import { dotsFor, fruitSnap, LOCAL_NONE, markMarketSeen, markSeen, marketNew, readLocalSeen, saveLocalSeen, settleLocal, shopNeed, useSeenWhenVisible, villageNews, type LocalSeen } from './dots';
 import { InvitePanel, InviteWindow, VisitorsPanel } from './invite';
 import { clearRef, freshIds, keepRefFromUrl, readRef, withoutRef } from './referral';
@@ -177,6 +178,11 @@ export function App() {
   const visitWait = useRef<{ name: string; done: (ok: boolean, error?: string) => void } | null>(null);
   /** Arena 1 VS 1 (arena.tsx): the Arena window, the duel on screen, the garden being challenged. */
   const [arenaOpen, setArenaOpen] = useState(false);
+  // The end of the tutorial (2026-11-12): the welcome banner, then TaniBot's last words. Not after Skip.
+  const tutorialSkipped = useRef(false);
+  const welcomeHold = useRef(false);
+  const tutorialWas = useRef<string | null>(null);
+  const [welcomeDone, setWelcomeDone] = useState(false);
   const [duel, setDuel] = useState<DuelView | null>(null);
   const [duelBusy, setDuelBusy] = useState<string | null>(null);
   /** Arena v2: the turn-based match on screen (servers with `state.arena.v === 2`). */
@@ -243,7 +249,8 @@ export function App() {
     (s: GameState) => {
       // Judge gardens: share cards wait until the Judge tour is complete; new gardens until the
       // tutorial is over. Then they come one by one.
-      holdShareCards((!!s.judgeTour && !s.judgeTour.every((t) => t.done)) || !!s.tutorial, s.player.accountId);
+      // Also while the end of the tutorial plays (banner + TaniBot's last words): the cards come after.
+      holdShareCards((!!s.judgeTour && !s.judgeTour.every((t) => t.done)) || !!s.tutorial || welcomeHold.current, s.player.accountId);
       // Friends who watered our trees since we last looked (garden visits): one notice.
       if (s.helps?.length) {
         const key = `nearvest.helpsSeen.${s.player.accountId}`;
@@ -913,6 +920,19 @@ export function App() {
       .catch(() => undefined);
   }, [phase, activeLive, !!match]);
 
+  // The tutorial just finished (not skipped, not a garden that never had one): celebrate once.
+  const tutStep = state?.tutorial?.step ?? null;
+  useEffect(() => {
+    const was = tutorialWas.current;
+    tutorialWas.current = tutStep;
+    if (was && !tutStep && !tutorialSkipped.current) {
+      welcomeHold.current = true;
+      if (state) holdShareCards(true, state.player.accountId);
+      const ms = playWelcomeFx();
+      window.setTimeout(() => setWelcomeDone(true), ms);
+    }
+  }, [tutStep]);
+
   if (phase === 'create') return <CreateGarden onCreated={(s) => (applyState(s), setPhase('play'))} onLogout={logout} />;
   if (!state) return null;
 
@@ -1262,6 +1282,9 @@ export function App() {
     if (step === 'buy_fertilizer') side('shop');
     else if (step === 'sell') side('market');
     else if (step === 'checkin') setInfo('checkin');
+    // The tutorial's own "Go fishing": straight to the pond (the pin's question is for stray taps).
+    else if (step === 'fishing' && state.fishing) wipe.run(POND_TEXT, () => setFishingOpen(true), 'up', 'water');
+    else if (step === 'arena') setArenaOpen(true);
     else if (!wide) setTab('garden');
     // Bring the glowing target into view (e.g. the fertilizer below the Shop picture on phones).
     const target: Partial<Record<TutorialStep, string>> = {
@@ -1275,10 +1298,12 @@ export function App() {
     const sel = target[step];
     if (sel) window.setTimeout(() => document.querySelector(sel)?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250);
   };
-  const tutorialAction = (action: 'start' | 'skip') =>
-    api<{ state: GameState }>('POST', '/api/tutorial', { action })
+  const tutorialAction = (action: 'start' | 'skip' | 'next') => {
+    if (action === 'skip') tutorialSkipped.current = true;
+    return api<{ state: GameState }>('POST', '/api/tutorial', { action })
       .then((r) => applyState(r.state))
       .catch((e) => toast({ kind: 'error', text: e instanceof Error ? e.message : String(e) }));
+  };
   // Visiting a friend's garden: our own tutorial coach and Judge tour chip hide (progress unchanged).
   const coach = !visiting && state.tutorial && (
     <Coach
@@ -1287,6 +1312,7 @@ export function App() {
       onSkip={() => void tutorialAction('skip')}
       onGo={(step) => (playSound('click'), tutorialGo(step))}
       onActivate={openBot}
+      onNext={() => (playSound('click'), void tutorialAction('next'))}
     />
   );
 
@@ -1382,6 +1408,26 @@ export function App() {
       {flash > 0 && <div class="chain-flash" key={overlayKey('flash', flash)} aria-hidden="true" />}
       <ToastStrip shown={toastShown} dismiss={dismissToast} setHidden={setToastHidden} />
       {wipe.node}
+      {/* The tutorial's pixel arrow over the current step's target (not while visiting). */}
+      {!visiting && state.tutorial && state.tutorial.step !== 'welcome' && <TutorialPointer step={state.tutorial.step} />}
+      {welcomeDone && (
+        <Modal
+          title="TaniBot"
+          onClose={() => {
+            setWelcomeDone(false);
+            // Now the held share cards (first harvest...) may come, one by one.
+            welcomeHold.current = false;
+            holdShareCards(false, state.player.accountId);
+          }}
+          closeLabel="Let's farm!"
+          class="tutorial-done-dialog"
+        >
+          <div class="tutorial-done">
+            <TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />
+            <p>{TUTORIAL_DONE_LINE}</p>
+          </div>
+        </Modal>
+      )}
       {dialogView}
       {infoView}
       {farmersOpen && (
