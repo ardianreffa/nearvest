@@ -1,21 +1,25 @@
 // The fishing pond's life (Fishing package 2, Ardian 2026-11-12; rules in pond-life-plan.ts): the big
 // tree's crown sways, light glints drift over the water, frogs hop on their lily pads (now and then
 // to a neighbouring pad, facing a random side), ducks paddle around the right-hand side (asleep with
-// "zzz" at night), a few leaves fall (their colour follows the village clock), and in the rain drops
+// "zzz" at night) anywhere on the lake but away from each other and the line, a few leaves fall (their colour follows the village clock), and in the rain drops
 // fall and ring the water. One timer every 1.5 s moves the animals (CSS does the in-betweens), it
 // stops while the tab is hidden; with reduced motion nothing moves and no timer runs.
 
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
   DUCK_STARTS,
-  duckTarget,
   ducksAsleep,
+  mustFlee,
+  planDuck,
+  still,
+  type Box,
+  type DuckMove,
+  type FishingZone,
   FROG_SPOTS,
   frogTick,
   LEAF_COLORS,
   LEAF_COUNT,
   startFrogs,
-  swimSeconds,
   type FrogState,
   type PondTime,
   type PondWeather,
@@ -49,12 +53,8 @@ function Sprite({ rows }: { rows: string[] }) {
 }
 
 interface Duck {
-  at: Pt;
-  /** Seconds of the current paddle (CSS transition). */
-  dur: number;
+  m: DuckMove;
   right: boolean;
-  /** When it may pick a new spot (ms). */
-  restUntil: number;
 }
 
 /** Light glints drifting over the open water (grid px: x, y, width), away from the frogs and ducks. */
@@ -110,35 +110,63 @@ function LeafArt({ rows, color }: { rows: string[]; color: string }) {
   );
 }
 
-export function PondLife({ time, weather, still }: { time: PondTime; weather: PondWeather; still: boolean }) {
+export function PondLife({
+  time,
+  weather,
+  still: stillMode,
+  zone = null,
+  avoid = [],
+}: {
+  time: PondTime;
+  weather: PondWeather;
+  still: boolean;
+  /** While fishing: the float and the line (ducks keep away). */
+  zone?: FishingZone | null;
+  /** Floating panels over the pond (grid boxes): ducks do not swim under them. */
+  avoid?: Box[];
+}) {
   const [frogs, setFrogs] = useState<FrogState[]>(() => startFrogs(rand));
-  const [ducks, setDucks] = useState<Duck[]>(() => DUCK_STARTS.map((at, i) => ({ at, dur: 0, right: i === 1, restUntil: 0 })));
+  const [ducks, setDucks] = useState<Duck[]>(() => DUCK_STARTS.map((at, i) => ({ m: still(at, Date.now()), right: i === 1 })));
   const asleep = ducksAsleep(time);
+  /** When each duck may paddle again (a short rest after each paddle). */
+  const restUntil = useRef<number[]>(DUCK_STARTS.map(() => 0));
+  const ctx = useRef({ zone, avoid, asleep });
+  ctx.current = { zone, avoid, asleep };
+
+  /** Plans ducks one after the other (each new path sees the others' latest paths). */
+  const moveDucks = (ds: Duck[]): Duck[] => {
+    const now = Date.now();
+    const { zone: z, avoid: av, asleep: sleeping } = ctx.current;
+    const moves = ds.map((d) => d.m);
+    let changed = false;
+    for (let i = 0; i < moves.length; i++) {
+      const flee = mustFlee(moves[i], now, z);
+      if (!flee && (sleeping || now < Math.max(restUntil.current[i], moves[i].start + moves[i].dur))) continue;
+      const next = planDuck(moves, i, now, rand, { avoid: av, zone: z, flee });
+      if (!next) continue;
+      moves[i] = next;
+      restUntil.current[i] = next.start + next.dur + 1000 + rand() * 4000;
+      changed = true;
+    }
+    return changed ? moves.map((m, i) => ({ m, right: m.to.x === m.from.x ? ds[i].right : m.to.x > m.from.x })) : ds;
+  };
 
   useEffect(() => {
-    if (still) return;
-    let id = 0;
+    if (stillMode) return;
     const tick = () => {
       if (document.hidden) return;
-      const now = Date.now();
       setFrogs((fs) => fs.map((f, i) => frogTick(f, i, rand)));
-      if (!asleep)
-        setDucks((ds) =>
-          ds.map((d, i) => {
-            if (now < d.restUntil) return d;
-            const to = duckTarget(
-              d.at,
-              ds.filter((_, j) => j !== i).map((o) => o.at),
-              rand,
-            );
-            const dur = swimSeconds(d.at, to);
-            return { at: to, dur, right: to.x > d.at.x, restUntil: now + dur * 1000 + 1000 + rand() * 4000 };
-          }),
-        );
+      setDucks(moveDucks);
     };
-    id = window.setInterval(tick, TICK_MS);
+    const id = window.setInterval(tick, TICK_MS);
     return () => window.clearInterval(id);
-  }, [still, asleep]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stillMode]);
+  // Fishing starts (or a panel moves): ducks in the way leave at once.
+  useEffect(() => {
+    if (!stillMode) setDucks(moveDucks);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stillMode, zone?.float.x, zone?.tip.x, avoid.map((b) => b.join(',')).join(';')]);
 
   const leaves = useMemo(
     () =>
@@ -189,19 +217,26 @@ export function PondLife({ time, weather, still }: { time: PondTime; weather: Po
           <g
             key={i}
             class={`pond-duck${asleep ? ' asleep' : ''}`}
-            style={{ transform: `translate(${d.at.x}px, ${d.at.y}px)`, transitionDuration: `${d.dur}s` }}
+            data-x={d.m.to.x}
+            data-y={d.m.to.y}
+            style={{ transform: `translate(${d.m.to.x}px, ${d.m.to.y}px)`, transitionDuration: `${d.m.dur / 1000}s` }}
           >
+            {/* Floating, not pasted on: a soft shadow in the water and a ripple ring at the waterline. */}
+            <ellipse class="duck-shadow" cx={1} cy={5.5} rx={9} ry={2.6} />
+            <ellipse class="duck-ripple" cx={0} cy={4.5} rx={10.5} ry={3} style={{ animationDelay: `${-i * 0.9}s` }} />
             <g class="duck-bob" style={{ animationDelay: `${-i * 0.5}s` }}>
               <g transform={d.right ? 'scale(-1 1)' : undefined}>
                 <Sprite rows={i === 1 ? (asleep ? DUCK_HEN_ASLEEP : DUCK_HEN) : asleep ? DUCK_DRAKE_ASLEEP : DUCK_DRAKE} />
               </g>
+              {/* The bottom of the body sits in the water. */}
+              <rect class="duck-waterline" x={-8} y={3.5} width={16} height={2} />
             </g>
           </g>
         ))}
       </svg>
       {asleep &&
         ducks.map((d, i) => (
-          <span key={i} class="pond-zzz" style={{ left: `${((d.at.x + 2) / 480) * 100}%`, top: `${((d.at.y - 8) / 270) * 100}%`, animationDelay: `${-i * 0.7}s` }} aria-hidden="true">
+          <span key={i} class="pond-zzz" style={{ left: `${((d.m.to.x + 2) / 480) * 100}%`, top: `${((d.m.to.y - 8) / 270) * 100}%`, animationDelay: `${-i * 0.7}s` }} aria-hidden="true">
             z<small>z</small>
           </span>
         ))}

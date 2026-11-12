@@ -14357,6 +14357,39 @@ html.duel-open .duel-bg .backdrop * {
   animation: duck-bob 1.4s steps(2) infinite;
 }
 
+/* Floating: a soft shadow in the water, a ripple ring at the waterline, the lowest body rows tinted
+   by the water (package 3: the ducks looked pasted on). */
+.duck-shadow {
+  fill: var(--ink);
+  opacity: 0.22;
+}
+
+.duck-ripple {
+  fill: none;
+  stroke: var(--paper-light);
+  stroke-width: 0.7;
+  opacity: 0.55;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: duck-ripple 2.6s ease-out infinite;
+}
+
+@keyframes duck-ripple {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.45);
+  }
+}
+
+.duck-waterline {
+  fill: var(--cyan-500);
+  opacity: 0.4;
+}
+
 .pond-duck.asleep .duck-bob {
   animation-duration: 3.2s;
 }
@@ -15131,6 +15164,7 @@ html.duel-open .duel-bg .backdrop * {
   .rain-ring,
   .frog-hop,
   .duck-bob,
+  .duck-ripple,
   .pond-zzz,
   .pond-rain .wx-rain-layer {
     animation: none !important;

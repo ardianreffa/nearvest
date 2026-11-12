@@ -6,10 +6,18 @@ import { describe, it } from 'node:test';
 import { FLOAT_AT } from '../src/art/rod-pose.ts';
 import {
   CRITTERS,
-  DUCK_AREA,
+  DUCK_GAP,
   DUCK_STARTS,
-  duckTarget,
+  duckAt,
   ducksAsleep,
+  inZone,
+  mustFlee,
+  planDuck,
+  still,
+  swimmable,
+  WATERFALL_FOOT,
+  type DuckMove,
+  type FishingZone,
   FROG_SPOTS,
   FROGS,
   frogTick,
@@ -18,7 +26,6 @@ import {
   pondTime,
   pondWeather,
   startFrogs,
-  swimSeconds,
 } from '../src/pond-life-plan.ts';
 
 /** A repeatable random source. */
@@ -78,22 +85,53 @@ describe('fishing pond life', () => {
     FROGS.forEach((f, i) => assert.equal(seen[i].size, f.pads.length, `frog ${i} visits its pads`));
   });
 
-  it('ducks stay on the right-hand side, far from the float, and paddle slowly', () => {
-    const r = seeded(3);
-    const ds = DUCK_STARTS.map((p) => ({ ...p }));
-    for (let t = 0; t < 3000; t++) {
-      const i = t % ds.length;
-      const to = duckTarget(ds[i], ds.filter((_, j) => j !== i), r);
-      assert.ok(to.x >= DUCK_AREA.x0 && to.x <= DUCK_AREA.x1 && to.y >= DUCK_AREA.y0 && to.y <= DUCK_AREA.y1, 'inside the area');
-      assert.ok(swimSeconds(ds[i], to) >= 2, 'slow');
-      ds[i] = to;
+  it('ducks swim anywhere on the water, never bump into each other, and leave the line and float alone', () => {
+    const r = seeded(11);
+    const zone: FishingZone = { tip: { x: 133, y: 87 }, float: FLOAT_AT };
+    const panel: [number, number, number, number] = [150, 220, 180, 50];
+    let t = 0;
+    let ds: DuckMove[] = DUCK_STARTS.map((p) => still(p, 0));
+    for (const p of DUCK_STARTS) assert.ok(swimmable(p), 'starts on the water');
+    const seen = { left: false, right: false };
+    let fishing = false;
+    let fishingSince = 0;
+    for (let step = 0; step < 6000; step++) {
+      t += 250;
+      // TaniBot fishes now and then (the zone switches on and off).
+      if (step % 400 === 0) {
+        fishing = !fishing;
+        fishingSince = t;
+      }
+      const z = fishing ? zone : null;
+      for (let i = 0; i < ds.length; i++) {
+        const flee = mustFlee(ds[i], t, z);
+        if (!flee && t < ds[i].start + ds[i].dur + 1000) continue;
+        const next = planDuck(ds, i, t, r, { zone: z, avoid: [panel], flee });
+        if (next) ds = ds.map((m, j) => (j === i ? next : m));
+      }
+      const at = ds.map((m) => duckAt(m, t));
+      for (const p of at) {
+        assert.ok(swimmable(p), `on the water (${p.x}, ${p.y})`);
+        seen.left ||= p.x < 200;
+        seen.right ||= p.x > 380;
+      }
+      for (let i = 0; i < at.length; i++)
+        for (let j = i + 1; j < at.length; j++) assert.ok(Math.hypot(at[i].x - at[j].x, at[i].y - at[j].y) >= DUCK_GAP - 0.01, 'never bump into each other');
+      // Six seconds after the line goes out, no duck is near the float or the line any more.
+      if (fishing && t - fishingSince > 6000) for (const p of at) assert.ok(!inZone(p, p, zone), `away from the line (${p.x}, ${p.y})`);
     }
-    // The whole area (with the ducks' size) is far from the float and its ripples.
-    assert.ok(DUCK_AREA.x0 - 10 - FLOAT_AT.x > 120);
+    assert.ok(seen.left && seen.right, 'they use the whole lake, left and right');
   });
 
-  it('the critter boxes hold every lily pad a frog uses and the ducks area', () => {
+  it('the water map keeps ducks off land, the dock, lily pads and the waterfall foot', () => {
+    assert.ok(!swimmable({ x: 40, y: 120 }), 'the dock');
+    assert.ok(!swimmable({ x: 30, y: 30 }), 'land');
+    for (const p of FROG_SPOTS) assert.ok(!swimmable(p), `lily pad ${p.x},${p.y}`);
+    assert.ok(!swimmable({ x: WATERFALL_FOOT[0] + 10, y: WATERFALL_FOOT[1] + 10 }), 'the waterfall foot');
+    assert.ok(swimmable(FLOAT_AT) && swimmable({ x: 300, y: 200 }), 'open water');
+  });
+
+  it('the critter boxes hold every lily pad a frog uses', () => {
     for (const p of FROG_SPOTS) assert.ok(CRITTERS.some(([x, y, w, h]) => p.x > x && p.x < x + w && p.y > y && p.y < y + h));
-    assert.ok(CRITTERS.some(([x, y, w, h]) => x <= DUCK_AREA.x0 - 10 && y <= DUCK_AREA.y0 - 6 && x + w >= DUCK_AREA.x1 + 10 && y + h >= DUCK_AREA.y1 + 6));
   });
 });

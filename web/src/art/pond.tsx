@@ -17,7 +17,7 @@
 
 import type { ComponentChildren } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { CRITTERS, type PondTime, type PondWeather } from '../pond-life-plan';
+import { CRITTERS, type Box, type FishingZone, type PondTime, type PondWeather } from '../pond-life-plan';
 import { PondLife, PondMood } from './pond-life';
 import { CAST_MS, FLOAT_AT, REEL_MS, qAt, qNormal, rodPose, type Pt, type RodPose } from './rod-pose';
 
@@ -31,6 +31,9 @@ export const BOT_AT = { x: 62, y: 130 };
 const BOT_H = 58;
 
 export { CRITTERS };
+
+/** While the line is out: the ducks keep away from the float and the line to the rod's tip. */
+const FISHING_ZONE: FishingZone = { tip: rodPose('wait', Infinity).tip, float: FLOAT_AT };
 
 const C = {
   rodDark: '#3f2a19',
@@ -141,6 +144,7 @@ export function PondScene({
   since = 0,
   time = 'day',
   weather = 'clear',
+  avoid = [],
   bot,
   children,
 }: {
@@ -149,6 +153,8 @@ export function PondScene({
   /** The village clock and weather (pond-life-plan.ts: rain only, never ash). */
   time?: PondTime;
   weather?: PondWeather;
+  /** Floating panels over the pond (grid boxes): the ducks do not swim under them. */
+  avoid?: Box[];
   bot?: ComponentChildren;
   children?: ComponentChildren;
 }) {
@@ -189,7 +195,7 @@ export function PondScene({
       style={{ '--pk': String(k) }}
     >
       <img class="pond-img" src="/assets/bg/fishing-pond.png" alt="" width={POND_W} height={POND_H} draggable={false} />
-      <PondLife time={time} weather={weather} still={still} />
+      <PondLife time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? FISHING_ZONE : null} avoid={avoid} />
       <svg class="pond-svg" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
         <Waterfall />
         {pose.inWater && (

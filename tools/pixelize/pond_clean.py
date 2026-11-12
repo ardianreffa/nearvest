@@ -55,6 +55,27 @@ leafy = lambda p: p[1] >= p[0] and p[1] > p[2] + 10
 write_png(out_tree, tx1 - tx0 + 1, ty1 - ty0 + 1,
           [[img[y][x] + (255,) if leafy(img[y][x]) else (0, 0, 0, 0) for x in range(tx0, tx1 + 1)] for y in range(ty0, ty1 + 1)])
 
+# Where a duck may swim: a grid of 4 px cells; '#' = a duck (19 x 12 px plus a small margin) centred
+# there covers only water (or white foam / ripple highlights): never land, the dock, rocks or lily pads.
+CELL = 4
+HALF_W, HALF_H = 11, 7
+passable = [[is_water(p) or min(p) > 0xC8 for p in row] for row in img]
+pre = [[0] * (w + 1) for _ in range(h + 1)]
+for y in range(h):
+    for x in range(w):
+        pre[y + 1][x + 1] = pre[y][x + 1] + pre[y + 1][x] - pre[y][x] + (0 if passable[y][x] else 1)
+def solid_in(x0, y0, x1, y1):
+    if x0 < 0 or y0 < 0 or x1 > w or y1 > h:
+        return 1
+    return pre[y1][x1] - pre[y0][x1] - pre[y1][x0] + pre[y0][x0]
+mask = []
+for cy in range(h // CELL):
+    row = ''
+    for cx in range(w // CELL):
+        x, y = cx * CELL + CELL // 2, cy * CELL + CELL // 2
+        row += '#' if solid_in(x - HALF_W, y - HALF_H, x + HALF_W + 1, y + HALF_H + 1) == 0 else '.'
+    mask.append(row)
+
 from catch_icons import G
 
 PALETTE = {
@@ -135,5 +156,11 @@ for name, rows in grids.items():
     lines.append(f'export const {name}: string[] = [')
     lines += [f"  '{r}'," for r in rows]
     lines.append('];')
+lines.append('')
+lines.append(f'/** Where a duck\'s middle may be: {CELL} px cells, \'#\' = only water under the whole duck. */')
+lines.append(f'export const WATER_CELL = {CELL};')
+lines.append('export const WATER_MASK: string[] = [')
+lines += [f"  '{r}'," for r in mask]
+lines.append('];')
 open(out_ts, 'w').write('\n'.join(lines) + '\n')
 print(f'{len(DUCKS)} ducks and {len(FROGS)} frogs removed -> {out_png}; sprites -> {out_ts}')
