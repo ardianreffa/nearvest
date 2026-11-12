@@ -50,7 +50,7 @@ describe('arena duel playback', () => {
     const asDefender = duel({ you: 'defender' });
     assert.equal(sides(asDefender).me.name, 'budi');
     assert.deepEqual(scoreAfter(asDefender, 3), [1, 2]);
-    assert.equal(headline(asDefender), 'THEY WIN');
+    assert.equal(headline(asDefender), 'YOU LOSE');
   });
 
   it('a round shows score + the last die (after a tie) and which tree stands for each side', () => {

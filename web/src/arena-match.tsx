@@ -555,7 +555,7 @@ export function MatchScreen({
 
         {done && (
           <div class={`duel-result${won ? ' win' : ' lose'}`}>
-            <div class="duel-headline">{m.status === 'cancelled' ? 'CANCELLED' : noWinner ? 'NO WINNER' : won ? 'YOU WIN!' : isLive ? `${them.name.toUpperCase()} WINS` : 'THEY WIN'}</div>
+            <div class="duel-headline">{m.status === 'cancelled' ? 'CANCELLED' : noWinner ? 'NO WINNER' : won ? 'YOU WIN!' : isLive ? `${them.name.toUpperCase()} WINS` : 'YOU LOSE'}</div>
             {(reward.panen !== null || reward.xp > 0) && (
               <div class="duel-gains">
                 {reward.panen !== null && <span class="gain gain-panen">+{fmt(reward.panen)} PANEN</span>}

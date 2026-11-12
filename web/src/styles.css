@@ -6835,6 +6835,22 @@ button.chip:focus-visible {
   min-width: 0;
 }
 
+/* The step's title stands out (2026-11-12): the title font (a real bold pixel face, never a faked
+   weight on DotGothic16), upper case. */
+.judge-step .grow > b {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--fs-body);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.judge-step.next .grow > b {
+  color: var(--gold-700);
+}
+
 .judge-num {
   display: grid;
   place-items: center;
@@ -12127,6 +12143,23 @@ html.page-locked body {
   font-family: var(--font-body);
   font-size: var(--fs-body);
   color: var(--paper-light);
+}
+
+/* Result lines always wrap and stay whole (2026-11-12, Ardian: the practice line was cut at the
+   sides on phones). */
+.duel-result p,
+.duel-result .duel-headline {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  overflow: visible;
+}
+
+.duel.match.full > .duel-result {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
 }
 
 .duel-tx {

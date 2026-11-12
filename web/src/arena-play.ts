@@ -55,7 +55,7 @@ function careCount(s: ArenaScores, trees: number): number {
 
 /** The big line of the result. */
 export function headline(d: DuelView): string {
-  return youWon(d) ? 'YOU WIN!' : 'THEY WIN';
+  return youWon(d) ? 'YOU WIN!' : 'YOU LOSE';
 }
 
 /**
