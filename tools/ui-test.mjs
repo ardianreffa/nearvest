@@ -848,12 +848,12 @@ try {
         await waitFor(`!!document.querySelector('.duel-result')`, 'result', 20000);
         await sleep(1200);
         console.log('music on the result:', await music());
-        await evaluate(`[...document.querySelectorAll('.duel-result button')].find(b => b.innerText.includes('Back'))?.click()`);
-        await sleep(1200);
-        console.log('music after leaving the Arena:', await music());
         console.log('result:', await evaluate(info));
         await screenshot('lose-result');
         await layout('lose result');
+        await evaluate(`[...document.querySelectorAll('.duel-result button')].find(b => b.innerText.includes('Back'))?.click()`);
+        await sleep(1200);
+        console.log('music after leaving the Arena:', await music());
       });
       db.close();
       throw Object.assign(new Error('match done'), { done: true });
