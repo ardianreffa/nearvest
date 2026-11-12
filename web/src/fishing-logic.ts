@@ -67,3 +67,17 @@ export function autoCatchToShow(f: FishingState | undefined, seen: number, now: 
   const c = f?.last;
   return c && c.auto && c.id > seen && now - c.at < 24 * 60 * 60 * 1000 ? c : null;
 }
+
+/**
+ * How big the result's animation and sound are (package 1, 2026-11-12): junk (and a released fish)
+ * = a soft, slightly funny plop; a normal fish = a splash and a short happy sound; an item (seed,
+ * fertilizer, bottle, chest) = its own "item" sound; Gourami = more festive; Golden Arowana = gold.
+ */
+export type CatchTier = 'junk' | 'fish' | 'item' | 'gourami' | 'legend';
+export function catchTier(c: Pick<CatchView, 'kind' | 'catch' | 'released'>): CatchTier {
+  if (c.released || c.kind === 'junk') return 'junk';
+  if (c.kind === 'item') return 'item';
+  if (c.catch === 'golden_arowana') return 'legend';
+  if (c.catch === 'gourami') return 'gourami';
+  return 'fish';
+}

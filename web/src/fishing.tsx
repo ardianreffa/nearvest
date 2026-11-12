@@ -8,12 +8,13 @@ import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { api, ApiError, type CatchView, type FishingView, type GameState } from './api';
 import { CatchIcon } from './art/catch-icons';
 import { FLOAT_AT, PondScene, pondAt } from './art/pond';
+import { CAST_MS, REEL_MS } from './art/rod-pose';
 import { TaniBot } from './art/tanibot';
 import { tierOf } from './art/tiers';
 import { playFishing, playSound } from './audio';
 import { Modal } from './help';
 import { judgeDeviceId } from './judge';
-import { castsLeftText, catchNote, rewardChips, startPhase, untilText, type FishPhase } from './fishing-logic';
+import { castsLeftText, catchNote, catchTier, rewardChips, startPhase, untilText, type FishPhase } from './fishing-logic';
 import { Sprite } from './sprites';
 import { Coin } from './ui';
 
@@ -26,6 +27,40 @@ const SPARKS = [
   [208, 160],
   [270, 178],
 ];
+/** Splash drops (grid px from the float): a normal fish. */
+const DROPS = [
+  [-16, -10],
+  [16, -12],
+  [-22, 2],
+  [22, 0],
+  [-10, -20],
+  [10, -22],
+  [-6, 8],
+  [8, 9],
+].map(([x, y]) => [String(x), String(y)]);
+/** More, further, coloured bits: Gourami (and the Golden Arowana under its sparkles). */
+const CONFETTI = [
+  [-30, -18],
+  [30, -20],
+  [-36, 0],
+  [36, -2],
+  [-20, -32],
+  [20, -34],
+  [0, -38],
+  [-26, 14],
+  [26, 12],
+  [-12, -26],
+  [12, -28],
+  [-6, 16],
+].map(([x, y]) => [String(x), String(y)]);
+/** A few soft glints rising around an item. */
+const ITEM_GLINTS = [
+  [-14, -16],
+  [14, -14],
+  [0, -24],
+  [-18, 2],
+  [18, 4],
+].map(([x, y]) => [String(x), String(y)]);
 import type { Toast } from './toast';
 
 export function FishingWindow({
@@ -47,6 +82,9 @@ export function FishingWindow({
   const [view, setView] = useState<FishingView | null>(null);
   const [early, setEarly] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  /** When the pond's current animation started (cast tap, bite, reel tap); 0 = none (resumed line). */
+  const [since, setSince] = useState(0);
+  const castAt = useRef(0);
   const alive = useRef(true);
   useEffect(() => () => void (alive.current = false), []);
 
@@ -68,9 +106,11 @@ export function FishingWindow({
     const t = window.setTimeout(() => {
       if (!alive.current) return;
       setPhase({ k: 'bite', id: phase.id });
+      setSince(Date.now());
       setEarly(false);
       playFishing('bite');
-    }, Math.max(0, phase.biteAt - Date.now()));
+      // Never before the float has landed.
+    }, Math.max(0, phase.biteAt - Date.now(), castAt.current + CAST_MS - Date.now()));
     return () => window.clearTimeout(t);
   }, [phase]);
 
@@ -80,17 +120,23 @@ export function FishingWindow({
 
   const cast = useCallback(async () => {
     if (phase.k !== 'ready' && phase.k !== 'result') return;
+    // The swing whoosh now, the "plunk" when the float lands (the animation runs on its own clock).
     playFishing('cast');
+    const at = Date.now();
+    castAt.current = at;
+    setSince(at);
+    window.setTimeout(() => alive.current && playFishing('plop'), CAST_MS);
     setPhase({ k: 'casting' });
     try {
       const r = await api<{ cast: { id: number; biteInMs: number }; left: number }>('POST', '/api/fishing/cast', { deviceId: judgeDeviceId() });
       if (!alive.current) return;
       setView((v) => (v ? { ...v, left: r.left } : v));
-      window.setTimeout(() => alive.current && playFishing('plop'), 380);
       setPhase({ k: 'wait', id: r.cast.id, biteAt: Date.now() + r.cast.biteInMs });
     } catch (e) {
       if (!alive.current) return;
       setPhase({ k: 'ready' });
+      setSince(0);
+      castAt.current = 0;
       notify({ kind: 'error', text: e instanceof Error ? e.message : 'Could not cast. Try again.' });
       void api<FishingView>('GET', '/api/fishing').then((v) => alive.current && setView(v)).catch(() => undefined);
     }
@@ -106,19 +152,27 @@ export function FishingWindow({
     if (phase.k !== 'bite') return;
     const id = phase.id;
     playFishing('reel');
+    const at = Date.now();
+    setSince(at);
     setPhase({ k: 'reeling', id });
     try {
       const r = await api<{ result: CatchView; fishing: FishingView; state: GameState }>('POST', `/api/fishing/${id}/reel`);
       if (!alive.current) return;
       setView(r.fishing);
       onState(r.state);
+      // The catch shows once the line is all the way in (reduced motion: at once).
+      const rest = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : at + REEL_MS - Date.now();
+      if (rest > 0) await new Promise((ok) => window.setTimeout(ok, rest));
+      if (!alive.current) return;
       setPhase({ k: 'result', c: r.result });
-      playFishing(r.result.kind === 'junk' || r.result.released ? 'junk' : r.result.catch === 'golden_arowana' ? 'legend' : 'catch');
+      setSince(Date.now());
+      playFishing(catchTier(r.result));
       onCatch?.(r.result);
     } catch (e) {
       if (!alive.current) return;
       const body = e instanceof ApiError ? (e.data as { code?: string; biteInMs?: number }) : undefined;
       if (body?.code === 'too_early') {
+        setSince(0);
         setPhase({ k: 'wait', id, biteAt: Date.now() + (body.biteInMs ?? 500) });
         return;
       }
@@ -130,6 +184,7 @@ export function FishingWindow({
   const busy = phase.k === 'casting' || phase.k === 'reeling';
   const inWater = phase.k === 'wait' || phase.k === 'bite' || phase.k === 'reeling';
   const c = phase.k === 'result' ? phase.c : null;
+  const tier = c ? catchTier(c) : null;
   const canCast = left > 0 && (phase.k === 'ready' || phase.k === 'result');
 
   const actions = inWater ? (
@@ -149,12 +204,20 @@ export function FishingWindow({
 
   return (
     <Modal title="Fishing" onClose={onClose} class={`fishing-dialog fishing-live${inWater ? ' fishing-one' : ''}`} actions={actions}>
-      <PondScene phase={phase.k} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
+      <PondScene phase={phase.k} since={since} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
         {phase.k === 'bite' && (
           <span class="pond-bang" style={pondAt(FLOAT_AT.x, FLOAT_AT.y - 10)} aria-hidden="true">
             !
           </span>
         )}
+        {tier && tier !== 'junk' && (
+          <span class={`pond-splash splash-${tier}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
+            {(tier === 'item' ? ITEM_GLINTS : tier === 'gourami' || tier === 'legend' ? CONFETTI : DROPS).map(([dx, dy], i) => (
+              <i key={i} style={{ '--dx': dx, '--dy': dy, animationDelay: `${(i % 4) * 40}ms` }} />
+            ))}
+          </span>
+        )}
+        {tier === 'junk' && <span class="pond-plop" style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true" />}
         {c?.moment === 'golden_arowana' &&
           SPARKS.map(([x, y], i) => (
             <span key={i} class="pond-spark" style={{ ...pondAt(x, y), animationDelay: `${200 + i * 120}ms` }} aria-hidden="true">
@@ -162,7 +225,7 @@ export function FishingWindow({
             </span>
           ))}
         {c && (
-          <span class={`pond-catch${c.released ? ' released' : ''}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
+          <span class={`pond-catch tier-${tier}${c.released ? ' released' : ''}`} style={pondAt(FLOAT_AT.x, FLOAT_AT.y)} aria-hidden="true">
             <CatchIcon id={c.catch} scale={2} />
           </span>
         )}
@@ -178,7 +241,7 @@ export function FishingWindow({
       </p>
 
       {c && (
-        <div class={`fish-result kind-${c.kind}${c.catch === 'golden_arowana' && !c.released ? ' legend' : ''}`}>
+        <div class={`fish-result kind-${c.kind} tier-${tier}${tier === 'legend' ? ' legend' : ''}`}>
           <span class="fish-result-icon">
             <CatchIcon id={c.catch} scale={4} fitW={100} />
           </span>

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { CatchView } from '../src/api.ts';
 import { CATCH_GRIDS, FISH_PALETTE } from '../src/art/catch-grids.ts';
-import { autoCatchToShow, autoNotice, castsLeftText, catchNote, rewardChips, startPhase, untilText } from '../src/fishing-logic.ts';
+import { autoCatchToShow, autoNotice, castsLeftText, catchNote, catchTier, rewardChips, startPhase, untilText } from '../src/fishing-logic.ts';
 
 const NOW = 1_800_000_000_000;
 const c = (o: Partial<CatchView> = {}): CatchView => ({
@@ -75,5 +75,15 @@ describe('fishing window', () => {
       assert.ok(g.every((r) => r.length === g[0].length), `${id}: rows of one width`);
       for (const ch of g.join('')) assert.ok(known.has(ch), `${id}: unknown colour ${ch}`);
     }
+  });
+  it('result tiers: junk / fish / item / gourami / legend (a released fish counts as junk)', () => {
+    assert.equal(catchTier(c({ kind: 'junk', catch: 'rusty_can' })), 'junk');
+    assert.equal(catchTier(c({ released: true })), 'junk');
+    assert.equal(catchTier(c({ released: true, catch: 'golden_arowana' })), 'junk');
+    assert.equal(catchTier(c()), 'fish');
+    assert.equal(catchTier(c({ catch: 'catfish' })), 'fish');
+    assert.equal(catchTier(c({ catch: 'gourami' })), 'gourami');
+    assert.equal(catchTier(c({ catch: 'golden_arowana' })), 'legend');
+    for (const id of ['mango_seed', 'fertilizer', 'bottle', 'chest'] as const) assert.equal(catchTier(c({ kind: 'item', catch: id })), 'item', id);
   });
 });

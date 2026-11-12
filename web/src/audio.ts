@@ -258,11 +258,15 @@ export function playPixelSparkle(notes: { at: number; freq: number; dur: number;
 
 /**
  * Fishing sounds (fishing.tsx), made right here with Web Audio: no sound file, nothing copied
- * (docs/ASSETS.md). cast = the line's whistle, plop = the float landing, bite = two quick splashes,
- * reel = the reel's clicks, catch / junk / legend = a short tune for the result. Follows the Sound
- * switch and plays only after the first tap, like every effect.
+ * (docs/ASSETS.md). cast = the rod's swing whoosh + the line's whistle, plop = the "plunk" of the float
+ * landing, bite = two quick splashes, reel = the reel's clicks while the line comes in (~0.7 s). The
+ * result per tier (fishing-logic.ts catchTier): junk = a soft, slightly funny "bloop-boing"; fish = a
+ * splash + a short happy tune; item = a bell "ding-ding" with a glint; gourami = a splash and a
+ * festive run with a trill; legend = the biggest gold jingle. Follows the Sound switch and plays only
+ * after the first tap, like every effect.
  */
-export function playFishing(kind: 'cast' | 'plop' | 'bite' | 'reel' | 'catch' | 'junk' | 'legend'): void {
+export type FishingSound = 'cast' | 'plop' | 'bite' | 'reel' | 'junk' | 'fish' | 'item' | 'gourami' | 'legend';
+export function playFishing(kind: FishingSound): void {
   if (!prefs.sfx || !ctx || !sfxGain) return;
   if (ctx.state === 'suspended') void ctx.resume();
   const c = ctx;
@@ -281,7 +285,7 @@ export function playFishing(kind: 'cast' | 'plop' | 'bite' | 'reel' | 'catch' | 
     o.start(t + at);
     o.stop(t + at + dur + 0.03);
   };
-  const splash = (at: number, dur: number, vol: number, f0: number, f1: number) => {
+  const splash = (at: number, dur: number, vol: number, f0: number, f1: number, q = 1.2) => {
     const len = Math.floor(c.sampleRate * dur);
     const buf = c.createBuffer(1, len, c.sampleRate);
     const d = buf.getChannelData(0);
@@ -290,40 +294,66 @@ export function playFishing(kind: 'cast' | 'plop' | 'bite' | 'reel' | 'catch' | 
     src.buffer = buf;
     const f = c.createBiquadFilter();
     f.type = 'bandpass';
-    f.Q.value = 1.2;
+    f.Q.value = q;
     f.frequency.setValueAtTime(f0, t + at);
     f.frequency.exponentialRampToValueAtTime(f1, t + at + dur);
     const g = c.createGain();
     g.gain.setValueAtTime(0.0001, t + at);
-    g.gain.exponentialRampToValueAtTime(vol, t + at + 0.01);
+    g.gain.exponentialRampToValueAtTime(vol, t + at + Math.min(0.04, dur / 3));
     g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
     src.connect(f).connect(g).connect(out);
     src.start(t + at);
     src.stop(t + at + dur + 0.03);
   };
+  const run = (notes: number[], step: number, at: number, dur: number, vol: number, type: OscillatorType = 'square') =>
+    notes.forEach((f, i) => tone(type, f, f, at + i * step, dur, vol));
   if (kind === 'cast') {
-    splash(0, 0.35, 0.12, 2400, 700);
-    tone('sine', 1400, 500, 0, 0.3, 0.04);
+    // Whoosh of the swing (air rising then falling), then the line whistling out.
+    splash(0, 0.2, 0.16, 400, 2600, 0.8);
+    splash(0.18, 0.24, 0.14, 2600, 700, 0.8);
+    tone('sine', 2300, 900, 0.3, 0.45, 0.03);
   } else if (kind === 'plop') {
-    tone('sine', 520, 140, 0, 0.12, 0.35);
-    splash(0.02, 0.18, 0.1, 1200, 400);
+    // "Plung": a round drop in pitch, a little water, one bubble.
+    tone('sine', 760, 150, 0, 0.16, 0.4);
+    splash(0.01, 0.14, 0.12, 900, 300);
+    tone('sine', 320, 640, 0.13, 0.06, 0.08);
   } else if (kind === 'bite') {
     splash(0, 0.12, 0.25, 1600, 500);
     splash(0.16, 0.14, 0.3, 1400, 400);
     tone('square', 880, 880, 0.02, 0.06, 0.08);
     tone('square', 1175, 1175, 0.1, 0.08, 0.08);
   } else if (kind === 'reel') {
-    for (let i = 0; i < 8; i++) tone('square', 1800, 1700, i * 0.05, 0.02, 0.06);
-    splash(0.3, 0.25, 0.18, 1800, 500);
-  } else if (kind === 'catch') {
-    [523, 659, 784].forEach((f, i) => tone('square', f, f, i * 0.09, 0.12, 0.12));
-    tone('triangle', 1046, 1046, 0.27, 0.25, 0.1);
+    // The reel's ratchet clicking while it spins, a soft whir under it, a drip as the float leaves the water.
+    for (let i = 0; i < 14; i++) tone('square', i % 2 ? 1700 : 2100, i % 2 ? 1650 : 2000, i * 0.048, 0.014, 0.06);
+    tone('triangle', 170, 260, 0, 0.68, 0.035);
+    splash(0.5, 0.16, 0.1, 1700, 600);
   } else if (kind === 'junk') {
-    tone('square', 392, 370, 0, 0.12, 0.1);
-    tone('square', 330, 262, 0.13, 0.25, 0.1);
+    // Bloop... boing (soft and a bit silly).
+    tone('sine', 320, 110, 0, 0.2, 0.28);
+    splash(0, 0.1, 0.06, 700, 300);
+    tone('triangle', 200, 340, 0.22, 0.12, 0.1);
+    tone('triangle', 240, 190, 0.36, 0.26, 0.08);
+  } else if (kind === 'fish') {
+    splash(0, 0.26, 0.22, 1800, 500);
+    run([659, 784, 1046], 0.08, 0.14, 0.1, 0.1);
+  } else if (kind === 'item') {
+    // A bell: "ding-ding", then a small glint on top.
+    tone('sine', 1318, 1318, 0, 0.5, 0.14);
+    tone('triangle', 2637, 2637, 0, 0.25, 0.03);
+    tone('sine', 1760, 1760, 0.13, 0.55, 0.14);
+    tone('triangle', 3520, 3520, 0.13, 0.25, 0.03);
+    tone('triangle', 2637, 3136, 0.3, 0.16, 0.05);
+  } else if (kind === 'gourami') {
+    splash(0, 0.3, 0.26, 2000, 450);
+    run([523, 659, 784, 1046, 1318], 0.07, 0.12, 0.1, 0.11);
+    run([1568, 1760, 1568, 1760, 1568], 0.05, 0.5, 0.05, 0.06);
+    [784, 1046, 1318].forEach((f) => tone('triangle', f, f, 0.78, 0.4, 0.06));
   } else {
-    [523, 659, 784, 1046, 1318, 1568].forEach((f, i) => tone('square', f, f, i * 0.08, 0.14, 0.12));
-    tone('triangle', 2093, 2637, 0.5, 0.6, 0.08);
+    splash(0, 0.32, 0.28, 2200, 450);
+    run([523, 659, 784, 1046, 1318, 1568], 0.08, 0.1, 0.14, 0.12);
+    [1046, 1318, 1568, 2093].forEach((f) => tone('triangle', f, f, 0.6, 0.8, 0.07));
+    tone('triangle', 2093, 3136, 0.62, 0.7, 0.05);
+    run([2637, 3136, 3520, 4186], 0.06, 1.0, 0.08, 0.04, 'sine');
   }
 }
 
