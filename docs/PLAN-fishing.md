@@ -300,3 +300,14 @@ line on the tip mid-cast / waiting / bite / reeling, the bent rod, TaniBot facin
 > top. NO ducks, NO frogs, NO fish, NO people, NO text. Lush jungle banks with palms, ferns, red and pink
 > flowers and grey stones all around; a big tree at the top left. The bottom 20% of the picture is bank
 > and jungle (game buttons will sit there). Crisp pixels, no blur, no outline frame.
+
+## 11. Dusk and night pictures (Ardian 2026-11-12) — BUILT 2026-11-12 (committed locally, not pushed)
+
+Ardian's ChatGPT `fishing-pond-dusk.png` and `fishing-pond-night.png` replace the code tints for dusk
+and night. Checked first: dock, every lily pad, rocks, tree and waterfall line up with the day picture
+(best match 0-1 px at 480x270 for every part; one pad looked off by the numbers only because the day
+picture still has a frog on it, a zoomed side-by-side shows the same place). They have no frogs or
+ducks, so no cleaning was needed. Cross-fade on the village clock like the village (`pondMix`, same
+hours as `skyMix`); the tree crown layer has dusk / night versions; the code-drawn animals, TaniBot,
+the rod and the water effects are dimmed a little at dusk / night to match (CSS filter). The morning
+light and the rain darkening stay code tints.

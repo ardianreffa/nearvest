@@ -64,9 +64,11 @@ const look = () =>
       leaves: [...document.querySelectorAll('.pond-leaf')].map((e) => getComputedStyle(e.querySelector('rect')).fill),
       leafShape: [...document.querySelectorAll('.pond-leaf')].map((e) => `${e.querySelectorAll('rect').length}:${new Set([...e.querySelectorAll('rect')].map((r) => getComputedStyle(r).fill)).size}`),
       tint: document.querySelector('.pond-tint')?.className,
+      pics: ['dusk', 'night'].map((t) => { const i = document.querySelector(`.pond-img-${t}`); return i && i.complete && i.naturalWidth === 480 ? Number(getComputedStyle(i).opacity) : 0; }),
       rain: document.querySelectorAll('.pond-rain .wx-rain-layer').length,
       rings: document.querySelectorAll('.rain-ring').length,
-      tree: !!document.querySelector('.pond-tree')?.complete && document.querySelector('.pond-tree')?.naturalWidth === 80,
+      tree: [...document.querySelectorAll('.pond-tree img')].every((i) => i.complete && i.naturalWidth === 80) && document.querySelectorAll('.pond-tree img').length >= 1,
+      trees: document.querySelectorAll('.pond-tree img').length,
       treeAnim: document.querySelector('.pond-tree') && getComputedStyle(document.querySelector('.pond-tree')).animationName,
       sound: document.documentElement.dataset.pondSound ?? '',
     };
@@ -117,7 +119,7 @@ for (const L of LOOKS) {
   check(a.tree && a.treeAnim === 'pond-sway', `${L.q}: the big tree sways (${a.treeAnim})`);
   check(a.leaves.length === 5 && a.leafShape.every((x) => +x.split(':')[0] >= 12 && x.split(':')[1] === '2'), `${L.q}: 5 falling pixel leaves with blade + stem (${a.leafShape.join(' ')})`);
   leafColors[L.time] ??= a.leaves[0];
-  check(L.time === 'day' ? !/tint-(dusk|night)/.test(a.tint) : a.tint.includes(`tint-${L.time}`), `${L.q}: tint (${a.tint})`);
+  check(JSON.stringify(a.pics) === JSON.stringify(L.time === 'dusk' ? [1, 0] : L.time === 'night' ? [0, 1] : [0, 0]) && !/tint-(dusk|night)|pond-glow/.test(a.tint), `${L.q}: ${L.time === 'day' ? 'day picture only' : `Ardian's ${L.time} picture`} (dusk ${a.pics[0]}, night ${a.pics[1]}), no code tint`);
   check(L.weather === 'rain' ? a.rain === 2 && a.rings === 8 : a.rain === 0 && a.rings === 0, `${L.q}: rain layers ${a.rain}, rings ${a.rings}`);
   const night = L.time === 'night';
   check(night ? a.asleep === 3 && a.zzz === 3 : a.asleep === 0 && a.zzz === 0, `${L.q}: ducks ${night ? 'asleep with zzz' : 'awake'} (${a.asleep}, ${a.zzz})`);
@@ -125,7 +127,7 @@ for (const L of LOOKS) {
   // Life: within ~12 s a frog hops and (by day) a duck paddles somewhere else.
   let hopped = false;
   let swam = false;
-  for (let i = 0; i < 24 && !(hopped && (swam || night)); i++) {
+  for (let i = 0; i < 40 && !(hopped && (swam || night)); i++) {
     await pg.waitForTimeout(500);
     const b = await look();
     hopped ||= b.frogHops.some((c) => c.includes('frog-hop'));

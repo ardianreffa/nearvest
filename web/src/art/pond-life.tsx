@@ -111,12 +111,15 @@ function LeafArt({ rows, color }: { rows: string[]; color: string }) {
 }
 
 export function PondLife({
+  mix = { dusk: 0, night: 0 },
   time,
   weather,
   still: stillMode,
   zone = null,
   avoid = [],
 }: {
+  /** The dusk / night pictures' share (the tree crown follows them). */
+  mix?: { dusk: number; night: number };
   time: PondTime;
   weather: PondWeather;
   still: boolean;
@@ -182,7 +185,11 @@ export function PondLife({
 
   return (
     <>
-      <img class="pond-tree" src="/assets/bg/fishing-pond-tree.png" alt="" draggable={false} />
+      <div class="pond-tree">
+        <img src="/assets/bg/fishing-pond-tree.png" alt="" draggable={false} />
+        {mix.dusk > 0 && <img src="/assets/bg/fishing-pond-tree-dusk.png" alt="" style={{ opacity: mix.dusk }} draggable={false} />}
+        {mix.night > 0 && <img src="/assets/bg/fishing-pond-tree-night.png" alt="" style={{ opacity: mix.night }} draggable={false} />}
+      </div>
       <svg class="pond-svg pond-life" viewBox="0 0 480 270" aria-hidden="true">
         <g class="pond-glints" fill="var(--paper-light)">
           {GLINTS.map(([x, y, w], i) => (
@@ -266,8 +273,8 @@ export function PondLife({
 export function PondMood({ time, weather }: { time: PondTime; weather: PondWeather }) {
   return (
     <>
-      <div class={`pond-tint tint-${time}`} aria-hidden="true" />
-      {time === 'dusk' && <div class="pond-glow" aria-hidden="true" />}
+      {/* Dusk and night come from Ardian's pictures now (pond.tsx); only the morning light and rain are tints. */}
+      <div class={`pond-tint tint-${time === 'dusk' || time === 'night' ? 'picture' : time}`} aria-hidden="true" />
       {weather === 'rain' && (
         <div class="pond-rain" aria-hidden="true">
           <i class="wx-rain-layer far" />

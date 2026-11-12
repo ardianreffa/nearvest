@@ -145,6 +145,7 @@ export function PondScene({
   time = 'day',
   weather = 'clear',
   avoid = [],
+  mix = { dusk: 0, night: 0 },
   bot,
   children,
 }: {
@@ -155,6 +156,8 @@ export function PondScene({
   weather?: PondWeather;
   /** Floating panels over the pond (grid boxes): the ducks do not swim under them. */
   avoid?: Box[];
+  /** How much of the dusk / night pictures show (pondMix: cross-fade like the village). */
+  mix?: { dusk: number; night: number };
   bot?: ComponentChildren;
   children?: ComponentChildren;
 }) {
@@ -195,7 +198,10 @@ export function PondScene({
       style={{ '--pk': String(k) }}
     >
       <img class="pond-img" src="/assets/bg/fishing-pond.png" alt="" width={POND_W} height={POND_H} draggable={false} />
-      <PondLife time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? FISHING_ZONE : null} avoid={avoid} />
+      {/* Ardian's dusk and night pictures over the day one, faded in by the village clock. */}
+      {mix.dusk > 0 && <img class="pond-img pond-img-dusk" src="/assets/bg/fishing-pond-dusk.png" alt="" style={{ opacity: mix.dusk }} draggable={false} />}
+      {mix.night > 0 && <img class="pond-img pond-img-night" src="/assets/bg/fishing-pond-night.png" alt="" style={{ opacity: mix.night }} draggable={false} />}
+      <PondLife mix={mix} time={time} weather={weather} still={still} zone={phase === 'casting' || phase === 'wait' || phase === 'bite' || phase === 'reeling' ? FISHING_ZONE : null} avoid={avoid} />
       <svg class="pond-svg" viewBox={`0 0 ${POND_W} ${POND_H}`} aria-hidden="true">
         <Waterfall />
         {pose.inWater && (

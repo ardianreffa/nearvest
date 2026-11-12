@@ -249,3 +249,17 @@ export function pondFit(W: number, H: number): PondFit {
   const h = 270 * k;
   return { mode: 'fit', left: (W - w) / 2, top: W < H ? Math.max(72, Math.round((H - h) * 0.3)) : (H - h) / 2, w, h };
 }
+
+// ---------- Dusk and night pictures (Ardian's ChatGPT pond, 2026-11-12) ----------
+
+/**
+ * How much of the dusk and night pond pictures show over the day one (0..1, stacked like the village:
+ * art/backdrop.tsx skyMix, same hours): day -> dusk 16:00-17:00, dusk -> night 18:30-19:30; at dawn
+ * night -> dusk 05:00-06:00 and dusk -> day 06:00-07:00.
+ */
+export function pondMix(hour: number): { dusk: number; night: number } {
+  const ramp = (from: number, to: number) => Math.min(1, Math.max(0, (hour - from) / (to - from)));
+  if (hour >= 5 && hour < 7) return { night: 1 - ramp(5, 6), dusk: 1 - ramp(6, 7) };
+  if (hour >= 16 && hour < 19.5) return { night: ramp(18.5, 19.5), dusk: ramp(16, 17) };
+  return { night: hour >= 7 && hour < 16 ? 0 : 1, dusk: 0 };
+}

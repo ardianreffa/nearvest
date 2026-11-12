@@ -23,6 +23,7 @@ import {
   frogTick,
   LEAF_COLORS,
   pondFit,
+  pondMix,
   pondSounds,
   pondTime,
   pondWeather,
@@ -146,5 +147,14 @@ describe('fishing pond life', () => {
     assert.equal(phone.w, 390);
     assert.ok(phone.top >= 72 && phone.top + phone.h < 844 * 0.6, 'upper part, room for the panel below');
     assert.equal(pondFit(1024, 768).mode, 'fit', 'too much would be cut: the whole pond with a blurred copy around');
+  });
+  it('dusk and night pictures fade in on the village clock (same hours as the village)', () => {
+    assert.deepEqual(pondMix(12), { dusk: 0, night: 0 }); // ?time=day
+    assert.deepEqual(pondMix(17.75), { dusk: 1, night: 0 }); // ?time=dusk
+    assert.deepEqual(pondMix(23), { dusk: 0, night: 1 }); // ?time=night
+    assert.deepEqual(pondMix(16.5), { dusk: 0.5, night: 0 }, 'day -> dusk halfway');
+    assert.deepEqual(pondMix(19), { dusk: 1, night: 0.5 }, 'dusk -> night halfway');
+    assert.deepEqual(pondMix(5.5), { dusk: 1, night: 0.5 }, 'dawn: night -> dusk');
+    assert.deepEqual(pondMix(6.5), { dusk: 0.5, night: 0 }, 'dawn: dusk -> day');
   });
 });

@@ -9,7 +9,7 @@ import { api, ApiError, type CatchView, type FishingView, type GameState } from 
 import { CatchIcon } from './art/catch-icons';
 import { FLOAT_AT, PondScene, pondAt } from './art/pond';
 import { CAST_MS, REEL_MS } from './art/rod-pose';
-import { pondFit, pondSounds, pondTime, pondWeather, type Box } from './pond-life-plan';
+import { pondFit, pondMix, pondSounds, pondTime, pondWeather, type Box } from './pond-life-plan';
 import { villageHour } from './share';
 import { lookOf } from './weather';
 import { TaniBot } from './art/tanibot';
@@ -124,7 +124,9 @@ export function FishingWindow({
     const id = window.setInterval(() => setClockTick((n) => n + 1), 30_000);
     return () => window.clearInterval(id);
   }, []);
-  const time = pondTime(villageHour(state));
+  const hour = villageHour(state);
+  const time = pondTime(hour);
+  const mix = pondMix(hour);
   const weather = pondWeather(lookOf(state.weather));
   // The pond's own background sounds while the window is open (the garden's loop pauses, app.tsx).
   useEffect(() => {
@@ -259,9 +261,9 @@ export function FishingWindow({
       // Upright phones: the panel gets exactly the room under the pond (it scrolls inside, never covers it).
       style={{ '--pond-free': `${Math.max(160, window.innerHeight - fit.top - fit.h - 24)}px` }}
     >
-      <img class="pond-backfill" src="/assets/bg/fishing-pond.png" alt="" aria-hidden="true" draggable={false} />
+      <img class="pond-backfill" src={`/assets/bg/fishing-pond${mix.night >= 0.5 ? '-night' : mix.dusk >= 0.5 ? '-dusk' : ''}.png`} alt="" aria-hidden="true" draggable={false} />
       <div class="pond-stage" style={{ left: `${fit.left}px`, top: `${fit.top}px`, width: `${fit.w}px`, height: `${fit.h}px` }}>
-        <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
+        <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} mix={mix} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
         {phase.k === 'bite' && (
             <span class="pond-bang" style={pondAt(FLOAT_AT.x, FLOAT_AT.y - 10)} aria-hidden="true">
               !

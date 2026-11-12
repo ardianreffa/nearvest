@@ -14208,14 +14208,6 @@ html.duel-open .duel-bg .backdrop * {
   user-select: none;
 }
 
-.pond-screen.pond-time-dusk .pond-backfill {
-  filter: blur(10px) brightness(0.6) sepia(0.35);
-}
-
-.pond-screen.pond-time-night .pond-backfill {
-  filter: blur(10px) brightness(0.35) saturate(0.8);
-}
-
 .pond-stage {
   position: absolute;
 }
@@ -14377,11 +14369,18 @@ html.duel-open .duel-bg .backdrop * {
   top: 0;
   width: calc(80 / 480 * 100%);
   height: calc(41 / 270 * 100%);
-  image-rendering: pixelated;
   pointer-events: none;
   user-select: none;
   transform-origin: 30% 100%;
   animation: pond-sway 4.8s ease-in-out infinite alternate;
+}
+
+.pond-tree img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
 }
 
 @keyframes pond-sway {
@@ -14610,26 +14609,18 @@ html.duel-open .duel-bg .backdrop * {
   mix-blend-mode: soft-light;
 }
 
-.pond-tint.tint-dusk {
-  background: linear-gradient(color-mix(in srgb, var(--gold-300) 55%, var(--red-500)), color-mix(in srgb, var(--gold-300) 80%, var(--red-500)));
-  opacity: 0.55;
-  mix-blend-mode: multiply;
+/* Dusk and night: Ardian's ChatGPT pictures (pond.tsx). The code-drawn animals, TaniBot, the rod and
+   the water effects are dimmed to match them. */
+.pond-dusk .pond-life,
+.pond-dusk .pond-bot,
+.pond-dusk .pond-svg {
+  filter: sepia(0.2) brightness(0.92);
 }
 
-/* A warm glow on top of the darker dusk colours (sunset light on the water). */
-.pond-glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: color-mix(in srgb, var(--gold-500) 60%, var(--red-500));
-  opacity: 0.5;
-  mix-blend-mode: soft-light;
-}
-
-.pond-tint.tint-night {
-  background: color-mix(in srgb, var(--hud) 85%, var(--cyan-700));
-  opacity: 0.72;
-  mix-blend-mode: multiply;
+.pond-night .pond-life,
+.pond-night .pond-bot,
+.pond-night .pond-svg {
+  filter: brightness(0.62) saturate(0.85);
 }
 
 .pond-rain {
