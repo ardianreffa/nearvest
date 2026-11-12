@@ -17,7 +17,7 @@ describe('Tutorial', () => {
     const p = w.newPlayer('sari');
     await w.worker.drain();
     assert.equal(step(w, p.id), 'welcome');
-    assert.deepEqual({ index: w.game.state(p.id).tutorial!.index, total: w.game.state(p.id).tutorial!.total }, { index: 0, total: 9 });
+    assert.deepEqual({ index: w.game.state(p.id).tutorial!.index, total: w.game.state(p.id).tutorial!.total }, { index: 0, total: 11 });
     w.game.tutorialAction(p.id, 'start');
     assert.equal(step(w, p.id), 'plant');
     w.game.plant(p.id, 0, seed(w, p.id));
@@ -45,7 +45,34 @@ describe('Tutorial', () => {
     w.game.sell(p.id, r.species, r.quality, 1);
     assert.equal(step(w, p.id), 'tanibot');
     w.tanibot.setup(p.id, {});
+    // No fishing on this server: the pond step is skipped; the Arena step ends with "Got it".
+    assert.equal(step(w, p.id), 'arena');
+    w.game.tutorialAction(p.id, 'next');
     assert.equal(step(w, p.id), 'done');
+    assert.equal(w.game.state(p.id).tutorial, null);
+  });
+
+  it('with fishing on: one cast at the pond ends the fishing step; loop steps cannot be passed', async () => {
+    const w = makeWorld({ demo: true });
+    w.game.fishing = true;
+    const p = w.newPlayer('sari');
+    await w.worker.drain();
+    w.game.tutorialAction(p.id, 'start');
+    assert.throws(() => w.game.tutorialAction(p.id, 'next'), /cannot be passed/, 'planting cannot be passed');
+    // Buying a SEED never finishes "buy fertilizer".
+    w.game.plant(p.id, 0, seed(w, p.id));
+    w.game.water(p.id, 0);
+    assert.equal(step(w, p.id), 'buy_fertilizer');
+    w.game.buy(p.id, 'seed_mango', 1);
+    assert.equal(step(w, p.id), 'buy_fertilizer', 'a seed is not fertilizer');
+    // Jump to the TaniBot step: "Later" passes it, then the pond waits for a cast.
+    w.db.prepare('UPDATE players SET tutorial_step = 8 WHERE id = ?').run(p.id);
+    assert.equal(step(w, p.id), 'tanibot');
+    w.game.tutorialAction(p.id, 'next');
+    assert.equal(step(w, p.id), 'fishing');
+    w.db.prepare("INSERT INTO fishing_casts (player_id, cast_day, catch, paid, status, bite_at, created_at) VALUES (?, 0, 'tilapia', 1, 'done', 0, 0)").run(p.id);
+    assert.equal(step(w, p.id), 'arena');
+    w.game.tutorialAction(p.id, 'next');
     assert.equal(w.game.state(p.id).tutorial, null);
   });
 
@@ -88,5 +115,15 @@ describe('Tutorial', () => {
     assert.equal(created.tutorial.step, 'welcome');
     assert.equal((await post('/api/tutorial', { action: 'start' })).state.tutorial.step, 'plant');
     assert.equal((await post('/api/tutorial', { action: 'skip' })).state.tutorial, null);
+  });
+  it('rain waters the tree: the water step never blocks (the Water button is off in the rain)', async () => {
+    // Rain every day.
+    const w = makeWorld({ demo: true, weather: { kind: () => 'rain', eruption: () => null } });
+    const p = w.newPlayer('sari');
+    await w.worker.drain();
+    w.game.tutorialAction(p.id, 'start');
+    assert.equal(step(w, p.id), 'plant', 'no tree yet: nothing to water');
+    w.game.plant(p.id, 0, seed(w, p.id));
+    assert.equal(step(w, p.id), 'buy_fertilizer', 'the rain did the watering');
   });
 });

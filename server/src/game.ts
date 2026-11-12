@@ -176,11 +176,15 @@ interface TreeRow {
 }
 
 /**
- * The tutorial for new gardens (TaniBot guides): the player learns the loop by hand first,
- * then meets TaniBot right after the first manual harvest. A step is done as soon as its goal
- * is reached, in any order (e.g. a check-in before the tutorial asks for it).
+ * The tutorial for new gardens (TaniBot guides): the player learns the loop by hand first, meets
+ * TaniBot right after the first manual harvest, then casts once at the fishing pond and looks at the
+ * Arena (2026-11-12, Ardian). One step is active at a time; it is done only when its own goal is
+ * reached (buying a seed never finishes "buy fertilizer"). A goal reached earlier (a check-in before
+ * the tutorial asks for it) is not asked again. TaniBot and the Arena may be passed with "next".
  */
-export const TUTORIAL_STEPS = ['welcome', 'plant', 'water', 'buy_fertilizer', 'fertilize', 'checkin', 'harvest', 'sell', 'tanibot'] as const;
+export const TUTORIAL_STEPS = ['welcome', 'plant', 'water', 'buy_fertilizer', 'fertilize', 'checkin', 'harvest', 'sell', 'tanibot', 'fishing', 'arena'] as const;
+/** Steps the player may pass without doing them ("Later" / "Got it"). */
+const TUTORIAL_PASSABLE: readonly TutorialStep[] = ['tanibot', 'fishing', 'arena'];
 export type TutorialStep = (typeof TUTORIAL_STEPS)[number];
 
 /** Try as Judge: starting XP (Farmhand, third plot open) and PANEN. */
@@ -478,7 +482,12 @@ export class Game {
       case 'plant':
         return one('SELECT 1 FROM trees WHERE player_id = ?');
       case 'water':
-        return one('SELECT 1 FROM trees WHERE player_id = ? AND water_day IS NOT NULL');
+        // Watered by hand, or rain is watering every tree today (the Water button is off in the rain:
+        // the player must never be stuck on this step).
+        return (
+          one('SELECT 1 FROM trees WHERE player_id = ? AND water_day IS NOT NULL') ||
+          (one("SELECT 1 FROM trees WHERE player_id = ? AND status = 'alive'") && this.sky(p.demo === 1).kind(this.today(p)) === 'rain')
+        );
       case 'buy_fertilizer':
         return one("SELECT 1 FROM items WHERE player_id = ? AND item = 'fertilizer' AND qty > 0") || one('SELECT 1 FROM trees WHERE player_id = ? AND fert_until > 0');
       case 'fertilize':
@@ -491,6 +500,11 @@ export class Game {
         return one('SELECT 1 FROM sales WHERE player_id = ?');
       case 'tanibot':
         return one('SELECT 1 FROM bots WHERE player_id = ?');
+      case 'fishing':
+        // One cast at the pond; a server without fishing skips the step.
+        return !this.fishing || one('SELECT 1 FROM fishing_casts WHERE player_id = ?');
+      case 'arena':
+        return false; // the player's "Got it" after looking at the Arena ends it
     }
   }
 
@@ -509,6 +523,14 @@ export class Game {
     const p = this.getPlayer(playerId);
     if (action === 'skip') {
       this.db.prepare('UPDATE players SET tutorial_step = ? WHERE id = ?').run(TUTORIAL_DONE, p.id);
+      return;
+    }
+    if (action === 'next') {
+      // Pass an optional step (TaniBot "Later", the pond, the Arena "Got it"); never a loop step.
+      const cur = this.tutorial(playerId);
+      if (!cur || !TUTORIAL_PASSABLE.includes(cur.step)) throw new GameError('This step cannot be passed', 409, { code: 'tutorial_step' });
+      this.db.prepare('UPDATE players SET tutorial_step = ? WHERE id = ?').run(cur.index + 1, p.id);
+      this.tutorial(playerId);
       return;
     }
     if (action !== 'start') throw new GameError('Unknown tutorial action');
