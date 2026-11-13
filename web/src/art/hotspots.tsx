@@ -189,32 +189,65 @@ function pinObstacleRects(): Rect[] {
     .filter((r) => r.w > 0 && r.bottom > r.top);
 }
 
+/** How bad it is for a pin to cover another pin: far worse than covering a tree, a label or Mr. Darto. */
+const PIN_ON_PIN = 1000;
+
 /**
  * A place pin sits at a FIXED point just above its own building's roof (village.ts `pin`): its
  * bottom middle on that point. It only moves a little (at most 24 px sideways or 16 px up) when it
  * would cover a tree, a label, Mr. Darto, another pin or the HUD; never to a far-away free spot.
+ *
+ * One exception: two pins never overlap. On a short, wide laptop window the top of the village is
+ * above the screen, so pins of tall buildings (Village Stats on the farm towers) are pushed down
+ * under the HUD, onto the row of the roofs below them (the Market). When the small moves cannot
+ * separate two pins, this pin moves further, sideways first and then one row down or up, to the
+ * nearest spot that touches no other pin.
  */
-function placePin(el: HTMLElement, host: HTMLElement, v: Village, x: number, y: number, area: Rect, obstacles: Rect[]) {
+function placePin(el: HTMLElement, host: HTMLElement, v: Village, x: number, y: number, area: Rect, obstacles: Rect[], placed: Rect[]) {
   const hr = host.getBoundingClientRect();
   const w = el.offsetWidth;
   const h = el.offsetHeight;
   const ax = hr.left + (x / v.w) * hr.width;
   const ay = hr.top + (y / v.h) * hr.height;
+  const GAP = 4;
+  const all = [...obstacles, ...placed.map((r) => ({ left: r.left - GAP, top: r.top - GAP, right: r.right + GAP, bottom: r.bottom + GAP, weight: PIN_ON_PIN }))];
   const cost = (r: Rect) =>
-    obstacles.reduce((sum, o) => {
+    all.reduce((sum, o) => {
       if (!overlaps(r, o)) return sum;
       const a = (Math.min(r.right, o.right) - Math.max(r.left, o.left)) * (Math.min(r.bottom, o.bottom) - Math.max(r.top, o.top));
       return sum + a * (o.weight ?? 1);
     }, 0);
-  let best: { l: number; t: number; c: number } | null = null;
+  const onPin = (r: Rect) => placed.some((o) => overlaps(r, { left: o.left - GAP, top: o.top - GAP, right: o.right + GAP, bottom: o.bottom + GAP }));
+  const at = (dx: number, dy: number) => {
+    const l = Math.min(Math.max(ax - w / 2 + dx, area.left), area.right - w);
+    const t = Math.min(Math.max(ay - h - 2 + dy, area.top), area.bottom - h);
+    const r = { left: l, top: t, right: l + w, bottom: t + h };
+    return { l, t, c: cost(r), pin: onPin(r) };
+  };
+  let best: { l: number; t: number; c: number; pin: boolean } | null = null;
   search: for (const dy of [0, -8, -16]) {
     for (const dx of [0, -8, 8, -16, 16, -24, 24]) {
-      const l = Math.min(Math.max(ax - w / 2 + dx, area.left), area.right - w);
-      const t = Math.min(Math.max(ay - h - 2 + dy, area.top), area.bottom - h);
-      const c = cost({ left: l, top: t, right: l + w, bottom: t + h });
-      if (!best || c < best.c) best = { l, t, c };
-      if (c === 0) break search;
+      const c = at(dx, dy);
+      if (!best || c.c < best.c) best = c;
+      if (c.c === 0) break search;
     }
+  }
+  if (best!.pin) {
+    // Still on another pin: look further, nearest spots first; the first one free of every pin
+    // wins (among equally near ones, the one that covers the least of anything else).
+    const row = h + GAP;
+    const far: { dx: number; dy: number }[] = [];
+    for (const dy of [0, row, -row, 2 * row, -2 * row]) for (let dx = -240; dx <= 240; dx += 8) far.push({ dx, dy });
+    far.sort((p, q) => Math.abs(p.dx) + 2 * Math.abs(p.dy) - (Math.abs(q.dx) + 2 * Math.abs(q.dy)));
+    let free: { l: number; t: number; c: number; pin: boolean; d: number } | null = null;
+    for (const { dx, dy } of far) {
+      const d = Math.abs(dx) + 2 * Math.abs(dy);
+      // Spots more than 40 px further than the first free one are not worth a cleaner view.
+      if (free && d > free.d + 40) break;
+      const c = at(dx, dy);
+      if (!c.pin && (!free || c.c < free.c)) free = { ...c, d };
+    }
+    if (free) best = free;
   }
   el.style.left = `${best!.l - hr.left}px`;
   el.style.top = `${best!.t - hr.top}px`;
@@ -295,7 +328,7 @@ export function Hotspots({
       const el = pins.current[id];
       if (!el) continue;
       const { pin: [x, y] } = where(id);
-      placePin(el, h, v, x, y, area, [...pinObstacles, ...placed.map((r) => ({ ...r, weight: 10 }))]);
+      placePin(el, h, v, x, y, area, pinObstacles, placed);
       placed.push(el.getBoundingClientRect());
     }
     if (bubble && bubbleEl.current) {
