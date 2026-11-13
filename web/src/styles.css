@@ -15602,6 +15602,19 @@ html.pond-open .hud * {
   animation-delay: 0.35s;
 }
 
+/* A line found again (window reopened, page reloaded, another device): calm, but clearly in the water. */
+.pond.pond-resumed .pond-float {
+  animation: pond-bob 1.4s steps(2) infinite;
+}
+
+.pond.pond-resumed .ring {
+  animation: pond-ring 2.8s steps(4) infinite;
+}
+
+.pond.pond-resumed .ring-b {
+  animation-delay: 1.4s;
+}
+
 .pond-bang {
   position: absolute;
   transform: translate(-50%, -100%);
@@ -16152,7 +16165,8 @@ html.pond-open .hud * {
   }
 
   .pond-bite .ring,
-  .pond-wait .ring-a {
+  .pond-wait .ring-a,
+  .pond.pond-resumed .ring {
     opacity: 1;
   }
 

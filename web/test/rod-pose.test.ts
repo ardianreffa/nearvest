@@ -27,6 +27,20 @@ describe('fishing rod pose', () => {
         }
   });
 
+  it('no clock (a line resumed from the server, ms = Infinity): every pose is a real one, never NaN', () => {
+    // 2026-11-13: a resumed bite used Math.sin(Infinity) = NaN, so the rod, line and float vanished.
+    for (const ph of PHASES)
+      for (const still of [false, true]) {
+        const p = rodPose(ph, Infinity, still);
+        for (const v of [p.tip.x, p.tip.y, p.float.x, p.float.y, p.line.x, p.line.y, p.bend, p.lift]) assert.ok(Number.isFinite(v), `${ph} still=${still}: ${v}`);
+        assert.deepEqual(p.butt, HANDS, ph);
+      }
+    // The resumed bite: the line is in the water, the float on its spot.
+    const bite = rodPose('bite', Infinity);
+    assert.equal(bite.inWater, true);
+    assert.deepEqual(bite.float, FLOAT_AT);
+  });
+
   it('the cast swings back, releases, and the float lands on the water spot', () => {
     const start = rodPose('casting', 0);
     const back = rodPose('casting', 250);

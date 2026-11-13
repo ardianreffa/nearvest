@@ -87,6 +87,8 @@ export function FishingWindow({
 }) {
   const f = state.fishing!;
   const [phase, setPhase] = useState<FishPhase>(() => startPhase(f, Date.now()));
+  /** The open line came from the server (window reopened, page reloaded, another device), not from a cast here. */
+  const [resumed, setResumed] = useState(() => !!f.open);
   const [view, setView] = useState<FishingView | null>(null);
   const [early, setEarly] = useState(false);
   const [listOpen, setListOpen] = useState(false);
@@ -171,7 +173,12 @@ export function FishingWindow({
       .then((v) => {
         if (!alive.current) return;
         setView(v);
-        if (v.open) setPhase((p) => (p.k === 'ready' ? startPhase(v, Date.now()) : p));
+        if (v.open)
+          setPhase((p) => {
+            if (p.k !== 'ready') return p;
+            setResumed(true);
+            return startPhase(v, Date.now());
+          });
       })
       .catch(() => undefined);
   }, []);
@@ -182,6 +189,7 @@ export function FishingWindow({
     const t = window.setTimeout(() => {
       if (!alive.current) return;
       setPhase({ k: 'bite', id: phase.id });
+      setResumed(false);
       setSince(Date.now());
       setEarly(false);
       playFishing('bite');
@@ -203,6 +211,7 @@ export function FishingWindow({
     setSince(at);
     window.setTimeout(() => alive.current && playFishing('plop'), CAST_MS);
     setPhase({ k: 'casting' });
+    setResumed(false);
     try {
       const r = await api<{ cast: { id: number; biteInMs: number }; left: number }>('POST', '/api/fishing/cast', { deviceId: judgeDeviceId() });
       if (!alive.current) return;
@@ -230,6 +239,7 @@ export function FishingWindow({
     playFishing('reel');
     const at = Date.now();
     setSince(at);
+    setResumed(false);
     setPhase({ k: 'reeling', id });
     try {
       const r = await api<{ result: CatchView; fishing: FishingView; state: GameState }>('POST', `/api/fishing/${id}/reel`);
@@ -295,7 +305,7 @@ export function FishingWindow({
           screen-sized canvases (one GPU texture each, never upscaled tiles that Chrome can drop). */}
       {fit.mode !== 'phone' && <PondPictures L={L} fit={fit} mix={mix} />}
       <div class="pond-stage" style={{ left: `${fit.left}px`, top: `${fit.top}px`, width: `${fit.w}px`, height: `${fit.h}px` }}>
-        <PondScene phase={phase.k} since={since} time={time} weather={weather} avoid={avoid} mix={mix} layout={L} rain={false} pictures={fit.mode === 'phone'} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
+        <PondScene phase={phase.k} since={since} resumed={resumed} time={time} weather={weather} avoid={avoid} mix={mix} layout={L} rain={false} pictures={fit.mode === 'phone'} bot={<TaniBot tier={tierOf(state.player.title)} scale={1} effects={false} />}>
         {phase.k === 'bite' && (
             <span class="pond-bang" style={pondAt(L.float.x, L.float.y - 10, L)} aria-hidden="true">
               !
@@ -410,8 +420,8 @@ export function FishingWindow({
             <p class="fish-status" aria-live="polite">
               {phase.k === 'ready' && 'Tap Cast line, then wait for the float to dip.'}
               {phase.k === 'casting' && 'Casting...'}
-              {phase.k === 'wait' && (early ? 'Wait for the bite! Watch the float.' : 'Waiting for a bite...')}
-              {phase.k === 'bite' && <b>A bite! Tap Reel in!</b>}
+              {phase.k === 'wait' && (resumed ? 'Your line is still in the water. Wait for the bite...' : early ? 'Wait for the bite! Watch the float.' : 'Waiting for a bite...')}
+              {phase.k === 'bite' && <b>{resumed ? 'Your line is still in the water. Reel in!' : 'A bite! Tap Reel in!'}</b>}
               {phase.k === 'reeling' && 'Reeling in...'}
             </p>
           )}

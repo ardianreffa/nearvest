@@ -116,10 +116,13 @@ export function rodPose(phase: RodPhase, ms: number, still = false, G: RodGeo = 
     return { ...r, bend: 0, float: FLOAT_AT, line: sag(r.tip, FLOAT_AT, Math.hypot(FLOAT_AT.x - r.tip.x, FLOAT_AT.y - r.tip.y) * WAIT_SAG), lift: 0, inWater: true };
   }
   if (phase === 'bite') {
-    const tremble = still ? 0 : Math.sin(ms / 38) * 2.2 + Math.sin(ms / 91) * 1.2;
+    // No clock (ms = Infinity, e.g. a line resumed from the server): a calm bent rod. Math.sin(Infinity)
+    // is NaN, which used to make the rod, line and float vanish (2026-11-13).
+    const calm = still || !Number.isFinite(ms);
+    const tremble = calm ? 0 : Math.sin(ms / 38) * 2.2 + Math.sin(ms / 91) * 1.2;
     const bend = A_BITE_BEND + tremble;
     const r = rodAt(A_WAIT, bend, G);
-    const f = { x: FLOAT_AT.x - (still ? 0 : Math.abs(Math.sin(ms / 60))), y: FLOAT_AT.y };
+    const f = { x: FLOAT_AT.x - (calm ? 0 : Math.abs(Math.sin(ms / 60))), y: FLOAT_AT.y };
     return { ...r, bend, float: f, line: mid(r.tip, f), lift: 0, inWater: true };
   }
   if (phase === 'reeling') return reelPose(REEL_MS, G);

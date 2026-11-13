@@ -141,6 +141,7 @@ function useClock(active: boolean, since: number): number {
 export function PondScene({
   phase,
   since = 0,
+  resumed = false,
   time = 'day',
   weather = 'clear',
   avoid = [],
@@ -163,6 +164,12 @@ export function PondScene({
   rain?: boolean;
   phase: PondPhase;
   since?: number;
+  /**
+   * A line left in the water and found again (the window was closed and opened, the page reloaded or
+   * another device): the line hangs calmly in the water, the float bobs and rings spread (light CSS
+   * animation), whether the fish has bitten already or not.
+   */
+  resumed?: boolean;
   /** The village clock and weather (pond-life-plan.ts: rain only, never ash). */
   time?: PondTime;
   weather?: PondWeather;
@@ -197,13 +204,14 @@ export function PondScene({
     (phase === 'bite' || ((phase === 'casting' || phase === 'wait') && sinceMs < CAST_MS + 50) || (phase === 'reeling' && sinceMs < REEL_MS + 50));
   const elapsed = useClock(moving, since);
   const ms = since > 0 ? elapsed : Infinity;
-  const pose = rodPose(phase, ms, still, L);
+  const calmLine = resumed && (phase === 'wait' || phase === 'bite');
+  const pose = calmLine ? rodPose('wait', Infinity, still, L) : rodPose(phase, ms, still, L);
   // Seen from above, a flying float is drawn higher and bigger, its shadow stays on the water.
   const f = { x: pose.float.x, y: pose.float.y - pose.lift * 10 };
   const fs = 1 + pose.lift * 0.7;
   return (
     <div
-      class={`pond pond-${phase} pond-${time}${weather === 'rain' ? ' pond-rain-on' : ''}${pictures ? '' : ' pond-no-pics'}`}
+      class={`pond pond-${phase}${calmLine ? ' pond-resumed' : ''} pond-${time}${weather === 'rain' ? ' pond-rain-on' : ''}${pictures ? '' : ' pond-no-pics'}`}
       data-time={time}
       data-dark={dark ? '1' : '0'}
       data-weather={weather}
