@@ -121,7 +121,7 @@ export function Profile({
       <WalletPanel state={state} config={config} onState={onState} />
       {p.custody === 'wallet' && <GooglePanel state={state} config={config} onState={onState} />}
       <Panel title="Farmer Card">
-        <div class="farmer-card-slot">Your Farmer Card (a soulbound NFT) will appear here soon.</div>
+        <div class="farmer-card-slot">Planned after the hackathon (not built yet): a Farmer Card (a soulbound NFT) shown here.</div>
       </Panel>
       <button class="btn profile-signout" onClick={onSignOut}>
         Sign out
@@ -179,7 +179,7 @@ function WalletPanel({ state, config, onState }: { state: GameState; config: Ser
   return (
     <Panel title="NEAR wallet">
       {p.custody === 'wallet' ? (
-        <p class="muted small">This garden lives in your own NEAR wallet account {p.accountId}. You hold its keys; the game still pays the gas.</p>
+        <p class="muted small">This garden lives in your own NEAR wallet account {p.accountId}. You hold its keys. Wallet gardens pay a tiny testnet fee for the one-time Shop setup and for TaniBot wallet steps (set limit, add budget, take back). The game pays everything else.</p>
       ) : p.walletAccountId ? (
         <p class="muted small">
           Linked wallet:{' '}

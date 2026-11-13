@@ -89,7 +89,7 @@ const PAGES: Page[] = [
         icon: <Sprite name="bolt" scale={2} />,
         text: (
           <>
-            <b>With your NEAR wallet</b>: your garden lives in your own account. The game pays the fees; only the one-time Shop setup costs a tiny testnet fee.
+            <b>With your NEAR wallet</b>: your garden lives in your own account. Wallet gardens pay a tiny testnet fee for the one-time Shop setup and for TaniBot wallet steps (set limit, add budget, take back). The game pays everything else.
           </>
         ),
       },
@@ -148,7 +148,7 @@ const PAGES: Page[] = [
     points: [
       { icon: <TaniBotHead tier="seedling" scale={0.55} still />, text: <><b>Its own NEAR wallet</b> with a budget you give it. You can take the budget back at any time.</> },
       { icon: <Sprite name="lock" scale={2} />, text: <><b>A daily spending limit enforced by the PANEN contract</b>: TaniBot can only burn PANEN for Shop purchases, never send it anywhere.</> },
-      { icon: <Sprite name="droplet" scale={2} />, text: <><b>Works while you sleep</b>: waters, harvests, sells and buys fertilizer (a NEAR AI brain, checked by the game rules). Every action is in its Log with the transaction.</> },
+      { icon: <Sprite name="droplet" scale={2} />, text: <><b>Works while you sleep</b>: waters, harvests, sells and buys fertilizer. On the hosted demo its scheduled rounds are planned by an LLM on NEAR AI Cloud, checked by the game rules; quick reactions and the fallback are rule-based. Every action is in its Log with its reason; on-chain actions link their transaction. Shop purchases are burns signed by TaniBot's own account; harvest and sale transactions are sent by the game account. Watering is off chain.</> },
       { icon: <Sprite name="sparkle" scale={2} />, text: <><b>Evolves with your title</b>: six looks from Seedling to Legend, with drones and auras.</> },
     ],
   },
@@ -249,19 +249,20 @@ export function PanenInfo({ state, config, onClose }: { state: GameState | null;
       </div>
 
       <h3>Fair launch</h3>
-      <p>0% for the team, no pre-mint. Every PANEN is minted only when a player earns it in the game.</p>
+      <p>No pre-mint, 0% team. PANEN is minted only as game rewards (harvest sales, check-in, welcome pack, fishing, duels, invites). The game server is the only minter.</p>
 
       <h3>How to get it</h3>
       <ul class="bullets">
         <li>Welcome pack: 50 PANEN</li>
         <li>Daily check-in: 5 PANEN (10 on day 7 of a streak)</li>
         <li>Selling fruit and seeds to Mr. Darto</li>
+        <li>Fishing, Arena duel wins and invites</li>
       </ul>
 
       <h3>What it is for</h3>
       <ul class="bullets">
         <li>Seeds and fertilizer in the Shop</li>
-        <li>Extra plots and tool upgrades (coming soon)</li>
+        <li>Planned after the hackathon (not built yet): extra plots and tool upgrades</li>
       </ul>
 
       <h3>Burned when you spend</h3>
@@ -280,15 +281,15 @@ export function PanenInfo({ state, config, onClose }: { state: GameState | null;
       )}
 
       <h3>Village Granary</h3>
-      <p>1% of Mr. Darto's sales will fill the Village Granary, shared with all farmers at the weekly Harvest Festival (coming soon).</p>
+      <p>Planned after the hackathon (not built yet): 1% of Mr. Darto's sales would fill a Village Granary, shared with all farmers at a weekly Harvest Festival.</p>
 
       <h3>Withdraw</h3>
       <p>
-        Your PANEN already sits in your own NEAR testnet account. Sending it to another NEAR testnet wallet of yours: <b>coming soon</b>.
+        Your PANEN already sits in your own NEAR testnet account. Planned after the hackathon (not built yet): sending it from the game to another NEAR testnet wallet of yours.
       </p>
 
       <p class="info-box warn">
-        Mainnet and DEX listing: planned, not live yet. Testnet tokens have no real value. PANEN is a game currency, not an investment.
+        Mainnet and a DEX listing: a mainnet version is only an idea; nothing is promised, and legal advice comes first. Testnet tokens have no real value. PANEN is a game currency, not an investment.
       </p>
     </Modal>
   );

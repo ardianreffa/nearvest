@@ -167,7 +167,7 @@ function LiveStats() {
   }, []);
   if (!s) return null;
   const items: [string, string, string][] = [
-    ['Farmers', fmt(s.village.players), `${EXPLORER}/address/nearvest.testnet`],
+    ['Gardens', fmt(s.village.players), `${EXPLORER}/address/nearvest.testnet`],
     ['PANEN burned', fmt(s.panen.totalBurned), `${EXPLORER}/token/panen.nearvest.testnet`],
     ['Tree NFTs', fmt(s.treeNfts), `${EXPLORER}/nft-token/pohon.nearvest.testnet`],
   ];
@@ -347,12 +347,12 @@ function Landing() {
             items={[
               ['sprout', <><b>Earn it</b> by harvesting and selling fruit to Mr. Darto, by fishing and by winning duels.</>],
               ['fire', <><b>Spend it</b> in the Shop: every PANEN spent there is <b>burned</b> forever.</>],
-              ['coin', <><b>Fair launch:</b> 0% team, no pre-mint. Only farming makes new PANEN.</>],
+              ['coin', <><b>Fair launch:</b> no pre-mint, 0% team. PANEN is minted only as game rewards (harvest sales, check-in, welcome pack, fishing, duels, invites). The game server is the only minter.</>],
               ['sparkle', <><b>Halving every Season:</b> rewards halve as more PANEN exists.</>],
             ]}
           />
           <LiveStats />
-          <p class="lp-mainnet">Mainnet plan: a $PANEN/NEAR pair on a NEAR DEX (planned, after legal advice).</p>
+          <p class="lp-mainnet">Mainnet (for example a $PANEN/NEAR pair on a NEAR DEX) is only an idea: nothing is promised, and legal advice comes first.</p>
           <p class="lp-small-note">Testnet token, no monetary value.</p>
         </Screen>
 
@@ -387,7 +387,7 @@ function Landing() {
               ['bolt', <>Its <b>own NEAR wallet</b>: a sub-account just for your bot.</>],
               ['coin', <>You give it a <b>budget</b>; the PANEN contract enforces its <b>daily spending limit</b>.</>],
               ['droplet', <>It waters, harvests and sells <b>while you sleep</b>.</>],
-              ['seedPacket', <>Every action is in its <b>Log</b>, with a link to the transaction.</>],
+              ['seedPacket', <>Every action is in its <b>Log</b> with its reason; on-chain actions link their transaction. Shop burns are signed by TaniBot's own account, harvest and sale transactions by the game account; watering is off chain.</>],
             ]}
           />
         </Screen>
@@ -426,7 +426,7 @@ function Landing() {
           <Points
             items={[
               ['seedPacket', <>Plant a seed and a <b>Tree NFT</b> is born in your NEAR account.</>],
-              ['droplet', <>It <b>grows, fruits and ages</b> on chain as you water it.</>],
+              ['droplet', <>The game server grows your tree; its <b>stage, age and harvest count</b> are written to the NFT on chain.</>],
               ['sprout', <><b>Lineage:</b> an old tree drops a superior seed for its next generation.</>],
               ['sparkle', <>Then it becomes a <b>Memorial Tree</b>: it stands on its plot until you plant again, and stays in your Memorial list.</>],
             ]}
@@ -471,9 +471,9 @@ function Landing() {
           <Points
             items={[
               ['sprout', <><b>Sign in with Google</b>: the game creates your NEAR account.</>],
-              ['bolt', <><b>No gas fees</b>: the game pays for every transaction.</>],
+              ['bolt', <><b>No gas fees</b> with Google sign-in: the game pays for every transaction.</>],
               ['lock', <><b>No wallet popups</b> while you play.</>],
-              ['coin', <><b>NEAR wallet optional</b>: sign in with Meteor and others too.</>],
+              ['coin', <><b>NEAR wallet optional</b>: sign in with Meteor and others too (a tiny testnet fee for the one-time Shop setup and TaniBot wallet steps: set limit, add budget, take back; the game pays the rest).</>],
               ['sparkle', <><b>Testnet</b>: tokens have no real value.</>],
             ]}
           />
@@ -487,7 +487,7 @@ function Landing() {
               ['bolt', <><b>TaniBot</b>: its own sub-account, a function call key and a contract-enforced daily limit.</>],
               ['droplet', <><b>Gasless</b>: NEP-366 meta transactions, relayed by the game.</>],
               ['lock', <><b>Wallet login</b>: NEP-413 signed message via near-connect.</>],
-              ['sparkle', <><b>TaniBot's brain</b>: NEAR AI Cloud.</>],
+              ['sparkle', <><b>TaniBot's brain</b>: on the hosted demo its scheduled rounds are planned by an LLM on NEAR AI Cloud, checked by the game rules; quick reactions and the fallback are rule-based.</>],
             ]}
           />
           <p class="lp-near-note">Everything runs on NEAR testnet. NEAR Intents are not used (there is no Intents testnet).</p>

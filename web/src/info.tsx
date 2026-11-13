@@ -26,7 +26,7 @@ export const INFO = {
   burned:
     "PANEN spent in the Shop is destroyed on chain forever, so the supply shrinks.",
   treeNft:
-    "Each tree is an NFT in your NEAR account. Its growth, harvests and quality are updated on chain as it grows.",
+    "Each tree is an NFT in your NEAR account. The game server grows your tree; its stage, age and harvest count are written to the NFT on chain.",
   streak:
     "Check in every game day to grow your streak. Day 7 doubles the PANEN and adds a Gold seed; missing a day starts it over.",
   unknownSeed:

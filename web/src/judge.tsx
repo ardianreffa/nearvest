@@ -46,7 +46,7 @@ const STEPS: Record<JudgeStep, { title: string; doText: string; see: string; go:
   tanibot: {
     title: "TaniBot's Log",
     doText: 'Open TaniBot (it starts working after your first harvest).',
-    see: 'Every action with its reason, sent from its own wallet; the daily limit is enforced by the PANEN contract.',
+    see: "Every action with its reason; on-chain actions link their transaction. Shop purchases are burns signed by TaniBot's own account (its daily limit is enforced by the PANEN contract); harvest and sale transactions are sent by the game account. Watering is off chain.",
     go: 'Open TaniBot',
   },
   village: {
@@ -112,7 +112,7 @@ export function JudgeTour({
   return (
     <Modal title="Judge tour" onClose={onClose} closeLabel="Close" class="judge-dialog">
       <p class="small">
-        This is your own garden on NEAR testnet (<b>{state.player.accountId}</b>): real Tree NFTs, real PANEN and a TaniBot with its own wallet. The game pays
+        This is your own garden on NEAR testnet (<b>{state.player.accountId}</b>): testnet Tree NFTs and PANEN, and a TaniBot with its own wallet. The game pays
         every fee. Do each step and check the proof on nearblocks.
       </p>
       <ol class="judge-steps">
