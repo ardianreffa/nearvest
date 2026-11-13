@@ -87,6 +87,7 @@ function picture(species, stage, memorial) {
   // The tree, from the game's code (default look), scaled by whole pixels.
   let rows = treeRows(species, memorial ? 'old' : stage);
   const palette = { ...treePalette(species, memorial ? 'old' : stage), ...FRUIT_EXTRA };
+  if (species === 'rambutan' && (memorial || ['tree', 'fruiting', 'old'].includes(stage))) rows = joinTrunk(rows);
   if (!memorial && stage === 'fruiting') rows = biggerFruit(species, rows);
   // Seeds and sprouts are tiny: bigger whole pixels, and their soil mound (grid rows 37-39) sits ON
   // the grass so it does not melt into the soil. Grown trees stand with their roots (row 37) on it.
@@ -102,6 +103,46 @@ function picture(species, stage, memorial) {
     }),
   );
   return px;
+}
+
+// ---------- Rambutan trunk (NFT pictures only) ----------
+// The rambutan's wide crown ends in a flat outline right above (or one row above) its trunk, so on a
+// big picture the crown seems to float. Like the durian: the trunk goes up 2 rows into the crown
+// (with an outline beside it) and two short branches below the crown reach up to it.
+const TRUNK_CHARS = new Set(['n', 'b', 'B']);
+const INNER_LEAF = new Set(['G', 'g', 'd']);
+
+function joinTrunk(rows) {
+  const g = rows.map((r) => [...r]);
+  const H = g.length;
+  const base = H - 6; // a row of plain trunk (above the roots)
+  const cols = g[base].map((c, x) => (TRUNK_CHARS.has(c) ? x : -1)).filter((x) => x >= 0);
+  const left = Math.min(...cols);
+  const right = Math.max(...cols);
+  let top = base;
+  while (top > 0 && TRUNK_CHARS.has(g[top - 1][left])) top--;
+  const mid = Math.round((left + right) / 2);
+  // Trunk up through the gap and the crown's outline, then 2 rows into the leaves.
+  let inside = 0;
+  for (let y = top - 1; y > 0 && inside < 2; y--) {
+    if (INNER_LEAF.has(g[y][mid]) || FRUIT_CHARS.has(g[y][mid])) inside++; // fruit counts as crown
+    for (const x of cols) g[y][x] = g[top][x];
+    if (inside > 0) {
+      if (g[y][left - 1] !== '.') g[y][left - 1] = 'o';
+      if (g[y][right + 1] !== '.') g[y][right + 1] = 'o';
+    }
+  }
+  // Two short branches below the crown, up and out until they touch it (max 4 steps).
+  for (const [x0, y0, dx] of [[left - 1, top + 2, -1], [right + 1, top + 1, 1]]) {
+    for (let i = 0; i < 4; i++) {
+      const x = x0 + dx * i;
+      const y = y0 - i;
+      if (g[y][x] !== '.') break;
+      g[y][x] = 'B';
+      if (g[y - 1]?.[x + dx] !== '.') break;
+    }
+  }
+  return g.map((r) => r.join(''));
 }
 
 // ---------- Bigger fruit (NFT pictures only; the garden keeps the game's small fruit) ----------
