@@ -259,21 +259,49 @@ export class ChainWorker {
         const snap = this.deps.treeSnapshot(p.treeId);
         const r = await chain.mintTree(p.accountId, p.species, p.quality, snap?.parent_token_id ?? null);
         db.prepare('UPDATE trees SET token_id = ? WHERE id = ?').run(r.tokenId, p.treeId);
-        return { txHash: r.txHash, result: { tokenId: r.tokenId } };
+        // The contract always mints a Seed of age 0. A tree that is already further (a judge
+        // garden's grown trees, or a mint that landed late) gets its real data right away.
+        let updateTx: string | undefined;
+        if (snap && (snap.stage !== 'seed' || snap.age_days > 0 || snap.harvest_count > 0)) {
+          updateTx = await this.sendTreeData(p.treeId, r.tokenId, snap, job.id, false);
+        }
+        return { txHash: r.txHash, result: { tokenId: r.tokenId, ...(updateTx ? { updateTx } : {}) } };
       }
       case 'update_tree': {
         const snap = this.deps.treeSnapshot(p.treeId);
         if (!snap?.token_id) throw new PermanentChainError('Tree has no NFT yet');
         const r = await chain.updateTree(snap.token_id, snap.stage, snap.age_days, snap.harvest_count);
         db.prepare('UPDATE trees SET synced_stage = ? WHERE id = ?').run(snap.stage, p.treeId);
-        return { txHash: r.txHash, result: { stage: snap.stage } };
+        return { txHash: r.txHash, result: { stage: snap.stage, ageDays: snap.age_days, harvestCount: snap.harvest_count } };
       }
       case 'make_memorial': {
         const snap = this.deps.treeSnapshot(p.treeId);
         if (!snap?.token_id) throw new PermanentChainError('Tree has no NFT yet');
+        // The contract refuses every update of a Memorial Tree, so its last stage, age and
+        // harvest count (as they were when it died) go to the NFT first.
+        const updateTx = await this.sendTreeData(p.treeId, snap.token_id, snap, job.id, true);
         const r = await chain.makeMemorial(snap.token_id);
-        return { txHash: r.txHash };
+        return { txHash: r.txHash, result: { ...(updateTx ? { updateTx } : {}) } };
       }
+    }
+  }
+
+  /**
+   * Sends a tree's stage, age and harvest count as an extra step of a mint / memorial job.
+   * A refusal by the contract never fails the job (a tree that is already a Memorial is left
+   * as it is). A network error fails it only with `retry` (memorial: the whole job runs
+   * again); after a mint it must not, because the mint would run twice: the 20 s stage sync
+   * sends the data later instead.
+   */
+  private async sendTreeData(treeId: number, tokenId: string, snap: TreeRow, jobId: number, retry: boolean): Promise<string | undefined> {
+    try {
+      const u = await this.deps.chain.updateTree(tokenId, snap.stage, snap.age_days, snap.harvest_count);
+      this.deps.db.prepare('UPDATE trees SET synced_stage = ? WHERE id = ?').run(snap.stage, treeId);
+      return u.txHash;
+    } catch (err) {
+      if (retry && !(err instanceof PermanentChainError)) throw err;
+      this.deps.log?.(`job ${jobId} tree ${treeId} data not sent: ${err instanceof Error ? err.message : String(err)}`);
+      return undefined;
     }
   }
 

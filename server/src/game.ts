@@ -912,15 +912,17 @@ export class Game {
          FROM trees t JOIN players p ON p.id = t.player_id LEFT JOIN trees pt ON pt.id = t.parent_tree_id
          WHERE t.id = ?`,
       )
-      .get(treeId) as unknown as (TreeRow & { account_id: string; demo: number; parent_token_id: string | null }) | undefined;
+      .get(treeId) as unknown as (TreeRow & { account_id: string; demo: number; parent_token_id: string | null; died_at: number | null }) | undefined;
     if (!t) return null;
     const dayMs = dayLengthMs(t.demo === 1);
-    const g = advance(growthOf(t), this.d.now(), dayMs, this.sky(t.demo === 1));
+    // A dead tree stays as it was when it died (its Memorial NFT shows that age).
+    const at = t.status === 'dead' && t.died_at ? t.died_at : this.d.now();
+    const g = advance(growthOf(t), at, dayMs, this.sky(t.demo === 1));
     return {
       token_id: t.token_id,
       account_id: t.account_id,
       stage: stageOf(g),
-      age_days: Math.floor((this.d.now() - t.planted_at) / dayMs),
+      age_days: Math.max(0, Math.floor((at - t.planted_at) / dayMs)),
       harvest_count: t.harvest_count,
       parent_token_id: t.parent_token_id,
     };
@@ -933,6 +935,8 @@ export class Game {
       .all() as unknown as (TreeRow & { demo: number })[];
     let queued = 0;
     for (const t of trees) {
+      // Not minted yet: the mint job itself sends the tree's data when it lands.
+      if (!t.token_id) continue;
       // Saved as it goes, so the next run (and every view) only has to look at the time since.
       const g = advance(growthOf(t), this.d.now(), dayLengthMs(t.demo === 1), this.sky(t.demo === 1));
       this.saveGrowth(t, g);

@@ -200,3 +200,39 @@ describe('TaniBot leaves old trees and Memorial Trees to the player', () => {
     assert.ok(s.plots[0].memorial, 'the Memorial Tree on plot 1 is untouched');
   });
 });
+
+describe('The Memorial NFT keeps the tree as it was when it died', () => {
+  it('stage, age and harvest count go to the NFT before it becomes a Memorial', async () => {
+    const w = makeWorld();
+    const p = await garden(w);
+    const day = w.game.state(p.id).player.demo ? 60_000 : 24 * 3_600_000;
+    // The tree grows old with no stage change in between (no update was sent for days).
+    w.advance(6 * day);
+    makeOldAndRipe(w, p.id, 0);
+    const tree = w.db.prepare("SELECT id, max_harvests FROM trees WHERE player_id = ? AND plot = 0").get(p.id) as { id: number; max_harvests: number };
+    w.game.harvest(p.id, 0); // the old tree drops its seed and dies
+    // The transactions land later: the NFT must still show the day the tree died.
+    w.advance(3 * day);
+    await w.worker.drain();
+    const nft = w.chain.trees.get('1')!;
+    assert.equal(nft.memorial, true);
+    assert.equal(nft.stage, 'old');
+    assert.equal(nft.ageDays, 6);
+    assert.equal(nft.harvestCount, tree.max_harvests);
+    // Update first, memorial second (the contract refuses updates of a Memorial Tree).
+    const calls = w.chain.calls.filter((c) => c.method === 'update_tree' || c.method === 'make_memorial').map((c) => c.method);
+    assert.deepEqual(calls.slice(-2), ['update_tree', 'make_memorial']);
+    assert.equal((w.db.prepare("SELECT COUNT(*) AS n FROM chain_jobs WHERE status = 'failed'").get() as { n: number }).n, 0);
+  });
+
+  it('a tree that was cut down young keeps its own stage on the Memorial NFT', async () => {
+    const w = makeWorld();
+    const p = await garden(w);
+    w.game.chop(p.id, 0);
+    await w.worker.drain();
+    const nft = w.chain.trees.get('1')!;
+    assert.equal(nft.memorial, true);
+    assert.equal(nft.stage, 'seed');
+    assert.equal(nft.harvestCount, 0);
+  });
+});

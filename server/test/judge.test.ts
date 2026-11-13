@@ -48,6 +48,11 @@ describe('Try as Judge', () => {
     await w.worker.drain();
     const account = s.player.accountId;
     assert.equal(w.chain.trees.size, 3);
+    // The NFTs show the grown trees at once (the contract mints a Seed of age 0), without
+    // waiting for the 20 s stage sync.
+    const nfts = [...w.chain.trees.values()].map((t: any) => `${t.species}:${t.stage}:${t.ageDays}:${t.harvestCount}`);
+    assert.deepEqual(nfts, ['durian:fruiting:4:0', 'rambutan:tree:2:0', 'mango:sprout:1:0']);
+    assert.equal(w.game.syncStages(), 0);
     assert.ok([...w.chain.trees.values()].every((t: any) => t.owner === account));
     assert.equal(await w.chain.ftBalanceOf(account), BigInt(JUDGE_PANEN - JUDGE_BOT_BUDGET) * UNIT);
     assert.equal(await w.chain.ftBalanceOf(`bot.${account}`), BigInt(JUDGE_BOT_BUDGET) * UNIT);

@@ -224,11 +224,17 @@ describe('core loop', () => {
     w.game.plant(p.id, 0, w.game.state(p.id).seeds[0].id);
     w.game.water(p.id, 0);
     w.advance(MINUTE);
+    assert.equal(w.game.syncStages(), 0); // not minted yet: nothing to update
+    await w.worker.drain();
+    // The mint landed a minute late, so it sent the tree's real data itself.
+    assert.equal(w.chain.trees.get('1')!.stage, 'sprout');
+    assert.equal(w.game.syncStages(), 0);
+    w.advance(MINUTE);
     assert.equal(w.game.syncStages(), 1);
     assert.equal(w.game.syncStages(), 1); // still pending: no duplicate job
     assert.equal((w.db.prepare("SELECT COUNT(*) AS n FROM chain_jobs WHERE kind = 'update_tree'").get() as { n: number }).n, 1);
     await w.worker.drain();
-    assert.equal(w.chain.trees.get('1')!.stage, 'sprout');
+    assert.equal(w.chain.trees.get('1')!.stage, 'tree');
     assert.equal(w.game.syncStages(), 0);
   });
 });
