@@ -1063,14 +1063,21 @@ button {
 
 .basket {
   position: absolute;
-  left: 50%;
-  bottom: -6px;
+  /* Beside TaniBot on the side of the harvested tree (never under its feet), feet on the ground. */
+  left: calc(50% - var(--bot-w) * 0.55);
+  bottom: 0;
+  z-index: 2;
+  pointer-events: none;
   transform: translateX(-50%);
   /* 2026-11-12 (Ardian saw a small woven box left under TaniBot): the basket always goes away by
      itself after the harvest show, even if the scene's state lingers. */
   animation:
     pop-in 0.25s steps(2),
     fx-gone 0.3s ease-in 1.6s forwards;
+}
+
+.basket.side-right {
+  left: calc(50% + var(--bot-w) * 0.55);
 }
 
 @keyframes fx-gone {
@@ -2346,7 +2353,9 @@ input:focus-visible {
 @keyframes fruit-jump {
   0% { opacity: 1; left: var(--to); transform: translateY(0); }
   45% { transform: translateY(-34px); }
-  100% { opacity: 1; left: var(--from); transform: translateY(46px); }
+  /* Lands in the basket beside TaniBot (--land) and is gone: no fruit is left on the ground. */
+  88% { opacity: 1; }
+  100% { opacity: 0; left: calc(var(--from) + var(--land, 0px)); transform: translateY(46px); }
 }
 
 @keyframes rise {

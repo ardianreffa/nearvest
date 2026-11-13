@@ -154,6 +154,10 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   const bx = botX(stand.plot, lane, plotCount);
   const aim = fx && !visit && besideGap(stand.gap, fx.plot) ? fx.plot : selected;
   const face = faceToward(stand.gap, aim);
+  // Where an action show starts (TaniBot) and ends (the plot); side = the tree's side of TaniBot.
+  const fxFrom = fx ? (besideGap(stand.gap, fx.plot) ? bx : botX(fx.plot, lane, plotCount)) : bx;
+  const fxTo = fx ? plotCenter(fx.plot, lane) : bx;
+  const fxSide = fxTo < fxFrom ? -1 : fxTo > fxFrom ? 1 : face === 'right' ? 1 : -1;
   // A visited garden's TaniBot never works (the visitor's watering drone flies on its own).
   const working = fx !== null && !visit;
   const tb = visit ? null : state.player.tanibot;
@@ -366,15 +370,17 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
             {on ? 'ON' : 'OFF'}
           </span>
         )}
+        {/* The harvest basket stands BESIDE TaniBot, on the side of the tree it harvests (never under
+            its feet: Ardian 2026-11-13, it read as dirt), and is gone when the show ends. */}
         {fx?.kind === 'harvest' && !visit && (
-          <div class="basket" key={fx.id}>
+          <div class={`basket ${fxSide < 0 ? 'side-left' : 'side-right'}`} key={fx.id}>
             <Pixels rows={BASKET} palette={{ H: '#9A7438', h: '#C9A35A' }} scale={px} />
           </div>
         )}
       </div>
       )}
 
-      {fx && <ActionEffect fx={fx} from={besideGap(stand.gap, fx.plot) ? bx : botX(fx.plot, lane, plotCount)} to={plotCenter(fx.plot, lane)} tier={tier} px={px} droneScale={droneScale} lend={!visit && on && droneCount(tier) > 0} key={fx.id} />}
+      {fx && <ActionEffect fx={fx} from={fxFrom} to={fxTo} side={fxSide} botW={TANIBOT_W * botScale} tier={tier} px={px} droneScale={droneScale} lend={!visit && on && droneCount(tier) > 0} key={fx.id} />}
       </Stage>
     </div>
   );
@@ -500,8 +506,9 @@ function WaterDrone({ fx, from, to, droneScale, lend }: { fx: SceneFx; from: num
   );
 }
 
-function ActionEffect({ fx, from, to, tier, px, droneScale, lend }: { fx: SceneFx; from: number; to: number; tier: Tier; px: number; droneScale: number; lend: boolean }) {
-  const vars = { '--from': `${from}%`, '--to': `${to}%` };
+function ActionEffect({ fx, from, to, side, botW, tier, px, droneScale, lend }: { fx: SceneFx; from: number; to: number; side: number; botW: number; tier: Tier; px: number; droneScale: number; lend: boolean }) {
+  // --land: the harvested fruit drops into the basket beside TaniBot (.basket.side-left/right).
+  const vars = { '--from': `${from}%`, '--to': `${to}%`, '--land': `${Math.round(side * botW * 0.55)}px` };
   const left = Math.min(from, to);
   const width = Math.abs(from - to);
 
