@@ -333,7 +333,7 @@ describe('duels', () => {
     assert.doesNotMatch(JSON.stringify(duel), /10\.1\.2\.3|device-a|@/);
   });
 
-  it('HTTP: GET /api/arena lists opponents with a tree, POST /api/arena/duel plays', async () => {
+  it('HTTP: GET /api/arena lists opponents with a tree; the old instant POST /api/arena/duel is switched off (410)', async () => {
     const w = makeWorld();
     const res = await w.app.request('/auth/dev', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'tester' }) });
     const { token } = (await res.json()) as { token: string };
@@ -354,10 +354,21 @@ describe('duels', () => {
     const can = (await (await w.app.request('/api/arena/can/budi', { headers: auth })).json()) as { ok: boolean };
     assert.equal(can.ok, true);
     const r = await w.app.request('/api/arena/duel', { method: 'POST', headers: auth, body: JSON.stringify({ opponent: 'budi' }) });
-    assert.equal(r.status, 200);
-    const out = (await r.json()) as { duel: { rounds: unknown[] }; arena: { left: number }; state: { arena: { left: number } } };
-    assert.equal(out.duel.rounds.length, 3);
-    assert.equal(out.arena.left, 2);
-    assert.equal(out.state.arena.left, 2);
+    assert.equal(r.status, 410);
+    assert.equal(((await r.json()) as { code: string }).code, 'duel_v1_off');
+    // Nothing was used up; the web plays the turn-based match (state.arena.v = 2).
+    const after = (await (await w.app.request('/api/arena', { headers: auth })).json()) as { left: number };
+    assert.equal(after.left, 3);
+    const me2 = (await (await w.app.request('/api/me', { headers: auth })).json()) as { arena: { v: number } };
+    assert.equal(me2.arena.v, 2);
+  });
+
+  it('HTTP: a request body over 32 KB is refused with 413 before it is read', async () => {
+    const w = makeWorld();
+    const res = await w.app.request('/auth/dev', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'x'.repeat(40 * 1024) }) });
+    assert.equal(res.status, 413);
+    assert.equal(((await res.json()) as { code: string }).code, 'body_too_large');
+    const ok = await w.app.request('/auth/dev', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'normal' }) });
+    assert.equal(ok.status, 200);
   });
 });

@@ -2,6 +2,7 @@
 
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
+import { bodyLimit } from 'hono/body-limit';
 import { devIdentity, login, logout, openSession, userFromToken, verifyGoogleCredential } from './auth.ts';
 import type { JWTVerifyGetKey } from 'jose';
 import { DEFAULT_BOT_BUDGET, DEFAULT_BOT_DAILY_LIMIT, MAX_BOT_DAILY_LIMIT, type TaniBotService } from './tanibot.ts';
@@ -46,6 +47,8 @@ export interface AppDeps {
 type Env = { Variables: { userId: number } };
 
 const STATS_CACHE_MS = 15_000;
+/** Largest request body the server reads (bytes). */
+export const MAX_BODY_BYTES = 32 * 1024;
 /** Wallet players' balances are re-read from the chain at most this often. */
 const WALLET_SYNC_MS = 30_000;
 
@@ -63,6 +66,16 @@ export function createApp(deps: AppDeps) {
 
   const clientIp = (c: Context) =>
     c.req.header('CF-Connecting-IP') ?? c.req.header('X-Forwarded-For')?.split(',')[0]?.trim() ?? null;
+
+  // No game request is bigger than a few KB (the biggest: a signed wallet proof or burn); a huge
+  // body is refused before it is read, so it cannot fill the VPS's memory.
+  app.use(
+    '*',
+    bodyLimit({
+      maxSize: MAX_BODY_BYTES,
+      onError: (c) => c.json({ error: 'This request is too large.', code: 'body_too_large' }, 413),
+    }),
+  );
 
   // Simple limit per IP address (in memory, one window per minute): loose enough for the web's
   // polling (every 1-8 s) and for many players behind one shared mobile / venue IP.
@@ -535,11 +548,11 @@ export function createApp(deps: AppDeps) {
     return c.json({ ...arena.view(pid, [...f.friends, ...f.farmers.filter((x) => !names.has(x.name))]), v: 2, matches: matches.recent(pid) });
   });
   app.get('/api/arena/can/:name', (c) => c.json(arena.canChallenge(playerId(c), c.req.param('name'))));
-  app.post('/api/arena/duel', async (c) => {
-    const pid = playerId(c);
-    const b = await body(c);
-    const result = arena.duel(pid, b.opponent, clientIp(c), b.deviceId);
-    return c.json({ ...result, arena: arena.view(pid, social.farmers(pid).farmers), state: game.state(pid) });
+  // The v1 instant duel (dice, no turns) is switched off: every web since Arena v2 plays the
+  // turn-based match (state.arena.v = 2), so a script could only use it to skip the game.
+  // Its stored duels still show (Recent duels, Replay). The web keeps its v1 code for old servers.
+  app.post('/api/arena/duel', () => {
+    throw new GameError('This duel type was replaced by Arena turns. Please refresh the page.', 410, { code: 'duel_v1_off' });
   });
   // Arena v2 (arena-match.ts): Rock / Paper / Scissors turns against the other garden's TaniBot.
   // The computer's pick is locked on the server and never sent before the player's pick.
