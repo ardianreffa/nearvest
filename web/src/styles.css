@@ -16659,8 +16659,13 @@ html.pond-open .hud * {
   box-sizing: border-box;
   padding: 10px 14px 12px;
   color: var(--paper-light);
-  background: color-mix(in srgb, var(--ink) 60%, transparent);
-  border: 4px solid color-mix(in srgb, var(--ink) 75%, transparent);
+  /* Dense enough that the arena floor's stone lines never show through the text (Ardian 2026-11-13:
+     on iPhone they ran through "Last turn: ..."), day, dusk and night; a soft blur behind it too
+     (-webkit- for iOS Safari). The arena stays fully visible outside the panel. */
+  background: color-mix(in srgb, var(--ink) 88%, transparent);
+  border: 4px solid color-mix(in srgb, var(--ink) 94%, transparent);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
 }
 
 .match-dock-panel:empty {
