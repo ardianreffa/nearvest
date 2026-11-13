@@ -16289,6 +16289,31 @@ html.pond-open .hud * {
   min-height: 44px;
 }
 
+/* Music and Sound in the duel's title bar (Ardian 2026-11-13): the HUD's buttons; they never squeeze
+   the FRUIT FIGHT title (it keeps its width, the buttons are a little smaller on phones). */
+.duel-head .duel-audio {
+  flex: none;
+}
+
+.duel-head h2,
+.duel.match.full .duel-head h2 {
+  flex: 1 0 auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 1023px) {
+  .duel-head,
+  .duel.match.full .duel-head {
+    gap: 6px;
+  }
+
+  .duel-head .duel-audio,
+  .duel-head .duel-fullscreen {
+    width: 40px;
+    height: 40px;
+  }
+}
+
 
 /* Big laptop screens: larger names, bars and buttons. */
 @media (min-width: 1500px) and (min-height: 1000px) {

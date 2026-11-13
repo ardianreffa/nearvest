@@ -17,6 +17,7 @@ import { Modal } from './help';
 import { PUBLIC_SITE } from './referral';
 import { postUrl } from './share';
 import { Coin, Panel } from './ui';
+import { AudioButtons } from './audio-buttons';
 import { MatchRow } from './arena-match';
 import { OnlineAvatar, OnlineTag } from './online';
 
@@ -454,6 +455,7 @@ export function DuelScreen({
       <div class={`duel panel${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={`Arena duel: ${me.name} vs ${them.name}`}>
         <header class="panel-head duel-head">
           <h2>FRUIT FIGHT</h2>
+          <AudioButtons class="duel-audio" />
           {!done ? (
             <button class="btn btn-small duel-skip" onClick={() => setSkipped(true)}>
               Skip

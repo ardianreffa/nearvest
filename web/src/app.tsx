@@ -10,7 +10,8 @@ import { lockedFraction, phaseOf } from './art/backdrop';
 /** Dev builds: ?time=day / dusk / night also locks the duel's village (screenshots), like the garden. */
 const DUEL_TIME_LOCK = import.meta.env.DEV && typeof location !== 'undefined' ? lockedFraction(location.search) : null;
 import { TaniBot, TaniBotHead, tierOf, tierRank } from './art/tanibot';
-import { claimSfx, getAudioPrefs, initAudio, onAudioPrefsChange, playBuy, playRumble, playSellCoins, playSound, setAmbient, setAudioPrefs, type SoundName } from './audio';
+import { claimSfx, initAudio, playBuy, playRumble, playSellCoins, playSound, setAmbient, type SoundName } from './audio';
+import { AudioButtons } from './audio-buttons';
 import { useFullscreen } from './fullscreen';
 import { HowToPlay, Modal, PanenInfo } from './help';
 import { shopSetupText } from './shop-setup';
@@ -163,7 +164,6 @@ export function App() {
   const [flash, setFlash] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const [audio, setAudio] = useState(getAudioPrefs());
   const fullscreen = useFullscreen();
   const [info, setInfo] = useState<'help' | 'panen' | 'profile' | 'tanibot' | 'checkin' | 'judge' | null>(null);
   /** Garden visits (friends.tsx): the farmer list window, and the friend's garden being visited. */
@@ -223,7 +223,6 @@ export function App() {
     }
   };
 
-  useEffect(() => onAudioPrefsChange(setAudio), []);
 
 
   /** Dialog with several choices; resolves to the chosen value, or null for Cancel. */
@@ -723,24 +722,7 @@ export function App() {
       <button class="icon-btn help-btn" onClick={() => (playSound('click'), setInfo('help'))} aria-label="How to play" title="How to play">
         ?
       </button>
-      <button
-        class="icon-btn"
-        onClick={() => setAudioPrefs({ music: !audio.music })}
-        aria-pressed={audio.music}
-        aria-label={audio.music ? 'Turn music off' : 'Turn music on'}
-        title={audio.music ? 'Music on' : 'Music off'}
-      >
-        <Sprite name={audio.music ? 'music' : 'musicOff'} scale={3} />
-      </button>
-      <button
-        class="icon-btn"
-        onClick={() => setAudioPrefs({ sfx: !audio.sfx })}
-        aria-pressed={audio.sfx}
-        aria-label={audio.sfx ? 'Turn sound effects off' : 'Turn sound effects on'}
-        title={audio.sfx ? 'Sound effects on' : 'Sound effects off'}
-      >
-        <Sprite name={audio.sfx ? 'speaker' : 'speakerOff'} scale={3} />
-      </button>
+      <AudioButtons />
       {fullscreen.supported && wide && (
         <button
           class="icon-btn"

@@ -818,6 +818,36 @@ try {
         return JSON.stringify({ covers: a.left <= st.left + 0.5 && a.top <= st.top + 0.5 && a.right >= st.right - 0.5 && a.bottom >= st.bottom - 0.5, ringMiddleY: Math.round(ring.top + ring.height / 2), ringX: [Math.round(ring.left), Math.round(ring.right)], feet, fighterX: [...document.querySelectorAll('.duel.match .fighter')].map(f => { const r = f.getBoundingClientRect(); return Math.round(r.left + r.width / 2); }), images: img }); })()`));
     });
     console.log('arena animations running:', await evaluate(`document.querySelector('.duel-bg') ? document.querySelector('.duel-bg').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length : 'no arena'`));
+    // The duel's title bar (Ardian 2026-11-13): Music + Sound buttons beside fullscreen / Skip / X, never
+    // over the FRUIT FIGHT title. AUDIO=music-off (Music OFF + Sound ON) or AUDIO=sfx-off (Music ON +
+    // Sound OFF): pressed on the duel's own buttons; the page then samples <html data-music> every 250 ms
+    // and counts the sound effects that start (window.__sfxLog, dev builds) until the result.
+    const headBar = async (label) => {
+      const r = await evaluate(`(() => { const h = document.querySelector('.duel .duel-head'); if (!h) return 'no title bar'; const R = (e) => e.getBoundingClientRect();
+        const t = h.querySelector('h2'); const tr = R(t); const items = [...h.children].filter(e => e !== t && R(e).width);
+        const over = items.filter(e => { const b = R(e); return b.left < tr.right - 0.5 && tr.left < b.right - 0.5; }).map(e => e.className);
+        return JSON.stringify({ title: Math.round(tr.left) + '-' + Math.round(tr.right), titleCut: t.scrollWidth > t.clientWidth + 1, buttons: items.map(e => (e.getAttribute('aria-label') || e.innerText.trim()) + ' ' + Math.round(R(e).width) + 'x' + Math.round(R(e).height) + ' at ' + Math.round(R(e).left)).join(' | '),
+          coverTitle: over.join(',') || 'nothing', insideScreen: items.every(e => R(e).right <= innerWidth + 0.5), oneRow: new Set(items.map(e => Math.round(R(e).top + R(e).height / 2))).size <= 1 }); })()`);
+      console.log(`title bar ${label}:`, r);
+      if (/"titleCut":true|"coverTitle":"(?!nothing)|"insideScreen":false/.test(r)) console.log(`TITLE BAR PROBLEM ${label}`);
+    };
+    await headBar('start');
+    const duelAudio = (cls) => evaluate(`(() => { const b = document.querySelector('.duel .duel-head .${cls}'); if (!b) return 'missing'; b.click(); return b.getAttribute('aria-label') + ' -> pressed ' + b.getAttribute('aria-pressed'); })()`);
+    if (process.env.AUDIO) {
+      await realClick(5, 5);
+      await sleep(300);
+      if (process.env.AUDIO === 'music-off') console.log('duel Music button:', await duelAudio('audio-music'));
+      if (process.env.AUDIO === 'sfx-off') console.log('duel Sound button:', await duelAudio('audio-sfx'));
+      await sleep(400);
+      console.log('switches now:', await evaluate(`JSON.stringify({ music: localStorage.getItem('nearvest.music'), sfx: localStorage.getItem('nearvest.sfx'), buttons: [...document.querySelectorAll('.duel .duel-head .icon-btn[aria-pressed]')].map(b => b.getAttribute('aria-label')) })`));
+      await evaluate(`(window.__sfxLog = [], window.__musicSeen = new Set(), window.__musicSampler = setInterval(() => window.__musicSeen.add(document.documentElement.dataset.music + (document.documentElement.dataset.music === 'arena' ? ' rms ' + (window.__arenaLevel?.() ?? 0).toFixed(2) : '')), 250), true)`);
+      await screenshot(`audio-${process.env.AUDIO}`);
+      await headBar(`after ${process.env.AUDIO}`);
+    }
+    const audioReport = async (label) => {
+      if (!process.env.AUDIO) return;
+      console.log(`AUDIO ${process.env.AUDIO} ${label}:`, await evaluate(`JSON.stringify({ musicSeen: [...(window.__musicSeen ?? [])].map(v => v.replace(/rms 0\.0[1-9]|rms 0\.[1-9]\d/, 'rms >0.01')).filter((v, i, a) => a.indexOf(v) === i), sfxStarted: (window.__sfxLog ?? []).length, sfxKinds: [...new Set((window.__sfxLog ?? []).map(e => e.kind))].join(',') })`));
+    };
     // LOSE=1: the TaniBot wins every turn (its locked pick beats ours), Skip each turn, until YOU LOSE.
     if (process.env.LOSE) {
       await step('LOSE=1: the TaniBot wins every turn until the result', async () => {
@@ -827,19 +857,24 @@ try {
         await sleep(2400);
         console.log('music while fighting:', await music(), '| level (RMS):', await evaluate(`(window.__arenaLevel?.() ?? 0).toFixed(3)`));
         // The Music switch: off = the Arena track stops too, on = it plays again.
-        const musicBtn = (label) => evaluate(`(() => { const b = [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)}); if (!b) return false; b.click(); return true; })()`);
-        console.log('pressed the Music button (off):', await musicBtn('Turn music off'));
-        await sleep(600);
-        console.log('music switched off during the duel:', await music());
-        console.log('pressed the Music button (on):', await musicBtn('Turn music on'));
-        await sleep(600);
-        console.log('music switched on again:', await music(), '| level (RMS):', await evaluate(`(window.__arenaLevel?.() ?? 0).toFixed(3)`));
+        // The duel's own Music button (its title bar, 2026-11-13).
+        const musicBtn = (label) => evaluate(`(() => { const b = [...document.querySelectorAll('.duel .duel-head button')].find(b => b.getAttribute('aria-label') === ${JSON.stringify(label)}); if (!b) return false; b.click(); return true; })()`);
+        if (!process.env.AUDIO) {
+          console.log('pressed the Music button (off):', await musicBtn('Turn music off'));
+          await sleep(600);
+          console.log('music switched off during the duel:', await music());
+          console.log('pressed the Music button (on):', await musicBtn('Turn music on'));
+          await sleep(600);
+          console.log('music switched on again:', await music(), '| level (RMS):', await evaluate(`(window.__arenaLevel?.() ?? 0).toFixed(3)`));
+        }
         await evaluate(`document.querySelector('.duel.match') && true`);
         const BEATS = { rock: 'paper', paper: 'scissors', scissors: 'rock' };
+        let skipSeen = false;
         for (let t = 0; t < 30 && !(await evaluate(`!!document.querySelector('.duel-result')`)); t++) {
           if (await evaluate(ready)) {
             await play('rock', BEATS.rock);
             if (t === 1) { await sleep(900); await screenshot('lose-mid-turn'); await layout('lose mid-turn'); }
+            if (!skipSeen && (await evaluate(`!!document.querySelector('.duel .duel-skip')`))) { skipSeen = true; await headBar('with Skip'); await screenshot('title-bar-skip'); }
           }
           await sleep(500);
           await evaluate(`document.querySelector('.duel-skip')?.click()`);
@@ -848,8 +883,10 @@ try {
         await waitFor(`!!document.querySelector('.duel-result')`, 'result', 20000);
         await sleep(1200);
         console.log('music on the result:', await music());
+        await audioReport('lose: fight to result');
         console.log('result:', await evaluate(info));
         await screenshot('lose-result');
+        await headBar('lose result');
         await layout('lose result');
         await evaluate(`[...document.querySelectorAll('.duel-result button')].find(b => b.innerText.includes('Back'))?.click()`);
         await sleep(1200);
@@ -1014,7 +1051,9 @@ try {
       await waitFor(`!!document.querySelector('.duel-result')`, 'result', 10000);
       await sleep(600);
       console.log('result:', await evaluate(info));
+      await audioReport('win: fight to result');
       await screenshot('match-result');
+      await headBar('result');
       await layout(`result`);
       await notWhite('at the result');
       console.log('result panel:', await evaluate(box('.duel-actions')));

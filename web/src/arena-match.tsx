@@ -43,6 +43,7 @@ import { postUrl } from './share';
 import { GoldDurian, Sprite, UiIcon } from './sprites';
 import { useFullscreen } from './fullscreen';
 import { Coin } from './ui';
+import { AudioButtons } from './audio-buttons';
 
 const KO_MS = 1300;
 const CELEBRATE_MS = 1400;
@@ -441,6 +442,8 @@ export function MatchScreen({
       <div class={`duel match panel full${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={`Arena duel: ${me.name} vs ${foe}`}>
         <header class="panel-head duel-head">
           <h2>FRUIT FIGHT</h2>
+          {/* Music and Sound, the same switches as the village HUD (Ardian 2026-11-13). */}
+          <AudioButtons class="duel-audio" />
           {fullscreen.supported && wide && (
             <button class="icon-btn duel-fullscreen" onClick={fullscreen.toggle} aria-label={fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'} title={fullscreen.active ? 'Exit fullscreen' : 'Fullscreen'}>
               <Sprite name={fullscreen.active ? 'fullscreenExit' : 'fullscreen'} scale={3} />
