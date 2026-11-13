@@ -106,27 +106,92 @@ function startMusic(): void {
   void music.play().then(markAudio, () => undefined);
 }
 
+/**
+ * iPhone (Ardian 2026-11-13: effects often silent while the music plays). iOS puts the Web Audio
+ * engine to sleep on its own: state "interrupted" (iOS only) after a locked screen, a call, another
+ * app or tab, a popup / new tab, or when the music element takes the audio session; "suspended" when
+ * it was created outside a full tap (pointerdown = touchstart on iOS). The old code woke it only from
+ * "suspended", so after an interruption every effect played into a sleeping engine (silent), while
+ * the music (an <audio> element, not Web Audio) kept playing. Now the engine is woken from ANY state
+ * but "running" on every tap / key and whenever the tab is visible again, and a closed engine is
+ * made anew. iOS 17+: the page's audio session is "playback", like the music.
+ */
+function makeContext(): void {
+  try {
+    ctx = new AudioContext();
+    sfxGain = ctx.createGain();
+    sfxGain.gain.value = SFX_VOLUME;
+    sfxGain.connect(ctx.destination);
+    buffers.clear();
+    ambientPlaying = null;
+    pondPlaying = null;
+    void loadBuffers();
+    ctx.onstatechange = () => {
+      if (ctx && ctx.state !== 'running' && !document.hidden) wakeAudio();
+    };
+  } catch {
+    ctx = null;
+    sfxGain = null;
+  }
+}
+
+/** Wakes the sound engine if it sleeps (any state but "running"); safe to call any time. */
+export function wakeAudio(): void {
+  if (!unlocked) return;
+  if (!ctx || ctx.state === 'closed') makeContext();
+  if (!ctx || ctx.state === 'running') return;
+  try {
+    void ctx.resume().catch(() => undefined);
+  } catch {
+    // resume needs a tap on iOS: the next tap tries again.
+  }
+}
+
+/** Inside a tap: a silent one-sample sound, the classic iOS way to let Web Audio play. */
+function primeInTap(): void {
+  if (!ctx) return;
+  try {
+    const src = ctx.createBufferSource();
+    src.buffer = ctx.createBuffer(1, 1, 22050);
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch {
+    // never breaks the game
+  }
+}
+
 /** Call once at startup: audio unlocks on the player's first interaction. */
 export function initAudio(): void {
+  try {
+    const session = (navigator as unknown as { audioSession?: { type: string } }).audioSession;
+    if (session) session.type = 'playback';
+  } catch {
+    // older browsers: no audio session API
+  }
   const unlock = () => {
     if (unlocked) return;
     unlocked = true;
-    window.removeEventListener('pointerdown', unlock);
-    window.removeEventListener('keydown', unlock);
-    try {
-      ctx = new AudioContext();
-      sfxGain = ctx.createGain();
-      sfxGain.gain.value = SFX_VOLUME;
-      sfxGain.connect(ctx.destination);
-      void loadBuffers();
-    } catch {
-      ctx = null;
-    }
+    makeContext();
     startMusic();
     syncArenaTrack();
   };
-  window.addEventListener('pointerdown', unlock);
-  window.addEventListener('keydown', unlock);
+  // Every tap / key: unlock the first time, then wake the engine if iOS put it to sleep. touchend and
+  // click are full taps on iOS (pointerdown is not enough there to start audio).
+  const onGesture = () => {
+    unlock();
+    const wasAsleep = !!ctx && ctx.state !== 'running';
+    wakeAudio();
+    if (wasAsleep) primeInTap();
+    if (music && prefs.music && !musicHeld && music.paused && !document.hidden) void music.play().then(markAudio, () => undefined);
+  };
+  for (const ev of ['pointerdown', 'touchend', 'click', 'keydown'] as const) window.addEventListener(ev, onGesture, { capture: true, passive: true });
+  // Back to the tab / page (also from the back-forward cache): wake the engine right away.
+  const onBack = () => {
+    if (!document.hidden) wakeAudio();
+  };
+  document.addEventListener('visibilitychange', onBack);
+  window.addEventListener('pageshow', onBack);
+  window.addEventListener('focus', onBack);
   // Pause music while the tab is hidden.
   document.addEventListener('visibilitychange', () => {
     if (!music) return;
@@ -163,7 +228,7 @@ export function playSound(name: SoundName): void {
   if (!prefs.sfx || !ctx || !sfxGain) return;
   const buffer = buffers.get(name);
   if (!buffer) return;
-  if (ctx.state === 'suspended') void ctx.resume();
+  wakeAudio();
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.connect(sfxGain);
@@ -221,7 +286,7 @@ function blip(type: OscillatorType, f0: number, f1: number, at: number, dur: num
 
 const ready = () => {
   if (!prefs.sfx || !ctx || !sfxGain) return false;
-  if (ctx.state === 'suspended') void ctx.resume();
+  wakeAudio();
   return true;
 };
 
@@ -310,7 +375,7 @@ if (typeof document !== 'undefined') {
 export function playGoldDurian(part: 'charge' | 'fall' | 'impact'): void {
   sfxMark();
   if (!prefs.sfx || !ctx || !sfxGain) return;
-  if (ctx.state === 'suspended') void ctx.resume();
+  wakeAudio();
   const c = ctx;
   const out = sfxGain;
   const t = c.currentTime;
@@ -368,7 +433,7 @@ export function playGoldDurian(part: 'charge' | 'fall' | 'impact'): void {
 export function playWhoosh(soft = false): void {
   sfxMark();
   if (!prefs.sfx || !ctx || !sfxGain) return;
-  if (ctx.state === 'suspended') void ctx.resume();
+  wakeAudio();
   const c = ctx;
   const t = c.currentTime;
   const dur = 0.34;
@@ -402,7 +467,7 @@ export function playWhoosh(soft = false): void {
 export function playPixelSparkle(notes: { at: number; freq: number; dur: number; level: number }[]): void {
   sfxMark();
   if (!prefs.sfx || !ctx || !sfxGain) return;
-  if (ctx.state === 'suspended') void ctx.resume();
+  wakeAudio();
   const c = ctx;
   const t0 = c.currentTime + 0.01;
   const blip = (type: OscillatorType, freq: number, at: number, dur: number, vol: number) => {
@@ -439,7 +504,7 @@ export type FishingSound = 'cast' | 'plop' | 'bite' | 'reel' | 'junk' | 'fish' |
 export function playFishing(kind: FishingSound): void {
   sfxMark(`fishing ${kind}`);
   if (!prefs.sfx || !ctx || !sfxGain) return;
-  if (ctx.state === 'suspended') void ctx.resume();
+  wakeAudio();
   const c = ctx;
   const out = sfxGain;
   const t = c.currentTime + 0.01;
@@ -612,7 +677,7 @@ async function syncAmbient(): Promise<void> {
   const buffer = await ambientBuffer(want);
   // Something else was asked for while loading.
   if (!buffer || !ctx || !sfxGain || ambientPlaying || want !== (prefs.sfx && unlocked && !document.hidden && !musicHeld ? ambientWanted : null)) return;
-  if (ctx.state === 'suspended') void ctx.resume();
+  wakeAudio();
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0, ctx.currentTime);
   gain.gain.linearRampToValueAtTime(AMBIENT_VOLUME, ctx.currentTime + FADE_S);
@@ -717,7 +782,7 @@ function syncPond(): void {
     : '';
   if (!want || !ctx || !sfxGain) return;
   const c = ctx;
-  if (c.state === 'suspended') void c.resume();
+  wakeAudio();
   const out = c.createGain();
   out.gain.setValueAtTime(0, c.currentTime);
   out.gain.linearRampToValueAtTime(0.6, c.currentTime + 1.2);
@@ -973,7 +1038,7 @@ function syncArenaTrack(): void {
 
 function startArenaTrack(): void {
   const c = ctx!;
-  if (c.state === 'suspended') void c.resume();
+  wakeAudio();
   arenaGain = c.createGain();
   arenaGain.gain.setValueAtTime(0.0001, c.currentTime);
   arenaGain.gain.exponentialRampToValueAtTime(ARENA_VOLUME, c.currentTime + 0.4);
