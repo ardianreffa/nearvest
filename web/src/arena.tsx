@@ -5,7 +5,7 @@
 // one, then the result with the prize and its transaction. No wagering: a loss costs nothing.
 // Rolling dice, laser and the automatic share popup come later (Thursday).
 
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { api, type Activity, type ArenaPick, type ArenaView, type DuelSide, type DuelView, type GameState, type MatchSummary } from './api';
 import { duelPost, fightAt, fighterArtKey, hitFlash, HIT_FLASH_MS, fightTimes, flightMs, fmt, headline, hpTone, prizeChip, recentLine, rewardOf, roundView, roundWhat, ROUND_NAME, seasonLine, sides, youWon, type Fruit, type Hit } from './arena-play';
 import { Avatar } from './art/avatars';
@@ -230,12 +230,53 @@ export function ArenaPanel({ state, onOpen, onReplay }: { state: GameState; onOp
 // jump to each round's value.
 
 /** Name, title and life bar above a fighter (fighting-game style); v2 adds the skill bar under it. */
-export function FighterHud({ side, hp, right, skill }: { side: DuelSide; hp: number; right: boolean; skill?: { n: number; max: number } }) {
+/** Font steps for a name that does not fit its column (design tokens, biggest first); then "…". */
+const NAME_STEPS = ['--fs-body', '--fs-sm', '--fs-xs', '--fs-2xs'] as const;
+
+/**
+ * One line that never wraps: the text steps down through NAME_STEPS until it fits, and only a name
+ * still too wide at the smallest step (old names over 16 characters) ends in "…". Measured again when
+ * the column's width changes.
+ */
+function FitName({ text }: { text: string }) {
+  const ref = useRef<HTMLElement>(null);
+  const [step, setStep] = useState(0);
+  useLayoutEffect(() => setStep(0), [text]);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.scrollWidth > el.clientWidth + 0.5 && step < NAME_STEPS.length - 1) setStep(step + 1);
+  }, [step, text]);
+  useEffect(() => {
+    const el = ref.current?.parentElement;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let w = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (Math.abs(el.clientWidth - w) < 1) return;
+      w = el.clientWidth;
+      setStep(0);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <b ref={ref} class="fighter-owner" style={{ fontSize: `var(${NAME_STEPS[step]})` }} title={text}>
+      {text}
+    </b>
+  );
+}
+
+/**
+ * A fighter's name, life bar and skill bar. Row 1 = the garden's owner (one line, FitName); row 2 =
+ * "TaniBot · <title>" when a TaniBot fights for it (`bot`), else the title. Both rows have a fixed
+ * height, so the two life bars and skill bars always line up (Ardian 2026-11-13).
+ */
+export function FighterHud({ side, hp, right, skill, bot = false }: { side: DuelSide; hp: number; right: boolean; skill?: { n: number; max: number }; bot?: boolean }) {
   return (
     <div class={`fighter-hud${right ? ' right' : ''}`}>
       <span class="fighter-name">
-        <b>{side.name}</b>
-        <span>{side.title}</span>
+        <FitName text={side.name} />
+        <span class="fighter-sub">{bot ? `TaniBot · ${side.title}` : side.title}</span>
       </span>
       <span class="hp-bar" role="meter" aria-label={`${side.name}'s life`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={hp}>
         <i class={`hp-fill hp-${hpTone(hp)}`} style={{ width: `${hp}%` }} />
@@ -486,7 +527,7 @@ export function DuelScreen({
               <span class="duel-vs">VS</span>
               <span class={theirsWon > mineWon ? 'ahead' : ''}>{theirsWon}</span>
             </div>
-            <FighterHud side={them} hp={f.hp[1]} right />
+            <FighterHud side={them} hp={f.hp[1]} right bot />
           </div>
           <div class="fight-floor" style={`--bot-w:${58 * scale}px;--bot-h:${64 * scale}px`}>
             <Fighter side={me} right={false} scale={scale} state={pose('me')} hard={!!f.hit?.hard} flash={!!hitShown && hitFlash(elapsed - f.hitAt)} />

@@ -14,6 +14,7 @@
 // Exit code 1 when a check fails.
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
+import { HUD_CHECK } from './duel-hud-check.mjs';
 const { chromium } = await import(process.env.PLAYWRIGHT ?? 'playwright');
 const [, , out = '.', prefix = 'on', W = '390', H = '844', which = 'ko,decline,gone,cancel'] = process.argv;
 const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
@@ -139,6 +140,12 @@ const state = (page) =>
     };
   });
 const QQ = 'Choosing... | Choosing...';
+/** Names on one line, "title" under them (no "TaniBot" online), both bars level (duel-hud-check.mjs). */
+const hud = async (label, page) => {
+  const r = JSON.parse(await page.evaluate(HUD_CHECK));
+  console.log(`   hud ${label}:`, JSON.stringify(r));
+  check(r.ok, `${label}: names on one line, life and skill bars level${r.koLine ? ', last turn line whole' : ''}`);
+};
 const log = async (label, page) => console.log(`   ${label}:`, JSON.stringify(await state(page)));
 
 /** Invite -> popup on B -> Accept. Returns when both are on the duel screen. */
@@ -182,6 +189,8 @@ async function koScenario(n) {
   check(hb.startsWith(b) && !/TaniBot/.test(hb.split('|')[1] ?? ''), `B sees itself on the left and ${a} (not "TaniBot") on the right: ${hb.replace(/\n/g, ' ')}`);
   await shot(A, 'ko-a-start');
   await shot(B, 'ko-b-start');
+  await hud('A start', A);
+  await hud('B start', B);
   check(!(await state(A)).pageScroll && !(await state(B)).pageScroll, 'no page scroll on either screen');
   let t = 0;
   for (; t < 30; t++) {

@@ -472,7 +472,7 @@ export function MatchScreen({
               <span class="duel-vs">VS</span>
             </div>
             {/* Their TaniBot's name AND its title (its look comes from the title). */}
-            <FighterHud side={{ ...them, name: foe }} hp={hp[1]} right skill={{ n: skill[1], max: m.skillMax }} />
+            <FighterHud side={them} hp={hp[1]} right skill={{ n: skill[1], max: m.skillMax }} bot={!isLive} />
           </div>
           <div class={`fight-floor${introAt ? ' intro' : ''}`} style={`--bot-w:${58 * scale}px;--bot-h:${64 * scale}px`}>
             <Fighter side={me} right={false} scale={scale} state={pose('me')} hard={heavy(frame)} pick={bubble('me')} flash={flash} />
@@ -533,7 +533,7 @@ export function MatchScreen({
         )}
 
         {!done && m.status !== 'invite' && (
-          <div class="match-info" aria-live="polite">
+          <div class={`match-info${over ? ' over' : ''}`} aria-live="polite">
             {note && m.turns.length === 0 && last && <p class="match-note">{note}</p>}
             <p class="match-turn">{turnLine(m, !!sending, anim?.i)}</p>
             {/* Before turn 1 the same two-line slot holds the opening note (e.g. "said no: you fight

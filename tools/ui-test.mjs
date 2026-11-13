@@ -71,6 +71,7 @@
 // TaniBot window on a NEW dev garden: activate, add budget, take back (button text, green toast, budget flash) (use a fake-chain server!): UI_URL=http://localhost:5174 node tools/ui-test.mjs <outDir> --tanibot=<newDevUsername> [width] [height]
 // Drives headless Chrome (temporary profile) through the NEARvest web game via CDP.
 // Usage: node ui-test.mjs <outDir> <playerName>
+import { HUD_CHECK } from './duel-hud-check.mjs';
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
@@ -700,7 +701,9 @@ try {
     // time: 3 wins fill the skill bar, the Gold Durian, then wins until K.O. Screenshots: the buttons,
     // the picks above both TaniBots, a hit, the full skill bar with the lit Gold Durian button, the Gold
     // Durian throw, K.O.! and the result. window.__turnT freezes a turn (dev builds).
-    const [me, foe] = name.slice('--match='.length).split(':');
+    const [me, foe0] = name.slice('--match='.length).split(':');
+    // FOE_RENAME=<name>: an OLD garden name longer than today's 16 characters (renamed in FAKE_DB).
+    const foe = process.env.FOE_RENAME || foe0;
     const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
     if (!process.env.FAKE_DB) throw new Error('--match needs FAKE_DB=<the fake-chain server sqlite>');
     const { DatabaseSync } = await import('node:sqlite');
@@ -786,7 +789,8 @@ try {
     };
     await step(`make ${me} and ${foe}; a v2 server?`, async () => {
       const tok = await make(me);
-      await make(foe);
+      await make(foe0);
+      if (foe !== foe0) db.prepare('UPDATE players SET name = ? WHERE name = ?').run(foe, foe0);
       // The Arena list shows 30 farmers, thirsty gardens first: on a test server full of old test
       // gardens a freshly watered <foe> would drop off it, so its tree is made thirsty (test only).
       db.prepare('UPDATE trees SET water_until = 0, water_day = NULL WHERE player_id = (SELECT id FROM players WHERE name = ?)').run(foe);
@@ -842,6 +846,14 @@ try {
       if (/"titleCut":true|"coverTitle":"(?!nothing)|"insideScreen":false/.test(r)) console.log(`TITLE BAR PROBLEM ${label}`);
     };
     await headBar('start');
+    // Names and bars (Ardian 2026-11-13): owner on one line, "TaniBot · <title>" under it, both life
+    // bars and skill bars level; at K.O. / the result the last turn's line is whole (duel-hud-check.mjs).
+    const hudCheck = async (label) => {
+      const r = await evaluate(HUD_CHECK);
+      console.log(`hud ${label}:`, r);
+      if (!JSON.parse(r).ok) console.log(`HUD PROBLEM ${label}`);
+    };
+    await hudCheck('start');
     const duelAudio = (cls) => evaluate(`(() => { const b = document.querySelector('.duel .duel-head .${cls}'); if (!b) return 'missing'; b.click(); return b.getAttribute('aria-label') + ' -> pressed ' + b.getAttribute('aria-pressed'); })()`);
     if (process.env.AUDIO) {
       await realClick(5, 5);
@@ -883,12 +895,12 @@ try {
         for (let t = 0; t < 30 && !(await evaluate(`!!document.querySelector('.duel-result')`)); t++) {
           if (await evaluate(ready)) {
             await play('rock', BEATS.rock);
-            if (t === 1) { await sleep(900); await screenshot('lose-mid-turn'); await layout('lose mid-turn'); }
+            if (t === 1) { await sleep(900); await screenshot('lose-mid-turn'); await layout('lose mid-turn'); await hudCheck('lose mid-turn'); }
             if (!skipSeen && (await evaluate(`!!document.querySelector('.duel .duel-skip')`))) { skipSeen = true; await headBar('with Skip'); await screenshot('title-bar-skip'); }
           }
           await sleep(500);
           await evaluate(`document.querySelector('.duel-skip')?.click()`);
-          if (await evaluate(`!!document.querySelector('.fight-ko')`)) { await sleep(300); await screenshot('lose-ko'); await layout('lose K.O.'); await notWhite('lose K.O.'); await sleepCheck('lose K.O.', 'me'); await sleep(2500); }
+          if (await evaluate(`!!document.querySelector('.fight-ko')`)) { await sleep(300); await screenshot('lose-ko'); await layout('lose K.O.'); await notWhite('lose K.O.'); await sleepCheck('lose K.O.', 'me'); await hudCheck('lose K.O.'); await sleep(2500); }
         }
         await waitFor(`!!document.querySelector('.duel-result')`, 'result', 20000);
         await sleep(1200);
@@ -899,6 +911,7 @@ try {
         await headBar('lose result');
         await notWhite('lose result');
         await sleepCheck('lose result', 'me');
+        await hudCheck('lose result');
         await layout('lose result');
         await evaluate(`[...document.querySelectorAll('.duel-result button')].find(b => b.innerText.includes('Back'))?.click()`);
         await sleep(1200);
@@ -1061,6 +1074,7 @@ try {
       await layout(`K.O.`);
       await notWhite('at K.O.!');
       await sleepCheck('win K.O.', 'them');
+      await hudCheck('win K.O.');
       await waitFor(`!!document.querySelector('.duel-result')`, 'result', 10000);
       await sleep(600);
       console.log('result:', await evaluate(info));
@@ -1070,6 +1084,7 @@ try {
       await layout(`result`);
       await notWhite('at the result');
       await sleepCheck('win result', 'them');
+      await hudCheck('win result');
       console.log('result panel:', await evaluate(box('.duel-actions')));
     });
     await step('back: Recent duels in the Arena window', async () => {
