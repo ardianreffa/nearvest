@@ -22,6 +22,9 @@ import { boxIn, V1, type Village } from './village';
 import { VillageDarto, VillageRobot } from './village-life';
 import { FishingProps } from './fishing';
 
+/** Laptops: how far (art pixels) each lawn strip below the art is shifted sideways (strip 0 = none). */
+const LAWN_SHIFT = [0, 173, 61, 289, 127, 223, 37, 331, 97, 263];
+
 export type Phase = 'dawn' | 'day' | 'dusk' | 'night';
 
 /** 3x5 pixel letters for the Arena billboard. */
@@ -192,8 +195,17 @@ export function Backdrop({
           {(['day', 'dusk', 'night'] as const).map((light) => (
             <div key={light} class={`ground-layer ground-${light}`}>
               {/* First strip: grass + bushes, level with the art. Below the art: bushes only. */}
+              {/* Each bush strip is shifted sideways by its own amount (whole art pixels, never
+                  flipped), so the same rocks and flowers no longer stack in a column (Ardian 2026-11-13). */}
               {Array.from({ length: 10 }, (_, i) => (
-                <i key={i} class={i === 0 ? undefined : 'bush'} style={{ backgroundImage: `url(${src(light)})` }} />
+                <i
+                  key={i}
+                  class={i === 0 ? undefined : 'bush'}
+                  style={{
+                    backgroundImage: `url(${src(light)})`,
+                    ...(i > 0 ? { backgroundPosition: `calc(var(--art-left) - ${LAWN_SHIFT[i % LAWN_SHIFT.length]} * var(--k) * 1px) 100%` } : {}),
+                  }}
+                />
               ))}
             </div>
           ))}
