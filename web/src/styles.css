@@ -17253,3 +17253,41 @@ html.pond-open .hud * {
     height: 21px;
   }
 }
+
+/* Arena duel, bottom panel: EVERY text line (the turn line, "Last turn: ...", the opening note, the K.O.
+   line and the result lines) in the label font at --fs-sm, fully bright, wrapping onto a second line
+   (more only if a line is truly longer) instead of being cut: "You go…" was cut at the right edge on a
+   390 px iPhone and the lines were large, thin DotGothic (the global reading-text rule for <p>)
+   (Ardian 2026-11-13). The result headline keeps the title font; the +PANEN / +XP chips stay chips. */
+.duel.match .match-dock-panel .match-info p,
+.duel.match .match-dock-panel .duel-result p {
+  box-sizing: border-box;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  display: block;
+  -webkit-line-clamp: unset;
+  font-family: var(--font-ui);
+  /* !important: the global reading-text rule for <p> sets size and line height with !important. */
+  font-size: var(--fs-sm) !important;
+  line-height: 1.35 !important;
+  color: var(--paper-light);
+  opacity: 1;
+}
+
+/* "Last turn: ..." keeps a two-line slot, so the panel does not jump between turns. */
+.duel.match .match-dock-panel .match-info p.match-why {
+  min-height: calc(2 * 1.35em);
+}
+
+.duel.match .match-dock-panel .match-info p.match-note {
+  color: var(--ink);
+}
+
+.duel.match .match-dock-panel .duel-result .duel-tx a {
+  color: var(--mint-500);
+}
