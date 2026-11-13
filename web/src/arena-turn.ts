@@ -196,8 +196,13 @@ export function fruitName(f: Fruit): string {
 
 export const matchWon = (m: MatchSummary) => m.winner === m.you;
 
-/** The big line at the end ("K.O.!"; "TIME UP!" only after the 200-turn safety net). */
-export const endBanner = (m: MatchSummary) => (m.endReason === 'turns' ? 'TIME UP!' : 'K.O.!');
+/** Both thrown down in the same turn (Ardian 2026-11-13): no winner, no prize. */
+export const matchDraw = (m: MatchSummary) => m.endReason === 'draw';
+
+/** The big line at the end ("K.O.!", "DOUBLE K.O.!" for a draw; "TIME UP!" only after the 200-turn safety net). */
+export const endBanner = (m: MatchSummary) => (m.endReason === 'turns' ? 'TIME UP!' : matchDraw(m) ? 'DOUBLE K.O.!' : 'K.O.!');
+
+const DRAW_LINE = 'Both TaniBots fell in the same turn: a draw. No prize for anyone, no PANEN lost.';
 
 /** What the result gave the player: PANEN after the Season rule (server), XP and a line. */
 export function matchReward(m: MatchSummary): { panen: number | null; xp: number; line: string } {
@@ -207,11 +212,13 @@ export function matchReward(m: MatchSummary): { panen: number | null; xp: number
     if (m.status === 'cancelled') return { panen: null, xp: 0, line: 'Duel cancelled before the first turn ended. It does not count for anyone.' };
     if (m.endReason === 'abandoned') return { panen: null, xp: 0, line: 'Both players left: nobody wins. No PANEN lost.' };
     if (m.practice === 'self') return { panen: null, xp: 0, line: 'Practice duel: these gardens share a browser, sign-in or network, so there is no prize or XP.' };
+    if (matchDraw(m)) return { panen: null, xp, line: DRAW_LINE };
     if (!matchWon(m)) return { panen: null, xp, line: m.endReason === 'left' ? 'You left the duel, so it counts as a loss. No PANEN lost.' : 'No PANEN lost: the Arena never takes your tokens.' };
     if (m.practice === 'limit') return { panen: null, xp, line: "Today's prizes from this device or network are used up." };
     return { panen: m.prize, xp, line: m.endReason === 'left' ? `${foe} left the duel, so you win! Paid by the game.` : 'Paid by the game: nobody loses a token in the Arena.' };
   }
   if (m.practice === 'self') return { panen: null, xp: 0, line: 'Practice duel: these gardens share a browser or sign-in, so there is no prize or XP.' };
+  if (matchDraw(m)) return { panen: null, xp, line: DRAW_LINE };
   if (m.you === 'defender') return { panen: null, xp, line: matchWon(m) ? 'Your TaniBot defended your garden!' : 'No PANEN lost: the Arena never takes your tokens.' };
   if (m.endReason === 'left') return { panen: null, xp: 0, line: 'You missed your last 3 turns, so it counts as leaving the duel. No PANEN lost.' };
   if (!matchWon(m)) return { panen: null, xp, line: 'No PANEN lost: the Arena never takes your tokens.' };
@@ -232,12 +239,15 @@ export function matchLine(m: MatchSummary): string {
   if (m.kind === 'live') {
     if (m.endReason === 'abandoned') return `Online duel with ${them}: both left`;
     if (m.endReason === 'left') return matchWon(m) ? `${them} left the online duel: you win` : `You left the online duel with ${them}`;
+    if (matchDraw(m)) return `Draw with ${them} online (both K.O.)`;
     return matchWon(m) ? `You beat ${them} online (${lifeScore(m)} life)` : `${them} beat you online (${lifeScore(m)} life)`;
   }
   if (m.you === 'challenger') {
     if (m.endReason === 'left') return `You left the duel with ${them}'s TaniBot`;
+    if (matchDraw(m)) return `Draw with ${them}'s TaniBot (both K.O.)`;
     return matchWon(m) ? `You beat ${them}'s TaniBot (${lifeScore(m)} life)` : `${them}'s TaniBot beat you (${lifeScore(m)} life)`;
   }
+  if (matchDraw(m)) return `${them} challenged your TaniBot: a draw`;
   return matchWon(m) ? `${them} challenged your TaniBot: it won!` : `${them} beat your TaniBot`;
 }
 
@@ -246,6 +256,7 @@ export function matchNotice(fresh: MatchSummary[]): string | null {
   if (!fresh.length) return null;
   if (fresh.length > 1) return `${fresh.length} farmers challenged your TaniBot in the Arena. See the Village tab.`;
   const m = fresh[0];
+  if (matchDraw(m)) return `${m.challenger.name} challenged your TaniBot in the Arena: a draw, both fell in the same turn.`;
   return matchWon(m)
     ? `${m.challenger.name} challenged your TaniBot in the Arena: your TaniBot won${m.gainedXp ? ` (+${m.gainedXp} XP)` : ''}!`
     : `${m.challenger.name} beat your TaniBot in the Arena. Rematch?`;

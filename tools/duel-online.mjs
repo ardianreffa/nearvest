@@ -258,6 +258,62 @@ async function koScenario(n) {
   console.log('   row:', JSON.stringify(row(a)), `(${t} turns)`);
   await shot(A, 'ko-a-result');
   await shot(B, 'ko-b-result');
+  await hud('A result', A);
+  await hud('B result', B);
+  await ca.close();
+  await cb.close();
+}
+
+/**
+ * draw (Ardian 2026-11-13): both life bars at 5 and both skill bars full (FAKE_DB), both throw the Gold
+ * Durian in the same turn: "DRAW" on both screens, both asleep, no prize, the loss XP for both.
+ */
+async function drawScenario(n) {
+  const a = `${prefix}a${n}`, b = `${prefix}b${n}`;
+  console.log(`\n== draw: ${a} challenges ${b}, both throw the Gold Durian ==`);
+  await make(a);
+  await make(b);
+  const ca = await browser.newContext({ viewport });
+  const cb = await browser.newContext({ viewport });
+  const A = await open(ca, a);
+  const B = await open(cb, b);
+  await inviteAndAccept(A, B, a, b, 'draw');
+  await B.locator('.arena-invite .btn-gold').click();
+  await A.waitForSelector('.duel.match .rps-btn', { timeout: 10000 });
+  await B.waitForSelector('.duel.match .rps-btn', { timeout: 10000 });
+  const r = row(a);
+  db.prepare('UPDATE arena_matches SET hp_c = 5, hp_d = 5, skill_c = 3, skill_d = 3 WHERE id = ?').run(r.id);
+  // Both webs ask every second: wait until both Gold Durian buttons are lit.
+  for (let i = 0; i < 40 && !((await goldLit(A)) && (await goldLit(B))); i++) await sleep(250);
+  await hud('A before the throw', A);
+  await hud('B before the throw', B);
+  await shot(A, 'draw-a-gold-ready');
+  await pickOn(A, 'gold');
+  await pickOn(B, 'gold');
+  for (let i = 0; i < 60 && !(await A.$('.fight-ko')); i++) await sleep(100);
+  if (await A.$('.fight-ko')) {
+    await sleep(300);
+    console.log('   K.O. banner A:', await A.evaluate(() => document.querySelector('.fight-ko').innerText));
+    await shot(A, 'draw-a-ko');
+    await hud('A K.O.', A);
+  }
+  for (let i = 0; i < 80 && !((await ended(A)) && (await ended(B))); i++) await sleep(250);
+  await sleep(800);
+  const ra = await state(A);
+  const rb = await state(B);
+  console.log('   A result:', JSON.stringify(ra));
+  console.log('   B result:', JSON.stringify(rb));
+  const asleep = (page) => page.evaluate(() => [...document.querySelectorAll('.duel.match .fighter-art')].map((e) => e.classList.contains('asleep')).join(','));
+  check(ra.result === 'DRAW' && rb.result === 'DRAW', 'both screens say DRAW');
+  check(!/\+[\d.]+ PANEN/.test(ra.reward ?? '') && !/\+[\d.]+ PANEN/.test(rb.reward ?? ''), 'no PANEN prize on either screen');
+  check((await asleep(A)) === 'true,true' && (await asleep(B)) === 'true,true', 'both TaniBots asleep on both screens');
+  const done = { ...db.prepare('SELECT status, winner, end_reason, prize_micro, job_id, xp_c, xp_d FROM arena_matches WHERE id = ?').get(r.id) };
+  console.log('   row:', JSON.stringify(done));
+  check(done.winner === null && done.end_reason === 'draw' && done.prize_micro === 0 && done.job_id === null && done.xp_c > 0 && done.xp_d > 0, 'database: draw, no prize, no job, loss XP for both');
+  await hud('A result', A);
+  await hud('B result', B);
+  await shot(A, 'draw-a-result');
+  await shot(B, 'draw-b-result');
   await ca.close();
   await cb.close();
 }
@@ -397,6 +453,7 @@ let n = Date.now() % 1000;
 for (const s of list) {
   n++;
   if (s === 'ko') await koScenario(n);
+  if (s === 'draw') await drawScenario(n);
   if (s === 'decline') await declineScenario(n);
   if (s === 'gone') await goneScenario(n);
   if (s === 'cancel') await cancelScenario(n);

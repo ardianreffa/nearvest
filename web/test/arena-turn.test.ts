@@ -200,4 +200,19 @@ describe('arena v2 texts', () => {
     assert.equal(matchNotice([{ ...def, winner: 'challenger' }]), 'sari beat your TaniBot in the Arena. Rematch?');
     assert.equal(matchNotice([]), null);
   });
+
+  it('draw (both K.O. in one turn, 2026-11-13): no prize, the loss XP, DOUBLE K.O.!, "Draw" in the history and notice', () => {
+    const draw = match({ status: 'done', winner: null, endReason: 'draw', prize: 0, gainedXp: 5, hp: { c: 0, d: 0 } });
+    assert.deepEqual(matchReward(draw), { panen: null, xp: 5, line: 'Both TaniBots fell in the same turn: a draw. No prize for anyone, no PANEN lost.' });
+    assert.equal(endBanner(draw), 'DOUBLE K.O.!');
+    assert.equal(matchLine(draw), "Draw with budi's TaniBot (both K.O.)");
+    const def = { ...draw, you: 'defender' as const, gainedXp: 0 };
+    assert.equal(matchReward(def).panen, null);
+    assert.equal(matchLine(def), 'sari challenged your TaniBot: a draw');
+    assert.match(matchNotice([def])!, /a draw/);
+    const live = { ...draw, kind: 'live' as const };
+    assert.equal(matchLine(live), 'Draw with budi online (both K.O.)');
+    assert.equal(matchReward(live).panen, null);
+    assert.equal(matchReward({ ...live, practice: 'self' as const, gainedXp: 0 }).xp, 0);
+  });
 });

@@ -12292,6 +12292,11 @@ html.page-locked body {
   color: var(--red-500);
 }
 
+/* Draw (both K.O. in one turn): neither gold nor red. */
+.duel-result.draw .duel-headline {
+  color: var(--cyan-300);
+}
+
 .duel-reward {
   margin: 4px 0;
   font-family: var(--font-body);

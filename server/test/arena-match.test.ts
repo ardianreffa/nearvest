@@ -118,7 +118,7 @@ describe('arena v2 rules', () => {
     assert.deepEqual([0, 1, 2].map((v) => botPick(0, fixed(v))), ['rock', 'paper', 'scissors']);
   });
 
-  it('only a K.O. ends the match (no turn limit); both down at once: most life, then most hits, then the challenged garden', () => {
+  it('only a K.O. ends the match (no turn limit); both down at once = a draw (arena-draw.test.ts)', () => {
     const log = (to: 'challenger' | 'defender' | null): TurnLog => ({
       turn: 0,
       pick: { c: 'rock', d: 'rock' },
@@ -133,9 +133,9 @@ describe('arena v2 rules', () => {
     assert.equal(matchEnd(bars({ hp_c: 30, hp_d: 20 }), many(60, null)), null);
     assert.deepEqual(matchEnd(bars({ hp_d: 0 }), [log('defender')]), { winner: 'challenger', reason: 'ko' });
     assert.deepEqual(matchEnd(bars({ hp_c: 0 }), [log('challenger')]), { winner: 'defender', reason: 'ko' });
-    // Both thrown down by two Gold Durians in the same turn.
-    assert.deepEqual(matchEnd(bars({ hp_c: 0, hp_d: 0 }), [log('defender'), log('defender')]), { winner: 'challenger', reason: 'ko' });
-    assert.deepEqual(matchEnd(bars({ hp_c: 0, hp_d: 0 }), [log(null)]), { winner: 'defender', reason: 'ko' });
+    // Both thrown down by two Gold Durians in the same turn: a draw (Ardian 2026-11-13).
+    assert.deepEqual(matchEnd(bars({ hp_c: 0, hp_d: 0 }), [log('defender'), log('defender')]), { winner: null, reason: 'draw' });
+    assert.deepEqual(matchEnd(bars({ hp_c: 0, hp_d: 0 }), [log(null)]), { winner: null, reason: 'draw' });
     // Only a safety net that a real match never reaches.
     assert.deepEqual(matchEnd(bars({ hp_c: 30, hp_d: 20 }), many(ARENA_SAFETY_TURNS, null)), { winner: 'challenger', reason: 'turns' });
   });

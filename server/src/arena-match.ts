@@ -212,12 +212,14 @@ export function resolveTurn(b: Bars, turn: number, pc: TurnPick, pd: TurnPick, r
 export const playbackMs = (log: TurnLog) => ARENA_PLAYBACK_MS + log.hits.filter((h) => h.gold).length * ARENA_PLAYBACK_GOLD_MS;
 
 /**
- * Is the match over? Only by a K.O. (no turn limit). If both fall in the same turn, or the safety net
- * of 200 turns is reached: most life, then most hits landed, then the challenged garden.
+ * Is the match over? Only by a K.O. (no turn limit). Both thrown down in the same turn (e.g. two Gold
+ * Durians) = a DRAW (Ardian 2026-11-13): no winner. Only the safety net of 200 turns (never reached in
+ * a real match) still picks a winner: most life, then most hits landed, then the challenged garden.
  */
-export function matchEnd(b: Bars, turns: TurnLog[]): { winner: 'challenger' | 'defender'; reason: 'ko' | 'turns' } | null {
+export function matchEnd(b: Bars, turns: TurnLog[]): { winner: Side | null; reason: 'ko' | 'turns' | 'draw' } | null {
   const ko = b.hp_c <= 0 || b.hp_d <= 0;
   if (!ko && turns.length < ARENA_SAFETY_TURNS) return null;
+  if (b.hp_c <= 0 && b.hp_d <= 0) return { winner: null, reason: 'draw' };
   const reason = ko ? ('ko' as const) : ('turns' as const);
   if (b.hp_c !== b.hp_d) return { winner: b.hp_c > b.hp_d ? 'challenger' : 'defender', reason };
   const landed = (to: TurnHit['to']) => turns.reduce((n, t) => n + t.hits.filter((h) => h.to === to).length, 0);
@@ -235,7 +237,8 @@ interface MatchData {
 
 export type MatchStatus = 'invite' | 'playing' | 'paused' | 'done' | 'cancelled';
 type Side = 'challenger' | 'defender';
-export type EndReason = 'ko' | 'turns' | 'left' | 'abandoned';
+/** 'draw' (2026-11-13): both thrown down in the same turn; winner NULL, nobody gets a prize. */
+export type EndReason = 'ko' | 'turns' | 'left' | 'abandoned' | 'draw';
 export type InviteResult = 'accepted' | 'declined' | 'timeout' | 'busy' | 'skipped' | 'judge' | 'cancelled';
 
 interface MatchRow extends Bars {
@@ -315,7 +318,7 @@ export function matchView(r: MatchRow, viewerId: number, explorerTxUrl: string, 
     bonus: { c: r.bonus_c, d: r.bonus_d },
     turns: data.turns,
     winner: r.winner,
-    /** 'ko' | 'turns' | 'left' (a player left) | 'abandoned' (online: both left). */
+    /** 'ko' | 'turns' | 'left' (a player left) | 'abandoned' (online: both left) | 'draw' (both K.O. in one turn; winner null). */
     endReason: r.end_reason,
     practice: r.practice,
     /** PANEN the winner received (after the Season rule); 0 = none. Bot matches: the challenger only. */
@@ -804,9 +807,11 @@ export class ArenaMatches {
   /**
    * Ends a match: XP and the prize. TaniBot duel (v2): as v1, only the challenger can win the prize.
    * Online duel: the winner, whichever side, within THEIR own limits; the loser 1 XP (none when they
-   * left). Returns new titles.
+   * left). A draw (`winner` null): each side gets what it gets for a loss (challenger 1 XP; the
+   * defender 1 XP in an online duel, none in a TaniBot duel; none for practice), no prize, no
+   * mint_reward; the duel still counts toward the challenger's 3 a day. Returns new titles.
    */
-  private finish(r: MatchRow, winner: Side, reason: EndReason): Titles {
+  private finish(r: MatchRow, winner: Side | null, reason: EndReason): Titles {
     const now = this.now();
     const me = this.game.getPlayer(r.challenger_id);
     const them = this.game.getPlayer(r.defender_id);
@@ -816,7 +821,11 @@ export class ArenaMatches {
     let practice: 'self' | 'limit' | null = r.practice;
     let prizeMicro = 0;
     let jobId: number | null = null;
-    if (r.kind === 'live') {
+    if (winner === null) {
+      const self = practice === 'self';
+      xpC = self ? 0 : ARENA_XP_LOSS * mult(me);
+      xpD = self || r.kind !== 'live' ? 0 : ARENA_XP_LOSS * mult(them);
+    } else if (r.kind === 'live') {
       const [w, l] = winner === 'challenger' ? [me, them] : [them, me];
       const [wDevice, wIp] = winner === 'challenger' ? [r.device_id, r.ip] : [r.device_d, r.ip_d];
       practice = practice ?? (overPaidLimit(this.db, wDevice, wIp, now) ? 'limit' : null);

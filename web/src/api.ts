@@ -678,7 +678,8 @@ export interface MatchSummary {
   /** Garden bonus in percent (0-20). */
   bonus: { c: number; d: number };
   winner: 'challenger' | 'defender' | null;
-  endReason: 'ko' | 'turns' | 'left' | 'abandoned' | null;
+  /** 'draw' (servers from 2026-11-13): both thrown down in the same turn, winner null. Older servers never send it. */
+  endReason: 'ko' | 'turns' | 'left' | 'abandoned' | 'draw' | null;
   practice: 'self' | 'limit' | null;
   prize: number;
   prizeStatus: 'pending' | 'done' | 'failed' | null;

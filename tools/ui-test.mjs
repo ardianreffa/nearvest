@@ -759,7 +759,7 @@ try {
         const fx = bot ? bot.querySelectorAll('.bot-aura, .bot-halo, .bot-sweep, .bot-scan, .bot-twinkle, .bot-falling-leaf').length : 0; const drones = f.querySelector('.bot-drones');
         const eyes = bot?.querySelector('.bot-eyes'); return side + ': ' + (art?.classList.contains('asleep') ? 'ASLEEP' : 'awake') + ', zzz ' + (f.querySelector('.fighter-zzz') ? 'yes' : 'no') + ', effects ' + fx + ', drones ' + (drones ? (drones.classList.contains('parked') ? 'parked' : 'flying') : 'none') + ', eyes opacity ' + (eyes ? getComputedStyle(eyes).opacity : '-') + ', filter ' + (bot ? getComputedStyle(bot).filter : '-'); }).join(' | ')`);
       console.log(`sleep check ${label} (loser ${loser}):`, r);
-      const ok = r.split(' | ').every((x) => (x.startsWith(loser) ? /ASLEEP, zzz yes, effects 0, drones (parked|none)/.test(x) : /awake, zzz no/.test(x)));
+      const ok = r.split(' | ').every((x) => (loser === 'both' || x.startsWith(loser) ? /ASLEEP, zzz yes, effects 0, drones (parked|none)/.test(x) : /awake, zzz no/.test(x)));
       if (!ok) console.log(`SLEEP PROBLEM ${label}`);
     };
     // Full-screen duel layout (Ardian 2026-11-12): the arena picture reaches the bottom (no plain colour
@@ -870,6 +870,49 @@ try {
       if (!process.env.AUDIO) return;
       console.log(`AUDIO ${process.env.AUDIO} ${label}:`, await evaluate(`JSON.stringify({ musicSeen: [...(window.__musicSeen ?? [])].map(v => v.replace(/rms 0\.0[1-9]|rms 0\.[1-9]\d/, 'rms >0.01')).filter((v, i, a) => a.indexOf(v) === i), sfxStarted: (window.__sfxLog ?? []).length, sfxKinds: [...new Set((window.__sfxLog ?? []).map(e => e.kind))].join(',') })`));
     };
+    // DRAW=1 (Ardian 2026-11-13): both thrown down in the same turn. The test sets both life bars to 5
+    // and both skill bars full (FAKE_DB), locks the TaniBot's Gold Durian, sends our Gold Durian through
+    // the API and taps Rock so the web fetches the decided turn at once (the button sends the same turn).
+    if (process.env.DRAW) {
+      await step('DRAW=1: two Gold Durians in one turn', async () => {
+        await waitFor(ready, 'first turn', 20000);
+        const m = openMatch();
+        db.prepare('UPDATE arena_matches SET hp_c = 5, hp_d = 5, skill_c = 3, skill_d = 3, bot_pick = ? WHERE id = ?').run('gold', m.id);
+        const sent = await evaluate(`fetch(${JSON.stringify(API)} + '/api/arena/match/${m.id}/pick', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + localStorage.getItem('nearvest.token') }, body: JSON.stringify({ turn: ${m.turn}, pick: 'gold' }) }).then(r => r.json()).then(j => j.match ? j.match.status + ' ' + j.match.winner + ' ' + j.match.endReason + ' life ' + j.match.hp.c + '/' + j.match.hp.d : JSON.stringify(j))`);
+        console.log('server after two Gold Durians:', sent);
+        await evaluate(`[...document.querySelectorAll('.rps-btn')].find(b => b.innerText.trim().toLowerCase() === 'rock').click()`);
+        await waitFor(`!!document.querySelector('.fight-ko, .duel-result')`, 'K.O.', 30000);
+        if (await evaluate(`!!document.querySelector('.fight-ko')`)) {
+          await sleep(300);
+          console.log('K.O. banner:', await evaluate(`document.querySelector('.fight-ko').innerText`));
+          await screenshot('draw-ko');
+          await notWhite('draw K.O.');
+          await sleepCheck('draw K.O.', 'both');
+          await hudCheck('draw K.O.');
+        }
+        await waitFor(`!!document.querySelector('.duel-result')`, 'result', 15000);
+        await sleep(1200);
+        console.log('result:', await evaluate(info));
+        await screenshot('draw-result');
+        await notWhite('draw result');
+        await sleepCheck('draw result', 'both');
+        await hudCheck('draw result');
+        console.log('row:', JSON.stringify({ ...db.prepare('SELECT status, winner, end_reason, prize_micro, job_id, xp_c, xp_d FROM arena_matches WHERE id = ?').get(m.id) }));
+        await evaluate(`[...document.querySelectorAll('.duel-result button')].find(b => b.innerText.includes('Back'))?.click()`);
+        await sleep(1200);
+        await evaluate(`document.querySelector('.pin-arena').click()`);
+        await sleep(400);
+        if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+        await waitFor(`!!document.querySelector('.arena-dialog')`, 'Arena window');
+        await sleep(1000);
+        console.log('recent duels:', await evaluate(`[...document.querySelectorAll('.arena-recent-list .arena-row')].map(r => r.innerText.replace(/\\n/g, ' ')).slice(0, 2).join(' || ') || 'none'`));
+        await evaluate(`document.querySelector('.arena-recent-list')?.scrollIntoView({ block: 'center' })`);
+        await sleep(400);
+        await screenshot('draw-recent');
+      });
+      db.close();
+      throw Object.assign(new Error('match done'), { done: true });
+    }
     // LOSE=1: the TaniBot wins every turn (its locked pick beats ours), Skip each turn, until YOU LOSE.
     if (process.env.LOSE) {
       await step('LOSE=1: the TaniBot wins every turn until the result', async () => {

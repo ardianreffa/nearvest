@@ -296,7 +296,7 @@ CREATE TABLE IF NOT EXISTS arena_matches (
   bonus_d INTEGER NOT NULL DEFAULT 0,
   bot_pick TEXT,                   -- the computer's pick for the open turn: locked, NEVER sent before the player picks
   winner TEXT,                     -- 'challenger' | 'defender' once done
-  end_reason TEXT,                 -- 'ko' | 'turns' | 'left'
+  end_reason TEXT,                 -- 'ko' | 'turns' | 'left' | 'abandoned' | 'draw' (winner NULL)
   practice TEXT,                   -- NULL | 'self' | 'limit' (as arena_duels)
   prize_micro INTEGER NOT NULL DEFAULT 0,
   job_id INTEGER,

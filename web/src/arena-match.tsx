@@ -23,6 +23,7 @@ import {
   matchLine,
   matchPost,
   matchReward,
+  matchDraw,
   matchWon,
   PICK_LABEL,
   pickBubbles,
@@ -376,7 +377,9 @@ export function MatchScreen({
   useEffect(() => setArenaMusic(true, fighting), [fighting]);
   useEffect(() => () => setArenaMusic(false, false), []);
   const over = isOver(m.status) && !anim;
-  const noWinner = m.status === 'cancelled' || m.winner === null;
+  // A draw (both K.O. in one turn, servers from 2026-11-13) has no winner either, but both TaniBots fall.
+  const draw = matchDraw(m);
+  const noWinner = !draw && (m.status === 'cancelled' || m.winner === null);
   // Life and skill shown: the playing turn's frame, else the match now.
   const hp: [number, number] = frame ? frame.hp : [m.hp.c, m.hp.d];
   const skill: [number, number] = frame ? frame.skill : [m.skill.c, m.skill.d];
@@ -386,6 +389,7 @@ export function MatchScreen({
   const flash = !!hitShown && hitFlash(frame!.sinceImpact);
   const pose = (who: 'me' | 'them') => {
     if (over && endPhase !== null) {
+      if (draw) return 'ko';
       if (noWinner) return 'idle';
       const loser = won ? 'them' : 'me';
       return who === loser ? 'ko' : endPhase === 'ko' ? 'idle' : 'win';
@@ -594,8 +598,8 @@ export function MatchScreen({
         )}
 
         {done && (
-          <div class={`duel-result${won ? ' win' : ' lose'}`}>
-            <div class="duel-headline">{m.status === 'cancelled' ? 'CANCELLED' : noWinner ? 'NO WINNER' : won ? 'YOU WIN!' : isLive ? `${them.name.toUpperCase()} WINS` : 'YOU LOSE'}</div>
+          <div class={`duel-result${won ? ' win' : draw ? ' draw' : ' lose'}`}>
+            <div class="duel-headline">{m.status === 'cancelled' ? 'CANCELLED' : draw ? 'DRAW' : noWinner ? 'NO WINNER' : won ? 'YOU WIN!' : isLive ? `${them.name.toUpperCase()} WINS` : 'YOU LOSE'}</div>
             {(reward.panen !== null || reward.xp > 0) && (
               <div class="duel-gains">
                 {reward.panen !== null && <span class="gain gain-panen">
