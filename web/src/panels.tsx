@@ -14,11 +14,11 @@ import { Sprite } from './sprites';
 import { TreePixels } from './art/trees';
 import { sortMemorials } from './memorials';
 import { Info, type InfoKey } from './info';
-import { clampQty, saleTotal, seasonNote, seasonPayout, stepQty } from './qty';
+import { chosenQuality, saleTotal, seasonNote, seasonPayout, sortByQuality, stepQty } from './qty';
 import { ATTENTION_MS, attentionPending, jumpTo, revealIfHidden, useAttention } from './attention';
 import { dartoFreshLine, dartoGreeting, firstDartoMeeting } from './text';
 import { shopNeed } from './dots';
-import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QtyPicker, QualityTag, QUALITY_NAME, SPECIES_NAME, type SeedGroup } from './ui';
+import { Coin, formatPanen, FruitIcon, groupSeeds, Panel, QtyPicker, QualityTag, QUALITY_NAME, SPECIES_NAME, usePicked, type SeedGroup } from './ui';
 
 const QUALITY_MULT = { common: 1, rare: 2, gold: 5 } as const;
 
@@ -280,7 +280,7 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
     }
   };
   const seedGroups = groupSeeds(state.seeds);
-  const owned = (species: Species) => state.fruits.filter((f) => f.species === species && f.qty > 0);
+  const owned = (species: Species) => sortByQuality(state.fruits.filter((f) => f.species === species && f.qty > 0));
   // Kinds of seed, like the Storage title ("SEEDS (6)"); the slots on the right count every seed.
   const seedKinds = seedGroups.length;
   const fruitCount = state.fruits.reduce((n, f) => n + Math.max(0, f.qty), 0);
@@ -354,12 +354,15 @@ export function Market({ state, config, sell, act, busy, focus = 0 }: { state: G
             )}
           </div>
         </div>
-        {thanks > 0 && (
-          <div class="darto-thanks" key={thanks} role="status">
-            <DartoFace scale={1} />
-            <span class="speech">Thanks!</span>
-          </div>
-        )}
+        {/* Always there and zero-height: the "Thanks!" floats over the list, so no row moves under the finger. */}
+        <div class="darto-thanks-slot">
+          {thanks > 0 && (
+            <div class="darto-thanks" key={thanks} role="status">
+              <DartoFace scale={1} />
+              <span class="speech">Thanks!</span>
+            </div>
+          )}
+        </div>
         <ul class="market-rows" ref={rowsRef}>
           {d.prices.map((p) => (
             <FruitRow
@@ -436,8 +439,8 @@ function SellControl({
   busy: boolean;
   onSell: (qty: number) => void;
 }) {
-  const [picked, setPicked] = useState(1);
-  const qty = clampQty(picked, max);
+  // The pick stays while the stock changes (TaniBot, polls); it starts again at 1 after the player's own sale.
+  const [qty, setPicked] = usePicked(max);
   const total = seasonPayout(saleTotal(unitPrice, multiplier, qty), season.divisor);
   const none = max < 1;
   return (
@@ -454,7 +457,14 @@ function SellControl({
       <button class="btn btn-small sell-max" disabled={busy || none || qty >= max} onClick={() => setPicked(max)}>
         Max
       </button>
-      <button class="btn btn-small btn-gold sell-go" disabled={busy || none} onClick={() => onSell(qty)}>
+      <button
+        class="btn btn-small btn-gold sell-go"
+        disabled={busy || none}
+        onClick={() => {
+          onSell(qty);
+          setPicked(1);
+        }}
+      >
         {none ? (
           'Sell'
         ) : (
@@ -483,8 +493,13 @@ function FruitRow({
   busy: boolean;
   onSell: (quality: Quality, qty: number) => void;
 }) {
-  const [quality, setQuality] = useState<Quality | null>(owned[0]?.quality ?? null);
-  const chosen = owned.find((o) => o.quality === quality) ?? owned[0] ?? null;
+  // The chosen quality stays chosen while it is in stock; new fruit of another quality never moves it.
+  const [wanted, setQuality] = useState<Quality | null>(owned[0]?.quality ?? null);
+  const quality = chosenQuality(owned, wanted);
+  useEffect(() => {
+    if (quality && quality !== wanted) setQuality(quality);
+  }, [quality, wanted]);
+  const chosen = owned.find((o) => o.quality === quality) ?? null;
   const pos = ((price.price - price.min) / Math.max(1, price.max - price.min)) * 100;
   return (
     <li class={`market-row${chosen ? (glow ? ' attention' : '') : ' empty'}`}>
@@ -524,7 +539,7 @@ function FruitRow({
           </span>
         )}
         <SellControl
-          key={`${chosen?.quality ?? 'none'}-${chosen?.qty ?? 0}`}
+          key={chosen?.quality ?? 'none'}
           max={chosen?.qty ?? 0}
           unitPrice={price.price}
           multiplier={chosen ? QUALITY_MULT[chosen.quality] : 1}
@@ -556,7 +571,7 @@ function SeedSellRow({ group, unitPrice, season, busy, onSell }: { group: SeedGr
           </span>
           {group.fromTree && <span class="tiny">from your tree</span>}
         </span>
-        <SellControl key={`${group.key}-${group.ids.length}`} max={group.ids.length} unitPrice={unitPrice} season={season} busy={busy} onSell={onSell} />
+        <SellControl key={group.key} max={group.ids.length} unitPrice={unitPrice} season={season} busy={busy} onSell={onSell} />
       </div>
     </li>
   );

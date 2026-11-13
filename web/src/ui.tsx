@@ -3,7 +3,7 @@
 import type { ComponentChildren } from 'preact';
 import type { Quality, Species, Stage } from './api';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { clampQty, saleTotal, seasonPayout, stepQty } from './qty';
+import { clampQty, keepPick, saleTotal, seasonPayout, stepQty } from './qty';
 import { Sprite } from './sprites';
 import { PanenCoin } from './art/panen-coin';
 
@@ -57,8 +57,17 @@ export function groupSeeds(
     g.ids.push(s.id);
     groups.set(key, g);
   }
+  // One fixed order (species, then Gold / Rare / Common / unknown, then from-your-tree, then source),
+  // so a row never changes place when seeds come and go.
   const order: Record<Species, number> = { mango: 0, rambutan: 1, durian: 2 };
-  return [...groups.values()].sort((a, b) => order[a.species] - order[b.species] || (a.quality ? -1 : 1));
+  const rank = (q: Quality | null) => (q === 'gold' ? 0 : q === 'rare' ? 1 : q === 'common' ? 2 : 3);
+  return [...groups.values()].sort(
+    (a, b) =>
+      order[a.species] - order[b.species] ||
+      rank(a.quality) - rank(b.quality) ||
+      Number(b.fromTree) - Number(a.fromTree) ||
+      (a.source ?? '').localeCompare(b.source ?? ''),
+  );
 }
 
 export function formatPanen(value: number): string {
@@ -102,6 +111,19 @@ export function coinScale(old: number): number {
 }
 
 /**
+ * The amount picked in a quantity picker. It stays the player's while the stock changes (a poll,
+ * TaniBot harvesting or selling); when the stock drops below it, it follows the stock down.
+ */
+export function usePicked(max: number): [number, (value: number) => void] {
+  const [picked, setPicked] = useState(1);
+  const kept = keepPick(picked, max);
+  useEffect(() => {
+    if (kept !== picked) setPicked(kept);
+  }, [kept, picked]);
+  return [clampQty(picked, max), setPicked];
+}
+
+/**
  * Quantity picker: - / + buttons, a slider and Max, with the total that follows.
  * The action button gets the chosen amount.
  */
@@ -128,8 +150,7 @@ export function QtyPicker({
   /** Optional second action with the same amount (e.g. Discard). */
   secondary?: { label: string; onAction: (qty: number) => void };
 }) {
-  const [picked, setPicked] = useState(1);
-  const qty = clampQty(picked, max);
+  const [qty, setPicked] = usePicked(max);
   const base = saleTotal(unitPrice, multiplier, qty);
   const total = season ? seasonPayout(base, season.divisor) : base;
   return (

@@ -57,6 +57,8 @@
 //   Market: Mr. Darto says "Fresh fruit! ..." (bubble on screen, nothing scrolls), rows glow, "Sell now ↓" when the row is off screen, dot gone (server market.seenAt); opened again without the dot = normal greeting; Seeds section closed / open and the "Seeds (6) ↓" jump (6 kinds of the 17 seeds); a new
 //   harvest (fruit_at) brings the dot back; then no seeds + an empty plot: Shop dot, hint + Mango glow, dot gone:
 //   UI_URL=http://localhost:5174 FAKE_DB=... node tools/ui-test.mjs <outDir> --marketdot=<user> [w] [h]
+// Market sell picker with a changing stock (fake-chain server; makes <newDevUser>): the picked amount and quality stay, no row moves:
+//   UI_URL=http://localhost:5174/play FAKE_DB=... node tools/ui-test.mjs <outDir> --marketpick=<newDevUser> [w] [h]
 // Visit wipe (pixel leaves between gardens; fake-chain server, DEV build for window.__wipeFreeze): visit <b> from Farmers
 //   of Tandur (screens half covered, full with the title, half open), speed (frame gaps), back to my garden, a slow
 //   server (stays covered), a failed visit (opens on your garden + error), reduced motion (fade only):
@@ -1343,6 +1345,130 @@ try {
       await screenshot('visit-duel');
     });
     throw Object.assign(new Error('arena done'), { done: true });
+  }
+  if (name.startsWith('--marketpick=')) {
+    // The sell picker keeps the player's amount while the stock changes under it (TaniBot ON), and no row moves.
+    const user = name.slice('--marketpick='.length);
+    const API = process.env.API_URL ?? 'http://127.0.0.1:8788';
+    const call = async (method, path, token, body) => {
+      const res = await fetch(API + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return res.json();
+    };
+    const fakeDb = async (fn) => {
+      if (!process.env.FAKE_DB) throw new Error('FAKE_DB is needed');
+      const { DatabaseSync } = await import('node:sqlite');
+      const db = new DatabaseSync(process.env.FAKE_DB, { timeout: 10000 });
+      const id = db.prepare('SELECT id FROM players WHERE name = ?').get(user).id;
+      fn(db, id);
+      db.close();
+    };
+    const setFruit = (rows) => fakeDb((db, id) => {
+      db.prepare('DELETE FROM fruits WHERE player_id = ?').run(id);
+      const f = db.prepare('INSERT INTO fruits (player_id, species, quality, qty) VALUES (?, ?, ?, ?)');
+      for (const [sp, q, n] of rows) f.run(id, sp, q, n);
+      try { db.prepare('UPDATE players SET fruit_at = ? WHERE id = ?').run(Date.now(), id); } catch {}
+    });
+    // One line per row: name, top on the page (scroll-independent), chips, chosen chip, picked amount.
+    const rows = `JSON.stringify([...document.querySelectorAll('.market-row')].map(r => ({ n: r.querySelector('.market-name').innerText, top: Math.round(r.getBoundingClientRect().top + (document.scrollingElement?.scrollTop ?? 0) + [...(function*(){ for (let p = r.parentElement; p; p = p.parentElement) yield p.scrollTop; })()].reduce((a, b) => a + b, 0)), h: Math.round(r.getBoundingClientRect().height), parts: [...r.querySelector('.market-row-sell').children].map(c => c.className.split(' ')[0] + ' ' + c.getBoundingClientRect().height.toFixed(1)).join(', '), chips: [...r.querySelectorAll('.owned-chip')].map(c => c.innerText).join(' | '), chosen: r.querySelector('.owned-chip.selected')?.innerText ?? '-', qty: r.querySelector('.sell-qty')?.innerText ?? '-' })))`;
+    const read = async () => JSON.parse(await evaluate(rows));
+    const show = (label, list) => console.log(label + '\n' + list.map((r) => `   ${r.n.padEnd(14)} top ${String(r.top).padStart(4)} h ${String(r.h).padStart(3)}  qty ${r.qty}  chosen ${r.chosen}  [${r.chips}]  (${r.parts})`).join('\n'));
+    const problems = [];
+    const expect = (ok, text) => { console.log((ok ? 'OK   ' : 'FAIL ') + text); if (!ok) problems.push(text); };
+    const sameTops = (a, b) => a.length === b.length && a.every((r, i) => r.n === b[i].n && r.top === b[i].top && r.h === b[i].h);
+    // One real click at a time (the page draws between taps, like a finger does).
+    const press = async (row, sel, times = 1, within = '') => {
+      for (let i = 0; i < times; i++) {
+        await evaluate(`[...document.querySelectorAll(${JSON.stringify(within + ' .market-row')})].find(r => r.querySelector('.market-name').innerText === ${JSON.stringify(row)} && (!${JSON.stringify(within)} || r.querySelector('.owned-chip').innerText.startsWith('Unknown'))).querySelector(${JSON.stringify(sel)}).click()`);
+        await sleep(80);
+      }
+    };
+    const waitPoll = () => sleep(9500); // the game asks the server every 8 s
+    await step(`${user}: a garden with fruit and seeds`, async () => {
+      const tok = (await call('POST', '/auth/dev', null, { username: user })).token;
+      let st = await call('GET', '/api/me', tok);
+      if (st.error) st = await call('POST', '/api/player', tok, { name: user, demo: false });
+      for (let i = 0; i < 40 && st.player.accountStatus !== 'ready'; i++) (await sleep(300), (st = await call('GET', '/api/me', tok)));
+      await fakeDb((db, id) => {
+        db.prepare('DELETE FROM seeds WHERE player_id = ?').run(id);
+        const add = db.prepare("INSERT INTO seeds (player_id, species, quality, parent_tree_id, source, created_at) VALUES (?, ?, ?, NULL, 'shop', ?)");
+        for (const [sp, q, n] of [['mango', null, 8], ['mango', 'rare', 2]]) for (let i = 0; i < n; i++) add.run(id, sp, q, Date.now());
+        db.prepare('UPDATE players SET tutorial_step = 99 WHERE id = ?').run(id);
+      });
+      await setFruit([['mango', 'common', 9], ['mango', 'rare', 4], ['rambutan', 'common', 3]]);
+    });
+    await step(`${user}: pick amounts, then the stock changes like with TaniBot ON`, async () => {
+      await evaluate(`localStorage.removeItem('nearvest.token'); localStorage.setItem('nearvest.marketSeedsOpen', '1')`);
+      await send('Page.navigate', { url: UI_URL });
+      await waitFor(bodyHas('Grow. Harvest. Own.'), 'login screen');
+      await typeInto('#dev-user', user);
+      await clickText('Enter');
+      await waitFor(`!!document.querySelector('.plots')`, 'garden');
+      await sleep(2000);
+      await evaluate(`document.querySelectorAll('.dialog-backdrop .info-close').forEach(b => b.click())`);
+      if (MOBILE) await evaluate(`document.querySelector('.tabs .tab-market').click()`);
+      else await evaluate(`(document.querySelector('.side-tabs .tab-market') ?? document.querySelector('.rail-market'))?.click()`);
+      await waitFor(`document.querySelectorAll('.market-row').length >= 3`, 'market rows');
+      await sleep(600);
+      // Mango: choose Rare and pick 3; Rambutan: pick 2; Mango seed (unknown): pick 5.
+      await evaluate(`[...document.querySelectorAll('.market-row .owned-chip')].find(c => c.innerText.startsWith('Rare x4')).click()`);
+      await sleep(100);
+      await press('Mango', '.sell-step[aria-label="One more"]', 2);
+      await press('Rambutan', '.sell-step[aria-label="One more"]', 1);
+      await press('Mango seed', '.sell-step[aria-label="One more"]', 4, '.sell-seeds');
+      await sleep(200);
+      const a = await read();
+      show('picked:', a);
+      await screenshot('pick-1-picked');
+      const mango = (l) => l.find((r) => r.n === 'Mango');
+      const ramb = (l) => l.find((r) => r.n === 'Rambutan');
+      const seed = (l) => l.find((r) => r.n === 'Mango seed' && r.chips.startsWith('Unknown'));
+      expect(mango(a).qty === '3' && mango(a).chosen === 'Rare x4' && ramb(a).qty === '2' && seed(a).qty === '5', 'the picks are 3 Rare Mango, 2 Rambutan, 5 Mango seeds');
+
+      // TaniBot harvests: more of the chosen fruit, more of another quality, and a NEW quality (Gold) appears.
+      await setFruit([['mango', 'gold', 1], ['mango', 'common', 12], ['mango', 'rare', 6], ['rambutan', 'common', 5]]);
+      await waitPoll();
+      const b = await read();
+      show('after more fruit (and a new Gold chip):', b);
+      await screenshot('pick-2-more-fruit');
+      expect(mango(b).chips.includes('Rare x6') && mango(b).chips.includes('Gold x1'), 'the new stock arrived');
+      expect(mango(b).qty === '3' && mango(b).chosen === 'Rare x6', 'Mango: still 3 of Rare (not reset, quality not moved)');
+      expect(ramb(b).qty === '2', 'Rambutan: still 2');
+      expect(seed(b).qty === '5', 'Mango seed: still 5');
+      expect(mango(b).chips.startsWith('Common'), 'chips stay in the order Common, Rare, Gold');
+      expect(sameTops(a, b), 'no row moved or changed height');
+
+      // The stock drops below the pick (TaniBot or another device sold): follow the stock down, no reset.
+      await setFruit([['mango', 'gold', 1], ['mango', 'common', 12], ['mango', 'rare', 2], ['rambutan', 'common', 5]]);
+      await waitPoll();
+      const c = await read();
+      show('after the Rare Mango stock dropped to 2:', c);
+      expect(mango(c).qty === '2' && mango(c).chosen === 'Rare x2', 'Mango: the pick followed the stock down to 2 (not 1)');
+      expect(ramb(c).qty === '2' && seed(c).qty === '5', 'the other picks did not change');
+      expect(sameTops(a, c), 'no row moved or changed height');
+
+      // Max, then more fruit: the pick stays what the player chose.
+      await press('Rambutan', '.sell-max');
+      await setFruit([['mango', 'gold', 1], ['mango', 'common', 12], ['mango', 'rare', 7], ['rambutan', 'common', 8], ['durian', 'common', 1]]);
+      await waitPoll();
+      const d = await read();
+      show('after Max on Rambutan (5) and more fruit:', d);
+      expect(ramb(d).qty === '5', 'Rambutan: Max picked 5 and stays 5 when 3 more arrive');
+      expect(mango(d).qty === '2', 'Mango: stays 2 when the stock comes back');
+      expect(d.find((r) => r.n === 'Durian').chips === 'Common x1', 'Durian: the empty row got its first fruit');
+      expect(sameTops(a, d), 'no row moved or changed height (also the row that was empty)');
+
+      // The player's own sale: the amount is sold and the picker starts again at 1; rows stay put.
+      await press('Rambutan', '.sell-go');
+      await sleep(2500);
+      const e = await read();
+      show('after selling 5 Rambutan:', e);
+      await screenshot('pick-3-after-sale');
+      expect(ramb(e).chips === 'Common x3' && ramb(e).qty === '1', 'Rambutan: 5 sold, 3 left, picker back at 1');
+      expect(mango(e).qty === '2', 'Mango: untouched by the other row\'s sale');
+      expect(sameTops(a, e), 'no row moved or changed height (also with the "Thanks!" note)');
+    });
+    console.log(problems.length ? `PROBLEMS (${problems.length}): ` + problems.join('; ') : 'marketpick: all checks passed');
+    throw Object.assign(new Error('marketpick done'), { done: true });
   }
   if (name.startsWith('--marketdot=')) {
     const user = name.slice('--marketdot='.length);

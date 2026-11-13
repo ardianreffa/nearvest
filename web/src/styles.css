@@ -2674,15 +2674,23 @@ input:focus-visible {
 
 /* ---------- Mr. Darto's small "Thanks!" next to the sell list ---------- */
 
-.darto-thanks {
+/* Zero-height sticky slot: the "Thanks!" floats over the top of the list and never pushes a row. */
+.darto-thanks-slot {
   position: sticky;
   top: 8px;
   z-index: 4;
+  height: 0;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.darto-thanks {
   display: flex;
   align-items: center;
   gap: 6px;
   width: max-content;
-  margin: 0 0 8px auto;
   padding: 4px 8px 4px 4px;
   background: color-mix(in srgb, var(--ink) 92%, transparent);
   border: 2px solid var(--gold-500);
@@ -5358,6 +5366,10 @@ button.balance:focus-visible {
 
 .market-none {
   margin: 0;
+  /* As tall as a quality chip, so the row keeps its height when the first fruit arrives or the last is sold. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
 }
 
 .owned-chip {
