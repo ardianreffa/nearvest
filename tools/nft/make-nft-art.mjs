@@ -85,8 +85,9 @@ function picture(species, stage, memorial) {
   for (const [x, y] of [[24, 488], [96, 496], [176, 488], [264, 504], [344, 488], [424, 496], [488, 504]]) rect(x, y, BAND, BAND, hex(SOIL_DARK));
 
   // The tree, from the game's code (default look), scaled by whole pixels.
-  const rows = treeRows(species, memorial ? 'old' : stage);
-  const palette = treePalette(species, memorial ? 'old' : stage);
+  let rows = treeRows(species, memorial ? 'old' : stage);
+  const palette = { ...treePalette(species, memorial ? 'old' : stage), ...FRUIT_EXTRA };
+  if (!memorial && stage === 'fruiting') rows = biggerFruit(species, rows);
   // Seeds and sprouts are tiny: bigger whole pixels, and their soil mound (grid rows 37-39) sits ON
   // the grass so it does not melt into the soil. Grown trees stand with their roots (row 37) on it.
   const S = memorial ? 12 : stage === 'seed' ? 24 : stage === 'sprout' ? 16 : 12;
@@ -101,6 +102,121 @@ function picture(species, stage, memorial) {
     }),
   );
   return px;
+}
+
+// ---------- Bigger fruit (NFT pictures only; the garden keeps the game's small fruit) ----------
+// At 512 px the game's fruit (mango / rambutan 2x2, durian 3x3 tree pixels) read as specks, so the
+// fruiting pictures take the game's fruit out (its spots are kept) and hang bigger fruit there:
+// mango and rambutan about 1.5x, durian about 2x with a jagged spiky edge and a green-yellow shine,
+// plus a few more durians. Letters use the tree palette (+ FRUIT_EXTRA for the durian's shine).
+
+const FRUIT_EXTRA = { L: '#D4E36A', w: '#FFF0A0' };
+const FRUIT_CHARS = new Set(['y', 'O', 'Y', 'h', 'r', 'R', 'q', 'Q', 'z']);
+const LEAF_CHARS = new Set(['G', 'g', 'd', 'o']);
+
+const BIG_FRUIT = {
+  mango: [
+    '.d..',
+    'wyy.',
+    'yyOO',
+    'yOOY',
+    '.OYY',
+    '..Y.',
+  ],
+  rambutan: [
+    '.R.R.',
+    'RhrrR',
+    '.hrrR',
+    'RrrrR',
+    '.RrR.',
+    '..R..',
+  ],
+  durian: [
+    '....z....',
+    '.z..z..z.',
+    '..zLqQz..',
+    'zzLqLqQzz',
+    '.zqLqQQz.',
+    'zzqQqQQzz',
+    '.zQqQQQz.',
+    'zzQQQQQzz',
+    '..zQQQz..',
+    '.z..z..z.',
+  ],
+};
+
+/** Connected groups of fruit pixels in the game's fruiting picture (one per fruit). */
+function fruitGroups(g) {
+  const seen = new Set();
+  const groups = [];
+  for (let y = 0; y < g.length; y++)
+    for (let x = 0; x < g[0].length; x++) {
+      if (!FRUIT_CHARS.has(g[y][x]) || seen.has(y * 100 + x)) continue;
+      const stack = [[x, y]];
+      const cells = [];
+      seen.add(y * 100 + x);
+      while (stack.length) {
+        const [cx, cy] = stack.pop();
+        cells.push([cx, cy]);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (FRUIT_CHARS.has(g[ny]?.[nx]) && !seen.has(ny * 100 + nx)) {
+            seen.add(ny * 100 + nx);
+            stack.push([nx, ny]);
+          }
+        }
+      }
+      groups.push(cells);
+    }
+  return groups;
+}
+
+function biggerFruit(species, rows) {
+  const g = rows.map((r) => [...r]);
+  const groups = fruitGroups(g);
+  // Take the small fruit out: each fruit pixel becomes the leaf colour most common around it.
+  for (let pass = 0; pass < 4; pass++)
+    for (const cells of groups)
+      for (const [x, y] of cells) {
+        if (!FRUIT_CHARS.has(g[y][x])) continue;
+        const count = {};
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const c = g[y + dy]?.[x + dx];
+          if (LEAF_CHARS.has(c) && c !== 'o') count[c] = (count[c] ?? 0) + 1;
+        }
+        const best = Object.entries(count).sort((a, b) => b[1] - a[1])[0];
+        if (best) g[y][x] = best[0];
+        else if (pass === 3) g[y][x] = 'g';
+      }
+  // Hang the bigger fruit at the old spots (centre x, top a little above the old fruit).
+  // Durian: fixed spots on the branch ends and under the crown (the game's 3 spots are too close
+  // together for fruit twice the size). [centre x, top row] in tree pixels.
+  const DURIAN_SPOTS = [[8, 20], [24, 20], [16, 24], [20, 10]];
+  const spots = species === 'durian' ? DURIAN_SPOTS : groups.map((cells) => {
+    const xs = cells.map((c) => c[0]);
+    const ys = cells.map((c) => c[1]);
+    return [Math.round((Math.min(...xs) + Math.max(...xs)) / 2), Math.min(...ys)];
+  });
+  const sprite = BIG_FRUIT[species];
+  const w = sprite[0].length;
+  const placed = [];
+  for (const [cx, top] of spots.sort((a, b) => a[1] - b[1])) {
+    const x0 = cx - Math.floor(w / 2);
+    const y0 = top - 1;
+    // Keep fruit apart: skip a spot that would cover most of another fruit.
+    if (species !== 'durian' && placed.some(([px, py]) => Math.abs(px - x0) < w - 2 && Math.abs(py - y0) < sprite.length - 3)) continue;
+    placed.push([x0, y0]);
+    sprite.forEach((r, dy) =>
+      [...r].forEach((c, dx) => {
+        if (c === '.') return;
+        const y = y0 + dy;
+        const x = x0 + dx;
+        if (y >= 0 && y < g.length && x >= 0 && x < g[0].length) g[y][x] = c;
+      }),
+    );
+  }
+  return g.map((r) => r.join(''));
 }
 
 function png(rgb) {
