@@ -70,18 +70,21 @@ describe('Try as Judge', () => {
     assert.equal((await call(w, '/auth/judge', { deviceId: 'short' })).status, 400);
   });
 
-  it(`limits new judge gardens to ${JUDGE_GARDENS_PER_IP_PER_DAY} per IP per day, then shares the newest one`, async () => {
+  it(`limits new judge gardens to ${JUDGE_GARDENS_PER_IP_PER_DAY} per IP per day, then shares the one unused the longest`, async () => {
     const w = makeWorld();
     const made: string[] = [];
     for (let i = 1; i <= JUDGE_GARDENS_PER_IP_PER_DAY; i++) {
       const r = await call(w, '/auth/judge', { deviceId: device(i) }, undefined, '1.2.3.4');
       assert.equal(r.json.kind, 'new');
       made.push(r.json.player.player.accountId);
+      w.advance(60_000);
     }
+    // The first garden was used a moment ago; the second one was left alone the longest.
+    w.db.prepare('UPDATE players SET last_seen_at = ? WHERE account_id = ?').run(w.now(), made[0]);
     const extra = await call(w, '/auth/judge', { deviceId: device(99) }, undefined, '1.2.3.4');
     assert.equal(extra.status, 200);
     assert.equal(extra.json.kind, 'shared');
-    assert.equal(extra.json.player.player.accountId, made.at(-1));
+    assert.equal(extra.json.player.player.accountId, made[1]);
     // Another IP still gets its own garden; the next day this IP can make new ones again.
     assert.equal((await call(w, '/auth/judge', { deviceId: device(50) }, undefined, '5.6.7.8')).json.kind, 'new');
     w.advance(25 * 60 * 60 * 1000);
@@ -93,8 +96,14 @@ describe('Try as Judge', () => {
     for (let i = 1; i <= JUDGE_GARDENS_PER_DAY; i++) {
       assert.equal((await call(w, '/auth/judge', { deviceId: device(i) }, undefined, `10.0.0.${i}`)).json.kind, 'new');
     }
+    // Everyone played a moment ago except garden 2 (left alone the longest): that one is shared.
+    w.advance(60_000);
+    w.db.prepare("UPDATE players SET active_at = ? WHERE name LIKE 'judge-%'").run(w.now());
+    const idle = w.db.prepare("SELECT account_id FROM players WHERE name LIKE 'judge-%' ORDER BY id LIMIT 1 OFFSET 1").get() as { account_id: string };
+    w.db.prepare('UPDATE players SET active_at = 0, last_seen_at = NULL WHERE account_id = ?').run(idle.account_id);
     const r = await call(w, '/auth/judge', { deviceId: device(1000) }, undefined, '10.0.1.1');
     assert.equal(r.json.kind, 'shared');
+    assert.equal(r.json.player.player.accountId, idle.account_id);
     assert.equal(w.db.prepare("SELECT COUNT(*) AS n FROM users WHERE provider = 'judge'").get()!.n, JUDGE_GARDENS_PER_DAY);
   });
 

@@ -14,8 +14,11 @@ import type { TaniBotService } from './tanibot.ts';
 
 /** New judge gardens per IP address per 24 hours. */
 export const JUDGE_GARDENS_PER_IP_PER_DAY = 3;
-/** New judge gardens per 24 hours for the whole game (testnet NEAR budget). */
-export const JUDGE_GARDENS_PER_DAY = 50;
+/**
+ * New judge gardens per 24 hours for the whole game (testnet NEAR budget, about 0.04 NEAR each).
+ * 100 during judging (was 50); change it here only.
+ */
+export const JUDGE_GARDENS_PER_DAY = 100;
 /** TaniBot in a judge garden: daily limit (PANEN) and starting budget. */
 export const JUDGE_BOT_LIMIT = 50;
 export const JUDGE_BOT_BUDGET = 30;
@@ -62,10 +65,12 @@ export class JudgeService {
     const ipFull = ip !== null && count('AND p.created_ip = ?', ip) >= JUDGE_GARDENS_PER_IP_PER_DAY;
     const dayFull = count('') >= JUDGE_GARDENS_PER_DAY;
     if (ipFull || dayFull) {
-      // A limit is reached: share the newest judge garden (from this IP first).
+      // A limit is reached: share the judge garden nobody used for the longest time (from this IP
+      // when the IP limit is reached), so a real judge rarely lands in a garden someone is playing.
+      const idle = 'ORDER BY MAX(COALESCE(p.last_seen_at, 0), COALESCE(p.active_at, 0), p.created_at) ASC, p.id ASC LIMIT 1';
       const shared = (ipFull
-        ? this.db.prepare("SELECT p.id, p.user_id FROM players p JOIN users u ON u.id = p.user_id WHERE u.provider = 'judge' AND p.created_ip = ? ORDER BY p.id DESC LIMIT 1").get(ip)
-        : this.db.prepare("SELECT p.id, p.user_id FROM players p JOIN users u ON u.id = p.user_id WHERE u.provider = 'judge' ORDER BY p.id DESC LIMIT 1").get()) as
+        ? this.db.prepare(`SELECT p.id, p.user_id FROM players p JOIN users u ON u.id = p.user_id WHERE u.provider = 'judge' AND p.created_ip = ? ${idle}`).get(ip)
+        : this.db.prepare(`SELECT p.id, p.user_id FROM players p JOIN users u ON u.id = p.user_id WHERE u.provider = 'judge' ${idle}`).get()) as
         | { id: number; user_id: number }
         | undefined;
       if (!shared) throw new GameError('Judge gardens are busy right now. Please try again later.', 429);
