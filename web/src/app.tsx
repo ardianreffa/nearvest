@@ -180,6 +180,8 @@ export function App() {
   const visitWait = useRef<{ name: string; done: (ok: boolean, error?: string) => void } | null>(null);
   /** Arena 1 VS 1 (arena.tsx): the Arena window, the duel on screen, the garden being challenged. */
   const [arenaOpen, setArenaOpen] = useState(false);
+  /** "Go to the fishing pond?" / the Arena's opener (phones): the game's usual window (title, X, buttons). */
+  const [placeAsk, setPlaceAsk] = useState<'fishing' | 'arena' | null>(null);
   // The end of the tutorial (2026-11-12): the welcome banner, then TaniBot's last words. Not after Skip.
   const tutorialSkipped = useRef(false);
   const welcomeHold = useRef(false);
@@ -980,7 +982,7 @@ export function App() {
       onBot={openBot}
       onPlace={(p) =>
         (playSound('click'),
-        p === 'friends' ? setFarmersOpen(true) : p === 'arena' ? setArenaOpen(true) : p === 'fishing' ? openPond() : wide ? openSide(p) : setTab(p))
+        p === 'friends' ? setFarmersOpen(true) : p === 'arena' ? (wide ? setArenaOpen(true) : setPlaceAsk('arena')) : p === 'fishing' ? openPond() : wide ? openSide(p) : setTab(p))
       }
     />
   );
@@ -1138,9 +1140,7 @@ export function App() {
    */
   const openPond = () => {
     if (!stateRef.current?.fishing) return setFishingOpen(true);
-    new Promise<string | null>((resolve) =>
-      setDialog({ message: 'Go to the fishing pond?', choices: [{ value: 'go', label: 'Go fishing', class: 'btn-mint' }], resolve, cancelLabel: 'Not now' }),
-    ).then((v) => v === 'go' && wipe.run(POND_TEXT, () => setFishingOpen(true), 'up', 'water'));
+    setPlaceAsk('fishing');
   };
   const closePond = () => wipe.run(POND_BACK_TEXT, () => setFishingOpen(false), 'down', 'water');
   /** "Add back" (notice and Village tab): add a garden that added us. */
@@ -1458,6 +1458,32 @@ export function App() {
         </Modal>
       )}
       {dialogView}
+      {placeAsk && (
+        <Modal
+          title={placeAsk === 'fishing' ? 'Fishing' : 'Arena 1 VS 1'}
+          onClose={() => setPlaceAsk(null)}
+          class="place-ask-dialog"
+          actions={
+            <>
+              <button class="btn" onClick={() => (playSound('click'), setPlaceAsk(null))}>
+                Not now
+              </button>
+              <button
+                class="btn btn-mint"
+                onClick={() => {
+                  setPlaceAsk(null);
+                  if (placeAsk === 'fishing') wipe.run(POND_TEXT, () => setFishingOpen(true), 'up', 'water');
+                  else setArenaOpen(true);
+                }}
+              >
+                {placeAsk === 'fishing' ? 'Go fishing' : 'Open the Arena'}
+              </button>
+            </>
+          }
+        >
+          <p>{placeAsk === 'fishing' ? 'Go to the fishing pond?' : '1 VS 1 duels, the winner gets PANEN. Open the Arena?'}</p>
+        </Modal>
+      )}
       {infoView}
       {farmersOpen && (
         <FarmersWindow

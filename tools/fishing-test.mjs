@@ -161,7 +161,7 @@ const openWindow = async () => {
     // The pin asks first; "Not now" stays in the village.
     askedOnce = true;
     await pg.locator('.place-pin.pin-fishing').click({ force: true });
-    const q = await pg.locator('.dialog #dialog-text').innerText({ timeout: 3000 }).catch(() => '');
+    const q = await pg.locator('.place-ask-dialog .info-body').innerText({ timeout: 3000 }).catch(() => '');
     check(/Go to the fishing pond\?/.test(q), `the Fishing pin asks first ("${q}")`);
     await pg.locator('.dialog button:has-text("Not now")').click();
     await pg.waitForTimeout(400);

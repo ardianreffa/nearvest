@@ -306,7 +306,8 @@ export function Hotspots({
   const tap = (id: PinId) => {
     const s = spot(id);
     // Fishing opens its window right away, also on phones (live or "Soon": nothing to choose first).
-    if (s.open && (canHover() || s.soon || id === 'fishing')) {
+    // Fishing and the Arena ask in the game's own window (title, X, buttons), also on phones.
+    if (s.open && (canHover() || s.soon || id === 'fishing' || id === 'arena')) {
       setBubble(null);
       onPlace(s.open);
     } else setBubble(bubble === id ? null : id);
