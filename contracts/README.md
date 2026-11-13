@@ -48,7 +48,7 @@ thresholds: 100,000 / 200,000 / 400,000 PANEN. Testnet uses 2,000 / 5,000 / 10,0
 Values: species `mango | rambutan | durian`, quality `common | rare | gold`, stage `seed | sprout | tree | fruiting | old`.
 Species, quality, birth time and parent are fixed at mint. Age and harvest count can only go up. Memorial Trees cannot be updated but stay transferable.
 
-Images: while `media_base_url` is empty the NFTs use placeholder images (`placehold.co`). The pixel-art files are ready in `web/public/nft/` (`{species}_{stage}.png`, `{species}_memorial.png`; made by `tools/nft/make-nft-art.mjs`). The metadata is built when it is read, so one owner call `set_media_base_url("https://nearvest-six.vercel.app/nft/")` switches every tree, old and new; `set_media_base_url(null)` switches back.
+Images: `media_base_url` = `https://nearvest-six.vercel.app/nft/` (set on 2026-11-13, tx [`5E2Qh5NEfmcSZcK9p3XQfS4tXU9YJRntoP6WYhSVUMpd`](https://testnet.nearblocks.io/txns/5E2Qh5NEfmcSZcK9p3XQfS4tXU9YJRntoP6WYhSVUMpd)), so each NFT shows the pixel-art file `{species}_{stage}.png` or `{species}_memorial.png` from `web/public/nft/` (made by `tools/nft/make-nft-art.mjs`). The metadata is built when it is read, so this one call switched every tree, old and new. `set_media_base_url(null)` switches back to placeholder images (`placehold.co`).
 
 ## Factory methods
 

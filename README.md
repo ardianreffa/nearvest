@@ -91,7 +91,7 @@ $PANEN (`panen.nearvest.testnet`, NEP-141, 18 decimals).
 - **On the game server:** growth speed, watering, weather, fertilizer and the fruit itself. The server grows the tree and writes the stage, age and harvest count to the NFT.
 - **Lineage:** an old tree drops one superior seed; the tree planted from it stores the old tree's token id as `parent_id` on chain.
 - **Memorial Trees:** an old tree (or one cut down) becomes a Memorial Tree (`make_memorial`): it stays on its plot until the player plants there or moves it, and is listed with its NFT link in the Village tab. The NFT stays in the player's account. TaniBot never harvests an old tree and never plants over a Memorial Tree.
-- **NFT images:** 18 pixel-art pictures made from the game's own tree code (one per species and stage, plus Memorial) are in [`web/public/nft`](web/public/nft) (script: [`tools/nft/make-nft-art.mjs`](tools/nft/make-nft-art.mjs)). The contract shows them once its owner points `set_media_base_url` at them; until then the NFTs show a placeholder picture. Quality is in the NFT's title, not in the picture.
+- **NFT images:** 18 pixel-art pictures made from the game's own tree code (one per species and stage, plus Memorial) are in [`web/public/nft`](web/public/nft) (script: [`tools/nft/make-nft-art.mjs`](tools/nft/make-nft-art.mjs)). They are served by the web game at `https://nearvest-six.vercel.app/nft/`; the contract's owner pointed every Tree NFT, old and new, at them with `set_media_base_url` on 13 Nov 2026 ([transaction](https://testnet.nearblocks.io/txns/5E2Qh5NEfmcSZcK9p3XQfS4tXU9YJRntoP6WYhSVUMpd)). Quality is in the NFT's title, not in the picture.
 
 ### `agents`: Agent Economy
 
