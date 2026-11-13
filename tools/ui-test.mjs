@@ -648,6 +648,7 @@ try {
       await evaluate(`document.querySelector('.pin-friends').click()`);
       await sleep(300);
       if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
       await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
       console.log('farmer list: sections', await evaluate(`document.querySelectorAll('.farmer-section-title').length`), '| Add buttons', await evaluate(`document.querySelectorAll('.farmer-add').length`), '| Online dots', await evaluate(`document.querySelectorAll('.online-dot').length`));
       await evaluate(`[...document.querySelectorAll('.farmers-dialog .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(friend)})?.querySelector('button.btn-mint').click()`);
@@ -671,6 +672,7 @@ try {
         await evaluate(`document.querySelector('.pin-arena').click()`);
         await sleep(400);
         if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
         await waitFor(`!!document.querySelector('.arena-dialog .arena-duel-btn')`, 'Arena window');
         await sleep(600);
         await evaluate(`[...document.querySelectorAll('.arena-list .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(third)})?.querySelector('.arena-duel-btn').click()`);
@@ -815,6 +817,7 @@ try {
       await evaluate(`document.querySelector('.pin-arena').click()`);
       await sleep(400);
       if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
       await waitFor(`!!document.querySelector('.arena-dialog .arena-duel-btn')`, 'Arena window');
       await sleep(400);
       console.log('Arena intro:', await evaluate(`document.querySelector('.farmers-intro').innerText`));
@@ -903,6 +906,7 @@ try {
         await evaluate(`document.querySelector('.pin-arena').click()`);
         await sleep(400);
         if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
         await waitFor(`!!document.querySelector('.arena-dialog')`, 'Arena window');
         await sleep(1000);
         console.log('recent duels:', await evaluate(`[...document.querySelectorAll('.arena-recent-list .arena-row')].map(r => r.innerText.replace(/\\n/g, ' ')).slice(0, 2).join(' || ') || 'none'`));
@@ -978,6 +982,7 @@ try {
       await evaluate(`document.querySelector('.pin-arena').click()`);
       await sleep(400);
       if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
       await waitFor(`!!document.querySelector('.arena-active')`, 'Continue box', 15000);
       console.log('Arena window:', await evaluate(`document.querySelector('.arena-active').innerText.replace(/\\n/g, ' ')`), '| Duel buttons off:', await evaluate(`[...document.querySelectorAll('.arena-duel-btn')].every(b => b.disabled)`));
       await clickText('Continue', '.arena-active button');
@@ -1139,6 +1144,7 @@ try {
       await evaluate(`document.querySelector('.pin-arena').click()`);
       await sleep(400);
       if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
       await waitFor(`!!document.querySelector('.arena-dialog .arena-duel-btn')`, 'Arena window');
       await sleep(800);
       console.log('recent:', await evaluate(`[...document.querySelectorAll('.arena-recent-list .arena-row')].map(r => r.innerText.replace(/\\n/g, ' ')).join(' || ') || 'none'`));
@@ -1310,6 +1316,7 @@ try {
       await evaluate(`document.querySelector('.pin-friends').click()`);
       await sleep(300);
       if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
       await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
       await typeInto('.farmer-search input', fourth);
       await waitFor(`[...document.querySelectorAll('.farmers-dialog .farmer-row .farmer-name')].some(e => e.innerText === ${JSON.stringify(fourth)})`, 'search result', 10000);
@@ -1327,6 +1334,7 @@ try {
       await evaluate(`document.querySelector('.pin-friends').click()`);
       await sleep(300);
       if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
       await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
       await evaluate(`[...document.querySelectorAll('.farmers-dialog .farmer-row')].find(r => r.querySelector('.farmer-name').innerText === ${JSON.stringify(foe)})?.querySelector('button').click()`);
       await waitFor(`!!document.querySelector('.visit-duel')`, 'visit Duel button', 15000);
@@ -1652,6 +1660,7 @@ try {
       await evaluate(`document.querySelector('.pin-friends').click()`);
       await sleep(300);
       if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
       await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
       await sleep(500);
     };
@@ -1779,6 +1788,7 @@ try {
       await evaluate(`document.querySelector('.pin-friends').click()`);
       await sleep(300);
       if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
       await waitFor(`!!document.querySelector('.farmers-dialog .farmer-row')`, 'farmer list');
       await sleep(600);
     };
@@ -1841,6 +1851,7 @@ try {
       await evaluate(`document.querySelector('.pin-arena').click()`);
       await sleep(300);
       if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
       await waitFor(`!!document.querySelector('.arena-dialog .arena-list .farmer-row')`, 'Arena window');
       await sleep(500);
       console.log('arena rows:', await evaluate(`[...document.querySelectorAll('.arena-list .farmer-row')].slice(0, 4).map(r => r.querySelector('.farmer-name').innerText + ' [' + [...r.querySelectorAll('.tag')].map(t => t.innerText.trim()).join(', ') + ']' + (r.querySelector('.online-dot') ? ' dot' : '')).join(' | ')`));
@@ -2253,6 +2264,7 @@ try {
         await evaluate(`document.querySelector('.pin-friends').click()`);
         await sleep(400);
         if (await evaluate(`!!document.querySelector('.hs-bubble')`)) await clickText('Open', '.hs-bubble button');
+      if (await evaluate(`!!document.querySelector('.place-ask-dialog')`)) await evaluate(`[...document.querySelectorAll('.place-ask-dialog button')].find((b) => /Open the Arena|Go fishing/.test(b.innerText))?.click()`);
         await waitFor(`!!document.querySelector('.farmer-row')`, 'farmer rows');
         await evaluate(`[...document.querySelectorAll('.farmer-row')].find(r => r.querySelector('.farmer-name')?.innerText.trim().toLowerCase() === ${JSON.stringify(friend.toLowerCase())})?.querySelector('button.btn-mint').click()`);
         await waitFor(`!!document.querySelector('.visit-panel .visit-sub')`, 'visit loaded');

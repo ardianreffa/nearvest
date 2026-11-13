@@ -84,6 +84,8 @@ async function challenge(page, foe) {
   await page.evaluate(() => document.querySelector('.pin-arena').click());
   await sleep(400);
   if (await page.$('.hs-bubble')) await page.locator('.hs-bubble button', { hasText: 'Open' }).click();
+  // Phones (2026-11-13): the Arena pin asks in the game's window first.
+  if (await page.$('.place-ask-dialog')) await page.locator('.place-ask-dialog button', { hasText: 'Open the Arena' }).click();
   await page.waitForSelector('.arena-dialog .arena-duel-btn');
   // The opponent list loads; wait until B shows as online (its ping every 4 s).
   let dot = false;
@@ -100,6 +102,7 @@ async function challenge(page, foe) {
       await page.evaluate(() => document.querySelector('.pin-arena').click());
       await sleep(300);
       if (await page.$('.hs-bubble')) await page.locator('.hs-bubble button', { hasText: 'Open' }).click();
+      if (await page.$('.place-ask-dialog')) await page.locator('.place-ask-dialog button', { hasText: 'Open the Arena' }).click();
       await page.waitForSelector('.arena-dialog .arena-duel-btn');
     }
   }

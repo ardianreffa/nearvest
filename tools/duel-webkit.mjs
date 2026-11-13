@@ -47,6 +47,7 @@ await page.evaluate(() => document.querySelectorAll('.dialog-backdrop .info-clos
 await page.evaluate(() => document.querySelector('.pin-arena').click());
 await sleep(400);
 if (await page.$('.hs-bubble')) await page.locator('.hs-bubble button', { hasText: 'Open' }).click();
+if (await page.$('.place-ask-dialog')) await page.locator('.place-ask-dialog button', { hasText: 'Open the Arena' }).click();
 await page.waitForSelector('.arena-dialog .arena-duel-btn');
 await sleep(400);
 await page.evaluate((foe) => [...document.querySelectorAll('.arena-list .farmer-row')].find((r) => r.querySelector('.farmer-name').innerText === foe).querySelector('.arena-duel-btn').click(), foe);

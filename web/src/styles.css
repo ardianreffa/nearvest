@@ -17187,3 +17187,13 @@ html.pond-open .hud * {
 .info-body .judge-also-row .grow > b {
   color: var(--ink);
 }
+
+/* Arena duel, bottom panel (Ardian 2026-11-13): "Turn N · Pick your move!" in the label font, a step
+   smaller and fully bright so it reads crisp on every floor. */
+.duel.match .match-info p.match-turn {
+  font-family: var(--font-ui);
+  /* !important: the global reading-text rule for <p> (--fs-body x --text-k) is !important too. */
+  font-size: var(--fs-sm) !important;
+  color: var(--paper-light);
+  opacity: 1;
+}

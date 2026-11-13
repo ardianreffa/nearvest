@@ -318,8 +318,6 @@ export function MatchScreen({
     return () => window.clearInterval(id);
   }, [anim, end, endPhase]);
 
-  /** Skip the turn playing now (the Gold Durian too): its result shows at once. */
-  const skip = () => anim && setAnim({ i: anim.i, t0: now() - 1e7 });
 
   // Sounds and confetti, once per event.
   const event = frame ? `${anim!.i}:${frame.phase}:${frame.hit?.index}` : `end:${endPhase}`;
@@ -453,11 +451,7 @@ export function MatchScreen({
               <Sprite name={fullscreen.active ? 'fullscreenExit' : 'fullscreen'} scale={3} />
             </button>
           )}
-          {anim && !done && (
-            <button class="btn btn-small duel-skip" onClick={skip}>
-              Skip
-            </button>
-          )}
+          {/* No Skip (Ardian 2026-11-13): every turn's show is short; the duel runs on by itself. */}
           <button
             class="icon-btn info-close"
             onClick={() => (m.status === 'playing' || m.status === 'paused' ? setLeaving(true) : leave())}
