@@ -90,7 +90,7 @@ a notice for new stickers (`nearvest.stickersSeen.<account>`). Same village day 
   (name + sticker + "today / yesterday") in a small "Visitors" box (garden notice + Village tab).
 - No free text, so no moderation is needed. Optional "Hide stickers" switch in the Profile.
 
-### 1.6 Visits package 2 (Ardian's iPhone feedback after `nearvest-69becf1`, built 2026-11-10, local commit, not released)
+### 1.6 Visits package 2 (Ardian's iPhone feedback after the previous server release, built 2026-11-10, local commit, not released)
 
 - **Farmers list scroll bug (iPhone Safari):** names were covered while the list scrolled. Causes:
   two scroll areas inside each other (window body + list) and rows cut with `clip-path` (stepped
@@ -126,7 +126,7 @@ a notice for new stickers (`nearvest.stickersSeen.<account>`). Same village day 
   `UI_URL=http://localhost:5174 FAKE_DB=<fake sqlite> node tools/ui-test.mjs <outDir> --visits2=<owner>:<prefix> 390 844`
   (and `1280 800`).
 
-### 1.7 Sticker wait fix, Visit on every Visitors row, red dots (Ardian's phone test after `nearvest-08d00e3`, built 2026-11-10, local commit, not released)
+### 1.7 Sticker wait fix, Visit on every Visitors row, red dots (Ardian's phone test after the previous server release, built 2026-11-10, local commit, not released)
 
 - **Sticker wait bug:** after one sticker there were two countdowns (button + sticker window) and
   closing and opening the window started the wait from 5 s again. Cause: every place that showed
@@ -145,7 +145,7 @@ a notice for new stickers (`nearvest.stickersSeen.<account>`). Same village day 
     referral. Server: `state.news = { latestAt, waveAt, seenAt }` (`Game.villageNews`) and
     `POST /api/village/seen {upTo}` (stores `players.village_seen_at`, never backwards, never past
     now; the same on every device). The web marks it seen once the Visitors / Invite box is on
-    screen (IntersectionObserver). Servers without `news` (the live `nearvest-08d00e3`): no Village
+    screen (IntersectionObserver). Servers without `news` (the live server of that day): no Village
     or Friends dot.
   - Market: fruit in Storage. Shop: no seeds AND an empty open plot. Garden (phones only, laptops
     always show the garden): a ripe or thirsty tree while another tab is open.
@@ -293,7 +293,7 @@ Risks and answers:
 - **Popups annoy players or break the tutorial / Judge tour** -> one at a time, held during tutorial /
   tour / other windows, "Later", once per moment (already).
 - **Phone screen space** -> the farmer list is a normal panel; visit mode reuses the garden scene.
-- **Server load / RAM (1 GB VPS, Entropy next door)** -> farmer list is one SQL query, cached 30 s.
+- **Server load / RAM (small shared VPS)** -> farmer list is one SQL query, cached 30 s.
 - **Chain cost** -> visits and stickers have no chain jobs; a referral is 2 mint jobs.
 - **Rollback** -> new tables only; the previous release ignores them.
 
@@ -309,10 +309,10 @@ Tests:
   new `--friends` mode: open the list, visit, help water, leave a sticker; share popup timing and
   "outside click does not close"; screenshots at 390 / 402 / 430 / 1440.
 
-Release (needs Ardian's OK, same steps as before): read-only Entropy PID check (3665978, stop if
+Release (needs Ardian's OK, same steps as before): read-only check of the other bot on the VPS (stop if
 different), DB backup (`nearvest-backup.service`), stage `nearvest-<commit>` with Node 24, copy to a
-new folder, switch `/opt/nearvest/app`, restart **only** `nearvest`, check `/health`, `/api/stats`,
-`/api/farmers`, journal errors, memory, Entropy PID; secret check; push (Vercel). Rollback = link back
+new folder, switch the release link, restart **only** `nearvest`, check `/health`, `/api/stats`,
+`/api/farmers`, journal errors, memory, other bot unchanged; secret check; push (Vercel). Rollback = link back
 to the previous release + restart. The share popup part is web only and can ship first.
 
 ---

@@ -1,6 +1,6 @@
 # NEARvest game server (systemd). Installed as /etc/systemd/system/nearvest.service (docs/DEPLOY.md).
-# It shares the VPS with other bots (Entropy runs under pm2): it uses its OWN Node
-# (/opt/nearvest/node, never the global /usr/bin/node that pm2 uses), its own user and folders,
+# It shares the VPS with other software: it uses its OWN Node
+# (/opt/nearvest/node, never the global /usr/bin/node), its own user and folders,
 # and hard limits on memory and CPU, so it can never starve or touch the other bots.
 
 [Unit]
@@ -34,7 +34,7 @@ Nice=5
 TasksMax=64
 LimitNOFILE=4096
 
-# Own files only: no access to /home (Entropy and the other bots live there).
+# Own files only: no access to /home (other software lives there).
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true

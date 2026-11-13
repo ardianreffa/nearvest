@@ -22,7 +22,7 @@ Decisions at approval (Ardian, 2026-11-11):
 3. **No big Golden Arowana image**: the moment and share card use the code icon (scaled up, existing
    gold shine).
 4. **Server switch `FISHING=on|off`** in `server/.env` (like `ARENA_ONLINE`; name in
-   `server/.env.example`; on the VPS `/etc/nearvest/server.env`). Off or missing = the fishing
+   `server/.env.example`; on the VPS its secrets file). Off or missing = the fishing
    endpoints refuse (404 `fishing_off`), `/api/config` says `"fishing": false`, `state.fishing` is not
    sent, so the web keeps "Fishing · Soon" exactly as today. The web must stay safe with the live
    server that has no fishing at all.
@@ -164,7 +164,7 @@ It is recorded in `docs/ASSETS.md` as AI-generated at Ardian's request, original
 `docs/art-source/`, converted with `tools/pixelize/pixelize.py --keep-bg --hq` (480x270) and the frogs redrawn with
 `tools/pixelize/frogs.py` (exact commands in docs/ASSETS.md).
 
-### 3.5 Server and database change; is `nearvest-fd0112c` still OK?
+### 3.5 Server and database change; is the previous server release still OK?
 
 - **Server changes: yes.** New `server/src/fishing.ts` (roll, limits, cast / reel,
   auto-reel), rules in `rules.ts` (table, limits, bottle lines), routes in `app.ts`
@@ -174,7 +174,7 @@ It is recorded in `docs/ASSETS.md` as AI-generated at Ardian's request, original
 - **Database: one new table only**, `fishing_casts` (id, player_id, cast_day, catch, panen_micro, xp,
   item, device_id, ip, bite_at, reeled_at, ledger_id, created_at) with an index on
   (player_id, cast_day). Nothing else changes (Fertilizer goes into the existing `items` row).
-- **Rollback: `nearvest-fd0112c` runs on the new database** (it never reads `fishing_casts`). Will be
+- **Rollback: the previous server release runs on the new database** (it never reads `fishing_casts`). Will be
   checked on a copy of the database before release, as with the Arena releases. Pending `mint_reward`
   jobs of fishing are ordinary jobs, so the old worker still sends them.
 - Old server + new web: no `state.fishing` → the pin stays "Soon" with today's window.

@@ -1,5 +1,5 @@
 # NEARvest: HTTPS for the game server (docs/DEPLOY.md). Certificates come from Let's Encrypt
-# automatically (port 80 and 443 must be open in the Tencent Cloud security group).
+# automatically (port 80 and 443 must be open in the cloud provider's security group).
 {
 	# No admin API on port 2019: changes need a restart of nearvest-caddy.
 	admin off

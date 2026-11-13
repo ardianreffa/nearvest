@@ -203,11 +203,11 @@ aturan game, dan setiap alasan masuk Log.
 1. Semua tes lulus. Web dan server dirilis **bersamaan** (Keputusan 3): push web (Vercel) hanya setelah
    server baru siap dan dengan izin. Web baru tetap aman dengan server lama: tampilan cuaca muncul hanya
    kalau server mengirim `weather`.
-2. **STOP, minta izin.** Cek Entropy baca-saja: PID **3665978** dan waktu jalannya terus bertambah.
-3. Backup database VPS (`/var/backups/nearvest`, sama seperti backup harian).
-4. Siapkan rilis di Mac (`deploy/stage.sh`), kirim ke `/opt/nearvest/releases/nearvest-<commit>`.
-5. Pindahkan link `/opt/nearvest/app` ke rilis baru dan **restart hanya `nearvest`** (tidak apt, tidak pm2).
-6. Cek `/health`, satu kebun demo di situs live, Log TaniBot, dan Entropy masih PID 3665978.
+2. **STOP, minta izin.** Cek baca-saja bot lain di VPS (lihat OPS.md pribadi).
+3. Backup database VPS (sama seperti backup harian).
+4. Siapkan rilis di Mac (`deploy/stage.sh`), kirim ke folder rilis baru di VPS.
+5. Pindahkan link rilis aktif ke rilis baru dan **restart hanya `nearvest`** (tidak apt).
+6. Cek `/health`, satu kebun demo di situs live, Log TaniBot, dan bot lain di VPS tidak berubah.
 7. **Rollback** kalau ada masalah: kembalikan link ke rilis lama dan restart `nearvest`. Kolom baru di
    database tidak mengganggu rilis lama.
 

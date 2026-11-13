@@ -1,6 +1,6 @@
 # Plan: Arena 1 VS 1 (simple, not real-time)
 
-Status: **Arena v1 live 2026-11-11 (`nearvest-e8312ea`). Arena v2 lite live 2026-11-11 (`nearvest-edfb355`; section 7.7). v3 part 1 = Add friend + Online dot BUILT 2026-11-11 (local, not released; section 7.11). The online duel (v3 part 2) is NOT built.** v1 was built 2026-11-11. Server `server/src/arena.ts`
+Status: **Arena v1 live 2026-11-11. Arena v2 lite live 2026-11-11 (section 7.7). v3 part 1 = Add friend + Online dot BUILT 2026-11-11 (local, not released; section 7.11). The online duel (v3 part 2) is NOT built.** v1 was built 2026-11-11. Server `server/src/arena.ts`
 (table `arena_duels`, `GET /api/arena`, `GET /api/arena/can/:name`, `POST /api/arena/duel`, `state.arena`, Village news,
 log note 'arena'), tests `server/test/arena.test.ts` (13); web `web/src/arena.tsx` + `arena-play.ts` (Arena window from
 the pin, duel screen, Village "Arena" box, Duel button in the visit panel, notice for received duels), tests
@@ -277,7 +277,7 @@ iPhone Safari's visible area). Old-server check: pin says "Soon".
 
 Build order: server rules + tests -> `GET/POST` endpoints -> Arena window + visit button -> duel
 screen -> notices / dot -> ui-test at 390x844 and 1280x800 -> local commit. Release to the VPS and
-push only after Ardian's OK (normal steps in docs/DEPLOY.md, Entropy untouched).
+push only after Ardian's OK (normal steps in docs/DEPLOY.md, other software on the VPS untouched).
 
 ---
 
@@ -382,7 +382,7 @@ gets the v1 defender XP if the TaniBot wins.
   again does not notify twice). No chat, no free text.
 - Judge gardens can add friends and be added (they are filled in Farmers already).
 
-**Why polling and not WebSockets:** the VPS has about 1 GB free and Entropy must stay safe. Short
+**Why polling and not WebSockets:** the VPS has about 1 GB free and other software on it must stay safe. Short
 HTTP polls keep no open connections and no new process: one indexed SQLite read per poll. Estimate:
 50 players online = about 13 pings/s, plus 2 polls/s per live match; Hono + node:sqlite handle that
 in well under 1% CPU and with no extra memory (the server stays far below its 300 MB limit; now
@@ -421,13 +421,13 @@ Endpoints:
   `news.latestAt` includes friend adds.
 - Sweep (every 10 s, inside the existing worker interval): ends matches whose time ran out.
 
-**Old release `nearvest-e8312ea` on the new database: yes, it runs.** It ignores the new tables and
+**The old v1 server release on the new database: yes, it runs.** It ignores the new tables and
 the new column (checked the same way as before: start the old release on a copy of the upgraded
 database and load a garden). After a rollback, v2/v3 matches simply do not show and do not count
 toward v1's daily limit that day; their prizes are normal `mint_reward` jobs the old worker sends.
 No database restore needed.
 
-**New web on the v1 server (`nearvest-e8312ea`): safe.** The web uses the turn-based duel only when
+**New web on the v1 server (the previous server release): safe.** The web uses the turn-based duel only when
 `state.arena.v >= 2`; otherwise it keeps the v1 Fruit Fight (the server decides 3 rounds). It pings
 and shows Online / invites / Add friend only when the server sends `live` / `friends`. **Old web on
 the new server:** v1 endpoints stay, new fields are ignored. Release order as always: server first,
@@ -488,7 +488,7 @@ paused; back within 20 s -> continues; 20 s -> the stayer wins with prize and ca
 1 decided -> cancelled and not counted for either; both gone -> no winner; online prize goes to the
 winner of either side and counts in the winner's caps; friends add / remove / limits / one notice
 per pair / no private data; ping writes `active_at` at most every 20 s.
-**Database:** the upgraded database opened by the `nearvest-e8312ea` code (a git worktree of that
+**Database:** the upgraded database opened by the old v1 server release's code (a git worktree of that
 commit) still serves `/api/me` and `/api/arena`.
 
 **Web unit (`web/test/arena-match.test.ts`):** button states (picking, waiting, Gold Durian off /
@@ -501,7 +501,7 @@ picks hidden until both, one side lets the 10 s run out, **b's page is closed in
 sees "Waiting for b... 20" -> b reopens within 20 s -> the match continues; second run b stays away
 -> a wins + prize notice; b closes before turn 1 -> cancelled, a's "Duels left" unchanged; Decline ->
 TaniBot match; Add friend -> b's notice + Add back; WebKit (iPhone profile) with the page hidden ->
-"gone" after 5 s. `--oldserver`: the new web on `nearvest-e8312ea` shows the v1 duel and no Online /
+"gone" after 5 s. `--oldserver`: the new web on the previous server release shows the v1 duel and no Online /
 Add friend.
 
 ### 7.6 Time
@@ -581,7 +581,7 @@ the v1 result panel (+PANEN after the Season rule, +XP, tx, Share on X). Close =
 (Stay / Leave); the Arena window then shows "Your duel with X's TaniBot is waiting. Continue" and keeps
 the Duel buttons off. Icons Rock / Paper / Scissors = 16x16 UI icons (tokens only). Notices +
 Village Arena box for received matches. `window.__turnT` freezes a turn (dev).
-**Old server (no `state.arena.v`):** the v1 duel as before (checked on `nearvest-e8312ea`).
+**Old server (no `state.arena.v`):** the v1 duel as before (checked on the previous server release).
 
 **Checks done (fake chain on the Mac, never server/.env):** server 242 tests, web 123 tests, both type
 checks, build. Browser `--match=<me>:<foe>` (new in tools/ui-test.mjs; FAKE_DB sets the locked pick so
@@ -639,10 +639,10 @@ Ardian played v2 on the laptop (everything worked) and asked for five changes be
    web `test/arena-turn.test.ts` (countdown, missed turn, Gold Durian phases, tiers + drones).
    Browser `--match` (fake chain): clock 7 s / red 2 s, a real missed turn (decided ~12 s after the
    turn started), both Gold Durians in 4 frames each, K.O., result; `PERF=1` counts frames.
-   `--oldserver` on `nearvest-e8312ea` (which also runs on the upgraded database): the v1 duel.
+   `--oldserver` on the previous server release (which also runs on the upgraded database): the v1 duel.
 
 **Database for the release:** still only the new table `arena_matches` (now with `turn_started_at`);
-`nearvest-e8312ea` ignores it, so a rollback needs no restore.
+The previous server release ignores it, so a rollback needs no restore.
 
 ### 7.9 "Time’s up!" and the village behind the duel (Ardian 2026-11-11, local commit, NOT released)
 
@@ -666,7 +666,7 @@ Ardian played v2 on the laptop (everything worked) and asked for five changes be
   shrunk (a squeezed stage cut the feet off). Headless Chrome 390x844: 57 fps during the Gold Durian.
 - Checks: web tests 129, server 245, build; ui-test `--match` (new `FIRST_ONLY=1`; logs the cut, the
   floor and the feet) at 390x844 and 1280x800, by day / dusk / night; `--oldserver` on
-  `nearvest-e8312ea`: the v1 duel. No server or database change in this step.
+  the previous server release: the v1 duel. No server or database change in this step.
 
 ### 7.10 The Tandur Arena backdrop (Ardian 2026-11-11, web only, local commit, NOT released)
 
@@ -685,7 +685,7 @@ Gunung Tandur behind; one picture per light (day / dusk / night) for laptops (48
 - The village weather no longer shows behind the duel (the pictures have their own sky).
 - Checks: Gold Durian 59 fps in headless Chrome at 390x844; `--match` at both sizes day / dusk /
   night (ui-test logs `covers`, the ring row, the feet and the visible picture); `--oldserver` on
-  `nearvest-e8312ea`: the v1 duel. No server or database change.
+  the previous server release: the v1 duel. No server or database change.
 
 
 ### 7.11 Built: Add friend + Online dot (v3 part 1; Ardian 2026-11-11, local, NOT released; VPS untouched)
@@ -700,7 +700,7 @@ already have uses none), never yourself (400 `own_garden`), full = 409 `friends_
 ever** (add, remove, add again does not notify twice); a remove sends no notice and hides the old
 "added you" row. Online = a ping in the last `ONLINE_MS` 60 s.
 
-**Light sign of life (VPS ~1 GB free, Entropy safe):** the web sends `POST /api/ping` every **30 s**
+**Light sign of life (VPS ~1 GB free, shared):** the web sends `POST /api/ping` every **30 s**
 (`PING_MS`, sent to the web as `state.friends.pingMs`) **only while the game tab is visible**; when the
 tab is hidden or closed it sends `{ away: true }` once (fetch keepalive) and stops, so the dot goes out
 at once. No WebSocket, no Server-Sent Events, no open connection. The server writes `players.active_at`
@@ -734,9 +734,9 @@ Arena list), `presence.ts` (the ping), `friends-logic.ts` (pure rules), `invite.
 buttons (`Toast.actions` in `toast-queue.ts` / `toast.tsx`: "<name> added you as a friend" + Add back /
 Visit; several at once = one line pointing to the Village tab), pixel icon `friendAdd` in `sprites.tsx`.
 Tokens only. **Old servers** (no `state.friends`): no Add friend, no Online dots, no Friends section and
-no ping (checked with `--oldserver` on `nearvest-edfb355`: 0 pings, 0 dots, no button, no errors).
+no ping (checked with `--oldserver` on the previous server release: 0 pings, 0 dots, no button, no errors).
 
-**Rollback:** `nearvest-edfb355` ran on a copy of the upgraded database (fake chain): `/api/me`,
+**Rollback:** the previous server release ran on a copy of the upgraded database (fake chain): `/api/me`,
 `/api/farmers`, a visit and `/api/arena` answer 200 for old gardens and new gardens can be made; it
 ignores the new tables and column (`/api/ping` = 404, which the new web never calls there). No database
 restore needed.
@@ -791,7 +791,7 @@ played it); it shows in Recent duels for both.
 same browser at Accept** = practice (no prize, no XP). Judge gardens cannot be challenged online.
 
 **Database:** new nullable / DEFAULT columns on `arena_matches` only (`pick_c, pick_d, seen_d, invite_ends_at,
-invite_result, paused_side, pause_ends_at, ip_d, device_d`), added by `migrate()`. **`nearvest-b7edf49` runs on
+invite_result, paused_side, pause_ends_at, ip_d, device_d`), added by `migrate()`. **The previous server release runs on
 the upgraded database** (checked on a copy with live / cancelled rows, fake chain: `/api/me`, `/api/arena`, a v2
 match start + pick all 200). After a rollback it ignores invites / paused / cancelled rows (it only reads
 `status 'playing'`) and counts a cancelled duel toward the day's 3 (harmless). No database restore needed.
@@ -802,7 +802,7 @@ duel turned around, "me" always on the left, so the Fruit Fight, life / skill ba
 and K.O. are reused unchanged; `foeLabel`, `inviteNote`, live texts), `presence.ts` (the ping's answer), Duel
 buttons with a mint Online dot when the switch is on and the farmer is online (Arena window, Friends rows,
 visit panel). **Old servers** (no `arenaOnline`): the web never sends `live`, pings every 30 s, no popup
-(checked with `--oldserver` on `nearvest-b7edf49` at 390x844 and 1280x800: no problems).
+(checked with `--oldserver` on the previous server release at 390x844 and 1280x800: no problems).
 
 **Tests:** `server/test/arena-online.test.ts` (14: switch off, invite + accept, decline / no answer / skip,
 too late + cancel not counted, offline / judge / busy, open pick never sent, 10 s for both + both missed,

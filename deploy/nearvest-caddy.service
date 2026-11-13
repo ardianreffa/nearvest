@@ -1,7 +1,7 @@
 # Caddy for NEARvest: HTTPS on 150-109-24-35.sslip.io (Let's Encrypt), proxy to 127.0.0.1:8787.
 # Installed as /etc/systemd/system/nearvest-caddy.service. Caddy is a single static program in
 # /opt/nearvest/caddy (no apt: on this VPS needrestart restarts services automatically after apt,
-# which would restart pm2 and Entropy).
+# which would restart other software).
 
 [Unit]
 Description=Caddy HTTPS for NEARvest
