@@ -83,7 +83,30 @@ function proofLink(step: JudgeStep, txUrl: string | null, state: GameState, conf
   return null;
 }
 
-export function JudgeTour({ state, config, onGo, onClose }: { state: GameState; config: ServerConfig; onGo: (step: JudgeStep) => void; onClose: () => void }) {
+/** Extra places a judge can open at the end of the tour (no step count). */
+export type JudgeExtra = 'fishing' | 'arena' | 'friends';
+const EXTRAS: Record<JudgeExtra, { title: string; text: string; go: string }> = {
+  fishing: { title: 'Fishing', text: 'Cast a line with TaniBot at the pond.', go: 'Go fishing' },
+  arena: { title: 'Arena', text: 'Fruit Fight 1 VS 1 against another garden.', go: 'Open the Arena' },
+  friends: { title: 'Friends', text: 'Visit other farmers, help water and send stickers.', go: 'Find farmers' },
+};
+
+export function JudgeTour({
+  state,
+  config,
+  onGo,
+  onClose,
+  extras = [],
+  onExtra,
+}: {
+  state: GameState;
+  config: ServerConfig;
+  onGo: (step: JudgeStep) => void;
+  onClose: () => void;
+  /** The extras this server offers (Ardian 2026-11-13: "Also try" at the end of the tour). */
+  extras?: JudgeExtra[];
+  onExtra?: (extra: JudgeExtra) => void;
+}) {
   const tour = state.judgeTour ?? [];
   const next = tour.find((t) => !t.done)?.step ?? null;
   return (
@@ -137,6 +160,24 @@ export function JudgeTour({ state, config, onGo, onClose }: { state: GameState; 
       <p class="small muted">
         Your account: <a href={nearblocksAccount(state.player.accountId)} target="_blank" rel="noopener">{state.player.accountId}</a>. Demo mode: 1 game day = 1 minute.
       </p>
+      {extras.length > 0 && onExtra && (
+        <section class="judge-also" aria-label="Also try">
+          <h3>Also try</h3>
+          <ul>
+            {extras.map((k) => (
+              <li key={k} class="judge-also-row">
+                <span class="grow">
+                  <b>{EXTRAS[k].title}</b>
+                  <span>{EXTRAS[k].text}</span>
+                </span>
+                <button class="btn btn-small" onClick={() => onExtra(k)}>
+                  {EXTRAS[k].go}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </Modal>
   );
 }

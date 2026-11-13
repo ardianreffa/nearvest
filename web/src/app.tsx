@@ -46,7 +46,7 @@ import { signShopBurn, WALLET_LIST_BLOCKED, walletProof } from './wallet';
 import { Profile } from './profile';
 import { TaniBotWindow } from './tanibot';
 import { GoogleButton, pendingGoogleRedirect, takeGoogleRedirect } from './google';
-import { judgeDeviceId, JudgeTour, JudgeTourChip } from './judge';
+import { judgeDeviceId, JudgeTour, JudgeTourChip, type JudgeExtra } from './judge';
 import { Coach, TUTORIAL_DONE_LINE, TutorialPointer } from './tutorial';
 import { playWelcomeFx } from './moment-fx';
 import { dotsFor, fruitSnap, LOCAL_NONE, markMarketSeen, markSeen, marketNew, readLocalSeen, saveLocalSeen, settleLocal, shopNeed, useSeenWhenVisible, villageNews, type LocalSeen } from './dots';
@@ -861,6 +861,10 @@ export function App() {
     if (step === 'village') side('village');
   };
 
+  // Judge tour "Also try": only what this server offers (old servers: no fishing / Arena / friends).
+  const judgeExtras: JudgeExtra[] = state
+    ? [...(state.fishing ? (['fishing'] as const) : []), ...(state.arena ? (['arena'] as const) : []), ...(Array.isArray(state.helps) ? (['friends'] as const) : [])]
+    : [];
   const infoView =
     info === 'help' ? (
       <HowToPlay onClose={() => setInfo(null)} />
@@ -869,7 +873,19 @@ export function App() {
     ) : info === 'tanibot' && state ? (
       <TaniBotWindow state={state} config={config} onState={applyState} onClose={() => setInfo(null)} notify={toast} />
     ) : info === 'judge' && state && config ? (
-      <JudgeTour state={state} config={config} onGo={judgeGo} onClose={() => setInfo(null)} />
+      <JudgeTour
+        state={state}
+        config={config}
+        onGo={judgeGo}
+        onClose={() => setInfo(null)}
+        extras={judgeExtras}
+        onExtra={(k) => {
+          setInfo(null);
+          if (k === 'fishing') wipe.run(POND_TEXT, () => setFishingOpen(true), 'up', 'water');
+          else if (k === 'arena') setArenaOpen(true);
+          else setFarmersOpen(true);
+        }}
+      />
     ) : info === 'profile' && state ? (
       <Profile
         state={state}
