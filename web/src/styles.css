@@ -7855,6 +7855,12 @@ button.chip:focus-visible {
   transition: transform 0.15s ease-out, filter 0.15s;
 }
 
+/* Hidden until their places are final (hotspots.tsx): never seen in a row and then jumping.
+   visibility (not display) keeps their size measurable; they appear at once, no fade. */
+.hotspots:not([data-pins='ready']) .place-pin {
+  visibility: hidden;
+}
+
 .place-pin .pin-frame {
   --n: 2px;
   display: inline-flex;

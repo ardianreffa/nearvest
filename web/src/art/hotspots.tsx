@@ -220,6 +220,11 @@ function placePin(el: HTMLElement, host: HTMLElement, v: Village, x: number, y: 
   el.style.top = `${best!.t - hr.top}px`;
 }
 
+/** Frames in a row with the same scene box and pin places before the pins are shown. */
+const PINS_STILL_FRAMES = 2;
+/** A short text for boxes (whole pixels), to compare one frame with the next. */
+const pinsKey = (rects: Rect[]) => rects.map((r) => [r.left, r.top, r.right, r.bottom].map(Math.round).join(',')).join('/');
+
 export function Hotspots({
   onPlace,
   account,
@@ -273,35 +278,78 @@ export function Hotspots({
   }, [bubble]);
 
   // Lay the pins (and the bubble) out now, on resize, and every second (TaniBot and bubbles move).
+  // The pins stay hidden (no `data-pins="ready"` on the box; an attribute, so a re-render keeps it) until their places are final: on a first load, on
+  // coming back to the Garden tab and after a rotation, the scene is still being moved into place
+  // when this first runs, and pins laid out then would show in one row and jump a moment later.
+  // So the layout is repeated every frame until the scene and all pins stand still for two frames;
+  // only then are the pins shown, all at once and already in their places.
+  const layoutRef = useRef<() => string>(() => '');
+  layoutRef.current = () => {
+    const h = host.current;
+    if (!h) return '';
+    const area = visibleArea(h);
+    const obstacles = obstacleRects(h, v);
+    const placed: Rect[] = [];
+    const pinObstacles = pinObstacleRects();
+    for (const id of ids) {
+      const el = pins.current[id];
+      if (!el) continue;
+      const { pin: [x, y] } = where(id);
+      placePin(el, h, v, x, y, area, [...pinObstacles, ...placed.map((r) => ({ ...r, weight: 10 }))]);
+      placed.push(el.getBoundingClientRect());
+    }
+    if (bubble && bubbleEl.current) {
+      const [x, y, w, bh] = where(bubble).box;
+      const below = y < v.h * 0.22;
+      place(bubbleEl.current, h, v, x + w / 2, below ? y + bh : y, area, obstacles.filter((o) => !bubbleEl.current!.contains(document.elementFromPoint(o.left + 1, o.top + 1))), below);
+    }
+    // What the pins' places depend on: where the scene is, how big it is, and the result.
+    const hr = h.getBoundingClientRect();
+    if (hr.width <= 0 || hr.height <= 0) return '';
+    return `${pinsKey([hr, area])}|${ids.map((id) => `${pins.current[id]?.style.left},${pins.current[id]?.style.top}`).join(';')}`;
+  };
+
+  // Bubble, hover or village changed: the pins are already shown, only their places are refreshed.
   useLayoutEffect(() => {
-    const layout = () => {
-      const h = host.current;
-      if (!h) return;
-      const area = visibleArea(h);
-      const obstacles = obstacleRects(h, v);
-      const placed: Rect[] = [];
-      const pinObstacles = pinObstacleRects();
-      for (const id of ids) {
-        const el = pins.current[id];
-        if (!el) continue;
-        const { pin: [x, y] } = where(id);
-        placePin(el, h, v, x, y, area, [...pinObstacles, ...placed.map((r) => ({ ...r, weight: 10 }))]);
-        placed.push(el.getBoundingClientRect());
-      }
-      if (bubble && bubbleEl.current) {
-        const [x, y, w, bh] = where(bubble).box;
-        const below = y < v.h * 0.22;
-        place(bubbleEl.current, h, v, x + w / 2, below ? y + bh : y, area, obstacles.filter((o) => !bubbleEl.current!.contains(document.elementFromPoint(o.left + 1, o.top + 1))), below);
-      }
+    layoutRef.current();
+  }, [bubble, hover, v]);
+
+  useLayoutEffect(() => {
+    const h = host.current;
+    if (!h) return;
+    let frame = 0;
+    /** Hides the pins, then shows them once two frames in a row gave the same places. */
+    const settle = () => {
+      cancelAnimationFrame(frame);
+      delete h.dataset.pins;
+      let last = layoutRef.current();
+      let same = 0;
+      let tries = 0;
+      const step = () => {
+        const now = layoutRef.current();
+        same = now !== '' && now === last ? same + 1 : 0;
+        last = now;
+        // Never hidden for long: after about 2 s the pins show where they are.
+        if (same >= PINS_STILL_FRAMES || ++tries > 120) h.dataset.pins = 'ready';
+        else frame = requestAnimationFrame(step);
+      };
+      frame = requestAnimationFrame(step);
     };
-    layout();
-    window.addEventListener('resize', layout);
-    const t = setInterval(layout, 1000);
+    settle();
+    window.addEventListener('resize', settle);
+    window.addEventListener('orientationchange', settle);
+    // The scene changed size without a window resize (a panel opened): new places before the next paint.
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(() => layoutRef.current()) : null;
+    ro?.observe(h);
+    const t = setInterval(() => layoutRef.current(), 1000);
     return () => {
-      window.removeEventListener('resize', layout);
+      cancelAnimationFrame(frame);
+      window.removeEventListener('resize', settle);
+      window.removeEventListener('orientationchange', settle);
+      ro?.disconnect();
       clearInterval(t);
     };
-  }, [bubble, hover, v]);
+  }, []);
 
   const tap = (id: PinId) => {
     const s = spot(id);
