@@ -239,7 +239,10 @@ export function TaniBotWindow({
   return (
     <Modal title="TaniBot" onClose={onClose} closeLabel="Close" class="tanibot-dialog">
       <div class="bot-head">
-        <TaniBot tier={tierOf(p.title)} scale={2} />
+        {/* A calm portrait: the robot itself with its small idle life (blinking eyes, LEDs), no
+            tier effects. The Legend's aura and halo were cut by the window's edge and its light
+            scan ran over the face; the full show stays in the garden. */}
+        <TaniBot tier={tierOf(p.title)} scale={2} effects={false} />
         <div>
           <b>Your AI farmer with its own NEAR wallet</b>
           <p class="small">

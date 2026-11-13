@@ -4068,9 +4068,11 @@ button.balance:focus-visible {
   margin: 4px 0 0;
 }
 
-/* The sprite's layers are absolutely positioned: keep its own width in the row. */
+/* The sprite's layers are absolutely positioned: keep its own width in the row. A little room
+   around it, so a tier's soft glow and the hat's tip are never cut by the window's edge. */
 .bot-head > .tanibot {
   flex: 0 0 auto;
+  margin: 8px 4px 8px 8px;
 }
 
 .tanibot-dialog .info-body .panel + .panel {
