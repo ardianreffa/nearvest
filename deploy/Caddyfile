@@ -8,9 +8,10 @@
 150-109-24-35.sslip.io {
 	encode zstd gzip
 
-	# The game server limits free gifts per IP using CF-Connecting-IP or X-Forwarded-For.
-	# Caddy writes X-Forwarded-For itself (it ignores a visitor's own copy); a faked
-	# CF-Connecting-IP from a visitor is removed here.
+	# The game server limits free gifts per IP using the LAST X-Forwarded-For entry
+	# (server/src/client-ip.ts). Caddy writes X-Forwarded-For itself (without trusted_proxies
+	# it ignores a visitor's own copy). CF-Connecting-IP is ignored by the server unless
+	# TRUST_CF_IP=on; a faked one from a visitor is also removed here.
 	request_header -CF-Connecting-IP
 
 	reverse_proxy 127.0.0.1:8787

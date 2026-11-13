@@ -35,6 +35,8 @@ export interface Config {
   arenaOnline: boolean;
   /** Fishing mini-game (FISHING=on). Off (default) = the pin says "Soon", the endpoints refuse. */
   fishing: boolean;
+  /** TRUST_CF_IP=on: read the player's IP from CF-Connecting-IP (only behind Cloudflare). Off (default): ignored, it can be faked. */
+  trustCfIp: boolean;
 }
 
 function env(name: string, fallback?: string): string {
@@ -96,6 +98,7 @@ export function loadConfig(): Config {
     tanibotAiBudgetUsd: Number(env('TANIBOT_AI_BUDGET_USD', '8')),
     arenaOnline: bool('ARENA_ONLINE', false),
     fishing: bool('FISHING', false),
+    trustCfIp: bool('TRUST_CF_IP', false),
   };
   const wanted = bool('DEV_LOGIN', false);
   config.devLogin = devLoginAllowed(wanted, config.webOrigins);

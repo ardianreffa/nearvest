@@ -3,6 +3,7 @@
 import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { bodyLimit } from 'hono/body-limit';
+import { clientIpFrom } from './client-ip.ts';
 import { devIdentity, login, logout, openSession, userFromToken, verifyGoogleCredential } from './auth.ts';
 import type { JWTVerifyGetKey } from 'jose';
 import { DEFAULT_BOT_BUDGET, DEFAULT_BOT_DAILY_LIMIT, MAX_BOT_DAILY_LIMIT, type TaniBotService } from './tanibot.ts';
@@ -34,7 +35,8 @@ export interface AppDeps {
   db: DB;
   game: Game;
   chain: Chain;
-  config: Pick<Config, 'devLogin' | 'googleClientId' | 'webOrigins' | 'panenContractId' | 'pohonContractId' | 'networkId' | 'factoryAccountId' | 'explorerTxUrl'>;
+  config: Pick<Config, 'devLogin' | 'googleClientId' | 'webOrigins' | 'panenContractId' | 'pohonContractId' | 'networkId' | 'factoryAccountId' | 'explorerTxUrl'> &
+    Partial<Pick<Config, 'trustCfIp'>>;
   now: () => number;
   tanibot: TaniBotService;
   judge: JudgeService;
@@ -64,8 +66,8 @@ export function createApp(deps: AppDeps) {
   // round trip to the server instead of two (the preflight was repeated after a few seconds idle).
   app.use('*', cors({ origin: config.webOrigins, allowHeaders: ['Content-Type', 'Authorization'], allowMethods: ['GET', 'POST'], maxAge: 7200 }));
 
-  const clientIp = (c: Context) =>
-    c.req.header('CF-Connecting-IP') ?? c.req.header('X-Forwarded-For')?.split(',')[0]?.trim() ?? null;
+  // The only place the player's IP is read (client-ip.ts): every per-IP limit uses it.
+  const clientIp = (c: Context) => clientIpFrom((name) => c.req.header(name), { trustCfIp: config.trustCfIp === true });
 
   // No game request is bigger than a few KB (the biggest: a signed wallet proof or burn); a huge
   // body is refused before it is read, so it cannot fill the VPS's memory.
