@@ -17197,3 +17197,59 @@ html.pond-open .hud * {
   color: var(--paper-light);
   opacity: 1;
 }
+
+/* Sign-in page: small Music and Sound switches at the top right (Ardian 2026-11-13). */
+.login-page .login-audio {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  right: 8px;
+  z-index: 5;
+  display: flex;
+  padding: 4px;
+  background: color-mix(in srgb, var(--hud) 80%, transparent);
+  border: 2px solid var(--soil-700);
+  border-radius: var(--r-btn);
+  corner-shape: var(--corner);
+}
+
+.login-page .login-audio .icon-row {
+  display: flex;
+  gap: 4px;
+}
+
+/* Phones: bottom right, on the Privacy · Terms row (the logo fills the top's whole width). */
+@media (max-width: 1023px) {
+  .login-page .login-audio {
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+    padding: 2px;
+  }
+
+  .login-page .login-audio .icon-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+  }
+
+  .login-page .login-audio .icon-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .login-page .login-audio {
+    top: 16px;
+    right: 16px;
+  }
+
+  .login-page .login-audio .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .login-page .login-audio .icon-btn svg {
+    width: 21px;
+    height: 21px;
+  }
+}

@@ -12,7 +12,8 @@ import { lockedFraction, hourOf } from './art/backdrop';
 import { PondScene } from './art/pond';
 import { layoutFor } from './art/pond-layouts';
 import { PondPictures } from './art/pond-pictures';
-import { pondMix, pondTime } from './pond-life-plan';
+import { pondMix, pondSounds, pondTime } from './pond-life-plan';
+import { LOGIN_POND_LEVEL, setPondAmbience } from './audio';
 
 /** The village hour before sign-in: the WIB clock (dev builds may lock it with ?time=). */
 export function loginHour(now = Date.now(), search = typeof location === 'undefined' ? '' : location.search): number {
@@ -46,6 +47,11 @@ export function LoginPond() {
   const fit = loginPondFit(W, H, phone, L.w, L.h);
   const mix = pondMix(hour);
   const time = pondTime(hour);
+  // The pond's sounds as a soft background (Sound switch; after the first tap, like every sound).
+  useEffect(() => {
+    setPondAmbience(pondSounds(time, 'clear'), LOGIN_POND_LEVEL);
+  }, [time]);
+  useEffect(() => () => setPondAmbience(null), []);
   return (
     <div class={`login-pond pond-time-${time}`} aria-hidden="true">
       <PondPictures L={L} fit={fit} mix={mix} />

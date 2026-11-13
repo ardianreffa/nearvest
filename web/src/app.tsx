@@ -1751,6 +1751,13 @@ function Login({ config, onLoggedIn, onHelp }: { config: ServerConfig; onLoggedI
     <div class="login-page">
       {/* The Fishing pond behind the sign-in (Ardian 2026-11-12; was the village). */}
       <LoginPond />
+      {/* Music and Sound, always visible here (Ardian 2026-11-13: music switched off in the garden
+          left the sign-in page silent after Sign out, with no way to switch it on again). */}
+      <div class="login-audio">
+        <div class="icon-row">
+          <AudioButtons />
+        </div>
+      </div>
     <main class="shell center login">
       {/* Top to bottom: title near the sky, buttons in the middle, the note on the grass, links last.
           The two flexible gaps around the buttons are equal (login-gap). */}

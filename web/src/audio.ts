@@ -767,6 +767,7 @@ function fishingFx(c: AudioContext, sfx: GainNode): GainNode {
 }
 
 let pondWanted: PondSoundMix | null = null;
+let pondLevel = POND_LEVEL;
 let pondPlaying: { key: string; out: GainNode; stops: AudioScheduledSourceNode[]; timer: number } | null = null;
 let noiseBuf: AudioBuffer | null = null;
 
@@ -785,7 +786,7 @@ function noiseLoop(c: AudioContext): AudioBufferSourceNode {
 
 function syncPond(): void {
   const want = prefs.sfx && unlocked && !document.hidden ? pondWanted : null;
-  const key = want ? JSON.stringify(want) : '';
+  const key = want ? JSON.stringify(want) + pondLevel : '';
   if ((pondPlaying?.key ?? '') === key) return;
   if (pondPlaying && ctx) {
     const p = pondPlaying;
@@ -805,7 +806,7 @@ function syncPond(): void {
   wakeAudio();
   const out = c.createGain();
   out.gain.setValueAtTime(0, c.currentTime);
-  out.gain.linearRampToValueAtTime(POND_LEVEL, c.currentTime + 1.2);
+  out.gain.linearRampToValueAtTime(pondLevel, c.currentTime + 1.2);
   out.connect(sfxGain);
   if (import.meta.env.DEV) {
     const an = c.createAnalyser();
@@ -1013,11 +1014,15 @@ const BIRDS: { base: number; type: OscillatorType; vol: number; vib: number; son
   { base: 560, type: 'sine', vol: 0.11, vib: 0, song: [[1, 0.95, 0, 0.32], [1.12, 1, 0.42, 0.4]] },
 ];
 
-/** The pond's background while the Fishing window is open (null = silence). */
-export function setPondAmbience(mix: PondSoundMix | null): void {
+/** The pond's background while the Fishing window is open (null = silence). `level`: the sign-in page
+    plays it softer, under the music (LOGIN_POND_LEVEL). */
+export function setPondAmbience(mix: PondSoundMix | null, level = POND_LEVEL): void {
   pondWanted = mix;
+  pondLevel = level;
   syncPond();
 }
+/** The sign-in page (Ardian 2026-11-13): the pond's sounds as a soft background under the music. */
+export const LOGIN_POND_LEVEL = 1.2;
 
 // Follow the Sound switch, the first tap and the tab being hidden.
 listeners.add(() => void syncAmbient());
