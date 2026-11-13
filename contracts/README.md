@@ -48,7 +48,7 @@ thresholds: 100,000 / 200,000 / 400,000 PANEN. Testnet uses 2,000 / 5,000 / 10,0
 Values: species `mango | rambutan | durian`, quality `common | rare | gold`, stage `seed | sprout | tree | fruiting | old`.
 Species, quality, birth time and parent are fixed at mint. Age and harvest count can only go up. Memorial Trees cannot be updated but stay transferable.
 
-Images: `set_media_base_url` is not set yet, so the NFTs use placeholder images (`placehold.co`); the pixel art is drawn by the web game.
+Images: while `media_base_url` is empty the NFTs use placeholder images (`placehold.co`). The pixel-art files are ready in `web/public/nft/` (`{species}_{stage}.png`, `{species}_memorial.png`; made by `tools/nft/make-nft-art.mjs`). The metadata is built when it is read, so one owner call `set_media_base_url("https://nearvest-six.vercel.app/nft/")` switches every tree, old and new; `set_media_base_url(null)` switches back.
 
 ## Factory methods
 
