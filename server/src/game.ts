@@ -20,6 +20,7 @@ import {
   AVATAR_TITLE,
   CHECKIN_DAY7_MULTIPLIER,
   CHECKIN_PANEN,
+  DEMO_CHECKIN_PANEN_PER_REAL_DAY,
   DEMO_STREAK_GRACE_DAYS,
   DEMO_XP_MULTIPLIER,
   FERTILIZER_BOOST,
@@ -940,10 +941,14 @@ export class Game {
       const calendarDay = ((streak - 1) % 7) + 1;
       const panen = calendarDay === 7 ? CHECKIN_PANEN * CHECKIN_DAY7_MULTIPLIER : CHECKIN_PANEN;
       this.db.prepare('UPDATE players SET checkin_day = ?, streak = ? WHERE id = ?').run(today, streak, p.id);
-      this.earn(p.id, p.account_id, 'checkin', panen, `Daily check-in, day ${calendarDay}`);
+      // Demo mode: only DEMO_CHECKIN_PANEN_PER_REAL_DAY paid check-ins per real (UTC) day.
+      const limit = this.demoCheckinPanen(p);
+      const paid = !limit || limit.used < limit.max;
+      if (paid) this.earn(p.id, p.account_id, 'checkin', panen, `Daily check-in, day ${calendarDay}`);
+      const noPanen = paid ? null : `No PANEN: demo check-in reward limit reached today (${limit!.used}/${limit!.max})`;
       // A free mango seed every day, so nobody is ever stuck. Seeds only go in while
       // there is a free slot (the Gold seed first); the rest is reported as skipped.
-      const rewards = [`${panen} PANEN`];
+      const rewards = paid ? [`${panen} PANEN`] : [];
       const skipped: string[] = [];
       const seeds: [Quality | null, string][] = calendarDay === 7 ? [['gold', '1 Gold Mango seed'], [null, '1 Mango seed']] : [[null, '1 Mango seed']];
       for (const [quality, label] of seeds) {
@@ -952,8 +957,21 @@ export class Game {
           rewards.push(label);
         } else skipped.push(label);
       }
-      return { streak, calendarDay, rewards, skipped };
+      return { streak, calendarDay, rewards, skipped, noPanen };
     });
+  }
+
+  /**
+   * Demo gardens: how many check-ins paid PANEN this real day (00:00 UTC) and the maximum.
+   * Counted from the ledger (no extra column). Normal gardens: null (one check-in a real day anyway).
+   */
+  demoCheckinPanen(p: PlayerRow): { used: number; max: number } | null {
+    if (p.demo !== 1) return null;
+    const dayStart = Math.floor(this.d.now() / 86_400_000) * 86_400_000;
+    const row = this.db
+      .prepare("SELECT COUNT(*) AS n FROM ledger WHERE player_id = ? AND kind = 'checkin' AND amount_micro > 0 AND created_at >= ?")
+      .get(p.id, dayStart) as { n: number };
+    return { used: row.n, max: DEMO_CHECKIN_PANEN_PER_REAL_DAY };
   }
 
   plant(playerId: number, plot: number, seedId: number) {
@@ -1756,6 +1774,8 @@ export class Game {
       clock: { day: today, farmDay: today - dayIndex(p.created_at, demo) + 1, msUntilNextDay: msUntilNextDay(now, demo), dayLengthMs: dayMs },
       checkin: {
         available: !checkedInToday,
+        /** Demo gardens: check-ins that paid PANEN this real day (UTC) and the maximum; then seeds only. */
+        demoPanen: this.demoCheckinPanen(p),
         streak: p.streak,
         nextCalendarDay: ((nextStreak - 1) % 7) + 1,
         calendar: [1, 2, 3, 4, 5, 6, 7].map((day) => ({

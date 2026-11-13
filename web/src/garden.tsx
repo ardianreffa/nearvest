@@ -342,14 +342,18 @@ export function CheckinBanner({ state, act, ask, busy, elapsed = 0 }: { state: G
     if (free < seeds) {
       const what = free <= 0 ? (seeds === 2 ? "today's 2 seeds (Gold Mango + Mango)" : "today's Mango seed") : 'the plain Mango seed (the Gold seed goes in first)';
       const ok = await ask(
-        `Your seed storage is full, so ${what} will not fit. You still get the PANEN. Free a slot first in Storage, or check in anyway?`,
+        `Your seed storage is full, so ${what} will not fit. ${limitReached ? 'Your streak still counts.' : 'You still get the PANEN.'} Free a slot first in Storage, or check in anyway?`,
         'Check in anyway',
       );
       if (!ok) return;
     }
-    const r = (await act('/api/checkin', undefined, 'Checked in!')) as { skipped?: string[] } | null;
+    const r = (await act('/api/checkin', undefined, 'Checked in!')) as { skipped?: string[]; noPanen?: string | null } | null;
+    if (r?.noPanen) floatText(r.noPanen, 'burn');
     if (r?.skipped?.length) floatText(`Storage full: ${r.skipped.join(', ')} skipped`, 'burn');
   };
+  // Demo gardens: only a few check-ins a real day pay PANEN (the server says how many).
+  const limit = c.demoPanen;
+  const limitReached = !!limit && limit.used >= limit.max;
   return (
     <div class="checkin">
       <div class="calendar" aria-label="7-day reward calendar">
@@ -370,6 +374,11 @@ export function CheckinBanner({ state, act, ask, busy, elapsed = 0 }: { state: G
         Streak: {c.streak} {c.streak === 1 ? 'day' : 'days'} <Info k="streak" label="the check-in streak" />
         {state.player.demo && <> · Demo mode: your streak keeps going if you miss up to 10 minutes.</>}
       </p>
+      {limitReached && (
+        <p class="checkin-note checkin-limit">
+          No PANEN: demo check-in reward limit reached today ({limit.used}/{limit.max}). Seeds and streak still count.
+        </p>
+      )}
     </div>
   );
 }

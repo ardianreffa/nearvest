@@ -1576,7 +1576,7 @@ export function App() {
 /** Effects after an action; `early`: the instant ones already played when the button was pressed. */
 function juice(path: string, result: unknown, early = false) {
   const r = (result ?? {}) as { rewards?: string[]; burnedPanen?: number };
-  if (path === '/api/checkin' && r.rewards?.[0]) {
+  if (path === '/api/checkin' && r.rewards?.[0]?.endsWith('PANEN')) {
     floatText(`+${r.rewards[0]}`, 'gold');
     coinsToBalance(4);
   } else if (path === '/api/shop/buy' && r.burnedPanen) {

@@ -46,6 +46,12 @@ export type ShopItem = keyof typeof SHOP_ITEMS;
 
 export const CHECKIN_PANEN = 5;
 /**
+ * Demo mode only (1 day = 1 minute): at most this many check-ins per garden per real day
+ * (00:00 UTC) pay PANEN. Later demo check-ins still count for the streak and give the seeds,
+ * but no PANEN (else one scripted garden could mint ~7,000 PANEN a real day).
+ */
+export const DEMO_CHECKIN_PANEN_PER_REAL_DAY = 7;
+/**
  * Demo mode only: a streak survives this many missed game days (1 day = 1 minute,
  * so judges can see the streak grow without checking in every single minute).
  */

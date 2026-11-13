@@ -325,7 +325,14 @@ export interface GameState {
     xpMultiplier: number;
   };
   clock: { day: number; farmDay: number; msUntilNextDay: number; dayLengthMs: number };
-  checkin: { available: boolean; streak: number; nextCalendarDay: number; calendar: { day: number; reward: string }[] };
+  checkin: {
+    available: boolean;
+    streak: number;
+    nextCalendarDay: number;
+    calendar: { day: number; reward: string }[];
+    /** Demo gardens (servers after 2026-11-13): check-ins that paid PANEN this real day and the maximum. */
+    demoPanen?: { used: number; max: number } | null;
+  };
   /** `memorial`: a Memorial Tree standing on the plot (missing on older servers). */
   plots: { plot: number; locked: boolean; tree: TreeView | null; memorial?: MemorialView | null }[];
   /** The player's Memorial Trees, newest first (missing on older servers). */
