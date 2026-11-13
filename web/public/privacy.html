@@ -33,7 +33,7 @@
   <body>
     <main>
       <h1>NEARvest privacy</h1>
-      <p class="muted">Last updated: 8 November 2026</p>
+      <p class="muted">Last updated: 13 November 2026</p>
 
       <p>
         NEARvest is a pixel farming game on the <b>NEAR testnet</b>, made by Ardian Reffa for the NEAR Hackathon. It is a test version: there is no
@@ -45,10 +45,18 @@
         <li><b>Sign-in with Google:</b> your Google account ID (the "sub" number) and your email address, only to sign you in and to keep one garden per Google account. We never see your Google password.</li>
         <li><b>Sign-in with a NEAR wallet:</b> your NEAR account name (it is public anyway). We never receive your wallet's keys.</li>
         <li><b>Your garden:</b> the garden name you choose, your NEAR testnet account name, your avatar and your game progress (trees, seeds, fruit, PANEN balance, XP, check-ins, TaniBot settings and its log).</li>
-        <li><b>Anti-abuse:</b> the IP address used when a garden is created, and a random device ID for "Try as Judge", to limit free welcome gifts per day.</li>
+        <li><b>Anti-abuse:</b> your IP address and a random device ID (made and kept in your browser) when a garden is created and for invites, Arena duels and fishing, to limit free rewards per day (welcome gifts, invite rewards, duel prizes, fishing catches, Try as Judge gardens) and to tell a practice duel or a self-invite from a real one. The server also counts requests per IP address for a minute, only in memory, to stop floods.</li>
+        <li><b>Social:</b> your friends list, garden visits, stickers, wave-backs, help with watering, invites and Arena duels and their results, and when your game tab was last open (for the Online dot).</li>
         <li><b>Sign-in session:</b> a random token. The server keeps only a scrambled (hashed) copy; your browser keeps the token so you stay signed in for up to 30 days.</li>
-        <li><b>In your browser only</b> (local storage): your settings (music, sound, menu) and, for wallet gardens, a limited game key that can only spend PANEN in the Shop.</li>
+        <li><b>In your browser only</b> (local storage): your settings (music, sound, menu, open sections), the random device ID, an invite link you opened (kept up to 7 days), "already seen" notes (red dots, share cards for later) and, for wallet gardens, a limited game key that can only spend PANEN in the Shop. Clearing the site data in your browser removes them.</li>
       </ul>
+
+      <h2>What other players can see</h2>
+      <p>
+        Other players can see your garden name, title, avatar, your trees and their state, whether your TaniBot is on, and an Online dot while your game
+        tab is open. When you visit, add a friend, send a sticker, help water or challenge someone in the Arena, that player sees your garden name with it,
+        and both sides see a duel's result. Other players never see your email, your Google account, your IP address or your device ID.
+      </p>
 
       <h2>Account keys (custodial, testnet only)</h2>
       <p>
@@ -66,7 +74,7 @@
       <h2>Who else is involved</h2>
       <ul>
         <li><b>We do not sell your data</b>, and the game has no ads and no tracking or analytics tools.</li>
-        <li>Google handles the Google sign-in; the page fonts load from Google Fonts.</li>
+        <li>Google handles the Google sign-in. The fonts are stored on our own site (no font service is called).</li>
         <li>The NEAR testnet network records the transactions.</li>
         <li>TaniBot's AI helper (NEAR AI Cloud) receives only garden numbers (trees, fruit, prices, budget), never your name or email.</li>
         <li>The web page is hosted on Vercel and the game server on a rented server (VPS).</li>
