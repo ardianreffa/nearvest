@@ -454,7 +454,13 @@ function SellControl({
         Max
       </button>
       <button class="btn btn-small btn-gold sell-go" disabled={busy || none} onClick={() => onSell(qty)}>
-        {none ? 'Sell' : `Sell ${formatPanen(total)}`}
+        {none ? (
+          'Sell'
+        ) : (
+          <>
+            Sell <Coin /> {formatPanen(total)}
+          </>
+        )}
       </button>
     </div>
   );
@@ -485,7 +491,7 @@ function FruitRow({
         <FruitIcon species={price.species} scale={3} />
         <span class="market-name">{SPECIES_NAME[price.species]}</span>
         <span class="market-price">
-          <b class={price.price >= price.base ? 'up' : 'down'}>{price.price}</b>
+          <Coin /> <b class={price.price >= price.base ? 'up' : 'down'}>{price.price}</b>
           <span class="tiny"> PANEN</span>
         </span>
         <span class="market-range" title={`Today's range ${price.min}-${price.max} (normal ${price.base})`}>

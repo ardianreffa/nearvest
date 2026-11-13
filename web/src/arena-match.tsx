@@ -42,6 +42,7 @@ import { PUBLIC_SITE } from './referral';
 import { postUrl } from './share';
 import { GoldDurian, Sprite, UiIcon } from './sprites';
 import { useFullscreen } from './fullscreen';
+import { Coin } from './ui';
 
 const KO_MS = 1300;
 const CELEBRATE_MS = 1400;
@@ -594,7 +595,9 @@ export function MatchScreen({
             <div class="duel-headline">{m.status === 'cancelled' ? 'CANCELLED' : noWinner ? 'NO WINNER' : won ? 'YOU WIN!' : isLive ? `${them.name.toUpperCase()} WINS` : 'YOU LOSE'}</div>
             {(reward.panen !== null || reward.xp > 0) && (
               <div class="duel-gains">
-                {reward.panen !== null && <span class="gain gain-panen">+{fmt(reward.panen)} PANEN</span>}
+                {reward.panen !== null && <span class="gain gain-panen">
+                    <Coin scale={2} />+{fmt(reward.panen)} PANEN
+                  </span>}
                 {reward.xp > 0 && <span class="gain gain-xp">+{reward.xp} XP</span>}
               </div>
             )}

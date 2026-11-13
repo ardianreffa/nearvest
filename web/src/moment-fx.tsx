@@ -17,6 +17,7 @@ import { playSound, type SoundName } from './audio';
 import { confetti } from './fx';
 import type { Moment, MomentKind } from './moments';
 import { Sprite } from './sprites';
+import { PanenCoin } from './art/panen-coin';
 import { TreePixels } from './art/trees';
 import { CatchIcon } from './art/catch-icons';
 
@@ -211,7 +212,7 @@ export function MomentFxLayer() {
           {!still &&
             COINS.map((c, i) => (
               <span key={i} class="mfx-coin" style={{ left: `${c.left}%`, animationDelay: `${300 + c.delay}ms` }}>
-                <Sprite name="coin" scale={3} />
+                <PanenCoin scale={2} />
               </span>
             ))}
         </>

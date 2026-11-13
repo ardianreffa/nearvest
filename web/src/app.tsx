@@ -54,7 +54,7 @@ import { Info, InfoChip } from './info';
 import { ToastStrip, useToasts } from './toast';
 import { seasonPayout } from './qty';
 import { Avatar } from './art/avatars';
-import { Coin, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
+import { formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
 type Tab = 'garden' | 'storage' | 'shop' | 'market' | 'village';
 type SideTab = Exclude<Tab, 'garden'>;
@@ -1202,7 +1202,8 @@ export function App() {
   const tabIcons: Record<Tab, ComponentChildren> = {
     garden: <Sprite name="sprout" scale={2} />,
     storage: <Sprite name="seedPacket" scale={3} />,
-    shop: <Coin scale={3} />,
+    // Navigation icon: keeps the old square coin sprite (only PANEN amounts use the round coin).
+    shop: <Sprite name="coin" scale={3} />,
     market: <DartoHead />,
     village: <Sprite name="bolt" scale={3} />,
   };

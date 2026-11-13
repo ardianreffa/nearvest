@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'preact/hooks';
 import { Sprite } from './sprites';
+import { PanenCoin } from './art/panen-coin';
 
 type Effect =
   | { id: number; kind: 'text'; x: number; y: number; text: string; tone: 'gold' | 'mint' | 'burn' | 'xp' }
@@ -121,7 +122,7 @@ export function FxLayer() {
                 class="fx-coin"
                 style={{ left: e.x, top: e.y, '--dx': `${e.dx}px`, '--dy': `${e.dy}px`, animationDelay: `${e.delay}ms` }}
               >
-                <Sprite name="coin" scale={2} />
+                <PanenCoin scale={1} />
               </span>
             );
           case 'fire':

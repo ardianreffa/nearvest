@@ -16,7 +16,7 @@ import { GoldDurian, Sprite, UiIcon } from './sprites';
 import { Modal } from './help';
 import { PUBLIC_SITE } from './referral';
 import { postUrl } from './share';
-import { Panel } from './ui';
+import { Coin, Panel } from './ui';
 import { MatchRow } from './arena-match';
 import { OnlineAvatar, OnlineTag } from './online';
 
@@ -527,7 +527,9 @@ export function DuelScreen({
             <div class="duel-headline">{headline(d)}</div>
             {(reward.panen !== null || reward.xp > 0) && (
               <div class="duel-gains">
-                {reward.panen !== null && <span class="gain gain-panen">+{fmt(reward.panen)} PANEN</span>}
+                {reward.panen !== null && <span class="gain gain-panen">
+                    <Coin scale={2} />+{fmt(reward.panen)} PANEN
+                  </span>}
                 {reward.xp > 0 && <span class="gain gain-xp">+{reward.xp} XP</span>}
               </div>
             )}

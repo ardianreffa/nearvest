@@ -24,6 +24,7 @@ import { Avatar } from './art/avatars';
 import { TaniBot } from './art/tanibot';
 import { TreePixels } from './art/trees';
 import { Sprite, type SpriteName } from './sprites';
+import { PanenCoin } from './art/panen-coin';
 import { Motif, type MotifKind } from './landing-motif';
 import { Card, DuelLoop, FishLoop, Fitted, GrowLoop, PanenMedal } from './landing-scenes';
 import { parseRef, readRef, withRef } from './referral';
@@ -145,7 +146,8 @@ function Points({ items }: { items: [SpriteName, preact.ComponentChildren][] }) 
       {items.map(([icon, text], i) => (
         <li key={i}>
           <span class="lp-point-icon">
-            <Sprite name={icon} scale={2} />
+            {/* PANEN points use the game's round PANEN coin (Ardian 2026-11-13). */}
+            {icon === 'coin' ? <PanenCoin scale={1} /> : <Sprite name={icon} scale={2} />}
           </span>
           <span>{text}</span>
         </li>

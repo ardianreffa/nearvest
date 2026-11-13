@@ -5,6 +5,7 @@ import type { Quality, Species, Stage } from './api';
 import { useState } from 'preact/hooks';
 import { clampQty, saleTotal, seasonPayout, stepQty } from './qty';
 import { Sprite } from './sprites';
+import { PanenCoin } from './art/panen-coin';
 
 export const SPECIES_NAME: Record<Species, string> = { mango: 'Mango', rambutan: 'Rambutan', durian: 'Durian' };
 export const QUALITY_NAME: Record<Quality, string> = { common: 'Common', rare: 'Rare', gold: 'Gold' };
@@ -86,8 +87,18 @@ export function Panel({ title, children, right, class: cls }: { title: Component
   );
 }
 
+/**
+ * The PANEN token icon everywhere (Ardian 2026-11-13): the round gold "P" coin of the HUD's profile box
+ * (art/panen-coin.tsx, 13 x 13 art px). `scale` keeps the old 8 px icon's sizes: the coin is drawn at
+ * the nearest whole pixel size (1 / 2 -> 13 px, 3 -> 26 px, 5 -> 39 px). Not for the Shop tab icon.
+ */
 export function Coin({ scale = 2 }: { scale?: number }) {
-  return <Sprite name="coin" scale={scale} title="PANEN" />;
+  return <PanenCoin scale={coinScale(scale)} />;
+}
+
+/** Old 8 px icon scale -> whole-pixel scale of the 13 px PANEN coin (about the same size, never 0). */
+export function coinScale(old: number): number {
+  return Math.max(1, Math.round((old * 8) / 13));
 }
 
 /**

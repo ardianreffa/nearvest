@@ -2254,7 +2254,9 @@ input:focus-visible {
 
 .fx-coin {
   position: absolute;
-  margin: -8px 0 0 -8px;
+  /* Centred on its path: the PANEN coin is 13 px (art/panen-coin.tsx at scale 1). */
+  margin: -6.5px 0 0 -6.5px;
+  line-height: 0;
   animation: coin-fly 1.1s cubic-bezier(0.55, 0, 0.6, 1) forwards;
   opacity: 0;
 }
@@ -3851,6 +3853,11 @@ input:focus-visible {
   margin-bottom: 4px;
 }
 
+/* The PANEN coin keeps its full size (it was squeezed on phones and looked stuck to the text). */
+.panen-head > .panen-coin {
+  flex: none;
+}
+
 .info-actions {
   display: flex;
   justify-content: flex-end;
@@ -5312,6 +5319,10 @@ button.balance:focus-visible {
 .market-price {
   margin-left: auto;
   white-space: nowrap;
+}
+
+.market-price > .panen-coin {
+  vertical-align: -1px;
 }
 
 .market-price b {
@@ -12965,6 +12976,9 @@ html.page-locked body {
 }
 
 .gain-panen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--gold-500);
 }
 
