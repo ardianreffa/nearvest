@@ -9723,6 +9723,17 @@ html {
   overscroll-behavior: none;
 }
 
+/* A window or popup is open (scroll-lock.ts): the page behind it does not scroll or bounce. The
+   body is pinned in place by its inline style; a swipe inside the window scrolls only the window. */
+html.window-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.window-open .dialog-backdrop {
+  overscroll-behavior: contain;
+}
+
 html.page-locked,
 html.page-locked body {
   height: 100%;

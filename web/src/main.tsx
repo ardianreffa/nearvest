@@ -5,6 +5,7 @@ import { API_URL } from './api';
 import { installChunkReload } from './chunk-reload';
 import { installNoZoom } from './no-zoom';
 import { installSameTabLinks } from './ext-link';
+import { installScrollLock } from './scroll-lock';
 import './fonts.css';
 import './styles.css';
 
@@ -13,6 +14,7 @@ installChunkReload();
 // /play never zooms (iPhone double tap / pinch broke the layout); the landing page still zooms.
 installNoZoom();
 installSameTabLinks();
+installScrollLock();
 
 // Look up and open the connection to the game server while the page loads, so the first action
 // does not wait for DNS (sslip.io) and the TLS handshake.
