@@ -27,9 +27,10 @@ export function installNoZoom(): void {
     'touchend',
     (e) => {
       const now = Date.now();
-      // A quick second tap that is not on a text field: no zoom.
+      // A quick second tap that is not on a text field or a link: no zoom (cancelling it on a link would
+      // drop the link's click on iOS; touch-action: manipulation already stops double-tap zoom there).
       const t = e.target as HTMLElement | null;
-      if (now - last < 300 && !t?.closest('input, textarea, select')) e.preventDefault();
+      if (now - last < 300 && !t?.closest('input, textarea, select, a[href]')) e.preventDefault();
       last = now;
     },
     { passive: false },

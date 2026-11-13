@@ -1,3 +1,4 @@
+import { explorerTarget } from './ext-link';
 // Try as Judge: the device id (one judge garden per device) and the Judge tour, five
 // "do X -> see Y" steps, each ticked off with the NEAR transaction or page that proves it.
 
@@ -141,7 +142,7 @@ export function JudgeTour({
                     ) : t.txStatus === 'failed' ? (
                       <span class="error-text">The transaction failed.</span>
                     ) : link ? (
-                      <a href={link} target="_blank" rel="noopener">
+                      <a href={link} {...explorerTarget()}>
                         {t.txUrl ? 'View transaction on nearblocks' : 'View on nearblocks'}
                       </a>
                     ) : null}
@@ -158,7 +159,7 @@ export function JudgeTour({
         })}
       </ol>
       <p class="small muted">
-        Your account: <a href={nearblocksAccount(state.player.accountId)} target="_blank" rel="noopener">{state.player.accountId}</a>. Demo mode: 1 game day = 1 minute.
+        Your account: <a href={nearblocksAccount(state.player.accountId)} {...explorerTarget()}>{state.player.accountId}</a>. Demo mode: 1 game day = 1 minute.
       </p>
       {extras.length > 0 && onExtra && (
         <section class="judge-also" aria-label="Also try">

@@ -1,3 +1,4 @@
+import { explorerTarget } from './ext-link';
 // Arena 1 VS 1, v1 (docs/PLAN-arena.md, Ardian 2026-11-11): the Arena window (Arena pin and the
 // Village tab), the duel screen and the Village "Arena" box. Not real-time: the server decides a
 // duel at once (server/src/arena.ts) and the web plays it back: the two TaniBots in their title's
@@ -176,7 +177,7 @@ function RecentRow({ d, onReplay, onRematch, busy }: { d: DuelView; onReplay: (d
           {d.txUrl && (
             <>
               {' · '}
-              <a href={d.txUrl} target="_blank" rel="noopener">
+              <a href={d.txUrl} {...explorerTarget()}>
                 tx
               </a>
             </>
@@ -591,7 +592,7 @@ export function DuelScreen({
             {reward.panen !== null && season && <p class="duel-season">{seasonLine(season)}</p>}
             {txUrl ? (
               <p class="duel-tx">
-                <a href={txUrl} target="_blank" rel="noopener">
+                <a href={txUrl} {...explorerTarget()}>
                   See the prize on NEAR (nearblocks)
                 </a>
               </p>

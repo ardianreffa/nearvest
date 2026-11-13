@@ -1,3 +1,4 @@
+import { explorerTarget } from './ext-link';
 // Arena v2 "lite" (docs/PLAN-arena.md section 7, Ardian 2026-11-11): the duel screen of a turn-based
 // match against the other garden's TaniBot, and its row in the lists. Every turn the player taps
 // Rock / Paper / Scissors (or the Gold Durian when the skill bar is full); the server decides the
@@ -144,7 +145,7 @@ export function MatchRow({ m, onRematch, busy }: { m: MatchSummary; onRematch?: 
           {m.txUrl && (
             <>
               {' · '}
-              <a href={m.txUrl} target="_blank" rel="noopener">
+              <a href={m.txUrl} {...explorerTarget()}>
                 tx
               </a>
             </>
@@ -611,7 +612,7 @@ export function MatchScreen({
             {reward.panen !== null && season && <p class="duel-season">{seasonLine(season)}</p>}
             {txUrl ? (
               <p class="duel-tx">
-                <a href={txUrl} target="_blank" rel="noopener">
+                <a href={txUrl} {...explorerTarget()}>
                   See the prize on NEAR (nearblocks)
                 </a>
               </p>

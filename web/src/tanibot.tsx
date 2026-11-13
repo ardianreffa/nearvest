@@ -1,3 +1,4 @@
+import { explorerTarget } from './ext-link';
 // TaniBot window: activate, on/off, working style, budget and the Log
 // (every action with its reason and the NEAR transaction that proves it).
 
@@ -359,7 +360,7 @@ export function TaniBotWindow({
             <dl class="profile-facts">
               <dt>Wallet</dt>
               <dd>
-                <a href={bot.explorerUrl} target="_blank" rel="noopener">
+                <a href={bot.explorerUrl} {...explorerTarget()}>
                   {bot.accountId}
                 </a>
               </dd>
@@ -413,7 +414,7 @@ export function TaniBotWindow({
                     {l.reason}
                   </span>
                   {l.txUrl ? (
-                    <a href={l.txUrl} target="_blank" rel="noopener">
+                    <a href={l.txUrl} {...explorerTarget()}>
                       view tx
                     </a>
                   ) : l.txStatus === 'pending' ? (

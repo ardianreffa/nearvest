@@ -1,3 +1,4 @@
+import { explorerTarget } from './ext-link';
 // Storage, Shop, Market (Mr. Darto) and Village Stats screens.
 
 import type { ComponentChildren } from 'preact';
@@ -595,7 +596,7 @@ function MemorialList({ memorials, pohon }: { memorials?: MemorialView[]; pohon:
               </span>
             </span>
             {m.tokenId ? (
-              <a class="memorial-nft" href={nearblocksNft(pohon, m.tokenId)} target="_blank" rel="noopener">
+              <a class="memorial-nft" href={nearblocksNft(pohon, m.tokenId)} {...explorerTarget()}>
                 NFT #{m.tokenId} ↗
               </a>
             ) : (
@@ -748,11 +749,11 @@ export function Village({
         )}
         <p class="muted small">
           Contracts on NEAR {config.network}:{' '}
-          <a href={nearblocksAccount(config.contracts.panen)} target="_blank" rel="noopener">
+          <a href={nearblocksAccount(config.contracts.panen)} {...explorerTarget()}>
             {config.contracts.panen}
           </a>
           ,{' '}
-          <a href={nearblocksAccount(config.contracts.pohon)} target="_blank" rel="noopener">
+          <a href={nearblocksAccount(config.contracts.pohon)} {...explorerTarget()}>
             {config.contracts.pohon}
           </a>
         </p>
@@ -761,7 +762,7 @@ export function Village({
       <Panel title="Your on-chain log">
         <p class="muted small">
           Your account:{' '}
-          <a href={nearblocksAccount(state.player.accountId)} target="_blank" rel="noopener">
+          <a href={nearblocksAccount(state.player.accountId)} {...explorerTarget()}>
             {state.player.accountId}
           </a>
         </p>
@@ -806,7 +807,7 @@ function ActivityLog({ activity }: { activity: GameState['activity'] }) {
               </span>
             </span>
             {a.explorerUrl ? (
-              <a href={a.explorerUrl} target="_blank" rel="noopener">
+              <a href={a.explorerUrl} {...explorerTarget()}>
                 view tx ›
               </a>
             ) : (

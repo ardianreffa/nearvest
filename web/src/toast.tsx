@@ -1,3 +1,4 @@
+import { explorerTarget } from './ext-link';
 // Notifications at the top of the garden, just below the HUD. Normal ones ("Watered!", "On NEAR:
 // Tree NFT minted · view tx") are ONE thin line; errors (red) and warnings (gold) show their whole
 // text on up to four lines, stay 6 s and close with a tap (×). Only one shows at a time: normal
@@ -157,7 +158,7 @@ export function ToastStrip({ shown, dismiss, setHidden }: { shown: Shown | null;
   return (
     <div class="toasts" role="status" aria-live="polite">
       {t.link ? (
-        <a ref={el as never} key={t.id} class={`toast toast-${t.kind}`} style={style} href={t.link} target="_blank" rel="noopener" onClick={dismissAfterTap}>
+        <a ref={el as never} key={t.id} class={`toast toast-${t.kind}`} style={style} href={t.link} {...explorerTarget()} onClick={dismissAfterTap}>
           {body}
         </a>
       ) : (

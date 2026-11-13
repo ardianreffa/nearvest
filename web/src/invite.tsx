@@ -1,3 +1,4 @@
+import { explorerTarget } from './ext-link';
 // Referral + stickers on the web (docs/PLAN-social.md sections 1.4 and 3):
 // - Village tab "Invite a friend": the invite link (Copy, Share on X), the rewards, the friends
 //   invited (paid / waiting for their first harvest) and who invited you.
@@ -136,7 +137,7 @@ export function InvitePanel({ state, notify, onVisit }: { state: GameState; noti
                   {f.status === 'paid' ? (
                     <span class="tag tag-paid">
                       {f.txUrl ? (
-                        <a href={f.txUrl} target="_blank" rel="noopener">
+                        <a href={f.txUrl} {...explorerTarget()}>
                           Paid
                         </a>
                       ) : (
@@ -169,7 +170,7 @@ export function InvitePanel({ state, notify, onVisit }: { state: GameState; noti
                 <>
                   {' '}
                   (
-                  <a href={r.invitedBy.txUrl} target="_blank" rel="noopener">
+                  <a href={r.invitedBy.txUrl} {...explorerTarget()}>
                     tx
                   </a>
                   )

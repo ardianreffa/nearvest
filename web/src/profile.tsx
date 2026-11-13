@@ -1,3 +1,4 @@
+import { explorerTarget } from './ext-link';
 // Profile window: opened from the player's avatar/name (top left).
 
 import { useState } from 'preact/hooks';
@@ -100,7 +101,7 @@ export function Profile({
         <dl class="profile-facts">
           <dt>NEAR account</dt>
           <dd>
-            <a href={nearblocksAccount(p.accountId)} target="_blank" rel="noopener">
+            <a href={nearblocksAccount(p.accountId)} {...explorerTarget()}>
               {p.accountId}
             </a>
           </dd>
@@ -183,7 +184,7 @@ function WalletPanel({ state, config, onState }: { state: GameState; config: Ser
       ) : p.walletAccountId ? (
         <p class="muted small">
           Linked wallet:{' '}
-          <a href={nearblocksAccount(p.walletAccountId)} target="_blank" rel="noopener">
+          <a href={nearblocksAccount(p.walletAccountId)} {...explorerTarget()}>
             {p.walletAccountId}
           </a>
           . You can also sign in with it.

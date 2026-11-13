@@ -1,3 +1,4 @@
+import { explorerTarget, installSameTabLinks } from './ext-link';
 // The landing page at / (the game itself is at /play). Full-screen sections like a game site
 // (redesigned 2026-11-12, Ardian): the hero (the game's own village at midday), then $PANEN (a big
 // pixel title and the PANEN coin turning in its medal), "Grow, harvest, earn" (a loop made of the
@@ -174,7 +175,7 @@ function LiveStats() {
   return (
     <div class="lp-live">
       {items.map(([label, value, link]) => (
-        <a key={label} href={link} target="_blank" rel="noopener">
+        <a key={label} href={link} {...explorerTarget()}>
           <b>{value}</b> {label}
         </a>
       ))}
@@ -324,15 +325,15 @@ function Landing() {
               </a>
               <span class="lp-judges-proof">
                 On-chain proof (NEAR testnet):{' '}
-                <a href={`${EXPLORER}/token/panen.nearvest.testnet`} target="_blank" rel="noopener">
+                <a href={`${EXPLORER}/token/panen.nearvest.testnet`} {...explorerTarget()}>
                   panen.nearvest.testnet
                 </a>{' '}
                 ·{' '}
-                <a href={`${EXPLORER}/nft-token/pohon.nearvest.testnet`} target="_blank" rel="noopener">
+                <a href={`${EXPLORER}/nft-token/pohon.nearvest.testnet`} {...explorerTarget()}>
                   pohon.nearvest.testnet
                 </a>{' '}
                 ·{' '}
-                <a href={`${EXPLORER}/address/nearvest.testnet`} target="_blank" rel="noopener">
+                <a href={`${EXPLORER}/address/nearvest.testnet`} {...explorerTarget()}>
                   nearvest.testnet
                 </a>
               </span>
@@ -522,4 +523,5 @@ function Landing() {
 }
 
 installChunkReload();
+installSameTabLinks();
 render(<Landing />, document.getElementById('app')!);
