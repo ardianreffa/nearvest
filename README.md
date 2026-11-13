@@ -11,7 +11,7 @@ A pixel farming game where your tree is a living NFT and an AI farmer tends it w
 - Network: **NEAR testnet only.** PANEN and the Tree NFTs have no money value.
 - Built during the NEAR Hackathon (first commit 2026-11-05) by a solo builder, Ardian Reffa, with **Claude Code**. License: MIT.
 
-**Live numbers** (from the game server's `GET /api/stats`, read on **13 Nov 2026, 05:57 UTC**; they keep changing): 220 Tree NFTs minted, 10,594.25 PANEN minted in total, 1,633 PANEN burned (8,961.25 in circulation), Season 4 (harvest rewards ÷ 8, the lowest level), 49 gardens (judge gardens included), 675 harvests, 419 fruits sold to Mr. Darto. Check them yourself on nearblocks: [Tree NFT](https://testnet.nearblocks.io/nft-token/pohon.nearvest.testnet), [$PANEN](https://testnet.nearblocks.io/token/panen.nearvest.testnet).
+**Live numbers** (from the game server's `GET /api/stats`, read on **13 Nov 2026, 14:02 UTC**; they keep changing): 270 Tree NFTs minted, 12,371.875 PANEN minted in total, 2,169 PANEN burned (10,202.875 in circulation), Season 4 (harvest rewards ÷ 8, the lowest level), 55 gardens (judge gardens included), 864 harvests, 555 fruits sold to Mr. Darto. Check them yourself on nearblocks: [Tree NFT](https://testnet.nearblocks.io/nft-token/pohon.nearvest.testnet), [$PANEN](https://testnet.nearblocks.io/token/panen.nearvest.testnet).
 
 ![NEARvest: the pixel village of Tandur with TaniBot](web/public/og-image.png)
 
@@ -35,7 +35,7 @@ The village is **Tandur**, a solarpunk Indonesian village. Core loop: daily chec
 
 Best on a laptop with Chrome; phones work too (portrait).
 
-**Try as Judge** opens a ready garden: no sign-in, demo mode (1 game day = 1 minute), real testnet transactions.
+**Try as Judge** opens a ready garden: no sign-in, demo mode (1 game day = 1 minute), real testnet transactions. Each device gets its own new garden and returns to it later. New judge gardens are limited to 3 per IP address and 100 for the whole game per 24 hours (each costs about 0.04 testnet NEAR); when a limit is reached, Try as Judge opens an existing judge garden instead (the one unused the longest), so its trees may already be harvested.
 
 | # | Do | See |
 |---|---|---|
@@ -86,7 +86,7 @@ $PANEN (`panen.nearvest.testnet`, NEP-141, 18 decimals).
 
 ### `nfts`: NFTs That Do Something
 
-**Living Tree NFT** (`pohon.nearvest.testnet`, NEP-171 / 177 / 178 / 181). Every planted seed mints a Tree NFT into the player's own account.
+**Living Tree NFT** (`pohon.nearvest.testnet`, NEP-171 / 177 / 178 / 181). Every planted seed mints a Tree NFT into the player's own account. The one exception is Tree NFT #1, owned by `nearvest.testnet`: a test mint on 5 Nov 2026, the day the contract was deployed, before the game opened to players.
 
 - **On the NFT:** species, quality, birth time and parent tree (fixed at mint); stage (seed → sprout → tree → fruiting → old), age in game days and harvest count (updated by the game as the tree grows; age and harvests can only go up); the Memorial flag. The NFT's title and description are built from this data.
 - **On the game server:** growth speed, watering, weather, fertilizer and the fruit itself. The server grows the tree and writes the stage, age and harvest count to the NFT.
