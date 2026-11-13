@@ -8,7 +8,7 @@ import { allPrices, greeting, type DartoPrice } from './darto.ts';
 import { fromMicro, toMicro, tx, TUTORIAL_DONE, type DB } from './db.ts';
 import { enqueue, enqueueTreeUpdate } from './chain/worker.ts';
 import { UNITS_PER_MICRO } from './chain/types.ts';
-import { burnDelegateHash, verifySignature } from './wallet.ts';
+import { burnDelegateHash, verifySignature, WALLET_SHOP_LOCK_MS } from './wallet.ts';
 import { arenaNewsAt, arenaState } from './arena.ts';
 import { arenaMatchState } from './arena-match.ts';
 import { fishingState } from './fishing.ts';
@@ -1540,6 +1540,31 @@ export class Game {
   }
 
   /**
+   * Wallet gardens: when a Shop burn failed on chain (the item was taken back), the Shop stays
+   * closed for WALLET_SHOP_LOCK_MS after that failure. Returns the time it opens again, or null.
+   * Read from the chain job itself (no extra column).
+   */
+  walletShopLockedUntil(playerId: number): number | null {
+    const row = this.db
+      .prepare("SELECT MAX(updated_at) AS at FROM chain_jobs WHERE player_id = ? AND kind = 'burn_wallet' AND status = 'failed'")
+      .get(playerId) as { at: number | null };
+    if (row.at === null) return null;
+    const until = row.at + WALLET_SHOP_LOCK_MS;
+    return until > this.d.now() ? until : null;
+  }
+
+  assertWalletShopOpen(playerId: number): void {
+    const until = this.walletShopLockedUntil(playerId);
+    if (until === null) return;
+    const min = Math.max(1, Math.ceil((until - this.d.now()) / 60_000));
+    throw new GameError(
+      `Your last Shop payment failed on NEAR, so the item was taken back. The Shop opens again in ${min} min.`,
+      429,
+      { code: 'shop_locked', retryAt: until },
+    );
+  }
+
+  /**
    * Shop purchase; the spent PANEN is burned on chain. Google players: the server
    * signs the burn with their stored key. Wallet players: `signed` is the burn their
    * browser signed with the game key; it must match this exact purchase.
@@ -1550,6 +1575,7 @@ export class Game {
       const now = this.d.now();
       let wallet: { nonce: bigint; signed: SignedBurn } | null = null;
       if (p.custody === 'wallet') {
+        this.assertWalletShopOpen(p.id);
         if (!signed) throw new GameError('Please confirm the purchase with your game key', 400, { code: 'signature_required' });
         let nonce: bigint;
         try {

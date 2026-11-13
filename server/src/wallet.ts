@@ -24,6 +24,12 @@ export const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 export const BURN_GAS = teraToGas('30');
 /** Blocks a signed burn stays valid (~1 block per second on testnet). */
 export const BURN_TTL_BLOCKS = 600n;
+/** A burn handed out by /api/wallet/burn must come back to /api/shop/buy within this time (single use). */
+export const BURN_REQUEST_TTL_MS = 5 * 60 * 1000;
+/** A signed burn must still have this many blocks left when the Shop accepts it (time to relay it). */
+export const BURN_MIN_BLOCKS_LEFT = 60n;
+/** A wallet garden whose Shop burn failed on chain cannot buy for this long (stops "buy, then make the burn fail"). */
+export const WALLET_SHOP_LOCK_MS = 10 * 60 * 1000;
 /** Gas allowance of the game key: 0.01 NEAR. Meta transactions are paid by the relayer, so this is a safety cap only. */
 export const GAME_KEY_ALLOWANCE_YOCTO = '10000000000000000000000';
 export const GAME_KEY_METHODS = ['burn'];

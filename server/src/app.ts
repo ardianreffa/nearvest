@@ -16,6 +16,8 @@ import { Fishing } from './fishing.ts';
 import { Social } from './social.ts';
 import {
   BURN_GAS,
+  BURN_MIN_BLOCKS_LEFT,
+  BURN_REQUEST_TTL_MS,
   BURN_TTL_BLOCKS,
   createChallenge,
   GAME_KEY_ALLOWANCE_YOCTO,
@@ -312,12 +314,22 @@ export function createApp(deps: AppDeps) {
     return c.json(game.state(pid));
   });
 
+  /**
+   * Burns handed out by /api/wallet/burn, per player, waiting for /api/shop/buy. Each one is used
+   * once and only within BURN_REQUEST_TTL_MS. In memory on purpose: after a server restart the
+   * player simply buys again (the web asks for a new burn every time).
+   */
+  type IssuedBurn = { publicKey: string; nonce: string; maxBlockHeight: string; item: string; qty: number; amount: string; memo: string; at: number };
+  const issuedBurns = new Map<number, IssuedBurn[]>();
+  const freshBurns = (pid: number) => (issuedBurns.get(pid) ?? []).filter((x) => now() - x.at <= BURN_REQUEST_TTL_MS);
+
   // Wallet players, step 1 of a Shop purchase: the exact burn their game key must sign.
   app.post('/api/wallet/burn', async (c) => {
     const b = await body(c);
     const pid = playerId(c);
     const p = game.getPlayer(pid);
     if (p.custody !== 'wallet') throw new GameError('Only for NEAR wallet players');
+    game.assertWalletShopOpen(pid);
     const publicKey = parsePublicKey(b.publicKey).toString();
     const key = await chain.viewAccessKey(p.account_id, publicKey);
     if (!key || !isGameKey(key.permission, config.panenContractId)) {
@@ -327,17 +339,77 @@ export function createApp(deps: AppDeps) {
     const quote = game.shopQuote(pid, b.item as ShopItem, Number(b.qty ?? 1));
     const height = await chain.blockHeight();
     const nonce = (key.nonce > BigInt(p.key_nonce) ? key.nonce : BigInt(p.key_nonce)) + 1n;
+    const issued: IssuedBurn = {
+      publicKey,
+      nonce: nonce.toString(),
+      maxBlockHeight: (height + BURN_TTL_BLOCKS).toString(),
+      item: String(b.item),
+      qty: Number(b.qty ?? 1),
+      amount: (BigInt(quote.costMicro) * UNITS_PER_MICRO).toString(),
+      memo: quote.memo,
+      at: now(),
+    };
+    // Keep only the last few fresh ones (a player retrying does not pile them up).
+    issuedBurns.set(pid, [...freshBurns(pid), issued].slice(-5));
     return c.json({
       senderId: p.account_id,
       receiverId: config.panenContractId,
       publicKey,
-      nonce: nonce.toString(),
-      maxBlockHeight: (height + BURN_TTL_BLOCKS).toString(),
-      amount: (BigInt(quote.costMicro) * UNITS_PER_MICRO).toString(),
-      memo: quote.memo,
+      nonce: issued.nonce,
+      maxBlockHeight: issued.maxBlockHeight,
+      amount: issued.amount,
+      memo: issued.memo,
       gas: BURN_GAS.toString(),
     });
   });
+
+  /**
+   * Wallet players, step 2: before the Shop gives anything, the signed burn must be one this
+   * server handed out (same key, nonce, deadline, item, amount, memo; single use, not expired),
+   * and the key must really be on the account now as a game key (function call key for `burn` on
+   * the PANEN contract) whose nonce on chain is still below the signed one. The balance is
+   * re-read from the chain. The signature itself is checked in game.buy (it covers receiver,
+   * method, amount, memo, nonce and deadline).
+   */
+  const checkWalletBurn = async (pid: number, item: unknown, qty: number, signed: SignedBurn | undefined) => {
+    const p = game.getPlayer(pid);
+    if (p.custody !== 'wallet' || !signed) return;
+    game.assertWalletShopOpen(pid);
+    let signedNonce: bigint;
+    try {
+      signedNonce = BigInt(signed.nonce);
+    } catch {
+      throw new GameError('Invalid signed burn');
+    }
+    if (signedNonce <= BigInt(p.key_nonce)) throw new GameError('This purchase was already signed, please try again', 409, { code: 'nonce_used' });
+    const list = freshBurns(pid);
+    const issued = list.find((x) => x.publicKey === signed.publicKey && x.nonce === signed.nonce && x.maxBlockHeight === signed.maxBlockHeight);
+    if (!issued) {
+      throw new GameError('This purchase expired or was not prepared by the game. Please tap Buy again.', 409, { code: 'burn_expired' });
+    }
+    const quote = game.shopQuote(pid, item as ShopItem, qty);
+    if (issued.item !== item || issued.qty !== qty || issued.amount !== (BigInt(quote.costMicro) * UNITS_PER_MICRO).toString() || issued.memo !== quote.memo) {
+      throw new GameError('The signed burn does not match this purchase', 400, { code: 'bad_signature' });
+    }
+    const [key, height, balance] = await Promise.all([
+      chain.viewAccessKey(p.account_id, signed.publicKey),
+      chain.blockHeight(),
+      chain.ftBalanceOf(p.account_id),
+    ]);
+    if (!key || !isGameKey(key.permission, config.panenContractId)) {
+      throw new GameError('Your game key is missing. Connect your wallet once more to enable the Shop.', 409, { code: 'game_key_missing' });
+    }
+    if (key.nonce >= BigInt(signed.nonce)) {
+      throw new GameError('This purchase was already signed, please try again', 409, { code: 'nonce_used' });
+    }
+    if (height + BURN_MIN_BLOCKS_LEFT > BigInt(signed.maxBlockHeight)) {
+      throw new GameError('This purchase expired or was not prepared by the game. Please tap Buy again.', 409, { code: 'burn_expired' });
+    }
+    game.syncWalletBalance(pid, balance);
+    lastWalletSync.set(pid, now());
+    // Accepted: single use from here on (game.buy also stores the nonce).
+    issuedBurns.set(pid, freshBurns(pid).filter((x) => x !== issued));
+  };
 
   const plotOf = (b: Record<string, unknown>) => {
     if (typeof b.plot !== 'number') throw new GameError('Missing plot');
@@ -530,6 +602,10 @@ export function createApp(deps: AppDeps) {
       sb && typeof sb === 'object' && ['publicKey', 'nonce', 'maxBlockHeight', 'signature'].every((k) => typeof sb[k] === 'string')
         ? (sb as unknown as SignedBurn)
         : undefined;
+    // Wallet gardens: the item is still given at once (play first), but only for a burn that
+    // can really go through on chain (checked here); a burn that still fails takes the item back
+    // and closes the Shop for a few minutes (worker.ts takeBack, game.walletShopLockedUntil).
+    await checkWalletBurn(playerId(c), b.item, Number(b.qty ?? 1), signed);
     const result = game.buy(playerId(c), b.item as ShopItem, Number(b.qty ?? 1), signed);
     judgeStep(c, 'shop');
     return respond(c, result);

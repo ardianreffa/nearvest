@@ -220,6 +220,84 @@ describe('Shop for wallet players (game key + relayed burn)', () => {
     assert.equal(replay.json.code, 'nonce_used');
   });
 
+  it('a burn the server never handed out is refused, even with a key that is on the account', async () => {
+    const w = makeWorld();
+    const { token, gameKey } = await walletPlayer(w);
+    // A script signs its own burn (skipping /api/wallet/burn): nothing is given.
+    const req = { senderId: 'alice.testnet', receiverId: 'panen.nearvest.testnet', publicKey: gameKey.getPublicKey().toString(), nonce: '50', maxBlockHeight: '1600', amount: (8n * 10n ** 18n).toString(), memo: 'Shop: 1 x Fertilizer' };
+    const res = await call(w.app, 'POST', '/api/shop/buy', token, { item: 'fertilizer', qty: 1, signedBurn: signBurn(req, gameKey) });
+    assert.equal(res.status, 409);
+    assert.equal(res.json.code, 'burn_expired');
+    assert.equal((w.db.prepare("SELECT COUNT(*) AS n FROM items WHERE item = 'fertilizer' AND qty > 0").get() as { n: number }).n, 0);
+  });
+
+  it('a random key (not on the account) cannot buy: the burn request is refused and a signed burn too', async () => {
+    const w = makeWorld();
+    const { token, gameKey } = await walletPlayer(w);
+    const req = await call(w.app, 'POST', '/api/wallet/burn', token, { item: 'fertilizer', qty: 1, publicKey: gameKey.getPublicKey().toString() });
+    // The key is removed from the account before the purchase is sent.
+    w.chain.accessKeys.delete(`alice.testnet ${gameKey.getPublicKey().toString()}`);
+    const res = await call(w.app, 'POST', '/api/shop/buy', token, { item: 'fertilizer', qty: 1, signedBurn: signBurn(req.json, gameKey) });
+    assert.equal(res.status, 409);
+    assert.equal(res.json.code, 'game_key_missing');
+    // A full access key is not a game key either.
+    const full = KeyPair.fromRandom('ed25519');
+    w.chain.addAccessKey('alice.testnet', full.getPublicKey().toString(), 'FullAccess');
+    const r2 = await call(w.app, 'POST', '/api/wallet/burn', token, { item: 'fertilizer', qty: 1, publicKey: full.getPublicKey().toString() });
+    assert.equal(r2.json.code, 'game_key_missing');
+  });
+
+  it('an old burn request is refused (5 minutes, or too close to its block deadline)', async () => {
+    const w = makeWorld();
+    const { token, gameKey } = await walletPlayer(w);
+    const req = await call(w.app, 'POST', '/api/wallet/burn', token, { item: 'fertilizer', qty: 1, publicKey: gameKey.getPublicKey().toString() });
+    w.advance(6 * MINUTE);
+    const late = await call(w.app, 'POST', '/api/shop/buy', token, { item: 'fertilizer', qty: 1, signedBurn: signBurn(req.json, gameKey) });
+    assert.equal(late.json.code, 'burn_expired');
+
+    const req2 = await call(w.app, 'POST', '/api/wallet/burn', token, { item: 'fertilizer', qty: 1, publicKey: gameKey.getPublicKey().toString() });
+    w.chain.height += 590n; // 10 blocks left of 600
+    const near = await call(w.app, 'POST', '/api/shop/buy', token, { item: 'fertilizer', qty: 1, signedBurn: signBurn(req2.json, gameKey) });
+    assert.equal(near.json.code, 'burn_expired');
+  });
+
+  it('a nonce the chain already used is refused', async () => {
+    const w = makeWorld();
+    const { token, gameKey } = await walletPlayer(w);
+    const req = await call(w.app, 'POST', '/api/wallet/burn', token, { item: 'fertilizer', qty: 1, publicKey: gameKey.getPublicKey().toString() });
+    w.chain.accessKeys.get(`alice.testnet ${gameKey.getPublicKey().toString()}`)!.nonce = BigInt(req.json.nonce);
+    const res = await call(w.app, 'POST', '/api/shop/buy', token, { item: 'fertilizer', qty: 1, signedBurn: signBurn(req.json, gameKey) });
+    assert.equal(res.json.code, 'nonce_used');
+  });
+
+  it('a burn that fails on chain takes the item back and closes the Shop for 10 minutes', async () => {
+    const w = makeWorld();
+    const { token, gameKey } = await walletPlayer(w);
+    const pub = gameKey.getPublicKey().toString();
+    const req = await call(w.app, 'POST', '/api/wallet/burn', token, { item: 'fertilizer', qty: 1, publicKey: pub });
+    const buy = await call(w.app, 'POST', '/api/shop/buy', token, { item: 'fertilizer', qty: 1, signedBurn: signBurn(req.json, gameKey) });
+    assert.equal(buy.status, 200);
+    // The player removes the key before the game relays the burn: the burn fails for good.
+    const saved = w.chain.accessKeys.get(`alice.testnet ${pub}`)!;
+    w.chain.accessKeys.delete(`alice.testnet ${pub}`);
+    await w.worker.drain();
+    const qty = () => (w.db.prepare("SELECT COALESCE(SUM(qty), 0) AS n FROM items WHERE item = 'fertilizer'").get() as { n: number }).n;
+    assert.equal(qty(), 0);
+    w.chain.accessKeys.set(`alice.testnet ${pub}`, saved);
+
+    const locked = await call(w.app, 'POST', '/api/wallet/burn', token, { item: 'fertilizer', qty: 1, publicKey: pub });
+    assert.equal(locked.status, 429);
+    assert.equal(locked.json.code, 'shop_locked');
+    assert.match(locked.json.error, /opens again in 10 min/);
+
+    w.advance(11 * MINUTE);
+    const req2 = await call(w.app, 'POST', '/api/wallet/burn', token, { item: 'fertilizer', qty: 1, publicKey: pub });
+    assert.equal(req2.status, 200);
+    const again = await call(w.app, 'POST', '/api/shop/buy', token, { item: 'fertilizer', qty: 1, signedBurn: signBurn(req2.json, gameKey) });
+    assert.equal(again.status, 200);
+    assert.equal(qty(), 1);
+  });
+
   it('asks for the game key when the wallet has not added it yet', async () => {
     const w = makeWorld();
     const { token } = await walletPlayer(w);
