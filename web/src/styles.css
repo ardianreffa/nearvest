@@ -8788,11 +8788,16 @@ button.chip:focus-visible {
   }
 }
 
-/* v3: tree labels (Thirsty, timers, Ready) sit just above the tree itself, not above its
-   empty canvas, so a young tree's label stays close to it and clear of the village. */
+/* v3: tree labels (Thirsty, timers, Ready, Seed ready, Memorial) sit in front of the mound, under
+   the tree: their top edge starts at the mound's front lip, centred on the plot, so they cover
+   neither the trunk nor a seed or sprout (whose pixels end just above the lip). Compact (one
+   text line), so they stay above the plot panel. */
 .mound-art .plot-art .badge {
-  top: auto;
-  bottom: calc(100% - var(--tree-top, 0px) + 4px);
+  top: calc(100% + 4px);
+  bottom: auto;
+  padding: 2px 8px;
+  font-size: var(--fs-sm);
+  line-height: 1.15;
 }
 
 /* Phones: the tutorial coach floats over the top (sky) of the garden scene instead of pushing
@@ -8826,10 +8831,19 @@ button.chip:focus-visible {
   min-height: 36px;
 }
 
-/* v3 phones: a label never climbs above the open grass (it stays off the shop and the pins);
-   on a tall tree it sits on the crown instead. */
+/* v3 phones: TaniBot stands between two plots with its feet a little below the mounds, and its
+   ON/OFF chip sits under its feet. The label starts just below TaniBot's feet line (the offset
+   grows with the scene's scale like TaniBot's own), and it is narrow (text only, no icon, small
+   side padding) so it ends before the chip beside it: it covers neither TaniBot nor the chip. */
 .phone-scene.mound-art .plot-art .badge {
-  bottom: min(calc(100% - var(--tree-top, 0px) + 4px), var(--label-max, 9999px));
+  /* 3 px of the offset is room for the "Ready!" label's own bob (it hops 3 px up). */
+  top: calc(100% + 5px + var(--k) * 1.5px);
+  padding: 2px 4px;
+  font-size: var(--fs-xs);
+}
+
+.phone-scene.mound-art .plot-art .badge svg {
+  display: none;
 }
 
 /* v3 robot (village-life.tsx, robot-sprite.ts): stays at the Friends house day and night. It hovers

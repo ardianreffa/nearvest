@@ -6,7 +6,7 @@ import { Backdrop, lockedFraction, phaseOf } from './art/backdrop';
 import type { Place } from './art/hotspots';
 import { playSound } from './audio';
 import { BotDrones, Drone, droneCount, HOE, TaniBot, TANIBOT_H, TANIBOT_W, tierOf, tierRank, type Tier } from './art/tanibot';
-import { TreePixels, treeTopRow } from './art/trees';
+import { TreePixels } from './art/trees';
 import { fruitsToStorage, leafBurst } from './fx';
 import { Pixels, Sprite } from './sprites';
 import { formatDuration } from './ui';
@@ -195,10 +195,6 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
               ...(mound ? { '--soil-h': `${mound.h * immersive.k}px` } : {}),
               ...(moundArt ? { '--mound-base': String(MOUND_BASE), '--mound-w': `${mound!.w * immersive.k}px` } : {}),
               ...(phone ? { '--sprite-px': `${phone.spritePx}px` } : {}),
-              // v3 phones: the highest a tree label may sit above its plot (its top stays on the grass).
-              ...(phone && moundArt && village?.grassRow !== undefined
-                ? { '--label-max': `${Math.max(0, (village.bedRow - mound!.h * (1 - MOUND_BASE) + (2 * phone.spritePx) / phone.k - village.grassRow) * phone.k - 22)}px` }
-                : {}),
               ...(phone ? { width: `${phone.sceneW}px`, height: `${phone.sceneH}px` } : {}),
             }
           : undefined
@@ -261,19 +257,11 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
                   </span>
                 )}
                 {!p.tree && p.memorial && (
-                  <span
-                    class="badge memorial"
-                    style={moundArt ? { '--tree-top': `${treeTopRow(p.memorial.species, 'old', p.memorial.tokenId ?? p.memorial.id) * px}px` } : undefined}
-                  >
-                    Memorial
-                  </span>
+                  <span class="badge memorial">Memorial</span>
                 )}
                 {st && (
-                  <span
-                    class={`badge ${st.cls}`}
-                    // v3: the label sits just above the tree's real top (a sprout's label stays low).
-                    style={moundArt && p.tree ? { '--tree-top': `${treeTopRow(p.tree.species, p.tree.stage, p.tree.tokenId ?? p.tree.id) * px}px` } : undefined}
-                  >
+                  // v3: the label sits in front of the mound, under the tree (styles.css).
+                  <span class={`badge ${st.cls}`}>
                     {st.cls.startsWith('thirsty') && <Sprite name="droplet" scale={2} />}
                     {st.cls === 'ready' && <Sprite name="sparkle" scale={2} />}
                     {st.text}
