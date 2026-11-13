@@ -2,7 +2,7 @@
 
 import type { ComponentChildren } from 'preact';
 import type { Quality, Species, Stage } from './api';
-import { useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { clampQty, saleTotal, seasonPayout, stepQty } from './qty';
 import { Sprite } from './sprites';
 import { PanenCoin } from './art/panen-coin';
@@ -218,5 +218,37 @@ export function SeedCard({ group, disabled, onPick, compact = false }: { group: 
       </span>
       {group.source && <span class="seed-card-from">{SEED_SOURCE[group.source] ?? group.source}</span>}
     </button>
+  );
+}
+
+/**
+ * One line that never wraps (HUD title + XP, Ardian 2026-11-13): the text steps down through `steps`
+ * (font-size tokens, biggest first) until it fits its box; measured again when the box's width changes.
+ */
+export function FitLine({ text, steps, class: cls }: { text: string; steps: readonly string[]; class?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [step, setStep] = useState(0);
+  useLayoutEffect(() => setStep(0), [text, steps.join()]);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (el.scrollWidth > el.clientWidth + 0.5 && step < steps.length - 1) setStep(step + 1);
+  }, [step, text, steps.join()]);
+  useEffect(() => {
+    const el = ref.current?.parentElement;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let w = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (Math.abs(el.clientWidth - w) < 1) return;
+      w = el.clientWidth;
+      setStep(0);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={ref} class={cls} style={{ fontSize: `var(${steps[Math.min(step, steps.length - 1)]})` }} title={text}>
+      {text}
+    </div>
   );
 }

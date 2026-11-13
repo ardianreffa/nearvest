@@ -31,6 +31,8 @@ import { FarmersWindow, friendCall, VisitGarden } from './friends';
 import { friendAddNotice } from './friends-logic';
 import { usePresence } from './presence';
 import { PanenCoin } from './art/panen-coin';
+/** Font steps for the HUD's title + XP line (biggest first). */
+const TITLE_STEPS = ['--fs-sm', '--fs-xs', '--fs-2xs'] as const;
 import { useVisitWipe } from './visit-wipe';
 import { ARENA_BACK_TEXT, ARENA_TEXT, BACK_TEXT, POND_BACK_TEXT, POND_TEXT, visitingText, WIPE_WAIT_MAX_MS } from './visit-wipe-plan';
 import { SPECIES_NAME as SPECIES_LABEL } from './ui';
@@ -55,7 +57,7 @@ import { Info, InfoChip } from './info';
 import { ToastStrip, useToasts } from './toast';
 import { seasonPayout } from './qty';
 import { Avatar } from './art/avatars';
-import { formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
+import { FitLine, formatDuration, formatPanen, QUALITY_NAME, SPECIES_NAME } from './ui';
 
 type Tab = 'garden' | 'storage' | 'shop' | 'market' | 'village';
 type SideTab = Exclude<Tab, 'garden'>;
@@ -1196,9 +1198,8 @@ export function App() {
       <Avatar id={p.avatar} size={wide ? 48 : 32} />
       <div>
         <div class="name">{p.name}</div>
-        <div class="title-line">
-          {p.title} · {p.xp} XP
-        </div>
+        {/* Title + XP on ONE line for every title and a 5-digit XP (Ardian 2026-11-13). */}
+        <FitLine class="title-line" text={`${p.title} · ${p.xp} XP`} steps={TITLE_STEPS} />
         <div class="xp" aria-label="XP to next title">
           <div style={{ width: `${xpPct}%` }} />
         </div>

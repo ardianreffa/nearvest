@@ -16988,3 +16988,92 @@ html.pond-open .hud * {
   display: block;
   margin: 8px auto 0;
 }
+
+/* ---------- HUD profile box (Ardian 2026-11-13) ----------
+   Title + XP always on one line (FitLine steps the font down: --fs-sm, --fs-xs, --fs-2xs), the coin
+   and the balance centred in one column, and the profile box exactly as tall as the box with the
+   ? / Music / Sound buttons (--hud-box-h), on phones and laptops. */
+.hud-capsule-left.with-panen > .who-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-capsule-left.with-panen > .who-btn > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hud-capsule-left.with-panen .title-line {
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.2;
+}
+
+.hud-capsule-left.with-panen > .hud-panen {
+  align-self: stretch;
+  align-items: center;
+  justify-content: center;
+}
+
+.hud-capsule-left.with-panen > .hud-panen b {
+  display: block;
+  text-align: center;
+  min-width: 3ch;
+}
+
+.hud-capsule-left.with-panen,
+.hud-sys {
+  box-sizing: border-box;
+  height: var(--hud-box-h);
+}
+
+@media (max-width: 1023px) {
+  .phone-hud {
+    --hud-box-h: 64px;
+  }
+
+  .hud-capsule-left.with-panen {
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+
+  .phone-hud > .topbar > .hud-sys {
+    align-self: start;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .phone-hud > .topbar .hud-sys .icon-btn {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .shell.immersive {
+    --hud-box-h: 64px;
+    --sys-h: 64px;
+  }
+
+  .shell.immersive .hud-capsule-left.with-panen {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .shell.immersive .hud-capsule-left.with-panen .avatar {
+    width: 44px;
+    height: 44px;
+  }
+
+  .shell.immersive .hud-sys {
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+  }
+
+  .shell.immersive .hud-sys .icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+}
