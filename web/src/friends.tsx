@@ -463,8 +463,10 @@ export function VisitGarden({
     },
   );
   const g = visit?.garden;
-  // Their TaniBot (servers before 2026-11-10 send no `tanibot`: none is shown).
-  const visitBot = g?.tanibot ? { on: g.tanibot.on, owner: g.name } : null;
+  // Their TaniBot (servers before 2026-11-10 send no `tanibot`: none is shown). `tanibot: null` = the
+  // owner never switched TaniBot on (no ready TaniBot account): it is shown asleep, like the owner sees
+  // it in their own garden and like the Arena shows "<name>'s TaniBot" (Ardian 2026-11-13, "sega").
+  const visitBot = g?.tanibot ? { on: g.tanibot.on, owner: g.name } : g && g.tanibot === null ? { on: false, owner: g.name } : null;
   const panel = (
     <VisitPanel
       name={name}

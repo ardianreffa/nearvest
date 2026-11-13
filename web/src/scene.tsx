@@ -146,13 +146,16 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
   // TaniBot stays in its gap while the picked plot is next to it; it only walks to the picked
   // plot's own spot when the plot is not next to it (bot-stand.ts). It faces the plot it works on.
   const plotCount = state.plots.length;
+  // Visits: the friend's TaniBot stays where it stands (Ardian 2026-11-13); tapping their plots only
+  // selects them. Its spot is the one for the first plot, as when their garden opened.
+  const standFor = visit ? 0 : selected;
   const standRef = useRef<{ stand: BotStand; selected: number; count: number } | null>(null);
-  if (!standRef.current || standRef.current.selected !== selected || standRef.current.count !== plotCount) {
-    standRef.current = { stand: nextStand(standRef.current?.stand ?? null, selected, plotCount), selected, count: plotCount };
+  if (!standRef.current || standRef.current.selected !== standFor || standRef.current.count !== plotCount) {
+    standRef.current = { stand: nextStand(standRef.current?.stand ?? null, standFor, plotCount), selected: standFor, count: plotCount };
   }
   const stand = standRef.current.stand;
   const bx = botX(stand.plot, lane, plotCount);
-  const aim = fx && !visit && besideGap(stand.gap, fx.plot) ? fx.plot : selected;
+  const aim = visit ? standFor : fx && besideGap(stand.gap, fx.plot) ? fx.plot : selected;
   const face = faceToward(stand.gap, aim);
   // Where an action show starts (TaniBot) and ends (the plot); side = the tree's side of TaniBot.
   const fxFrom = fx ? (besideGap(stand.gap, fx.plot) ? bx : botX(fx.plot, lane, plotCount)) : bx;
