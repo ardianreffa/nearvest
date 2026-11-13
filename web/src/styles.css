@@ -1385,25 +1385,6 @@ button {
   gap: 2px;
 }
 
-.range {
-  position: relative;
-  display: block;
-  height: 6px;
-  width: 100%;
-  max-width: 160px;
-  background: linear-gradient(90deg, var(--gold-300), var(--gold-500));
-  border: 1px solid var(--ink);
-}
-
-.range-dot {
-  position: absolute;
-  top: -4px;
-  width: 6px;
-  height: 12px;
-  margin-left: -3px;
-  background: var(--ink);
-}
-
 .up,
 .down {
   font-size: var(--fs-h3);
@@ -5318,9 +5299,16 @@ button.balance:focus-visible {
 .market-price {
   margin-left: auto;
   white-space: nowrap;
+  text-align: right;
 }
 
-.market-price > .panen-coin {
+/* Fruit rows: the price, and the day's price range as small plain text under it. */
+.market-price-now,
+.market-range-text {
+  display: block;
+}
+
+.market-price .panen-coin {
   vertical-align: -1px;
 }
 
@@ -5334,19 +5322,6 @@ button.balance:focus-visible {
 
 .market-price b.down {
   color: var(--gold-700);
-}
-
-.market-range {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  width: 70px;
-  color: var(--ink-soft);
-}
-
-.market-range .range {
-  width: 100%;
 }
 
 .market-row-sell {

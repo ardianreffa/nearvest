@@ -500,22 +500,20 @@ function FruitRow({
     if (quality && quality !== wanted) setQuality(quality);
   }, [quality, wanted]);
   const chosen = owned.find((o) => o.quality === quality) ?? null;
-  const pos = ((price.price - price.min) / Math.max(1, price.max - price.min)) * 100;
   return (
     <li class={`market-row${chosen ? (glow ? ' attention' : '') : ' empty'}`}>
       <div class="market-row-head">
         <FruitIcon species={price.species} scale={3} />
         <span class="market-name">{SPECIES_NAME[price.species]}</span>
+        {/* Today's price, and under it the range Mr. Darto's price can move in: plain text only
+            (a small bar with a dot looked like a broken slider to players). */}
         <span class="market-price">
-          <Coin /> <b class={price.price >= price.base ? 'up' : 'down'}>{price.price}</b>
-          <span class="tiny"> PANEN</span>
-        </span>
-        <span class="market-range" title={`Today's range ${price.min}-${price.max} (normal ${price.base})`}>
-          <span class="range" aria-hidden="true">
-            <span class="range-dot" style={{ left: `${pos}%` }} />
+          <span class="market-price-now">
+            <Coin /> <b class={price.price >= price.base ? 'up' : 'down'}>{price.price}</b>
+            <span class="tiny"> PANEN</span>
           </span>
-          <span class="tiny">
-            {price.min}-{price.max}
+          <span class="tiny market-range-text" title={`Today's price range (normal ${price.base})`}>
+            range {price.min}-{price.max}
           </span>
         </span>
       </div>
