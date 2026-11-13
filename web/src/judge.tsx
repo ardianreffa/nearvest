@@ -103,8 +103,14 @@ export function JudgeTour({ state, config, onGo, onClose }: { state: GameState; 
               </span>
               <span class="grow">
                 <b>{s.title}</b>
-                <span class="judge-do">Do: {s.doText}</span>
-                <span class="judge-see">See: {s.see}</span>
+                <span class="judge-line judge-do">
+                  <span class="tag judge-tag judge-tag-do">Do</span>
+                  <span>{s.doText}</span>
+                </span>
+                <span class="judge-line judge-see">
+                  <span class="tag judge-tag judge-tag-see">See</span>
+                  <span>{s.see}</span>
+                </span>
                 {t.done && (
                   <span class="judge-proof">
                     {t.txStatus === 'pending' ? (

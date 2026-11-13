@@ -17077,3 +17077,41 @@ html.pond-open .hud * {
     height: 40px;
   }
 }
+
+/* Judge tour (Ardian 2026-11-13): "Do" and "See" were too faint and got skipped. Both lines are full
+   --ink at --fs-body, each led by a small, clear chip (DO gold, SEE cyan). */
+.judge-step .judge-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--fs-body);
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.judge-step .judge-see {
+  color: var(--ink);
+}
+
+.judge-step .judge-tag {
+  flex: none;
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  font-weight: normal;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--ink);
+  padding: 1px 6px;
+  /* DO and SEE as wide as each other, so both texts start at the same place. */
+  min-width: 3.4em;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.judge-step .judge-tag-do {
+  background: var(--gold-500);
+}
+
+.judge-step .judge-tag-see {
+  background: var(--cyan-300);
+}
