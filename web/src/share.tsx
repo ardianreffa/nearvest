@@ -872,7 +872,7 @@ export function ShareHost({ state }: { state: GameState }) {
               Share image
             </button>
           )}
-          <a class="btn btn-mint" href={postUrl(post, link)} target="_blank" rel="noreferrer">
+          <a class="btn btn-mint" href={postUrl(post, link)} target="_blank" rel="noopener">
             Post on X
           </a>
         </div>

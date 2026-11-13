@@ -99,7 +99,7 @@ export function InviteLink({ state, notify }: { state: GameState; notify: Notify
         </button>
       </div>
       <div class="share-buttons">
-        <a class="btn btn-small invite-x" href={postUrl(invitePost(name), link)} target="_blank" rel="noreferrer" onClick={() => playSound('click')}>
+        <a class="btn btn-small invite-x" href={postUrl(invitePost(name), link)} target="_blank" rel="noopener" onClick={() => playSound('click')}>
           Share on X
         </a>
       </div>
@@ -136,7 +136,7 @@ export function InvitePanel({ state, notify, onVisit }: { state: GameState; noti
                   {f.status === 'paid' ? (
                     <span class="tag tag-paid">
                       {f.txUrl ? (
-                        <a href={f.txUrl} target="_blank" rel="noreferrer">
+                        <a href={f.txUrl} target="_blank" rel="noopener">
                           Paid
                         </a>
                       ) : (
@@ -169,7 +169,7 @@ export function InvitePanel({ state, notify, onVisit }: { state: GameState; noti
                 <>
                   {' '}
                   (
-                  <a href={r.invitedBy.txUrl} target="_blank" rel="noreferrer">
+                  <a href={r.invitedBy.txUrl} target="_blank" rel="noopener">
                     tx
                   </a>
                   )

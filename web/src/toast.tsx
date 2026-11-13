@@ -150,11 +150,14 @@ export function ToastStrip({ shown, dismiss, setHidden }: { shown: Shown | null;
       ) : null}
     </>
   );
+  // A link toast closes only after the tap has opened the new tab (iPhone Safari: the link itself
+  // must stay untouched during its own tap, or Safari may treat the new tab as a pop-up).
+  const dismissAfterTap = () => window.setTimeout(dismiss, 300);
   const style = pos ? { top: `${pos.top}px`, left: `${pos.left}px`, width: `${pos.width}px` } : { visibility: 'hidden' as const, top: '0px', left: '0px' };
   return (
     <div class="toasts" role="status" aria-live="polite">
       {t.link ? (
-        <a ref={el as never} key={t.id} class={`toast toast-${t.kind}`} style={style} href={t.link} target="_blank" rel="noreferrer" onClick={dismiss}>
+        <a ref={el as never} key={t.id} class={`toast toast-${t.kind}`} style={style} href={t.link} target="_blank" rel="noopener" onClick={dismissAfterTap}>
           {body}
         </a>
       ) : (

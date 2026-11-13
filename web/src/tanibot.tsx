@@ -359,7 +359,7 @@ export function TaniBotWindow({
             <dl class="profile-facts">
               <dt>Wallet</dt>
               <dd>
-                <a href={bot.explorerUrl} target="_blank" rel="noreferrer">
+                <a href={bot.explorerUrl} target="_blank" rel="noopener">
                   {bot.accountId}
                 </a>
               </dd>
@@ -413,7 +413,7 @@ export function TaniBotWindow({
                     {l.reason}
                   </span>
                   {l.txUrl ? (
-                    <a href={l.txUrl} target="_blank" rel="noreferrer">
+                    <a href={l.txUrl} target="_blank" rel="noopener">
                       view tx
                     </a>
                   ) : l.txStatus === 'pending' ? (

@@ -595,7 +595,7 @@ function MemorialList({ memorials, pohon }: { memorials?: MemorialView[]; pohon:
               </span>
             </span>
             {m.tokenId ? (
-              <a class="memorial-nft" href={nearblocksNft(pohon, m.tokenId)} target="_blank" rel="noreferrer">
+              <a class="memorial-nft" href={nearblocksNft(pohon, m.tokenId)} target="_blank" rel="noopener">
                 NFT #{m.tokenId} ↗
               </a>
             ) : (
@@ -748,11 +748,11 @@ export function Village({
         )}
         <p class="muted small">
           Contracts on NEAR {config.network}:{' '}
-          <a href={nearblocksAccount(config.contracts.panen)} target="_blank" rel="noreferrer">
+          <a href={nearblocksAccount(config.contracts.panen)} target="_blank" rel="noopener">
             {config.contracts.panen}
           </a>
           ,{' '}
-          <a href={nearblocksAccount(config.contracts.pohon)} target="_blank" rel="noreferrer">
+          <a href={nearblocksAccount(config.contracts.pohon)} target="_blank" rel="noopener">
             {config.contracts.pohon}
           </a>
         </p>
@@ -761,7 +761,7 @@ export function Village({
       <Panel title="Your on-chain log">
         <p class="muted small">
           Your account:{' '}
-          <a href={nearblocksAccount(state.player.accountId)} target="_blank" rel="noreferrer">
+          <a href={nearblocksAccount(state.player.accountId)} target="_blank" rel="noopener">
             {state.player.accountId}
           </a>
         </p>
@@ -806,7 +806,7 @@ function ActivityLog({ activity }: { activity: GameState['activity'] }) {
               </span>
             </span>
             {a.explorerUrl ? (
-              <a href={a.explorerUrl} target="_blank" rel="noreferrer">
+              <a href={a.explorerUrl} target="_blank" rel="noopener">
                 view tx ›
               </a>
             ) : (

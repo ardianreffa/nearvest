@@ -174,7 +174,7 @@ function LiveStats() {
   return (
     <div class="lp-live">
       {items.map(([label, value, link]) => (
-        <a key={label} href={link} target="_blank" rel="noreferrer">
+        <a key={label} href={link} target="_blank" rel="noopener">
           <b>{value}</b> {label}
         </a>
       ))}
@@ -324,15 +324,15 @@ function Landing() {
               </a>
               <span class="lp-judges-proof">
                 On-chain proof (NEAR testnet):{' '}
-                <a href={`${EXPLORER}/token/panen.nearvest.testnet`} target="_blank" rel="noreferrer">
+                <a href={`${EXPLORER}/token/panen.nearvest.testnet`} target="_blank" rel="noopener">
                   panen.nearvest.testnet
                 </a>{' '}
                 ·{' '}
-                <a href={`${EXPLORER}/nft-token/pohon.nearvest.testnet`} target="_blank" rel="noreferrer">
+                <a href={`${EXPLORER}/nft-token/pohon.nearvest.testnet`} target="_blank" rel="noopener">
                   pohon.nearvest.testnet
                 </a>{' '}
                 ·{' '}
-                <a href={`${EXPLORER}/address/nearvest.testnet`} target="_blank" rel="noreferrer">
+                <a href={`${EXPLORER}/address/nearvest.testnet`} target="_blank" rel="noopener">
                   nearvest.testnet
                 </a>
               </span>
@@ -508,7 +508,7 @@ function Landing() {
             <p class="lp-end-note">Built solo by Ardian Reffa with Claude Code · Pixel art AI-generated (ChatGPT) and code-drawn · Runs on NEAR testnet</p>
             <nav class="lp-end-links">
               <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> ·{' '}
-              <a href="https://x.com/intent/post?text=I%20found%20NEARvest%3A%20a%20pixel%20farming%20game%20where%20your%20tree%20is%20a%20living%20NFT.%20%40NEARProtocol%20%23NEARHackathon%20https%3A%2F%2Fnearvest-six.vercel.app" target="_blank" rel="noreferrer">
+              <a href="https://x.com/intent/post?text=I%20found%20NEARvest%3A%20a%20pixel%20farming%20game%20where%20your%20tree%20is%20a%20living%20NFT.%20%40NEARProtocol%20%23NEARHackathon%20https%3A%2F%2Fnearvest-six.vercel.app" target="_blank" rel="noopener">
                 Share on X
               </a>
             </nav>

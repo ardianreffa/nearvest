@@ -112,7 +112,7 @@ export function JudgeTour({ state, config, onGo, onClose }: { state: GameState; 
                     ) : t.txStatus === 'failed' ? (
                       <span class="error-text">The transaction failed.</span>
                     ) : link ? (
-                      <a href={link} target="_blank" rel="noreferrer">
+                      <a href={link} target="_blank" rel="noopener">
                         {t.txUrl ? 'View transaction on nearblocks' : 'View on nearblocks'}
                       </a>
                     ) : null}
@@ -129,7 +129,7 @@ export function JudgeTour({ state, config, onGo, onClose }: { state: GameState; 
         })}
       </ol>
       <p class="small muted">
-        Your account: <a href={nearblocksAccount(state.player.accountId)} target="_blank" rel="noreferrer">{state.player.accountId}</a>. Demo mode: 1 game day = 1 minute.
+        Your account: <a href={nearblocksAccount(state.player.accountId)} target="_blank" rel="noopener">{state.player.accountId}</a>. Demo mode: 1 game day = 1 minute.
       </p>
     </Modal>
   );

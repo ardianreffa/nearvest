@@ -100,7 +100,7 @@ export function Profile({
         <dl class="profile-facts">
           <dt>NEAR account</dt>
           <dd>
-            <a href={nearblocksAccount(p.accountId)} target="_blank" rel="noreferrer">
+            <a href={nearblocksAccount(p.accountId)} target="_blank" rel="noopener">
               {p.accountId}
             </a>
           </dd>
@@ -183,7 +183,7 @@ function WalletPanel({ state, config, onState }: { state: GameState; config: Ser
       ) : p.walletAccountId ? (
         <p class="muted small">
           Linked wallet:{' '}
-          <a href={nearblocksAccount(p.walletAccountId)} target="_blank" rel="noreferrer">
+          <a href={nearblocksAccount(p.walletAccountId)} target="_blank" rel="noopener">
             {p.walletAccountId}
           </a>
           . You can also sign in with it.

@@ -233,14 +233,14 @@ export function PanenInfo({ state, config, onClose }: { state: GameState | null;
           <b>PANEN</b> (Indonesian for "harvest")
           <span class="block small">
             NEP-141 token on NEAR {config.network} · contract{' '}
-            <a href={nearblocksAccount(contract)} target="_blank" rel="noreferrer">
+            <a href={nearblocksAccount(contract)} target="_blank" rel="noopener">
               {contract}
             </a>
           </span>
           {state && (
             <span class="block small">
               Your balance: <b>{formatPanen(state.player.balance)} PANEN</b> in{' '}
-              <a href={nearblocksAccount(state.player.accountId)} target="_blank" rel="noreferrer">
+              <a href={nearblocksAccount(state.player.accountId)} target="_blank" rel="noopener">
                 {state.player.accountId}
               </a>
             </span>

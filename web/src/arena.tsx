@@ -176,7 +176,7 @@ function RecentRow({ d, onReplay, onRematch, busy }: { d: DuelView; onReplay: (d
           {d.txUrl && (
             <>
               {' · '}
-              <a href={d.txUrl} target="_blank" rel="noopener noreferrer">
+              <a href={d.txUrl} target="_blank" rel="noopener">
                 tx
               </a>
             </>
@@ -591,7 +591,7 @@ export function DuelScreen({
             {reward.panen !== null && season && <p class="duel-season">{seasonLine(season)}</p>}
             {txUrl ? (
               <p class="duel-tx">
-                <a href={txUrl} target="_blank" rel="noopener noreferrer">
+                <a href={txUrl} target="_blank" rel="noopener">
                   See the prize on NEAR (nearblocks)
                 </a>
               </p>
@@ -602,7 +602,7 @@ export function DuelScreen({
             ) : null}
             <div class="duel-actions">
               {won && !d.practice && d.you === 'challenger' && (
-                <a class="btn btn-mint" href={postUrl(duelPost(d), PUBLIC_SITE)} target="_blank" rel="noopener noreferrer" onClick={() => playSound('click')}>
+                <a class="btn btn-mint" href={postUrl(duelPost(d), PUBLIC_SITE)} target="_blank" rel="noopener" onClick={() => playSound('click')}>
                   Share on X
                 </a>
               )}
