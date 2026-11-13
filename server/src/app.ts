@@ -27,7 +27,7 @@ import {
   verifyWalletProof,
 } from './wallet.ts';
 import { UNITS_PER_MICRO } from './chain/types.ts';
-import { DEMO_XP_MULTIPLIER, fruitOdds, SEED_STORAGE_SLOTS, seedSellPrice, SHOP_ITEMS, SPECIES, SPECIES_LIST, TITLES, type Quality, type ShopItem, type Species } from './rules.ts';
+import { REQUESTS_PER_IP_PER_MINUTE, WALLET_BOTS_PER_IP_PER_DAY, DEMO_XP_MULTIPLIER, fruitOdds, SEED_STORAGE_SLOTS, seedSellPrice, SHOP_ITEMS, SPECIES, SPECIES_LIST, TITLES, type Quality, type ShopItem, type Species } from './rules.ts';
 
 export interface AppDeps {
   db: DB;
@@ -61,6 +61,29 @@ export function createApp(deps: AppDeps) {
   // round trip to the server instead of two (the preflight was repeated after a few seconds idle).
   app.use('*', cors({ origin: config.webOrigins, allowHeaders: ['Content-Type', 'Authorization'], allowMethods: ['GET', 'POST'], maxAge: 7200 }));
 
+  const clientIp = (c: Context) =>
+    c.req.header('CF-Connecting-IP') ?? c.req.header('X-Forwarded-For')?.split(',')[0]?.trim() ?? null;
+
+  // Simple limit per IP address (in memory, one window per minute): loose enough for the web's
+  // polling (every 1-8 s) and for many players behind one shared mobile / venue IP.
+  // Requests without a known IP (local tests, the Mac) are not limited.
+  const hits = new Map<string, { minute: number; n: number }>();
+  app.use('*', async (c, next) => {
+    if (c.req.method === 'OPTIONS' || c.req.path === '/health') return next();
+    const ip = clientIp(c);
+    if (!ip) return next();
+    const minute = Math.floor(now() / 60_000);
+    if (hits.size > 50_000) for (const [k, v] of hits) if (v.minute !== minute) hits.delete(k);
+    const h = hits.get(ip);
+    if (!h || h.minute !== minute) hits.set(ip, { minute, n: 1 });
+    else if (++h.n > REQUESTS_PER_IP_PER_MINUTE) {
+      const retryAfter = Math.max(1, Math.ceil(((minute + 1) * 60_000 - now()) / 1000));
+      c.header('Retry-After', String(retryAfter));
+      return c.json({ error: 'Too many requests from your network. Please wait a moment and try again.', code: 'rate_limited', retryAfter }, 429);
+    }
+    return next();
+  });
+
   app.onError((err, c) => {
     if (err instanceof GameError) return c.json({ error: err.message, ...err.details }, err.status as 400);
     console.error(err);
@@ -75,8 +98,6 @@ export function createApp(deps: AppDeps) {
     }
   };
   const bearer = (c: Context) => c.req.header('Authorization')?.replace(/^Bearer\s+/i, '');
-  const clientIp = (c: Context) =>
-    c.req.header('CF-Connecting-IP') ?? c.req.header('X-Forwarded-For')?.split(',')[0]?.trim() ?? null;
 
   // ---------- Public ----------
 
@@ -243,13 +264,27 @@ export function createApp(deps: AppDeps) {
 
   app.get('/api/tanibot', async (c) => c.json(await botView(playerId(c))));
 
+  // Wallet gardens' TaniBot gets its own NEAR account paid by the game: at most
+  // WALLET_BOTS_PER_IP_PER_DAY activations per IP per real day (in memory; resets on restart).
+  const walletBots = new Map<string, { day: number; n: number }>();
   app.post('/api/tanibot/setup', async (c) => {
     const b = await body(c);
     const pid = playerId(c);
+    const ip = game.getPlayer(pid).custody === 'wallet' ? clientIp(c) : null;
+    const day = Math.floor(now() / 86_400_000);
+    const used = ip && walletBots.get(ip)?.day === day ? walletBots.get(ip)!.n : 0;
+    if (ip && used >= WALLET_BOTS_PER_IP_PER_DAY) {
+      throw new GameError(
+        `Too many TaniBots were activated from your network today (${WALLET_BOTS_PER_IP_PER_DAY}). Please try again after 00:00 UTC (07:00 WIB).`,
+        429,
+        { code: 'tanibot_limit' },
+      );
+    }
     const r = tanibot.setup(pid, {
       dailyLimit: b.dailyLimit === undefined ? undefined : num(b.dailyLimit),
       budget: b.budget === undefined ? undefined : num(b.budget),
     });
+    if (ip) walletBots.set(ip, { day, n: used + 1 });
     return c.json({ ...(await botView(pid)), walletCalls: r.walletCalls, state: game.state(pid) });
   });
 

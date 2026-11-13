@@ -59,6 +59,8 @@ import {
   WATER_DAYS,
   WELCOME_PACKS_PER_IP_PER_DAY,
   WELCOME_PANEN,
+  GARDENS_PER_IP_PER_DAY,
+  TREES_PLANTED_PER_REAL_DAY,
   type Quality,
   type ShopItem,
   type Species,
@@ -391,6 +393,20 @@ export class Game {
     const playerId = tx(this.db, () => {
       // Anti-cheat: limit welcome packs per IP per real day (never block the login itself).
       const since = now - 24 * 60 * 60 * 1000;
+      // Every new garden costs the game NEAR: at most GARDENS_PER_IP_PER_DAY a day from one IP
+      // (sign-in still works; judge gardens have their own limit in judge.ts).
+      if (ip && user.provider !== 'judge') {
+        const made = (this.db
+          .prepare("SELECT COUNT(*) AS n FROM players WHERE created_ip = ? AND created_at >= ? AND name NOT LIKE 'judge-%'")
+          .get(ip, since) as { n: number }).n;
+        if (made >= GARDENS_PER_IP_PER_DAY) {
+          throw new GameError(
+            `Too many new gardens from your network today (${GARDENS_PER_IP_PER_DAY}). Please try again tomorrow.`,
+            429,
+            { code: 'gardens_limit' },
+          );
+        }
+      }
       const fromIp = ip
         ? (this.db.prepare('SELECT COUNT(*) AS n FROM players WHERE created_ip = ? AND created_at >= ?').get(ip, since) as {
             n: number;
@@ -985,6 +1001,16 @@ export class Game {
       this.assertAccountOk(p);
       if (!Number.isInteger(plot) || plot < 0 || plot >= plotCount(p.xp)) throw new GameError('This plot is locked');
       if (this.treeOnPlot(p.id, plot)) throw new GameError('This plot already has a tree');
+      // Each tree is a new Tree NFT paid by the game: at most TREES_PLANTED_PER_REAL_DAY a real day.
+      const dayStart = Math.floor(this.d.now() / 86_400_000) * 86_400_000;
+      const planted = (this.db.prepare('SELECT COUNT(*) AS n FROM trees WHERE player_id = ? AND planted_at >= ?').get(p.id, dayStart) as { n: number }).n;
+      if (planted >= TREES_PLANTED_PER_REAL_DAY) {
+        throw new GameError(
+          `You planted ${TREES_PLANTED_PER_REAL_DAY} trees today, the daily limit. You can plant again after 00:00 UTC (07:00 WIB).`,
+          429,
+          { code: 'plant_limit' },
+        );
+      }
       // A Memorial Tree standing here moves to the player's Memorial list (its NFT stays).
       this.moveMemorialOff(p.id, plot);
       const seed = this.db.prepare('SELECT * FROM seeds WHERE id = ? AND player_id = ?').get(seedId, p.id) as

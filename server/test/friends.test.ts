@@ -38,7 +38,7 @@ async function garden(w: World, name: string, opts: { judge?: boolean; plant?: b
   if (opts.judge) {
     const userId = Number(w.db.prepare('INSERT INTO users (provider, subject, created_at) VALUES (?, ?, ?)').run('judge', `dev-${++users}-${name}`, w.now()).lastInsertRowid);
     p = w.game.createPlayer(userId, name, '10.0.0.9', true);
-  } else p = w.newPlayer(name);
+  } else p = w.newPlayer(name, `10.1.${++users % 250}.1`); // many gardens: one IP each (10 new gardens per IP a day)
   await w.worker.drain();
   if (opts.plant !== false) {
     w.game.checkin(p.id);

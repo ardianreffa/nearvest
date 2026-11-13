@@ -61,6 +61,19 @@ export const WELCOME_PANEN = 50;
 /** Maximum welcome packs per IP address per real day (anti-cheat). */
 export const WELCOME_PACKS_PER_IP_PER_DAY = 3;
 
+// ---------- Simple limits that protect the game's testnet NEAR (audit 2026-11-13 #3) ----------
+// Each new garden (Google: a NEAR account), each tree (a Tree NFT) and each wallet garden's
+// TaniBot (its own NEAR account) is paid by the game. Loose enough for normal players and judges.
+
+/** Requests per IP address per minute (the web polls every 1-8 s; shared mobile / venue IPs too). */
+export const REQUESTS_PER_IP_PER_MINUTE = 600;
+/** New gardens per IP address in 24 hours (judge gardens have their own limit in judge.ts). */
+export const GARDENS_PER_IP_PER_DAY = 10;
+/** TaniBot activations of wallet gardens per IP address per real day (00:00 UTC). */
+export const WALLET_BOTS_PER_IP_PER_DAY = 5;
+/** New trees (Tree NFTs) per garden per real day (00:00 UTC), TaniBot's included. */
+export const TREES_PLANTED_PER_REAL_DAY = 50;
+
 export const SEED_STORAGE_SLOTS = 20;
 export const START_PLOTS = 2;
 /** XP needed to unlock plot 3 (reaching the Farmhand title). */
