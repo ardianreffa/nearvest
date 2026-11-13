@@ -42,6 +42,8 @@ const PLAY = withRef('/play', REF);
 const JUDGE = withRef('/play?judge=1', REF);
 
 const EXPLORER = 'https://testnet.nearblocks.io';
+const GITHUB = 'https://github.com/ardianreffa/nearvest';
+const DEMO_POST = 'https://x.com/ardianreffa/status/2121230713840365578';
 const HOUR = 11; // a sunny late morning in Tandur: the landing is always day (no clock, no weather)
 const DAY = (HOUR - 7) / 24; // village clock fraction (the day starts at 07:00)
 /** Phones: the sky's sun, clouds and birds sit just above the village (game rows; the art is 120 x 180). */
@@ -338,6 +340,10 @@ function Landing() {
                 </a>
               </span>
             </div>
+            <p class="lp-judges-links">
+              <a href={GITHUB} {...explorerTarget()}>Code on GitHub</a> ·{' '}
+              <a href={DEMO_POST} {...explorerTarget()}>Demo video (X post)</a>
+            </p>
           </div>
           <Motif kind="kawung" to="--hud" id="m-judges" />
         </section>
@@ -508,6 +514,8 @@ function Landing() {
             </div>
             <p class="lp-end-note">Built solo by Ardian Reffa with Claude Code · Pixel art AI-generated (ChatGPT) and code-drawn · Runs on NEAR testnet</p>
             <nav class="lp-end-links">
+              <a href={GITHUB} {...explorerTarget()}>GitHub</a> ·{' '}
+              <a href={DEMO_POST} {...explorerTarget()}>Demo video</a> ·{' '}
               <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> ·{' '}
               <a href="https://x.com/intent/post?text=I%20found%20NEARvest%3A%20a%20pixel%20farming%20game%20where%20your%20tree%20is%20a%20living%20NFT.%20%40NEARProtocol%20%23NEARHackathon%20https%3A%2F%2Fnearvest-six.vercel.app" target="_blank" rel="noopener">
                 Share on X

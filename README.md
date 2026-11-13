@@ -6,7 +6,8 @@ A pixel farming game where your tree is a living NFT and an AI farmer tends it w
 
 - **Play:** https://nearvest-six.vercel.app
 - **Try as Judge (no sign-in, ready garden):** https://nearvest-six.vercel.app/play?judge=1
-- Demo video: (link added on submission day)
+- **Code:** https://github.com/ardianreffa/nearvest
+- Demo video (X post): https://x.com/ardianreffa/status/2121230713840365578
 - Network: **NEAR testnet only.** PANEN and the Tree NFTs have no money value.
 - Built during the NEAR Hackathon (first commit 2026-11-05) by a solo builder, Ardian Reffa, with **Claude Code**. License: MIT.
 
@@ -65,7 +66,7 @@ Best on a laptop with Chrome; phones work too (portrait).
 ### `games` (main): Games With Real Economies
 
 - **Loop:** check-in calendar (day 7 = Gold seed), 3 plots, plant → water → fertilize → harvest, 3 fruits (Mango fast, Rambutan medium, Durian slow), seed quality Common / Rare / Gold, seed storage of 20, titles from Seedling to Legend.
-- **Mr. Darto** (Market NPC) buys fruit and seeds. His prices move every village day (about ±30%, lower after a day of many sales) and stay between the seed price and base + 30% (a server rule). The price you saw is locked: if the day changed, the game asks before selling at the new price.
+- **Mr. Darto** (Market NPC) buys fruit and seeds. His prices move every village day (about ±30%, lower after a day of many sales) and stay between the seed price and base + 30% (a server rule). The price you saw is locked: if the day changed, the game asks before selling at the new price. The whole price rule is one short, readable file: [`server/src/darto.ts`](server/src/darto.ts) (base prices in [`server/src/rules.ts`](server/src/rules.ts)).
 - **Arena 1 VS 1:** turn-based Fruit Fight against another garden's TaniBot, or **online** against the real player when they are online and accept (10 s per turn for both; the other side's pick is never sent before both picks are in). **Draw rule:** if both fighters are knocked out in the same turn, nobody wins and no prize is minted. Limits: 3 duels a day, 1 per opponent; the same person on two gardens plays for practice (no prize).
 - **Fishing:** a pond with day / dusk / night, rain, ducks and frogs. 14 possible catches (5 fish, 5 junk, 4 items). The catch is rolled and stored at the cast and only sent at the reel.
 - **Social:** garden visits (help water 1 tree a day for a little XP), 6 template stickers (no free chat), **Wave back**, friends with an Online dot, invite links (**referral**: the inviter gets 20 PANEN before the Season rule and the friend 5 PANEN, paid after the friend's first harvest).

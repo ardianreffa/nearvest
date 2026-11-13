@@ -567,6 +567,17 @@
   color: var(--cyan-700);
 }
 
+.lp-judges-links {
+  margin: 14px 0 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-body);
+  color: var(--ink-soft);
+}
+
+.lp-judges-links a {
+  color: var(--cyan-700);
+}
+
 /* The hackathon track of a section: a small stepped label above its title. */
 .lp-track {
   display: inline-block;
