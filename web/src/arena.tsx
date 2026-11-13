@@ -324,10 +324,11 @@ export function Fighter({
   // The same look as in the garden: the title's TaniBot with its effects AND its drones (Ardian
   // 2026-11-11: the duel had no drones, so a Farmer / Durian King / Legend did not look like itself).
   const tier = tierOf(side.title);
+  const asleep = state === 'ko';
   return (
     <div class={`fighter ${right ? 'them' : 'me'} ${state}${hard ? ' hard' : ''} tier-${tier}`}>
       {pick && <PickBubble pick={pick.pick} pop={pick.pop} />}
-      <BotDrones tier={tier} scale={Math.max(1, scale)} shadow={Math.round(TANIBOT_H * scale * 0.36)} />
+      <BotDrones tier={tier} scale={Math.max(1, scale)} shadow={Math.round(TANIBOT_H * scale * 0.36)} parked={asleep} />
       {state === 'charging' && (
         // The Gold Durian charge: a growing gold aura, small sparks, gold motes drawn in.
         <span class="gold-charge" aria-hidden="true">
@@ -343,12 +344,22 @@ export function Fighter({
       {/* A new element (key) when the flash goes on and off and at K.O. / win: iPhone Safari could keep
           the removed white filter painted on the animated TaniBot (the winner stayed white on "YOU WIN!"),
           a fresh element never carries it. */}
-      {/* Both fighters are always awake with their title's full look (Ardian 2026-11-13), also the
-          loser at K.O. (it only staggers under spinning stars; the garden's ON / OFF never matters here). */}
-      <div key={fighterArtKey(state, flash)} class={`fighter-art${flash && state === 'hit' ? ' flash' : ''}`}>
-        <TaniBot tier={tier} scale={scale} effects />
+      {/* While the duel runs both fighters are awake with their title's full look (the garden's ON / OFF
+          never matters here). At the end (K.O. and the result) the loser sleeps like a TaniBot that is
+          OFF: dim, dark eyes, Zzz, no aura / ring / effects, drones parked (Ardian 2026-11-13); the
+          winner stays awake. The sleeping art is a fresh element (key "art-ko"), so no white hit flash
+          can stay painted on it (iPhone Safari). */}
+      <div key={fighterArtKey(state, flash)} class={`fighter-art${asleep ? ' asleep' : ''}${flash && state === 'hit' ? ' flash' : ''}`}>
+        <TaniBot tier={tier} scale={scale} effects={!asleep} />
       </div>
-      {(state === 'hit' || state === 'ko') && (
+      {asleep && (
+        <span class="bot-zzz fighter-zzz" aria-hidden="true">
+          <i>z</i>
+          <i>z</i>
+          <i>z</i>
+        </span>
+      )}
+      {state === 'hit' && (
         <span class="ko-stars" aria-hidden="true">
           <span class="ko-stars-ring">
             <i />

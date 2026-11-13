@@ -749,6 +749,16 @@ try {
       if (/WHITE/.test(r)) throw new Error(`TaniBot still white ${label}: ${r}`);
     };
     const unfreeze = () => evaluate(`(delete window.__turnT, true)`);
+    // End of the duel (Ardian 2026-11-13): the loser sleeps like a TaniBot that is OFF (dim, dark eyes,
+    // Zzz, no aura / ring / effects, drones parked), the winner stays awake with its full look.
+    const sleepCheck = async (label, loser) => {
+      const r = await evaluate(`[...document.querySelectorAll('.duel.match .fighter')].map(f => { const side = f.classList.contains('me') ? 'me' : 'them'; const art = f.querySelector('.fighter-art'); const bot = f.querySelector('.tanibot');
+        const fx = bot ? bot.querySelectorAll('.bot-aura, .bot-halo, .bot-sweep, .bot-scan, .bot-twinkle, .bot-falling-leaf').length : 0; const drones = f.querySelector('.bot-drones');
+        const eyes = bot?.querySelector('.bot-eyes'); return side + ': ' + (art?.classList.contains('asleep') ? 'ASLEEP' : 'awake') + ', zzz ' + (f.querySelector('.fighter-zzz') ? 'yes' : 'no') + ', effects ' + fx + ', drones ' + (drones ? (drones.classList.contains('parked') ? 'parked' : 'flying') : 'none') + ', eyes opacity ' + (eyes ? getComputedStyle(eyes).opacity : '-') + ', filter ' + (bot ? getComputedStyle(bot).filter : '-'); }).join(' | ')`);
+      console.log(`sleep check ${label} (loser ${loser}):`, r);
+      const ok = r.split(' | ').every((x) => (x.startsWith(loser) ? /ASLEEP, zzz yes, effects 0, drones (parked|none)/.test(x) : /awake, zzz no/.test(x)));
+      if (!ok) console.log(`SLEEP PROBLEM ${label}`);
+    };
     // Full-screen duel layout (Ardian 2026-11-12): the arena picture reaches the bottom (no plain colour
     // block), the dock floats over the floor and covers no TaniBot, name, life bar or big centre text;
     // Gold Durian + Rock / Paper / Scissors in one row, at least 44 px high on phones.
@@ -878,7 +888,7 @@ try {
           }
           await sleep(500);
           await evaluate(`document.querySelector('.duel-skip')?.click()`);
-          if (await evaluate(`!!document.querySelector('.fight-ko')`)) { await sleep(300); await screenshot('lose-ko'); await layout('lose K.O.'); await sleep(2500); }
+          if (await evaluate(`!!document.querySelector('.fight-ko')`)) { await sleep(300); await screenshot('lose-ko'); await layout('lose K.O.'); await notWhite('lose K.O.'); await sleepCheck('lose K.O.', 'me'); await sleep(2500); }
         }
         await waitFor(`!!document.querySelector('.duel-result')`, 'result', 20000);
         await sleep(1200);
@@ -887,6 +897,8 @@ try {
         console.log('result:', await evaluate(info));
         await screenshot('lose-result');
         await headBar('lose result');
+        await notWhite('lose result');
+        await sleepCheck('lose result', 'me');
         await layout('lose result');
         await evaluate(`[...document.querySelectorAll('.duel-result button')].find(b => b.innerText.includes('Back'))?.click()`);
         await sleep(1200);
@@ -1048,6 +1060,7 @@ try {
       await screenshot('match-ko');
       await layout(`K.O.`);
       await notWhite('at K.O.!');
+      await sleepCheck('win K.O.', 'them');
       await waitFor(`!!document.querySelector('.duel-result')`, 'result', 10000);
       await sleep(600);
       console.log('result:', await evaluate(info));
@@ -1056,6 +1069,7 @@ try {
       await headBar('result');
       await layout(`result`);
       await notWhite('at the result');
+      await sleepCheck('win result', 'them');
       console.log('result panel:', await evaluate(box('.duel-actions')));
     });
     await step('back: Recent duels in the Arena window', async () => {
