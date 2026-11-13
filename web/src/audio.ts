@@ -506,7 +506,7 @@ export function playFishing(kind: FishingSound): void {
   if (!prefs.sfx || !ctx || !sfxGain) return;
   wakeAudio();
   const c = ctx;
-  const out = sfxGain;
+  const out = fishingFx(c, sfxGain);
   const t = c.currentTime + 0.01;
   const tone = (type: OscillatorType, f0: number, f1: number, at: number, dur: number, vol: number) => {
     const o = c.createOscillator();
@@ -746,6 +746,26 @@ function logPond(kind: string, vol: number): void {
   if (w.__pondLog.length > 2000) w.__pondLog.splice(0, 500);
 }
 
+/**
+ * Pond loudness (Ardian 2026-11-13: no jump in loudness going in and out of the pond). Measured in the
+ * browser (RMS of everything played): Tandur's music at its volume ~0.046; the pond's sounds were
+ * ~0.013 and the fishing effects ~0.012-0.024, so the pond felt much quieter than the garden. Both are
+ * now raised to about the music's level (pond ~0.04, cast / reel effects ~0.04).
+ */
+const POND_LEVEL = 2.4;
+const FISHING_FX_LEVEL = 1.8;
+let fishingOut: { c: AudioContext; g: GainNode } | null = null;
+/** The fishing effects' own volume step, on top of the effects switch. */
+function fishingFx(c: AudioContext, sfx: GainNode): GainNode {
+  if (fishingOut?.c !== c) {
+    const g = c.createGain();
+    g.gain.value = FISHING_FX_LEVEL;
+    g.connect(sfx);
+    fishingOut = { c, g };
+  }
+  return fishingOut.g;
+}
+
 let pondWanted: PondSoundMix | null = null;
 let pondPlaying: { key: string; out: GainNode; stops: AudioScheduledSourceNode[]; timer: number } | null = null;
 let noiseBuf: AudioBuffer | null = null;
@@ -785,7 +805,7 @@ function syncPond(): void {
   wakeAudio();
   const out = c.createGain();
   out.gain.setValueAtTime(0, c.currentTime);
-  out.gain.linearRampToValueAtTime(0.6, c.currentTime + 1.2);
+  out.gain.linearRampToValueAtTime(POND_LEVEL, c.currentTime + 1.2);
   out.connect(sfxGain);
   if (import.meta.env.DEV) {
     const an = c.createAnalyser();
