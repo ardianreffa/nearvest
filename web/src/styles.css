@@ -9828,9 +9828,18 @@ html.page-locked body {
   left: 0;
   right: 0;
   bottom: 0;
-  height: calc(var(--art-bottom) + var(--strip));
+  /* --rise: grass strips above the lawn row, shown beside the art (backdrop.tsx sideRise). */
+  --rise-h: calc((var(--bush-row) - var(--lawn-row)) * var(--k) * 1px);
+  --hedge-h: calc((var(--art-h) - var(--bush-row)) * var(--k) * 1px);
+  height: calc(var(--art-bottom) + var(--strip) + var(--rise, 0) * var(--rise-h) + min(var(--rise, 0), 1) * var(--hedge-h));
   overflow: hidden;
   pointer-events: none;
+}
+
+/* A rise strip: the art's plain grass rows (lawn row .. bush row), repeated sideways. */
+.bg-lawn .ground-layer i.rise {
+  height: var(--rise-h);
+  background-position: var(--art-left) calc(var(--lawn-row) * var(--k) * -1px);
 }
 
 .bg-lawn .ground-layer {

@@ -166,6 +166,13 @@ export function Backdrop({
   };
   // The 240x135 sky (sun, moon, clouds, birds, stars) keeps its shape: on the upright phone
   // village it is drawn in a box from the top of the visible scene.
+  // Laptops whose window is wider than the village (short, wide windows): no blurred copy beside
+  // the art. The lawn rises there to the art's lowest sky row instead (strips of its plain grass
+  // rows lawnRow..bushRow), and the code sky fills the rest. 0 = this village has no lawn rows.
+  const sideRise =
+    groundWide && v.lawnRow !== undefined && v.bushRow !== undefined && v.skyBottom !== undefined
+      ? Math.max(0, Math.ceil((v.lawnRow - v.skyBottom) / (v.bushRow - v.lawnRow)))
+      : 0;
   const skyH = (v.w * 135) / 240;
   const skyBox = v.h > v.w ? at(0, skyTop ?? v.h - skyH * 1.6, v.w, skyH) : at(0, 0, v.w, v.h);
 
@@ -173,7 +180,7 @@ export function Backdrop({
     <div class={`backdrop village-${v.key} wx-look-${weather}`} style={vars} aria-hidden={onPlace ? undefined : 'true'}>
       {/* v2: the sky's colour bands fill the whole scene, so the art (whose sky is transparent) never shows a seam. */}
       {v2 && <SkyBands hour={hour} />}
-      {blurFill && (
+      {blurFill && !sideRise && (
         // Full-window layout: whatever the sharp art does not cover shows a blurred copy of it.
         // Villages with a see-through sky (v2, v3): the blurred copy only shows below the art's sky
         // (`skyBottom`), fading in over 6 rows of solid art, so it never appears behind the sky.
@@ -190,10 +197,18 @@ export function Backdrop({
       {groundWide && (
         <div
           class="bg-lawn"
-          style={{ '--art-w': String(v.w), '--art-h': String(v.h), '--lawn-row': String(v.lawnRow ?? v.h - 30), '--bush-row': String(v.bushRow ?? v.h - 15) }}
+          style={{ '--art-w': String(v.w), '--art-h': String(v.h), '--lawn-row': String(v.lawnRow ?? v.h - 30), '--bush-row': String(v.bushRow ?? v.h - 15), '--rise': String(sideRise) }}
         >
           {(['day', 'dusk', 'night'] as const).map((light) => (
             <div key={light} class={`ground-layer ground-${light}`}>
+              {/* Beside the art (a window wider than the village): the lawn rises to the village's
+                  horizon in strips of the art's own plain grass rows, a row of its bottom bushes as a
+                  hedge on the horizon, and the code sky above it.
+                  The art covers the middle of these strips; only the sides show. */}
+              {sideRise > 0 && <i class="bush hedge" style={{ backgroundImage: `url(${src(light)})` }} />}
+              {Array.from({ length: sideRise }, (_, i) => (
+                <i key={`rise-${i}`} class="rise" style={{ backgroundImage: `url(${src(light)})` }} />
+              ))}
               {/* First strip: grass + bushes, level with the art. Below the art: bushes only. */}
               {/* Each bush strip is shifted sideways by its own amount (whole art pixels, never
                   flipped), so the same rocks and flowers no longer stack in a column (Ardian 2026-11-13). */}
