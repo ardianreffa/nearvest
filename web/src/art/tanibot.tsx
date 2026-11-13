@@ -312,6 +312,5 @@ export function Drone({ scale = 2, class: className = '', shadow = 0, children }
   );
 }
 
-export const BASKET = ['k.......k', 'kHhHhHhHk', 'kHhHhHhHk', '.kHhHhHk.', '..kkkkk..'];
 
 export const HOE = ['....cc', '...cmc', '..kk..', '.kk...', 'kk....'];

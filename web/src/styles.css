@@ -1061,25 +1061,6 @@ button {
   display: block;
 }
 
-.basket {
-  position: absolute;
-  /* Beside TaniBot on the side of the harvested tree (never under its feet), feet on the ground. */
-  left: calc(50% - var(--bot-w) * 0.55);
-  bottom: 0;
-  z-index: 2;
-  pointer-events: none;
-  transform: translateX(-50%);
-  /* 2026-11-12 (Ardian saw a small woven box left under TaniBot): the basket always goes away by
-     itself after the harvest show, even if the scene's state lingers. */
-  animation:
-    pop-in 0.25s steps(2),
-    fx-gone 0.3s ease-in 1.6s forwards;
-}
-
-.basket.side-right {
-  left: calc(50% + var(--bot-w) * 0.55);
-}
-
 @keyframes fx-gone {
   to {
     opacity: 0;
@@ -1217,14 +1198,6 @@ button {
   bottom: 36%;
   background: repeating-linear-gradient(90deg, rgba(0, 236, 151, 0.8) 0 3px, transparent 3px 7px);
   box-shadow: 0 0 10px var(--mint-500);
-}
-
-.act-harvest .jump-fruit {
-  position: absolute;
-  left: var(--to);
-  bottom: 42%;
-  animation: fruit-jump 0.8s ease-in forwards;
-  opacity: 0;
 }
 
 .act-fertilize .nano {
@@ -2268,6 +2241,23 @@ input:focus-visible {
   opacity: 0;
 }
 
+/* Harvest: the fruit flies from the tree into the Storage icon / tab (fx.tsx fruitsToStorage; no
+   basket any more). It ends invisible, and the effects layer removes it by a timer. */
+.fx-fruit {
+  position: absolute;
+  line-height: 0;
+  translate: -50% -50%;
+  opacity: 0;
+  animation: fruit-fly 0.8s cubic-bezier(0.5, 0, 0.6, 1) both;
+}
+
+@keyframes fruit-fly {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  30% { opacity: 1; transform: translate(calc(var(--dx) * 0.08), -36px) scale(1.15); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.6); }
+}
+
 .fx-fire {
   position: absolute;
   margin: -32px 0 0 -16px;
@@ -2348,14 +2338,6 @@ input:focus-visible {
   0% { opacity: 0; }
   20%, 80% { opacity: 1; }
   100% { opacity: 0; }
-}
-
-@keyframes fruit-jump {
-  0% { opacity: 1; left: var(--to); transform: translateY(0); }
-  45% { transform: translateY(-34px); }
-  /* Lands in the basket beside TaniBot (--land) and is gone: no fruit is left on the ground. */
-  88% { opacity: 1; }
-  100% { opacity: 0; left: calc(var(--from) + var(--land, 0px)); transform: translateY(46px); }
 }
 
 @keyframes rise {

@@ -3,17 +3,18 @@
 // (transform/opacity only) so they stay smooth on phones.
 
 import { useEffect, useState } from 'preact/hooks';
-import { Sprite } from './sprites';
+import { Sprite, type SpriteName } from './sprites';
 import { PanenCoin } from './art/panen-coin';
 
 type Effect =
   | { id: number; kind: 'text'; x: number; y: number; text: string; tone: 'gold' | 'mint' | 'burn' | 'xp' }
   | { id: number; kind: 'coin'; x: number; y: number; dx: number; dy: number; delay: number }
+  | { id: number; kind: 'fruit'; x: number; y: number; dx: number; dy: number; delay: number; sprite: SpriteName; scale: number }
   | { id: number; kind: 'fire'; x: number; y: number }
   | { id: number; kind: 'leaf'; x: number; y: number; dx: number; dy: number; rot: number; delay: number }
   | { id: number; kind: 'confetti'; x: number; dx: number; color: string; delay: number; rot: number };
 
-const LIFETIME: Record<Effect['kind'], number> = { text: 1400, coin: 1100, fire: 1000, leaf: 1100, confetti: 2400 };
+const LIFETIME: Record<Effect['kind'], number> = { text: 1400, coin: 1100, fruit: 1000, fire: 1000, leaf: 1100, confetti: 2400 };
 
 let nextId = 1;
 const listeners = new Set<(e: Effect[]) => void>();
@@ -51,6 +52,34 @@ export function coinsToBalance(count = 6, x = pointer.x, y = pointer.y) {
       dy: ty - y,
       delay: i * 60,
     })),
+  );
+}
+
+/** Where harvested fruit goes: the Storage tab (phones), the Storage drawer tab or rail icon (laptops). */
+function storageTarget(): DOMRect | null {
+  for (const sel of ['.tabs .tab-storage .tab-icon', '.side-tabs .tab-storage', '.rail-storage']) {
+    const r = document.querySelector(sel)?.getBoundingClientRect();
+    if (r && r.width > 0 && r.height > 0) return r;
+  }
+  return null;
+}
+
+/**
+ * Harvest: the fruit jumps off the tree and flies into the Storage icon / tab (Ardian 2026-11-13: no
+ * basket any more; it stayed behind at the tree's foot on iPhone). Lives in the effects layer, which
+ * removes each element by a timer, and the flight ends invisible, so nothing is ever left in the garden.
+ * No Storage icon on screen: the fruit rises a little and fades. Reduced motion: none.
+ */
+export function fruitsToStorage(sprite: SpriteName, x: number, y: number, count = 3, scale = 2) {
+  if (reduced()) return;
+  const t = storageTarget();
+  const tx = t ? t.left + t.width / 2 : x;
+  const ty = t ? t.top + t.height / 2 : y - 70;
+  emit(
+    Array.from({ length: Math.min(count, 5) }, (_, i) => {
+      const sx = x + (i - (count - 1) / 2) * 12;
+      return { id: nextId++, kind: 'fruit' as const, x: sx, y, dx: tx - sx, dy: ty - y, delay: 200 + i * 110, sprite, scale };
+    }),
   );
 }
 
@@ -123,6 +152,16 @@ export function FxLayer() {
                 style={{ left: e.x, top: e.y, '--dx': `${e.dx}px`, '--dy': `${e.dy}px`, animationDelay: `${e.delay}ms` }}
               >
                 <PanenCoin scale={1} />
+              </span>
+            );
+          case 'fruit':
+            return (
+              <span
+                key={e.id}
+                class="fx-fruit"
+                style={{ left: e.x, top: e.y, '--dx': `${e.dx}px`, '--dy': `${e.dy}px`, animationDelay: `${e.delay}ms` }}
+              >
+                <Sprite name={e.sprite} scale={e.scale} />
               </span>
             );
           case 'fire':

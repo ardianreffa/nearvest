@@ -5,9 +5,9 @@ import { loadToken, type GameState, type TreeView } from './api';
 import { Backdrop, lockedFraction, phaseOf } from './art/backdrop';
 import type { Place } from './art/hotspots';
 import { playSound } from './audio';
-import { BASKET, BotDrones, Drone, droneCount, HOE, TaniBot, TANIBOT_H, TANIBOT_W, tierOf, tierRank, type Tier } from './art/tanibot';
+import { BotDrones, Drone, droneCount, HOE, TaniBot, TANIBOT_H, TANIBOT_W, tierOf, tierRank, type Tier } from './art/tanibot';
 import { TreePixels, treeTopRow } from './art/trees';
-import { leafBurst } from './fx';
+import { fruitsToStorage, leafBurst } from './fx';
 import { Pixels, Sprite } from './sprites';
 import { formatDuration } from './ui';
 import { lookOf } from './weather';
@@ -373,13 +373,6 @@ export function GardenScene({ state, selected, onSelect, elapsed, fx, big, immer
             {on ? 'ON' : 'OFF'}
           </span>
         )}
-        {/* The harvest basket stands BESIDE TaniBot, on the side of the tree it harvests (never under
-            its feet: Ardian 2026-11-13, it read as dirt), and is gone when the show ends. */}
-        {fx?.kind === 'harvest' && !visit && (
-          <div class={`basket ${fxSide < 0 ? 'side-left' : 'side-right'}`} key={fx.id}>
-            <Pixels rows={BASKET} palette={{ H: '#9A7438', h: '#C9A35A' }} scale={px} />
-          </div>
-        )}
       </div>
       )}
 
@@ -510,8 +503,7 @@ function WaterDrone({ fx, from, to, droneScale, lend }: { fx: SceneFx; from: num
 }
 
 function ActionEffect({ fx, from, to, side, botW, tier, px, droneScale, lend }: { fx: SceneFx; from: number; to: number; side: number; botW: number; tier: Tier; px: number; droneScale: number; lend: boolean }) {
-  // --land: the harvested fruit drops into the basket beside TaniBot (.basket.side-left/right).
-  const vars = { '--from': `${from}%`, '--to': `${to}%`, '--land': `${Math.round(side * botW * 0.55)}px` };
+  const vars = { '--from': `${from}%`, '--to': `${to}%` };
   const left = Math.min(from, to);
   const width = Math.abs(from - to);
 
@@ -535,18 +527,16 @@ function ActionEffect({ fx, from, to, side, botW, tier, px, droneScale, lend }: 
             if (!el || el.dataset.done) return;
             el.dataset.done = '1';
             const r = el.parentElement!.getBoundingClientRect();
-            leafBurst(r.left + (r.width * to) / 100, r.top + r.height * 0.45, 12);
+            const x = r.left + (r.width * to) / 100;
+            leafBurst(x, r.top + r.height * 0.45, 12);
+            // No basket (Ardian 2026-11-13: on iPhone it stayed at the tree's foot): the fruit flies
+            // from the tree into the Storage icon / tab, in the effects layer (removed by a timer).
+            if (fx.tree) fruitsToStorage(FRUIT_SPRITE[fx.tree.species], x, r.top + r.height * 0.55, 3, Math.max(2, px));
           }}
         >
           <span class="laser" style={{ left: `${left}%`, width: `${width}%` }} />
           {tier === 'durian_king' &&
             [0, 1, 2, 3].map((i) => <i key={`c${i}`} class="king-coin" style={{ left: `calc(${to}% + ${i * 9 - 14}px)`, animationDelay: `${450 + i * 110}ms` }} />)}
-          {fx.tree &&
-            [0, 1, 2].map((i) => (
-              <span key={i} class="jump-fruit" style={{ animationDelay: `${250 + i * 120}ms` }}>
-                <Sprite name={FRUIT_SPRITE[fx.tree!.species]} scale={px} />
-              </span>
-            ))}
         </div>
       );
     case 'fertilize':
